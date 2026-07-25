@@ -216,6 +216,8 @@ function FinalOutput({ result, copied, onCopy }: { result: ParseResult | null; c
 export function WorkbenchView() {
   const [inputMode, setInputMode] = useState<InputMode>('hl7');
   const [rawInput, setRawInput] = useState(HL7_SAMPLE);
+  const [drugName, setDrugName] = useState("");
+  const [defaultSig, setDefaultSig] = useState("");
   const [result, setResult] = useState<ParseResult | null>(null);
   const [dictionary, setDictionary] = useState<SigDictionaryEntry[]>([]);
   const [techRules, setTechRules] = useState<TechRule[]>([]);
@@ -223,6 +225,8 @@ export function WorkbenchView() {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const debouncedInput = useDebounce(rawInput, 300);
+  const debouncedDrugName = useDebounce(drugName, 300);
+  const debouncedDefaultSig = useDebounce(defaultSig, 300);
   const runCount = useRef(0);
   const resultRef = useRef<ParseResult | null>(null);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -250,10 +254,10 @@ export function WorkbenchView() {
       return;
     }
     runCount.current += 1;
-    const parsed = runParser(debouncedInput, inputMode, dictionary, techRules, expansions);
+    const parsed = runParser(debouncedInput, inputMode, dictionary, techRules, expansions, debouncedDrugName, debouncedDefaultSig);
     setResult(parsed);
     resultRef.current = parsed;
-  }, [debouncedInput, inputMode, dictionary, techRules, expansions, loading]);
+  }, [debouncedInput, debouncedDrugName, debouncedDefaultSig, inputMode, dictionary, techRules, expansions, loading]);
 
   const handleCopy = useCallback(async (silent = false) => {
     const current = resultRef.current;
@@ -334,6 +338,22 @@ export function WorkbenchView() {
       <div className="flex-1 grid md:grid-cols-2 grid-cols-1 min-h-0">
         {/* Left — Input */}
         <div className="flex flex-col md:border-r border-r-0 border-b md:border-b-0 border-border min-h-0">
+          <div className="flex flex-col gap-2 p-4 border-b border-border bg-card/10">
+            <input
+              type="text"
+              placeholder="Drug Name (Optional)"
+              value={drugName}
+              onChange={(e) => setDrugName(e.target.value)}
+              className="px-3 py-1.5 text-sm bg-transparent border border-border rounded outline-none focus:border-primary/50"
+            />
+            <input
+              type="text"
+              placeholder="Default SIG (Optional)"
+              value={defaultSig}
+              onChange={(e) => setDefaultSig(e.target.value)}
+              className="px-3 py-1.5 text-sm bg-transparent border border-border rounded outline-none focus:border-primary/50"
+            />
+          </div>
           <div className="px-4 py-2.5 border-b border-border flex items-center gap-2 bg-card/20 flex-shrink-0">
             <div className="w-2 h-2 rounded-full bg-primary" />
             <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">

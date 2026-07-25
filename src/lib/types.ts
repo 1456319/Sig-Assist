@@ -71,6 +71,8 @@ export interface ResolvedToken {
 }
 
 export interface ParseResult {
+  drugName?: string;
+  defaultSig?: string;
   inputMode: InputMode;
   rawInput: string;
   hl7Extraction?: Hl7ExtractionResult;
