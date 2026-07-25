@@ -216,6 +216,10 @@ function FinalOutput({ result, copied, onCopy }: { result: ParseResult | null; c
 export function WorkbenchView() {
   const [inputMode, setInputMode] = useState<InputMode>('hl7');
   const [rawInput, setRawInput] = useState(HL7_SAMPLE);
+  const [drugName, setDrugName] = useState('');
+  const [defaultSig, setDefaultSig] = useState('');
+  const debouncedDrugName = useDebounce(drugName, 300);
+  const debouncedDefaultSig = useDebounce(defaultSig, 300);
   const [result, setResult] = useState<ParseResult | null>(null);
   const [dictionary, setDictionary] = useState<SigDictionaryEntry[]>([]);
   const [techRules, setTechRules] = useState<TechRule[]>([]);
@@ -234,7 +238,7 @@ export function WorkbenchView() {
         setDictionary(dict);
         setTechRules(rules);
         setExpansions(exps);
-      } catch (err) {
+      } catch {
         toast.error('Failed to load dictionary or rules');
       } finally {
         setLoading(false);
@@ -250,10 +254,10 @@ export function WorkbenchView() {
       return;
     }
     runCount.current += 1;
-    const parsed = runParser(debouncedInput, inputMode, dictionary, techRules, expansions);
+    const parsed = runParser(debouncedInput, inputMode, dictionary, techRules, expansions, debouncedDrugName, debouncedDefaultSig);
     setResult(parsed);
     resultRef.current = parsed;
-  }, [debouncedInput, inputMode, dictionary, techRules, expansions, loading]);
+  }, [debouncedInput, debouncedDrugName, debouncedDefaultSig, inputMode, dictionary, techRules, expansions, loading]);
 
   const handleCopy = useCallback(async (silent = false) => {
     const current = resultRef.current;
@@ -334,11 +338,31 @@ export function WorkbenchView() {
       <div className="flex-1 grid md:grid-cols-2 grid-cols-1 min-h-0">
         {/* Left — Input */}
         <div className="flex flex-col md:border-r border-r-0 border-b md:border-b-0 border-border min-h-0">
-          <div className="px-4 py-2.5 border-b border-border flex items-center gap-2 bg-card/20 flex-shrink-0">
-            <div className="w-2 h-2 rounded-full bg-primary" />
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {inputMode === 'hl7' ? 'Raw HL7 Input' : 'Free Text SIG Input'}
-            </span>
+          <div className="px-4 py-2 border-b border-border flex flex-col gap-2 bg-card/20 flex-shrink-0">
+             <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-primary" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {inputMode === 'hl7' ? 'Raw HL7 Input' : 'Free Text SIG Input'}
+                </span>
+             </div>
+             {inputMode === 'freetext' && (
+             <div className="grid grid-cols-2 gap-2">
+                 <input
+                     value={drugName}
+                     onChange={(e) => setDrugName(e.target.value)}
+                     placeholder="Drug Name (Optional)"
+                     className="px-2 py-1.5 bg-background border border-border rounded text-xs text-foreground placeholder-muted-foreground/50 outline-none focus:border-primary/50"
+                     spellCheck={false}
+                 />
+                 <input
+                     value={defaultSig}
+                     onChange={(e) => setDefaultSig(e.target.value)}
+                     placeholder="Default SIG (Optional)"
+                     className="px-2 py-1.5 bg-background border border-border rounded text-xs text-foreground placeholder-muted-foreground/50 outline-none focus:border-primary/50"
+                     spellCheck={false}
+                 />
+             </div>
+             )}
           </div>
           <textarea
             value={rawInput}

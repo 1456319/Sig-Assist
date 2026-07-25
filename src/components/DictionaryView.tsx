@@ -250,7 +250,7 @@ export function DictionaryView() {
       const count = await bulkImportSigEntries(arr);
       toast.success(`Imported ${count} entries`);
       await load();
-    } catch (err) {
+    } catch {
       toast.error('Bulk import failed — ensure valid JSON array');
     } finally {
       setBulkImporting(false);

@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import { Download, Trash2, RefreshCw, Database, Shield, BookOpen, Wand2 } from 'lucide-react';
 import { fetchAllSigEntries, deleteSigEntry, fetchAllSigEntries as fetchAll } from '../lib/sigDictionaryService';
 import { fetchAllTechRules, deleteTechRule } from '../lib/techRulesService';
-import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 
 function StatCard({ icon: Icon, label, value, color }: {

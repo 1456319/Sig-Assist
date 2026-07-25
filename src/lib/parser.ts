@@ -1,3 +1,4 @@
+import { processAdvancedRules } from './advancedParser';
 import type {
   SigDictionaryEntry,
   TechRule,
@@ -248,7 +249,9 @@ export function runParser(
   inputMode: InputMode,
   dictionary: SigDictionaryEntry[],
   techRules: TechRule[],
-  expansions: SigExpansion[] = []
+  expansions: SigExpansion[] = [],
+  drugName: string = '',
+  defaultSig: string = ''
 ): ParseResult {
   const steps: TraceStep[] = [];
   let workingText = rawInput.trim();
@@ -269,14 +272,19 @@ export function runParser(
         : [`Extracted from segment ${hl7Extraction.segment}, field ${hl7Extraction.fieldIndex}`],
     });
   } else {
+    // Advanced Parsing (Drug logic, sliding scales, default sig blending)
+    const { output: advancedOutput, warnings: advancedWarnings } = processAdvancedRules(drugName, rawInput, defaultSig);
+
     steps.push({
       step: 1,
-      label: 'Raw Input',
+      label: 'Advanced Rule Processor',
       input: rawInput,
-      output: workingText,
-      warnings: [],
-      rulesApplied: ['Free-text mode — using raw input directly'],
+      output: advancedOutput,
+      warnings: advancedWarnings,
+      rulesApplied: ['Applied advanced formatting, gaps, and math logic'],
     });
+
+    workingText = advancedOutput;
   }
 
   // Normalization folds into step 1 trace
