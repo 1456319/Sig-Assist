@@ -222,6 +222,7 @@ export function WorkbenchView() {
   const [expansions, setExpansions] = useState<SigExpansion[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [autoCopyUnsafe, setAutoCopyUnsafe] = useState(() => localStorage.getItem('sig-assist:auto-copy-unsafe') === 'true');
   
   const [drugName, setDrugName] = useState('Lactulose 10 GM/15ML');
   const [defaultSig, setDefaultSig] = useState('');
@@ -277,10 +278,14 @@ export function WorkbenchView() {
   }, []);
 
   useEffect(() => {
-    const onBlur = () => handleCopy(true);
-    window.addEventListener('blur', onBlur);
-    return () => window.removeEventListener('blur', onBlur);
-  }, [handleCopy]);
+    localStorage.setItem('sig-assist:auto-copy-unsafe', String(autoCopyUnsafe));
+  }, [autoCopyUnsafe]);
+
+  // Clipboard writes may be denied unless this runs inside a browser user gesture.
+  // Manual copy remains the reliable Citrix/browser fallback.
+  useEffect(() => {
+    if (autoCopyUnsafe && result?.hasHighRisk) void handleCopy(true);
+  }, [autoCopyUnsafe, result, handleCopy]);
 
   const handleModeChange = useCallback((mode: InputMode) => {
     setInputMode(mode);
@@ -324,6 +329,14 @@ export function WorkbenchView() {
           </span>
         )}
         <div className="ml-auto flex items-center gap-1.5">
+          <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-pointer">
+            <input
+              type="checkbox"
+              checked={autoCopyUnsafe}
+              onChange={(event) => setAutoCopyUnsafe(event.target.checked)}
+            />
+            Auto-copy flagged SIGs
+          </label>
           <span className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
             <Zap className="w-3 h-3 text-primary" />
             Live
