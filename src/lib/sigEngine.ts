@@ -1,3 +1,5 @@
+import { doseForSolidQuantity, doseForVolume, toMedicationUnit, volumeForDose } from './sigMath';
+
 /**
  * A structured foundation for free-text SIG translation. Extraction, safety
  * validation, and rendering are deliberately independent stages.
@@ -30,7 +32,7 @@ export function normalizeSigText(raw: string): string {
   return result;
 }
 
-function unit(value: string): Concentration['unit'] { return value.toLowerCase() === 'g' ? 'GM' : value.toLowerCase() === 'u' ? 'UN' : value.toUpperCase() as Concentration['unit']; }
+function unit(value: string): Concentration['unit'] { return toMedicationUnit(value) ?? 'MG'; }
 function drugStrength(drug: string): Concentration | undefined {
   const concentration = drug.match(/(\d+(?:\.\d+)?)\s*(mg|mcg|gm|g|u)\s*\/\s*(\d+(?:\.\d+)?)\s*ml/i);
   if (concentration) return { amount: Number(concentration[1]), unit: unit(concentration[2]), volumeMl: Number(concentration[3]) };
@@ -43,10 +45,13 @@ function parseDose(text: string, strength?: Concentration): Dose | undefined {
   const quantity = match[1].includes('/') ? Number(match[1].split('/')[0]) / Number(match[1].split('/')[1]) : Number(match[1]);
   const label = match[2].toLowerCase();
   const doseUnit: DoseUnit = label.startsWith('tablet') ? 'tablet' : label.startsWith('capsule') ? 'capsule' : label.startsWith('packet') ? 'packet' : label.startsWith('mill') || label === 'ml' ? 'ml' : label === 'mg' ? 'mg' : label === 'mcg' ? 'mcg' : label.startsWith('gram') || label === 'gm' ? 'gm' : label.startsWith('unit') ? 'unit' : 'patch';
-  if (strength?.volumeMl && (doseUnit === 'mg' || doseUnit === 'mcg') && strength.unit === doseUnit.toUpperCase()) {
-    return { quantity: quantity * strength.volumeMl / strength.amount, unit: 'ml', calculatedAmount: { amount: quantity, unit: strength.unit } };
+  const requestedUnit = doseUnit === 'mg' ? 'MG' : doseUnit === 'mcg' ? 'MCG' : doseUnit === 'gm' ? 'GM' : undefined;
+  if (strength?.volumeMl && requestedUnit) {
+    const concentration = { ...strength, volumeMl: strength.volumeMl };
+    const volume = volumeForDose({ amount: quantity, unit: requestedUnit }, concentration);
+    if (volume !== undefined) return { quantity: volume, unit: 'ml', calculatedAmount: { amount: quantity, unit: requestedUnit } };
   }
-  const calculatedAmount = strength?.volumeMl && doseUnit === 'ml' ? { amount: quantity * strength.amount / strength.volumeMl, unit: strength.unit } : strength && !strength.volumeMl && (doseUnit === 'tablet' || doseUnit === 'capsule') && quantity !== 1 ? { amount: quantity * strength.amount, unit: strength.unit } : undefined;
+  const calculatedAmount = strength?.volumeMl && doseUnit === 'ml' ? doseForVolume(quantity, { ...strength, volumeMl: strength.volumeMl }) : strength && !strength.volumeMl && (doseUnit === 'tablet' || doseUnit === 'capsule') && quantity !== 1 ? doseForSolidQuantity(quantity, strength) : undefined;
   return { quantity, unit: doseUnit, calculatedAmount };
 }
 function route(text: string): Route | undefined {
