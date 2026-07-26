@@ -8,6 +8,8 @@ import type {
   ResolvedToken,
   ParseResult,
 } from './types';
+import { translateFreeTextSig } from './sigEngine';
+
 
 // ── HL7 Field Extraction ──────────────────────────────────────────────────────
 
@@ -248,11 +250,50 @@ export function runParser(
   inputMode: InputMode,
   dictionary: SigDictionaryEntry[],
   techRules: TechRule[],
-  expansions: SigExpansion[] = []
+  expansions: SigExpansion[] = [],
+  drugName: string = '',
+  defaultSig: string = ''
 ): ParseResult {
   const steps: TraceStep[] = [];
   let workingText = rawInput.trim();
   let hl7Extraction: Hl7ExtractionResult | undefined;
+
+  if (inputMode === 'freetext') {
+    const { order, sig } = translateFreeTextSig(rawInput, { drug: drugName, defaultSig });
+    const warnings = order.issues.map(i => `${i.severity.toUpperCase()}: ${i.message}`);
+    
+    steps.push({
+      step: 1,
+      label: 'sigEngine Algorithmic Translation',
+      input: rawInput,
+      output: sig,
+      warnings,
+      rulesApplied: ['Parsed using new sigEngine rules']
+    });
+
+    const hasHighRisk = order.issues.some(i => i.severity === 'blocking');
+    const highRiskMsg = order.issues.find(i => i.severity === 'blocking')?.message || '';
+
+    const resolvedTokens = sig.split(' ').map(t => ({
+      token: t,
+      translation: t,
+      isHighRisk: hasHighRisk,
+      highRiskWarning: highRiskMsg,
+      wasRedirected: false,
+      unresolved: false
+    }));
+
+    return {
+      inputMode,
+      rawInput,
+      steps,
+      resolvedTokens,
+      finalSig: sig,
+      hasHighRisk,
+      hasUnresolved: false,
+      sigEngineOrder: order,
+    };
+  }
 
   // Step 1 — HL7 Extraction or Raw Input
   if (inputMode === 'hl7') {

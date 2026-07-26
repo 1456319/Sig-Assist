@@ -222,7 +222,14 @@ export function WorkbenchView() {
   const [expansions, setExpansions] = useState<SigExpansion[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  
+  const [drugName, setDrugName] = useState('Lactulose 10 GM/15ML');
+  const [defaultSig, setDefaultSig] = useState('');
+  
   const debouncedInput = useDebounce(rawInput, 300);
+  const debouncedDrug = useDebounce(drugName, 300);
+  const debouncedDefaultSig = useDebounce(defaultSig, 300);
+  
   const runCount = useRef(0);
   const resultRef = useRef<ParseResult | null>(null);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -250,10 +257,10 @@ export function WorkbenchView() {
       return;
     }
     runCount.current += 1;
-    const parsed = runParser(debouncedInput, inputMode, dictionary, techRules, expansions);
+    const parsed = runParser(debouncedInput, inputMode, dictionary, techRules, expansions, debouncedDrug, debouncedDefaultSig);
     setResult(parsed);
     resultRef.current = parsed;
-  }, [debouncedInput, inputMode, dictionary, techRules, expansions, loading]);
+  }, [debouncedInput, inputMode, dictionary, techRules, expansions, loading, debouncedDrug, debouncedDefaultSig]);
 
   const handleCopy = useCallback(async (silent = false) => {
     const current = resultRef.current;
@@ -340,6 +347,32 @@ export function WorkbenchView() {
               {inputMode === 'hl7' ? 'Raw HL7 Input' : 'Free Text SIG Input'}
             </span>
           </div>
+
+          {inputMode === 'freetext' && (
+            <div className="px-4 py-3 border-b border-border bg-card/10 space-y-3 flex-shrink-0">
+              <div>
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Drug Name</label>
+                <input
+                  type="text"
+                  value={drugName}
+                  onChange={(e) => setDrugName(e.target.value)}
+                  className="w-full bg-background border border-border rounded px-3 py-1.5 text-sm outline-none focus:border-primary"
+                  placeholder="e.g. Lisinopril 10mg"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Default SIG (Optional)</label>
+                <input
+                  type="text"
+                  value={defaultSig}
+                  onChange={(e) => setDefaultSig(e.target.value)}
+                  className="w-full bg-background border border-border rounded px-3 py-1.5 text-sm outline-none focus:border-primary"
+                  placeholder="e.g. Take 1 tablet daily"
+                />
+              </div>
+            </div>
+          )}
+
           <textarea
             value={rawInput}
             onChange={(e) => setRawInput(e.target.value)}
