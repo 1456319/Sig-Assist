@@ -1,4 +1,5 @@
 import { doseForSolidQuantity, doseForVolume, toMedicationUnit, volumeForDose } from './sigMath';
+import { isUnknownElementalCandidate } from './formulationEquivalences';
 
 /**
  * A structured foundation for free-text SIG translation. Extraction, safety
@@ -90,6 +91,8 @@ export function parseSigOrder(raw: string, options: SigParseOptions): ParsedSigO
   const hold = normalized.match(/hold\s+(?:if|for)\s+(?:sbp|systolic(?: blood pressure)?)\s+(?:less than|below)\s+(\d+).*?(?:heart rate|hr)\s+(?:less than|below)\s+(\d+)/i);
   if (hold) order.hold = { systolicBelow: Number(hold[1]), heartRateBelow: Number(hold[2]) };
   if (dateStripped) issues.push({ code: 'cut-date', severity: 'warning', message: 'A cut date was removed; verify it in the order date field.' });
+  if (isUnknownElementalCandidate(options.drug)) issues.push({ code: 'unknown-elemental-equivalent', severity: 'blocking', message: 'This strength may describe an elemental equivalent, but the compound/formulation could not be verified.' });
+  if (/\b(?:insulin|humalog|novolog|lantus)\b/i.test(options.drug) && /\b(?:ml|milliliter)\b/i.test(normalized)) issues.push({ code: 'insulin-volume-input', severity: 'blocking', message: 'Insulin was entered in mL. Verify the intended unit dose before use.' });
   if (slidingScale) validateScale(slidingScale, issues); else { if (!order.dose) issues.push({ code: 'missing-dose', severity: 'blocking', message: 'Could not identify a dose.' }); if (!order.route) issues.push({ code: 'missing-route', severity: 'warning', message: 'Could not identify a route.' }); if (!order.frequency) issues.push({ code: 'missing-frequency', severity: 'warning', message: 'Could not identify a frequency.' }); }
   return order;
 }
