@@ -11,7 +11,8 @@ import { runParser } from '../lib/parser';
 import type { SigDictionaryEntry, TechRule, SigExpansion, ParseResult, InputMode, TraceStep, ResolvedToken } from '../lib/types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { toast } from 'sonner';
-import { createTranslationDiagnostic, SessionDiagnosticSink } from '../lib/translationDiagnostics';
+import { createTranslationDiagnostic, SessionDiagnosticSink, toGitHubIssueDraft } from '../lib/translationDiagnostics';
+import type { TranslationDiagnostic } from '../lib/translationDiagnostics';
 
 const HL7_SAMPLE = `MSH|^~\\&|PHARMACY|HOSPITAL|EMR|SYSTEM|20240115120000||RXO^O01|MSG001|P|2.5
 PID|1||123456^^^HOSP^MR||DOE^JOHN^A||19650301|M|||123 MAIN ST^^ANYTOWN^ST^12345
@@ -224,6 +225,7 @@ export function WorkbenchView() {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [autoCopyUnsafe, setAutoCopyUnsafe] = useState(() => localStorage.getItem('sig-assist:auto-copy-unsafe') === 'true');
+  const [latestDiagnostic, setLatestDiagnostic] = useState<TranslationDiagnostic | null>(null);
   
   const [drugName, setDrugName] = useState('Lactulose 10 GM/15ML');
   const [defaultSig, setDefaultSig] = useState('');
@@ -295,15 +297,26 @@ export function WorkbenchView() {
     const key = `${result.rawInput}\n${result.finalSig}`;
     if (diagnosticKeysRef.current.has(key)) return;
     diagnosticKeysRef.current.add(key);
-    diagnosticSinkRef.current.record(createTranslationDiagnostic(
+    const event = createTranslationDiagnostic(
       result.hasHighRisk ? 'blocked' : 'unaccepted-output',
       'manual',
       result.rawInput,
       result.sigEngineOrder.drug,
       result.finalSig,
       result.sigEngineOrder,
-    ));
+    );
+    diagnosticSinkRef.current.record(event);
+    setLatestDiagnostic(event);
   }, [result]);
+
+  const openDiagnosticIssue = useCallback(() => {
+    if (!latestDiagnostic) return;
+    const draft = toGitHubIssueDraft(latestDiagnostic);
+    const url = new URL('https://github.com/1456319/Sig-Assist/issues/new');
+    url.searchParams.set('title', draft.title);
+    url.searchParams.set('body', draft.body);
+    window.open(url.toString(), '_blank', 'noopener,noreferrer');
+  }, [latestDiagnostic]);
 
   const handleModeChange = useCallback((mode: InputMode) => {
     setInputMode(mode);
@@ -355,6 +368,15 @@ export function WorkbenchView() {
             />
             Auto-copy flagged SIGs
           </label>
+          {latestDiagnostic && (
+            <button
+              onClick={openDiagnosticIssue}
+              className="text-[10px] text-amber-600 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded hover:bg-amber-500/10 transition-colors"
+              title="Opens a redacted GitHub issue draft; GitHub submission still requires user confirmation."
+            >
+              Report translation issue
+            </button>
+          )}
           <span className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
             <Zap className="w-3 h-3 text-primary" />
             Live

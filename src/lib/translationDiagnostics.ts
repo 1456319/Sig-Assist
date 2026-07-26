@@ -17,6 +17,8 @@ export interface TranslationDiagnostic {
 
 export interface TranslationDiagnosticSink { record(event: TranslationDiagnostic): void; }
 
+export interface GitHubIssueDraft { title: string; body: string; }
+
 export function redactDirections(value: string): string {
   return value
     .replace(/\b\d{2}\/\d{2}\/\d{2,4}\b/g, '[DATE]')
@@ -52,4 +54,24 @@ export class SessionDiagnosticSink implements TranslationDiagnosticSink {
   record(event: TranslationDiagnostic): void { this.events = [...this.events, event].slice(-this.maxEvents); }
   list(): readonly TranslationDiagnostic[] { return this.events; }
   clear(): void { this.events = []; }
+}
+
+/** Creates a redacted, user-confirmed GitHub issue draft. No token is needed in the app. */
+export function toGitHubIssueDraft(event: TranslationDiagnostic): GitHubIssueDraft {
+  return {
+    title: `[translation] ${event.kind}: ${event.drug || 'unknown medication'}`,
+    body: [
+      '## Automated redacted translation diagnostic',
+      '',
+      `- **Occurred:** ${event.occurredAt}`,
+      `- **Source:** ${event.source}`,
+      `- **Kind:** ${event.kind}`,
+      `- **Medication:** ${event.drug || '(not supplied)'}`,
+      `- **Output:** \`${event.output || '(empty)' }\``,
+      `- **Issue codes:** ${event.issueCodes.join(', ') || '(none)'}`,
+      `- **Redacted directions:** \`${event.redactedInput || '(empty)' }\``,
+      '',
+      '> This report intentionally excludes PON, patient identifiers, raw e-RX content, credentials, and certificates.',
+    ].join('\n'),
+  };
 }
