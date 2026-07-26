@@ -11,6 +11,7 @@ import { runParser } from '../lib/parser';
 import type { SigDictionaryEntry, TechRule, SigExpansion, ParseResult, InputMode, TraceStep, ResolvedToken } from '../lib/types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { toast } from 'sonner';
+import { createTranslationDiagnostic, SessionDiagnosticSink } from '../lib/translationDiagnostics';
 
 const HL7_SAMPLE = `MSH|^~\\&|PHARMACY|HOSPITAL|EMR|SYSTEM|20240115120000||RXO^O01|MSG001|P|2.5
 PID|1||123456^^^HOSP^MR||DOE^JOHN^A||19650301|M|||123 MAIN ST^^ANYTOWN^ST^12345
@@ -234,6 +235,8 @@ export function WorkbenchView() {
   const runCount = useRef(0);
   const resultRef = useRef<ParseResult | null>(null);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const diagnosticSinkRef = useRef(new SessionDiagnosticSink());
+  const diagnosticKeysRef = useRef(new Set<string>());
 
   useEffect(() => {
     async function load() {
@@ -286,6 +289,21 @@ export function WorkbenchView() {
   useEffect(() => {
     if (autoCopyUnsafe && result?.hasHighRisk) void handleCopy(true);
   }, [autoCopyUnsafe, result, handleCopy]);
+
+  useEffect(() => {
+    if (!result?.sigEngineOrder || (!result.hasHighRisk && !result.hasUnresolved)) return;
+    const key = `${result.rawInput}\n${result.finalSig}`;
+    if (diagnosticKeysRef.current.has(key)) return;
+    diagnosticKeysRef.current.add(key);
+    diagnosticSinkRef.current.record(createTranslationDiagnostic(
+      result.hasHighRisk ? 'blocked' : 'unaccepted-output',
+      'manual',
+      result.rawInput,
+      result.sigEngineOrder.drug,
+      result.finalSig,
+      result.sigEngineOrder,
+    ));
+  }, [result]);
 
   const handleModeChange = useCallback((mode: InputMode) => {
     setInputMode(mode);
