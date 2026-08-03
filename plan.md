@@ -1,0 +1,11 @@
+1. **Update UI for new inputs**: Add `drugName` and `defaultSig` input fields in `WorkbenchView.tsx` so users can provide drug context and default SIGs, which are essential for many of the rules.
+2. **Update Parser Signature**: Modify `runParser` in `src/lib/parser.ts` to accept `drugName` and `defaultSig`.
+3. **Implement Dates Stripping**: Add a regex step in `parser.ts` to strip exact date formats (e.g., `until MM/DD/YYYY HH:MM`) and produce a warning/flag for cut dates.
+4. **Implement APAP Rule**: Check if `drugName` contains 'APAP' or 'ACETAMINOPHEN'. If so, append `3GM` to the final sig.
+5. **Implement PRN/Duration Reordering Rule**: Identify duration (e.g., `X7D`, `FOR 14 DAYS`) and diagnosis (e.g., `FCOU`, `FOR GERD`). If `PRN` is present, format as `[DIAGNOSIS] [DURATION]`. If scheduled, format as `[DURATION] [DIAGNOSIS]`.
+6. **Implement Sliding Scale Parser**: Detect sliding scale patterns (`if X - Y = Z units`). Parse the parameters, order them numerically, standardize to `CBS AC SS`, format as `<70=...;181-200=1U;...`. Check for gaps in the numerical ranges and emit a warning if a gap exists. Convert `ml` to `U` for insulin.
+7. **Implement Dose Calculation & Parenthetical Logic**: Extract concentration from `drugName` (e.g., `25MCG`, `30MG/0.3ML`). If the quantity is not 1 tablet/capsule, calculate the actual dose. For single-ingredient drugs, append the target dose in parenthesis next to the quantity. For multiple-ingredient drugs or combinations, omit the parenthesis.
+8. **Implement Diclofenac Rule**: If drug is Diclofenac Gel 1%, check application areas. Lower body (legs, lower back) gets 4GM. Upper body gets 2GM. If not specified, default to 2GM.
+9. **Implement Default Sig Blending**: If a `defaultSig` is provided, parse the frequency from the user entry and inject it into the default sig (e.g., blending user's `BID` into the default `MIX 17 GM ...`).
+10. **Implement HTN Hold Parameters**: Parse string patterns like "HOLD FOR SBP LESS THAN X OR HEART RATE LESS THAN Y" into `HR[Y]SBP[X]`.
+11. **Refine Terminology/Substitutions**: Add pre-processing functions for translating standard terms (e.g., "Give" -> "ADM", "under the tongue" -> "SL") to ensure the programmatic rules can reliably catch the normalized tokens, or extend the tech rules in-code to handle these if they aren't strictly handled by the database.
