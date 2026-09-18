@@ -23,15 +23,15 @@ export interface CitrixStorageAdapter {
   writePreferences(prefs: TechnicianPreferences): Promise<void>;
 }
 
-const DEFAULT_PREFERENCES: TechnicianPreferences = {
+export const DEFAULT_PREFERENCES: TechnicianPreferences = {
   version: 1,
   drugCodeOverrides: {
     WARFARIN: 'COU',
-    COUMADIN: 'COU'
+    COUMADIN: 'COU',
   },
   defaultAdminTimes: {
-    COU: '1800'
-  }
+    COU: '1800',
+  },
 };
 
 class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
@@ -46,65 +46,130 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
   }
 
   async connectDirectory(): Promise<boolean> {
-    if (typeof window === 'undefined' || !(window as any).showDirectoryPicker) {
+    const win =
+      typeof window !== 'undefined'
+        ? window
+        : typeof globalThis !== 'undefined'
+          ? (globalThis as any)
+          : undefined;
+
+    if (!win || typeof win.showDirectoryPicker !== 'function') {
       return false;
     }
     try {
-      this.dirHandle = await (window as any).showDirectoryPicker();
+      this.dirHandle = await win.showDirectoryPicker();
       return true;
     } catch {
       return false;
     }
   }
 
-  async readQueue(): Promise<StoredQueueOrder[]> {
+  private async readFile<T>(filename: string): Promise<T | null> {
+    if (!this.dirHandle) return null;
+    try {
+      const fileHandle = await this.dirHandle.getFileHandle(filename);
+      const file = await fileHandle.getFile();
+      const text = await file.text();
+      return JSON.parse(text) as T;
+    } catch {
+      return null;
+    }
+  }
+
+  private async writeFile(filename: string, data: unknown): Promise<boolean> {
+    if (!this.dirHandle) return false;
+    try {
+      const fileHandle = await this.dirHandle.getFileHandle(filename, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(JSON.stringify(data, null, 2));
+      await writable.close();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private readLocalStorage<T>(key: string, fallback: T): T {
     if (typeof localStorage !== 'undefined') {
-      const data = localStorage.getItem('citrix_storage_queue');
-      if (data) {
-        try { return JSON.parse(data); } catch { return []; }
+      try {
+        const data = localStorage.getItem(key);
+        if (data) {
+          return JSON.parse(data) as T;
+        }
+      } catch {
+        return fallback;
       }
     }
-    return [];
+    return fallback;
+  }
+
+  private writeLocalStorage(key: string, value: unknown): void {
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+      } catch {
+        // guard against storage quota errors or restricted environments
+      }
+    }
+  }
+
+  async readQueue(): Promise<StoredQueueOrder[]> {
+    if (this.dirHandle) {
+      const data = await this.readFile<StoredQueueOrder[]>('queue.json');
+      if (data !== null) {
+        return data;
+      }
+    }
+    return this.readLocalStorage<StoredQueueOrder[]>('citrix_storage_queue', []);
   }
 
   async writeQueue(orders: StoredQueueOrder[]): Promise<void> {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('citrix_storage_queue', JSON.stringify(orders));
+    if (this.dirHandle) {
+      const written = await this.writeFile('queue.json', orders);
+      if (written) return;
     }
+    this.writeLocalStorage('citrix_storage_queue', orders);
   }
 
   async readDiscrepancies(): Promise<DiscrepancyReport[]> {
-    if (typeof localStorage !== 'undefined') {
-      const data = localStorage.getItem('citrix_storage_discrepancies');
-      if (data) {
-        try { return JSON.parse(data); } catch { return []; }
+    if (this.dirHandle) {
+      const data = await this.readFile<DiscrepancyReport[]>('discrepancies.json');
+      if (data !== null) {
+        return data;
       }
     }
-    return [];
+    return this.readLocalStorage<DiscrepancyReport[]>('citrix_storage_discrepancies', []);
   }
 
   async appendDiscrepancy(report: DiscrepancyReport): Promise<void> {
     const existing = await this.readDiscrepancies();
     existing.push(report);
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('citrix_storage_discrepancies', JSON.stringify(existing));
+    if (this.dirHandle) {
+      const written = await this.writeFile('discrepancies.json', existing);
+      if (written) return;
     }
+    this.writeLocalStorage('citrix_storage_discrepancies', existing);
   }
 
   async readPreferences(): Promise<TechnicianPreferences> {
-    if (typeof localStorage !== 'undefined') {
-      const data = localStorage.getItem('citrix_storage_preferences');
-      if (data) {
-        try { return JSON.parse(data); } catch { return DEFAULT_PREFERENCES; }
+    if (this.dirHandle) {
+      const data = await this.readFile<TechnicianPreferences>('preferences.json');
+      if (data !== null) {
+        return data;
       }
     }
-    return DEFAULT_PREFERENCES;
+    return this.readLocalStorage<TechnicianPreferences>(
+      'citrix_storage_preferences',
+      DEFAULT_PREFERENCES
+    );
   }
 
   async writePreferences(prefs: TechnicianPreferences): Promise<void> {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('citrix_storage_preferences', JSON.stringify(prefs));
+    if (this.dirHandle) {
+      const written = await this.writeFile('preferences.json', prefs);
+      if (written) return;
     }
+    this.writeLocalStorage('citrix_storage_preferences', prefs);
   }
 }
 
@@ -115,4 +180,8 @@ export function getCitrixStorageAdapter(): CitrixStorageAdapter {
     instance = new MemoryCitrixStorageAdapter();
   }
   return instance;
+}
+
+export function _resetCitrixStorageAdapterForTesting(): void {
+  instance = null;
 }
