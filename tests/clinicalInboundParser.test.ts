@@ -43,4 +43,31 @@ DEFAULT SIG (OPTIONAL FIELD): MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO`;
     expect(parsed.rawProse).toBe('Give 1 tablet by mouth one time a day for GERD');
     expect(parsed.sourceFormat).toBe('ncpdp_xml');
   });
+
+  it('unescapes standard XML entities in parsed XML fields', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Message xmlns="http://www.ncpdp.org/schema/SCRIPT">
+  <Header>
+    <PrescriberOrderNumber>PON&amp;12345</PrescriberOrderNumber>
+  </Header>
+  <Body>
+    <NewRx>
+      <MedicationPrescribed>
+        <DrugDescription>BENICAR &amp; HCT 20-12.5MG</DrugDescription>
+        <Sig>
+          <SigText>Give 1 tablet by mouth morning &amp; night</SigText>
+        </Sig>
+        <Indication>PAIN &amp; INFLAMMATION</Indication>
+      </MedicationPrescribed>
+    </NewRx>
+  </Body>
+</Message>`;
+    const parsed = parseInboundOrder(xml);
+    expect(parsed.pon).toBe('PON&12345');
+    expect(parsed.drugName).toBe('BENICAR & HCT 20-12.5MG');
+    expect(parsed.rawProse).toBe('Give 1 tablet by mouth morning & night');
+    expect(parsed.indication).toBe('PAIN & INFLAMMATION');
+    expect(parsed.sourceFormat).toBe('ncpdp_xml');
+  });
 });
+

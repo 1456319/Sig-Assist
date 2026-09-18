@@ -32,6 +32,18 @@ export const INDICATION_MAP: Record<string, string> = {
 
 export const SORTED_INDICATION_KEYS = Object.keys(INDICATION_MAP).sort((a, b) => b.length - a.length);
 
+export interface CompiledIndicationRegex {
+  readonly key: string;
+  readonly regex: RegExp;
+  readonly token: string;
+}
+
+export const COMPILED_INDICATION_REGEXES: readonly CompiledIndicationRegex[] = SORTED_INDICATION_KEYS.map((key) => ({
+  key,
+  regex: new RegExp(`\\b${key}\\b`, 'i'),
+  token: INDICATION_MAP[key],
+}));
+
 export function resolveFrequencyAndSchedule(rawProse: string, defaultTemplate?: string): FrequencyScheduleResult {
   const upper = rawProse.toUpperCase();
   const abnormalities: AbnormalityFinding[] = [];
@@ -121,9 +133,9 @@ export function resolveFrequencyAndSchedule(rawProse: string, defaultTemplate?: 
 
   // Indication
   let indicationToken: string | undefined;
-  for (const key of SORTED_INDICATION_KEYS) {
-    if (new RegExp(`\\b${key}\\b`, 'i').test(upper)) {
-      indicationToken = INDICATION_MAP[key];
+  for (const item of COMPILED_INDICATION_REGEXES) {
+    if (item.regex.test(upper)) {
+      indicationToken = item.token;
       break;
     }
   }

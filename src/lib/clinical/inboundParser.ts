@@ -1,9 +1,28 @@
 import { InboundOrder } from './types';
 
+function unescapeXml(text: string): string {
+  return text.replace(/&(amp|lt|gt|quot|apos);/g, (_, entity) => {
+    switch (entity) {
+      case 'amp':
+        return '&';
+      case 'lt':
+        return '<';
+      case 'gt':
+        return '>';
+      case 'quot':
+        return '"';
+      case 'apos':
+        return "'";
+      default:
+        return _;
+    }
+  });
+}
+
 function extractXmlTag(xml: string, tagName: string): string | undefined {
   const regex = new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\\/${tagName}>`, 'i');
   const match = xml.match(regex);
-  return match ? match[1].trim() : undefined;
+  return match ? unescapeXml(match[1].trim()) : undefined;
 }
 
 export function parseInboundOrder(rawInput: string): InboundOrder {

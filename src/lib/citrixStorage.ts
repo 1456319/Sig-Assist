@@ -16,11 +16,15 @@ export interface CitrixStorageAdapter {
   getStorageMode(): 'file_system' | 'browser_cache';
   connectDirectory(): Promise<boolean>;
   readQueue(): Promise<StoredQueueOrder[]>;
-  writeQueue(orders: StoredQueueOrder[]): Promise<void>;
+  writeQueue(orders: StoredQueueOrder[], options?: { immediate?: boolean; debounceMs?: number }): Promise<void>;
   readDiscrepancies(): Promise<DiscrepancyReport[]>;
-  appendDiscrepancy(report: DiscrepancyReport): Promise<void>;
+  appendDiscrepancy(report: DiscrepancyReport, options?: { immediate?: boolean; debounceMs?: number }): Promise<void>;
   readPreferences(): Promise<TechnicianPreferences>;
-  writePreferences(prefs: TechnicianPreferences): Promise<void>;
+  writePreferences(prefs: TechnicianPreferences, options?: { immediate?: boolean; debounceMs?: number }): Promise<void>;
+  flushPendingWrites(): Promise<void>;
+  flush(): Promise<void>;
+  setDebounceDelay?(ms: number): void;
+  getDebounceDelay?(): number;
 }
 
 export const DEFAULT_PREFERENCES: TechnicianPreferences = {
@@ -36,6 +40,20 @@ export const DEFAULT_PREFERENCES: TechnicianPreferences = {
 
 class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
   private dirHandle: any = null;
+  private debounceDelayMs: number =
+    typeof process !== 'undefined' && process.env?.NODE_ENV === 'test' ? 0 : 500;
+
+  private pendingQueue: StoredQueueOrder[] | null = null;
+  private queueTimer: any = null;
+  private queueResolvers: Array<() => void> = [];
+
+  private pendingDiscrepancies: DiscrepancyReport[] | null = null;
+  private discrepanciesTimer: any = null;
+  private discrepanciesResolvers: Array<() => void> = [];
+
+  private pendingPreferences: TechnicianPreferences | null = null;
+  private preferencesTimer: any = null;
+  private preferencesResolvers: Array<() => void> = [];
 
   isConnected(): boolean {
     return this.dirHandle !== null;
@@ -43,6 +61,14 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
 
   getStorageMode(): 'file_system' | 'browser_cache' {
     return this.dirHandle ? 'file_system' : 'browser_cache';
+  }
+
+  setDebounceDelay(ms: number): void {
+    this.debounceDelayMs = ms;
+  }
+
+  getDebounceDelay(): number {
+    return this.debounceDelayMs;
   }
 
   async connectDirectory(): Promise<boolean> {
@@ -113,7 +139,31 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
     }
   }
 
+  private async commitWrite(
+    filename: string,
+    storageKey: string,
+    data: unknown,
+    resolvers: Array<() => void> = []
+  ): Promise<void> {
+    try {
+      if (this.dirHandle) {
+        const written = await this.writeFile(filename, data);
+        if (written) {
+          resolvers.forEach((r) => r());
+          return;
+        }
+      }
+      this.writeLocalStorage(storageKey, data);
+      resolvers.forEach((r) => r());
+    } catch {
+      resolvers.forEach((r) => r());
+    }
+  }
+
   async readQueue(): Promise<StoredQueueOrder[]> {
+    if (this.pendingQueue !== null) {
+      return this.pendingQueue;
+    }
     if (this.dirHandle) {
       const data = await this.readFile<StoredQueueOrder[]>('queue.json');
       if (data !== null) {
@@ -123,15 +173,48 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
     return this.readLocalStorage<StoredQueueOrder[]>('citrix_storage_queue', []);
   }
 
-  async writeQueue(orders: StoredQueueOrder[]): Promise<void> {
-    if (this.dirHandle) {
-      const written = await this.writeFile('queue.json', orders);
-      if (written) return;
+  async writeQueue(
+    orders: StoredQueueOrder[],
+    options?: { immediate?: boolean; debounceMs?: number }
+  ): Promise<void> {
+    const delay = options?.immediate ? 0 : (options?.debounceMs ?? this.debounceDelayMs);
+
+    if (delay <= 0) {
+      this.pendingQueue = null;
+      if (this.queueTimer) {
+        clearTimeout(this.queueTimer);
+        this.queueTimer = null;
+      }
+      const prevResolvers = this.queueResolvers;
+      this.queueResolvers = [];
+      await this.commitWrite('queue.json', 'citrix_storage_queue', orders, prevResolvers);
+      return;
     }
-    this.writeLocalStorage('citrix_storage_queue', orders);
+
+    this.pendingQueue = orders;
+    if (this.queueTimer) {
+      clearTimeout(this.queueTimer);
+    }
+
+    return new Promise<void>((resolve) => {
+      this.queueResolvers.push(resolve);
+      this.queueTimer = setTimeout(async () => {
+        this.queueTimer = null;
+        const currentData = this.pendingQueue;
+        this.pendingQueue = null;
+        const currentResolvers = this.queueResolvers;
+        this.queueResolvers = [];
+        if (currentData !== null) {
+          await this.commitWrite('queue.json', 'citrix_storage_queue', currentData, currentResolvers);
+        }
+      }, delay);
+    });
   }
 
   async readDiscrepancies(): Promise<DiscrepancyReport[]> {
+    if (this.pendingDiscrepancies !== null) {
+      return this.pendingDiscrepancies;
+    }
     if (this.dirHandle) {
       const data = await this.readFile<DiscrepancyReport[]>('discrepancies.json');
       if (data !== null) {
@@ -141,17 +224,50 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
     return this.readLocalStorage<DiscrepancyReport[]>('citrix_storage_discrepancies', []);
   }
 
-  async appendDiscrepancy(report: DiscrepancyReport): Promise<void> {
+  async appendDiscrepancy(
+    report: DiscrepancyReport,
+    options?: { immediate?: boolean; debounceMs?: number }
+  ): Promise<void> {
     const existing = await this.readDiscrepancies();
-    existing.push(report);
-    if (this.dirHandle) {
-      const written = await this.writeFile('discrepancies.json', existing);
-      if (written) return;
+    const updated = [...existing, report];
+    const delay = options?.immediate ? 0 : (options?.debounceMs ?? this.debounceDelayMs);
+
+    if (delay <= 0) {
+      this.pendingDiscrepancies = null;
+      if (this.discrepanciesTimer) {
+        clearTimeout(this.discrepanciesTimer);
+        this.discrepanciesTimer = null;
+      }
+      const prevResolvers = this.discrepanciesResolvers;
+      this.discrepanciesResolvers = [];
+      await this.commitWrite('discrepancies.json', 'citrix_storage_discrepancies', updated, prevResolvers);
+      return;
     }
-    this.writeLocalStorage('citrix_storage_discrepancies', existing);
+
+    this.pendingDiscrepancies = updated;
+    if (this.discrepanciesTimer) {
+      clearTimeout(this.discrepanciesTimer);
+    }
+
+    return new Promise<void>((resolve) => {
+      this.discrepanciesResolvers.push(resolve);
+      this.discrepanciesTimer = setTimeout(async () => {
+        this.discrepanciesTimer = null;
+        const currentData = this.pendingDiscrepancies;
+        this.pendingDiscrepancies = null;
+        const currentResolvers = this.discrepanciesResolvers;
+        this.discrepanciesResolvers = [];
+        if (currentData !== null) {
+          await this.commitWrite('discrepancies.json', 'citrix_storage_discrepancies', currentData, currentResolvers);
+        }
+      }, delay);
+    });
   }
 
   async readPreferences(): Promise<TechnicianPreferences> {
+    if (this.pendingPreferences !== null) {
+      return this.pendingPreferences;
+    }
     if (this.dirHandle) {
       const data = await this.readFile<TechnicianPreferences>('preferences.json');
       if (data !== null) {
@@ -164,12 +280,118 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
     );
   }
 
-  async writePreferences(prefs: TechnicianPreferences): Promise<void> {
-    if (this.dirHandle) {
-      const written = await this.writeFile('preferences.json', prefs);
-      if (written) return;
+  async writePreferences(
+    prefs: TechnicianPreferences,
+    options?: { immediate?: boolean; debounceMs?: number }
+  ): Promise<void> {
+    const delay = options?.immediate ? 0 : (options?.debounceMs ?? this.debounceDelayMs);
+
+    if (delay <= 0) {
+      this.pendingPreferences = null;
+      if (this.preferencesTimer) {
+        clearTimeout(this.preferencesTimer);
+        this.preferencesTimer = null;
+      }
+      const prevResolvers = this.preferencesResolvers;
+      this.preferencesResolvers = [];
+      await this.commitWrite('preferences.json', 'citrix_storage_preferences', prefs, prevResolvers);
+      return;
     }
-    this.writeLocalStorage('citrix_storage_preferences', prefs);
+
+    this.pendingPreferences = prefs;
+    if (this.preferencesTimer) {
+      clearTimeout(this.preferencesTimer);
+    }
+
+    return new Promise<void>((resolve) => {
+      this.preferencesResolvers.push(resolve);
+      this.preferencesTimer = setTimeout(async () => {
+        this.preferencesTimer = null;
+        const currentData = this.pendingPreferences;
+        this.pendingPreferences = null;
+        const currentResolvers = this.preferencesResolvers;
+        this.preferencesResolvers = [];
+        if (currentData !== null) {
+          await this.commitWrite('preferences.json', 'citrix_storage_preferences', currentData, currentResolvers);
+        }
+      }, delay);
+    });
+  }
+
+  async flushPendingWrites(): Promise<void> {
+    const promises: Promise<void>[] = [];
+
+    if (this.queueTimer || this.pendingQueue !== null) {
+      if (this.queueTimer) {
+        clearTimeout(this.queueTimer);
+        this.queueTimer = null;
+      }
+      const currentData = this.pendingQueue;
+      this.pendingQueue = null;
+      const currentResolvers = this.queueResolvers;
+      this.queueResolvers = [];
+      if (currentData !== null) {
+        promises.push(this.commitWrite('queue.json', 'citrix_storage_queue', currentData, currentResolvers));
+      }
+    }
+
+    if (this.discrepanciesTimer || this.pendingDiscrepancies !== null) {
+      if (this.discrepanciesTimer) {
+        clearTimeout(this.discrepanciesTimer);
+        this.discrepanciesTimer = null;
+      }
+      const currentData = this.pendingDiscrepancies;
+      this.pendingDiscrepancies = null;
+      const currentResolvers = this.discrepanciesResolvers;
+      this.discrepanciesResolvers = [];
+      if (currentData !== null) {
+        promises.push(this.commitWrite('discrepancies.json', 'citrix_storage_discrepancies', currentData, currentResolvers));
+      }
+    }
+
+    if (this.preferencesTimer || this.pendingPreferences !== null) {
+      if (this.preferencesTimer) {
+        clearTimeout(this.preferencesTimer);
+        this.preferencesTimer = null;
+      }
+      const currentData = this.pendingPreferences;
+      this.pendingPreferences = null;
+      const currentResolvers = this.preferencesResolvers;
+      this.preferencesResolvers = [];
+      if (currentData !== null) {
+        promises.push(this.commitWrite('preferences.json', 'citrix_storage_preferences', currentData, currentResolvers));
+      }
+    }
+
+    await Promise.all(promises);
+  }
+
+  async flush(): Promise<void> {
+    return this.flushPendingWrites();
+  }
+
+  clearPendingTimers(): void {
+    if (this.queueTimer) {
+      clearTimeout(this.queueTimer);
+      this.queueTimer = null;
+    }
+    if (this.discrepanciesTimer) {
+      clearTimeout(this.discrepanciesTimer);
+      this.discrepanciesTimer = null;
+    }
+    if (this.preferencesTimer) {
+      clearTimeout(this.preferencesTimer);
+      this.preferencesTimer = null;
+    }
+    this.pendingQueue = null;
+    this.pendingDiscrepancies = null;
+    this.pendingPreferences = null;
+    this.queueResolvers.forEach((r) => r());
+    this.queueResolvers = [];
+    this.discrepanciesResolvers.forEach((r) => r());
+    this.discrepanciesResolvers = [];
+    this.preferencesResolvers.forEach((r) => r());
+    this.preferencesResolvers = [];
   }
 }
 
@@ -183,5 +405,8 @@ export function getCitrixStorageAdapter(): CitrixStorageAdapter {
 }
 
 export function _resetCitrixStorageAdapterForTesting(): void {
+  if (instance && typeof (instance as any).clearPendingTimers === 'function') {
+    (instance as any).clearPendingTimers();
+  }
   instance = null;
 }
