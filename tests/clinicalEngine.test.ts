@@ -91,4 +91,76 @@ describe('clinicalEngine TESTS.txt validation', () => {
     });
     expect(res.primarySig).toBe('COU PO QHS');
   });
+
+  it('splits Paxit differing daily doses with natural phrasing containing letters A/N/D', () => {
+    const raw = `GABAPENTIN TAB 300MG\nUSER ENTRY: Take 2 tablets by mouth in the morning and 1 tablet at night before bedtime with food`;
+    const res = translateClinicalSig(parseInboundOrder(raw));
+    expect(res.subOrders.length).toBe(2);
+    expect(res.subOrders[0].label).toBe('Order 1 of 2');
+    expect(res.subOrders[0].suggestedSig).toContain('2T (600MG) PO QAM');
+    expect(res.subOrders[1].label).toBe('Order 2 of 2');
+    expect(res.subOrders[1].suggestedSig).toContain('1T PO QHS');
+  });
+
+  it('does not split Paxit orders when morning and bedtime doses are identical, consolidating into BIDAMHS', () => {
+    const raw = `GABAPENTIN TAB 300MG\nUSER ENTRY: Take 1 tablet every morning and 1 at bedtime`;
+    const res = translateClinicalSig(parseInboundOrder(raw));
+    expect(res.subOrders.length).toBe(1);
+    expect(res.subOrders[0].label).toBe('Order 1 of 1');
+    expect(res.primarySig).toBe('1T PO BIDAMHS');
+  });
+
+  it('supports titration step-down with frequency phrases like daily x14 days', () => {
+    const raw = `PREDNISONE TAB 10MG\nUSER ENTRY: Take 2 tablets daily x14 days then 1 tablet daily`;
+    const res = translateClinicalSig(parseInboundOrder(raw));
+    expect(res.subOrders.length).toBe(2);
+    expect(res.subOrders[0].label).toBe('Order 1 of 2');
+    expect(res.subOrders[0].suggestedSig).toBe('2T (20MG) PO QD X14D');
+    expect(res.subOrders[1].label).toBe('Order 2 of 2');
+    expect(res.subOrders[1].suggestedSig).toBe('1T PO QD');
+  });
+
+  it('preserves trailing indication across synthesized Paxit split sub-orders', () => {
+    const raw = `GABAPENTIN TAB 300MG\nUSER ENTRY: Take 2 tablets by mouth every morning and 1 at night before bedtime for pain`;
+    const res = translateClinicalSig(parseInboundOrder(raw));
+    expect(res.subOrders.length).toBe(2);
+    expect(res.subOrders[0].suggestedSig).toBe('2T (600MG) PO QAM FPAIN');
+    expect(res.subOrders[1].suggestedSig).toBe('1T PO QHS FPAIN');
+  });
+
+  it('preserves freeform trailing indication across synthesized Paxit titration sub-orders', () => {
+    const raw = `PREDNISONE TAB 10MG\nUSER ENTRY: Take 2 tablets daily x14 days then 1 tablet daily for neuropathy`;
+    const res = translateClinicalSig(parseInboundOrder(raw));
+    expect(res.subOrders.length).toBe(2);
+    expect(res.subOrders[0].suggestedSig).toBe('2T (20MG) PO QD X14D FOR NEUROPATHY');
+    expect(res.subOrders[1].suggestedSig).toBe('1T PO QD FOR NEUROPATHY');
+  });
+
+  it('utilizes inbound.indication as fallback when prose lacks inline indication', () => {
+    const order = {
+      id: 'test_ncpdp_1',
+      pon: 'PON12345',
+      drugName: 'PROTONIX 40MG TABLET',
+      rawProse: 'Give 1 tablet by mouth one time a day',
+      indication: 'GERD',
+      sourceFormat: 'ncpdp_xml' as const
+    };
+    const res = translateClinicalSig(order);
+    expect(res.primarySig).toBe('1T PO QD FGERD');
+  });
+
+  it('propagates inbound.indication fallback to split sub-orders when prose lacks inline indication', () => {
+    const order = {
+      id: 'test_ncpdp_paxit',
+      pon: 'PON12346',
+      drugName: 'GABAPENTIN TAB 300MG',
+      rawProse: 'Take 2 tablets by mouth in the morning and 1 at bedtime',
+      indication: 'Pain',
+      sourceFormat: 'ncpdp_xml' as const
+    };
+    const res = translateClinicalSig(order);
+    expect(res.subOrders.length).toBe(2);
+    expect(res.subOrders[0].suggestedSig).toBe('2T (600MG) PO QAM FPAIN');
+    expect(res.subOrders[1].suggestedSig).toBe('1T PO QHS FPAIN');
+  });
 });

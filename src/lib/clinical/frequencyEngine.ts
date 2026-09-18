@@ -11,7 +11,7 @@ export interface FrequencyScheduleResult {
   readonly abnormalities: AbnormalityFinding[];
 }
 
-const INDICATION_MAP: Record<string, string> = {
+export const INDICATION_MAP: Record<string, string> = {
   GERD: 'FGERD',
   SUPPLEMENT: 'FSU',
   DM: 'FDM',
@@ -30,7 +30,7 @@ const INDICATION_MAP: Record<string, string> = {
   'BOWEL REGIMEN': 'FOR BOWEL REGIMEN'
 };
 
-const SORTED_INDICATION_KEYS = Object.keys(INDICATION_MAP).sort((a, b) => b.length - a.length);
+export const SORTED_INDICATION_KEYS = Object.keys(INDICATION_MAP).sort((a, b) => b.length - a.length);
 
 export function resolveFrequencyAndSchedule(rawProse: string, defaultTemplate?: string): FrequencyScheduleResult {
   const upper = rawProse.toUpperCase();
@@ -127,12 +127,21 @@ export function resolveFrequencyAndSchedule(rawProse: string, defaultTemplate?: 
       break;
     }
   }
+  if (!indicationToken) {
+    const forMatch = upper.match(/\bFOR\s+(?!\d+\s*DAYS?)([A-Z0-9\/\-\s]+)$/i);
+    if (forMatch) {
+      const rawInd = forMatch[1].trim();
+      if (!rawInd.includes('DAY') && !rawInd.includes('HOUR')) {
+        indicationToken = `FOR ${rawInd}`;
+      }
+    }
+  }
 
   // Frequency tokens
   let frequencyToken = 'QD';
   if (upper.includes('EVERY SUN') || upper.includes('EVERY SUNDAY')) {
     frequencyToken = upper.includes('EVENING') || /\bQPM\b/i.test(upper) ? 'QPMDAY7' : 'QDAY7';
-  } else if (upper.includes('EVERY MORNING AND AT BEDTIME')) {
+  } else if (upper.includes('EVERY MORNING AND AT BEDTIME') || (/\b(?:EVERY\s+)?MORNING\b.*?\bAND\b.*?\bBEDTIME\b/i.test(upper))) {
     frequencyToken = 'BIDAMHS';
   } else if (upper.includes('BEFORE BREAKFAST')) {
     frequencyToken = 'QDA/B';

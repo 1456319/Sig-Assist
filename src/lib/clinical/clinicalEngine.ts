@@ -1,17 +1,35 @@
 import { InboundOrder, ClinicalSigResult, SubOrderResult, AbnormalityFinding, TechnicianPreferences } from './types';
 import { calculateDoseAndVolume } from './doseCalculator';
-import { resolveFrequencyAndSchedule } from './frequencyEngine';
+import { resolveFrequencyAndSchedule, INDICATION_MAP, SORTED_INDICATION_KEYS } from './frequencyEngine';
 import { evaluatePaxitPackaging } from './paxitEngine';
+
+function resolveIndicationToken(fallbackIndication?: string): string | undefined {
+  if (!fallbackIndication) return undefined;
+  const upper = fallbackIndication.trim().toUpperCase();
+  for (const key of SORTED_INDICATION_KEYS) {
+    if (new RegExp(`\\b${key}\\b`, 'i').test(upper)) {
+      return INDICATION_MAP[key];
+    }
+  }
+  if (upper.startsWith('FOR ') || upper.startsWith('F')) {
+    return upper;
+  }
+  return `F${upper}`;
+}
 
 function assembleSig(
   drugName: string,
   rawProse: string,
   defaultTemplate?: string,
-  preferences?: TechnicianPreferences
+  preferences?: TechnicianPreferences,
+  fallbackIndication?: string
 ): { sig: string; abnormalities: AbnormalityFinding[] } {
   const doseRes = calculateDoseAndVolume(drugName, rawProse);
   const freqRes = resolveFrequencyAndSchedule(rawProse, defaultTemplate);
   const allAbnormalities = [...doseRes.abnormalities, ...freqRes.abnormalities];
+
+  // Resolve indication token: prefer inline indication from prose, fallback to inbound.indication from NCPDP XML
+  const indicationToken = freqRes.indicationToken || resolveIndicationToken(fallbackIndication);
 
   // Check technician preference override
   let effectiveDoseToken = doseRes.doseToken;
@@ -30,7 +48,11 @@ function assembleSig(
   }
 
   if (freqRes.blendedTemplate) {
-    return { sig: freqRes.blendedTemplate, abnormalities: allAbnormalities };
+    let blended = freqRes.blendedTemplate;
+    if (indicationToken && !freqRes.indicationToken) {
+      blended = `${blended} ${indicationToken}`;
+    }
+    return { sig: blended, abnormalities: allAbnormalities };
   }
 
   const parts: string[] = [];
@@ -43,11 +65,11 @@ function assembleSig(
 
   if (freqRes.prnToken) {
     parts.push(freqRes.prnToken);
-    if (freqRes.indicationToken) parts.push(freqRes.indicationToken);
+    if (indicationToken) parts.push(indicationToken);
     if (freqRes.durationToken) parts.push(freqRes.durationToken);
   } else {
     if (freqRes.durationToken) parts.push(freqRes.durationToken);
-    if (freqRes.indicationToken) parts.push(freqRes.indicationToken);
+    if (indicationToken) parts.push(indicationToken);
   }
 
   if (freqRes.holdToken) {
@@ -70,7 +92,7 @@ export function translateClinicalSig(inbound: InboundOrder, preferences?: Techni
     const allAbnormalities: AbnormalityFinding[] = [];
 
     paxitEval.splitParts.forEach((part, index) => {
-      const compiled = assembleSig(inbound.drugName, part.prose, undefined, preferences);
+      const compiled = assembleSig(inbound.drugName, part.prose, undefined, preferences, inbound.indication);
       subOrders.push({
         id: `${inbound.id}_split_${index + 1}`,
         label: part.label,
@@ -87,7 +109,7 @@ export function translateClinicalSig(inbound: InboundOrder, preferences?: Techni
     };
   }
 
-  const compiled = assembleSig(inbound.drugName, inbound.rawProse, inbound.defaultSigTemplate, preferences);
+  const compiled = assembleSig(inbound.drugName, inbound.rawProse, inbound.defaultSigTemplate, preferences, inbound.indication);
 
   return {
     primarySig: compiled.sig,
