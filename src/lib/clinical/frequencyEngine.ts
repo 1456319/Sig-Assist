@@ -30,13 +30,15 @@ const INDICATION_MAP: Record<string, string> = {
   'BOWEL REGIMEN': 'FOR BOWEL REGIMEN'
 };
 
+const SORTED_INDICATION_KEYS = Object.keys(INDICATION_MAP).sort((a, b) => b.length - a.length);
+
 export function resolveFrequencyAndSchedule(rawProse: string, defaultTemplate?: string): FrequencyScheduleResult {
   const upper = rawProse.toUpperCase();
   const abnormalities: AbnormalityFinding[] = [];
 
   // Sliding scale insulin check
   if (upper.includes('SLIDING SCALE')) {
-    const isAcHs = upper.includes('BEDTIME') || upper.includes('HS') || upper.includes('ACHS');
+    const isAcHs = /\b(BEDTIME|HS|ACHS)\b/i.test(upper);
     const prefix = isAcHs ? 'CBS ACHS SS' : 'CBS AC SS';
 
     if (upper.includes('ML')) {
@@ -115,12 +117,11 @@ export function resolveFrequencyAndSchedule(rawProse: string, defaultTemplate?: 
   }
 
   // PRN
-  const prnToken = upper.includes('AS NEEDED') || upper.includes('PRN') ? 'PRN' : undefined;
+  const prnToken = upper.includes('AS NEEDED') || /\bPRN\b/i.test(upper) ? 'PRN' : undefined;
 
   // Indication
   let indicationToken: string | undefined;
-  const sortedIndicationKeys = Object.keys(INDICATION_MAP).sort((a, b) => b.length - a.length);
-  for (const key of sortedIndicationKeys) {
+  for (const key of SORTED_INDICATION_KEYS) {
     if (new RegExp(`\\b${key}\\b`, 'i').test(upper)) {
       indicationToken = INDICATION_MAP[key];
       break;
@@ -130,28 +131,28 @@ export function resolveFrequencyAndSchedule(rawProse: string, defaultTemplate?: 
   // Frequency tokens
   let frequencyToken = 'QD';
   if (upper.includes('EVERY SUN') || upper.includes('EVERY SUNDAY')) {
-    frequencyToken = upper.includes('EVENING') || upper.includes('QPM') ? 'QPMDAY7' : 'QDAY7';
+    frequencyToken = upper.includes('EVENING') || /\bQPM\b/i.test(upper) ? 'QPMDAY7' : 'QDAY7';
   } else if (upper.includes('EVERY MORNING AND AT BEDTIME')) {
     frequencyToken = 'BIDAMHS';
   } else if (upper.includes('BEFORE BREAKFAST')) {
     frequencyToken = 'QDA/B';
   } else if (upper.includes('AFTER DINNER')) {
     frequencyToken = upper.includes('IN THE EVENING') ? 'QDP/D IN THE EVENING' : 'QDP/D';
-  } else if (upper.includes('AT BEDTIME') || upper.includes('BEDTIME')) {
+  } else if (upper.includes('AT BEDTIME') || /\bBEDTIME\b/i.test(upper) || /\bQHS\b/i.test(upper)) {
     frequencyToken = 'QHS';
-  } else if (upper.includes('EVERY MORNING') || upper.includes('IN THE MORNING')) {
+  } else if (upper.includes('EVERY MORNING') || upper.includes('IN THE MORNING') || /\bQAM\b/i.test(upper)) {
     frequencyToken = 'QAM';
-  } else if (upper.includes('EVERY 12 HOURS') || upper.includes('Q12H')) {
+  } else if (upper.includes('EVERY 12 HOURS') || /\bQ12H\b/i.test(upper)) {
     frequencyToken = 'Q12H';
-  } else if (upper.includes('EVERY 6 HOURS') || upper.includes('Q6H')) {
+  } else if (upper.includes('EVERY 6 HOURS') || /\bQ6H\b/i.test(upper)) {
     frequencyToken = 'Q6H';
-  } else if (upper.includes('EVERY 4 HOURS') || upper.includes('Q4H')) {
+  } else if (upper.includes('EVERY 4 HOURS') || /\bQ4H\b/i.test(upper)) {
     frequencyToken = 'Q4H';
-  } else if (upper.includes('FOUR TIMES A DAY') || upper.includes('QID')) {
+  } else if (upper.includes('FOUR TIMES A DAY') || /\bQID\b/i.test(upper)) {
     frequencyToken = 'QID';
-  } else if (upper.includes('THREE TIMES A DAY') || upper.includes('TID')) {
+  } else if (upper.includes('THREE TIMES A DAY') || /\bTID\b/i.test(upper)) {
     frequencyToken = 'TID';
-  } else if (upper.includes('TWO TIMES A DAY') || upper.includes('TWICE DAILY') || upper.includes('BID')) {
+  } else if (upper.includes('TWO TIMES A DAY') || upper.includes('TWICE DAILY') || /\bBID\b/i.test(upper)) {
     frequencyToken = 'BID';
   }
 

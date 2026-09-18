@@ -57,4 +57,17 @@ describe('frequencyEngine', () => {
     const res = resolveFrequencyAndSchedule(prose);
     expect(res.holdToken).toBe('HR60SBP100');
   });
+
+  it('does not falsely trigger BID from words containing bid, like morbid', () => {
+    const res = resolveFrequencyAndSchedule('Give 1 tablet by mouth one time a day for morbid obesity');
+    expect(res.frequencyToken).toBe('QD');
+  });
+
+  it('does not falsely trigger ACHS from words containing hs, like months', () => {
+    const prose = 'Inject as per sliding scale for 3 months: if 181 - 200 = 1 unit < 70 follow hypoglycemic protocol; 201 - 250 = 2 unit; 251 - 300 = 3 units; 301 - 350 = 4 units > 350 = 5 units, subcutaneously before meals for DM';
+    const res = resolveFrequencyAndSchedule(prose);
+    expect(res.frequencyToken).toBe('CBS AC SS');
+    expect(res.slidingScaleString).toMatch(/^CBS AC SS /);
+  });
 });
+
