@@ -324,7 +324,7 @@ export function WorkbenchView() {
               <p className="text-[10px] uppercase tracking-wider text-primary font-semibold mb-3">
                 Review and correct SIG
               </p>
-              {result ? <WorkbenchReview key={source} result={result} source={source} />
+              {result ? <WorkbenchReview key={`${inputMode}:${rawInput}`} result={result} source={source} />
                 : <p className="text-sm text-muted-foreground">Enter original directions to prepare a draft for review.</p>}
             </div>
           </div>
