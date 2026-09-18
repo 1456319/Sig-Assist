@@ -3,7 +3,9 @@ import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { AbnormalityBanner } from '../src/components/AbnormalityBanner';
 import { DiscrepancyPanel } from '../src/components/DiscrepancyPanel';
-import { AbnormalityFinding } from '../src/lib/clinical/types';
+import { MultiOrderCards } from '../src/components/MultiOrderCards';
+import { WorkbenchView } from '../src/components/WorkbenchView';
+import { AbnormalityFinding, SubOrderResult } from '../src/lib/clinical/types';
 
 describe('UI Components', () => {
   it('renders 3-tier abnormality banner with appropriate styling and notices', () => {
@@ -49,7 +51,7 @@ describe('UI Components', () => {
     expect(html).toBe('');
   });
 
-  it('renders discrepancy capture panel', () => {
+  it('renders discrepancy capture panel in collapsed state with Alt+N badge', () => {
     const html = renderToString(
       <DiscrepancyPanel
         pon="PON123"
@@ -59,6 +61,81 @@ describe('UI Components', () => {
         onDiscrepancySaved={() => {}}
       />
     );
+    expect(html).toContain('Flag Discrepancy or Uncaught Error');
+    expect(html).toContain('Alt+N');
+  });
+
+  it('renders discrepancy capture panel in expanded state when isOpen is true', () => {
+    const html = renderToString(
+      <DiscrepancyPanel
+        pon="PON123"
+        drugName="WARFARIN 5MG"
+        rawProse="Give 1 tab at bedtime"
+        generatedSig="1T PO QHS"
+        isOpen={true}
+        onDiscrepancySaved={() => {}}
+      />
+    );
+    expect(html).toContain('Close Feedback');
+    expect(html).toContain('Technician Preferred / Corrected SIG:');
+    expect(html).toContain('Notes / Rationale:');
+    expect(html).toContain('Save Discrepancy Report');
+  });
+
+  it('renders multi-order split cards for Paxit regimens with independent review checkboxes and disabled copy safeguards', () => {
+    const subOrders: SubOrderResult[] = [
+      {
+        id: 'order_split_1',
+        label: 'Order 1 of 2',
+        suggestedSig: '2T PO QAM',
+        abnormalities: []
+      },
+      {
+        id: 'order_split_2',
+        label: 'Order 2 of 2',
+        suggestedSig: '1T PO QHS',
+        abnormalities: [
+          {
+            id: 'sub_abn_1',
+            tier: 'applied_correction',
+            title: 'Paxit Bedtime Dose Split',
+            message: 'The generated Sig CONTAINS A CORRECTION.',
+            correction: 'Separated morning and evening dosing into independent cards',
+            trigger: 'Paxit solid oral differential daily dosing'
+          }
+        ]
+      }
+    ];
+
+    const html = renderToString(<MultiOrderCards subOrders={subOrders} />);
+
+    // Renders both sub-order labels
+    expect(html).toContain('Order 1 of 2');
+    expect(html).toContain('Order 2 of 2');
+
+    // Renders suggested SIGs in drafts
+    expect(html).toContain('2T PO QAM');
+    expect(html).toContain('1T PO QHS');
+
+    // Renders independent review approval checkboxes
+    expect(html).toContain('Reviewed and approved for FrameworkLTC');
+
+    // Renders dedicated copy buttons with exact sub-order labels
+    expect(html).toContain('Copy Reviewed SIG (Order 1 of 2)');
+    expect(html).toContain('Copy Reviewed SIG (Order 2 of 2)');
+
+    // Verifies copy buttons are disabled by default prior to review approval
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>[\s\S]*?Copy Reviewed SIG \(Order 1 of 2\)[\s\S]*?<\/button>/);
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>[\s\S]*?Copy Reviewed SIG \(Order 2 of 2\)[\s\S]*?<\/button>/);
+
+    // Verifies sub-order abnormality banner is rendered in the relevant sub-card
+    expect(html).toContain('Paxit Bedtime Dose Split');
+    expect(html).toContain('Separated morning and evening dosing into independent cards');
+  });
+
+  it('renders WorkbenchView with integrated clinical review sections and discrepancy drawer', () => {
+    const html = renderToString(<WorkbenchView />);
+    expect(html).toContain('Review and correct SIG');
     expect(html).toContain('Flag Discrepancy or Uncaught Error');
   });
 });

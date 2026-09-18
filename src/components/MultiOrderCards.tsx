@@ -1,0 +1,150 @@
+import React, { useState } from 'react';
+import { SubOrderResult } from '../lib/clinical/types';
+import { AbnormalityBanner } from './AbnormalityBanner';
+import { Copy, Check } from 'lucide-react';
+import { toast } from 'sonner';
+
+export interface MultiOrderCardsProps {
+  subOrders: SubOrderResult[];
+  onCopySubOrder?: (subOrder: SubOrderResult, draftSig: string) => void;
+}
+
+export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
+  subOrders,
+  onCopySubOrder,
+}) => {
+  const [drafts, setDrafts] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    subOrders.forEach((o) => {
+      initial[o.id] = o.suggestedSig;
+    });
+    return initial;
+  });
+
+  const [reviewedMap, setReviewedMap] = useState<Record<string, boolean>>({});
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleDraftChange = (id: string, value: string) => {
+    setDrafts((prev) => ({ ...prev, [id]: value.toUpperCase() }));
+  };
+
+  const handleReviewToggle = (id: string, checked: boolean) => {
+    setReviewedMap((prev) => ({ ...prev, [id]: checked }));
+  };
+
+  const handleCopy = async (subOrder: SubOrderResult) => {
+    const draftSig = drafts[subOrder.id] ?? subOrder.suggestedSig;
+    if (!reviewedMap[subOrder.id] || !draftSig.trim()) return;
+
+    if (onCopySubOrder) {
+      onCopySubOrder(subOrder, draftSig);
+    }
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(draftSig);
+        toast.success(`Copied ${subOrder.label} SIG to clipboard`);
+      }
+    } catch {
+      // clipboard fallback
+    }
+
+    setCopiedId(subOrder.id);
+    setTimeout(() => {
+      setCopiedId(null);
+    }, 2000);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-md border border-blue-200 bg-blue-50/50 p-3 text-xs text-blue-900 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
+        <span className="font-semibold">Multi-Order Packaging Regimen (Paxit):</span>
+        <p className="mt-0.5 text-slate-600 dark:text-slate-400">
+          FrameworkLTC requires separate orders for split dosing or titration schedules. Review and copy each order card individually.
+        </p>
+      </div>
+
+      {subOrders.map((subOrder) => {
+        const draftSig = drafts[subOrder.id] ?? subOrder.suggestedSig;
+        const isReviewed = !!reviewedMap[subOrder.id];
+        const isCopied = copiedId === subOrder.id;
+
+        return (
+          <div
+            key={subOrder.id}
+            data-testid={`sub-order-card-${subOrder.id}`}
+            className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                {subOrder.label}
+              </span>
+              {isReviewed && (
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                  <Check className="h-3.5 w-3.5" /> Reviewed
+                </span>
+              )}
+            </div>
+
+            {subOrder.abnormalities && subOrder.abnormalities.length > 0 && (
+              <AbnormalityBanner findings={subOrder.abnormalities} />
+            )}
+
+            <div>
+              <label
+                htmlFor={`draft-sig-${subOrder.id}`}
+                className="block text-xs font-medium text-muted-foreground mb-1"
+              >
+                {`Draft SIG (${subOrder.label}) · editable, uppercase`}
+              </label>
+              <textarea
+                id={`draft-sig-${subOrder.id}`}
+                rows={2}
+                className="w-full rounded-md border border-border bg-background p-2 font-mono text-sm uppercase focus:outline-none focus:ring-2 focus:ring-primary"
+                value={draftSig}
+                onChange={(e) => handleDraftChange(subOrder.id, e.target.value)}
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id={`review-check-${subOrder.id}`}
+                checked={isReviewed}
+                onChange={(e) => handleReviewToggle(subOrder.id, e.target.checked)}
+                className="rounded border-border"
+              />
+              <label
+                htmlFor={`review-check-${subOrder.id}`}
+                className="text-xs font-medium text-foreground cursor-pointer select-none"
+              >
+                Reviewed and approved for FrameworkLTC
+              </label>
+            </div>
+
+            <div>
+              <button
+                type="button"
+                disabled={!isReviewed || !draftSig.trim()}
+                onClick={() => handleCopy(subOrder)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
+              >
+                {isCopied ? (
+                  <>
+                    <Check className="h-3.5 w-3.5" />
+                    <span>Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5" />
+                    <span>{`Copy Reviewed SIG (${subOrder.label})`}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};

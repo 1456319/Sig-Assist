@@ -13,6 +13,12 @@ import type { SigDictionaryEntry, TechRule, SigExpansion, ParseResult, InputMode
 import { toast } from 'sonner';
 import { createTranslationDiagnostic, SessionDiagnosticSink, toGitHubIssueDraft } from '../lib/translationDiagnostics';
 import type { TranslationDiagnostic } from '../lib/translationDiagnostics';
+import { AbnormalityBanner } from './AbnormalityBanner';
+import { MultiOrderCards } from './MultiOrderCards';
+import { DiscrepancyPanel } from './DiscrepancyPanel';
+import { translateClinicalSig } from '../lib/clinical/clinicalEngine';
+import { parseInboundOrder } from '../lib/clinical/inboundParser';
+import type { ClinicalSigResult, InboundOrder } from '../lib/clinical/types';
 
 const HL7_SAMPLE = `MSH|^~\\&|DEMO|DEMO-FACILITY|DEMO-RECEIVER||20260918120000||RDE^O11^RDE_O11|DEMO-MSG|T|2.5
 ORC|NW|DEMO-ORDER
@@ -175,6 +181,25 @@ export function WorkbenchView() {
     : runParser(rawInput, inputMode, dictionary, techRules, expansions, drugName, defaultSig),
     [loading, rawInput, inputMode, dictionary, techRules, expansions, drugName, defaultSig]);
   const source = JSON.stringify([rawInput, inputMode, drugName, defaultSig, result]);
+
+  const clinicalInbound = useMemo((): InboundOrder | null => {
+    if (!rawInput.trim()) return null;
+    const parsed = parseInboundOrder(rawInput);
+    return {
+      ...parsed,
+      drugName: drugName.trim() || parsed.drugName,
+      defaultSigTemplate: defaultSig.trim() || parsed.defaultSigTemplate,
+    };
+  }, [rawInput, drugName, defaultSig]);
+
+  const clinicalResult = useMemo((): ClinicalSigResult | null => {
+    if (!clinicalInbound) return null;
+    try {
+      return translateClinicalSig(clinicalInbound);
+    } catch {
+      return null;
+    }
+  }, [clinicalInbound]);
 
   useEffect(() => {
     if (!result?.sigEngineOrder || (!result.hasHighRisk && !result.hasUnresolved)) return;
@@ -343,12 +368,32 @@ export function WorkbenchView() {
             )}
 
             {/* Final output */}
-            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
-              <p className="text-[10px] uppercase tracking-wider text-primary font-semibold mb-3">
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-4">
+              <p className="text-[10px] uppercase tracking-wider text-primary font-semibold">
                 Review and correct SIG
               </p>
-              {result ? <WorkbenchReview key={`${inputMode}:${rawInput}`} result={result} source={source} />
-                : <p className="text-sm text-muted-foreground">Enter original directions to prepare a draft for review.</p>}
+
+              {clinicalResult && clinicalResult.abnormalities.length > 0 && (
+                <AbnormalityBanner findings={clinicalResult.abnormalities} />
+              )}
+
+              {clinicalResult && clinicalResult.subOrders.length > 1 ? (
+                <MultiOrderCards subOrders={clinicalResult.subOrders} />
+              ) : result ? (
+                <WorkbenchReview key={`${inputMode}:${rawInput}`} result={result} source={source} />
+              ) : (
+                <p className="text-sm text-muted-foreground">Enter original directions to prepare a draft for review.</p>
+              )}
+
+              <DiscrepancyPanel
+                pon={clinicalInbound?.pon || 'MANUAL_ENTRY'}
+                drugName={drugName || clinicalInbound?.drugName || 'UNKNOWN DRUG'}
+                rawProse={clinicalInbound?.rawProse || rawInput}
+                generatedSig={clinicalResult?.primarySig || result?.finalSig || ''}
+                onDiscrepancySaved={() => {
+                  toast.success('Discrepancy report recorded');
+                }}
+              />
             </div>
           </div>
         </div>
