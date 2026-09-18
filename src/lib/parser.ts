@@ -16,31 +16,31 @@ import { translateFreeTextSig } from './sigEngine';
 const HL7_DIRECTIONS_FIELDS: Array<{ segment: string; fieldIndex: number }> = [
   { segment: 'RXO', fieldIndex: 6 },
   { segment: 'RXE', fieldIndex: 7 },
-  { segment: 'ORC', fieldIndex: 7 },
 ];
 
 export function extractHl7DirectionsField(raw: string): Hl7ExtractionResult {
-  const lines = raw.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  const lines = raw.split(/\r\n|\r|\n/).filter((l) => l.trim().length > 0);
+  if (lines.filter(line => line.startsWith('MSH|')).length !== 1 || lines.filter(line => line.startsWith('ORC|')).length > 1) {
+    return { extracted: '', segment: 'UNKNOWN', fieldIndex: 0, warning: 'Supply one complete order message. Review the original directions in Free Text mode.' };
+  }
+  const candidates: Hl7ExtractionResult[] = [];
 
   for (const { segment, fieldIndex } of HL7_DIRECTIONS_FIELDS) {
-    const segLine = lines.find((l) => l.startsWith(segment + '|'));
-    if (!segLine) continue;
-
-    const fields = segLine.split('|');
-    const value = fields[fieldIndex] ?? '';
-    const cleaned = value.trim();
-
-    if (cleaned.length > 0) {
-      return { extracted: cleaned, segment, fieldIndex };
+    for (const segLine of lines.filter(l => l.startsWith(segment + '|'))) {
+      const cleaned = (segLine.split('|')[fieldIndex] ?? '').trim();
+      if (cleaned) candidates.push({ extracted: cleaned, segment, fieldIndex });
     }
   }
-
+  if (candidates.length === 1) return {
+    ...candidates[0],
+    warning: 'Unverified HL7 profile: candidate field only. Confirm original directions and PON in the source system, then use Free Text or Order Queue. Copy is disabled here.',
+  };
   return {
-    extracted: raw.trim(),
+    extracted: '',
     segment: 'UNKNOWN',
     fieldIndex: 0,
     warning:
-      'No recognized pharmacy directions segment (RXO-6, RXE-7, ORC-7) found. Falling back to raw input.',
+      'Directions are missing or ambiguous. No raw-message fallback is used. Review original directions in Free Text mode.',
   };
 }
 

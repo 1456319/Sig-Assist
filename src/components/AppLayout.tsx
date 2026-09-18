@@ -19,10 +19,12 @@ import { DictionaryView } from './DictionaryView';
 import { RuleBuilderView } from './RuleBuilderView';
 import { ExpansionView } from './ExpansionView';
 import { SettingsView } from './SettingsView';
+import { OrderQueueView } from './OrderQueueView';
 
-export type AppView = 'workbench' | 'dictionary' | 'rules' | 'expansions' | 'settings';
+export type AppView = 'queue' | 'workbench' | 'dictionary' | 'rules' | 'expansions' | 'settings';
 
 const NAV_ITEMS: Array<{ id: AppView; label: string; icon: React.ElementType; description: string }> = [
+  { id: 'queue', label: 'Order Queue', icon: ActivitySquare, description: 'Review & Copy by PON' },
   { id: 'workbench',  label: 'Workbench',        icon: FlaskConical, description: 'Live SIG Parser'           },
   { id: 'dictionary', label: 'SIG Dictionary',    icon: BookOpen,     description: 'Code Master Table'          },
   { id: 'rules',      label: 'Rule Builder',      icon: Wand2,        description: 'Custom Transform Rules'     },
@@ -31,7 +33,7 @@ const NAV_ITEMS: Array<{ id: AppView; label: string; icon: React.ElementType; de
 ];
 
 export function AppLayout() {
-  const [activeView, setActiveView] = useState<AppView>('workbench');
+  const [activeView, setActiveView] = useState<AppView>('queue');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { theme, setTheme } = useTheme();
 
@@ -136,6 +138,7 @@ export function AppLayout() {
 
         {/* View */}
         <main className="flex-1 overflow-auto scrollbar-thin">
+          {activeView === 'queue' && <OrderQueueView />}
           {activeView === 'workbench'  && <WorkbenchView />}
           {activeView === 'dictionary' && <DictionaryView />}
           {activeView === 'rules'      && <RuleBuilderView />}

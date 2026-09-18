@@ -1,35 +1,24 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
-  FlaskConical, Copy, Check, TriangleAlert, ChevronDown, ChevronRight,
-  Zap, RefreshCw, Info, AlertTriangle, CheckCircle2, XCircle,
+  TriangleAlert, ChevronDown, ChevronRight, Zap, RefreshCw, CheckCircle2,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { fetchAllSigEntries } from '../lib/sigDictionaryService';
 import { fetchAllTechRules } from '../lib/techRulesService';
 import { fetchAllExpansions } from '../lib/sigExpansionService';
 import { runParser } from '../lib/parser';
-import type { SigDictionaryEntry, TechRule, SigExpansion, ParseResult, InputMode, TraceStep, ResolvedToken } from '../lib/types';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { SigReviewPanel } from './SigReviewPanel';
+import { supabase } from '../lib/supabase';
+import type { SigDictionaryEntry, TechRule, SigExpansion, ParseResult, InputMode, TraceStep } from '../lib/types';
 import { toast } from 'sonner';
 import { createTranslationDiagnostic, SessionDiagnosticSink, toGitHubIssueDraft } from '../lib/translationDiagnostics';
 import type { TranslationDiagnostic } from '../lib/translationDiagnostics';
 
-const HL7_SAMPLE = `MSH|^~\\&|PHARMACY|HOSPITAL|EMR|SYSTEM|20240115120000||RXO^O01|MSG001|P|2.5
-PID|1||123456^^^HOSP^MR||DOE^JOHN^A||19650301|M|||123 MAIN ST^^ANYTOWN^ST^12345
-ORC|NW|ORD001|FILL001||CM|||||20240115120000|||DR SMITH^JOHN
-RXO|1234567890^METFORMIN HCL^NDC|500|MG|TAB|Take 1 tablet BID PC|METFORMIN HCL 500MG TABS|10|TAB
-RXE|ORD001|METFORMIN HCL^500MG^TAB|500|MG|TAB|Take 1 tablet BID PC|10|TAB`;
+const HL7_SAMPLE = `MSH|^~\\&|DEMO|DEMO-FACILITY|DEMO-RECEIVER||20260918120000||RDE^O11^RDE_O11|DEMO-MSG|T|2.5
+ORC|NW|DEMO-ORDER
+RXO|DEMO^EXAMPLE MEDICATION|||||Take 1 tablet by mouth twice daily`;
 
 const FREETEXT_SAMPLE = 'Take 1 tablet twice daily after meals prn';
-
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedValue(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-  return debouncedValue;
-}
 
 function TraceStepCard({ step, defaultOpen }: { step: TraceStep; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen ?? false);
@@ -119,124 +108,27 @@ function TraceStepCard({ step, defaultOpen }: { step: TraceStep; defaultOpen?: b
   );
 }
 
-function HighRiskToken({ token }: { token: ResolvedToken }) {
-  return (
-    <TooltipProvider delayDuration={100}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="inline-flex items-center gap-0.5 text-high-risk font-bold cursor-help border-b border-dashed border-high-risk">
-            {token.translation}
-            <AlertTriangle className="w-3 h-3 inline ml-0.5" />
-          </span>
-        </TooltipTrigger>
-        <TooltipContent
-          side="top"
-          className="max-w-[240px] text-xs bg-destructive text-destructive-foreground border-destructive"
-        >
-          <p className="font-semibold mb-0.5">HIGH RISK</p>
-          <p>{token.highRiskWarning}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
-}
-
-function FinalOutput({ result, copied, onCopy }: { result: ParseResult | null; copied: boolean; onCopy: () => void }) {
-
-  if (!result) {
-    return (
-      <div className="flex flex-col items-center justify-center h-40 text-muted-foreground gap-2">
-        <FlaskConical className="w-8 h-8 opacity-30" />
-        <p className="text-sm">Enter a SIG to begin parsing</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      {/* Badges */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {result.hasHighRisk && (
-          <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider bg-destructive/15 text-high-risk border border-high-risk/30 px-2 py-0.5 rounded-full">
-            <AlertTriangle className="w-3 h-3" />
-            High Risk Detected
-          </span>
-        )}
-        {result.hasUnresolved && (
-          <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/30 px-2 py-0.5 rounded-full">
-            <XCircle className="w-3 h-3" />
-            Unresolved Tokens
-          </span>
-        )}
-        {!result.hasHighRisk && !result.hasUnresolved && (
-          <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-            <CheckCircle2 className="w-3 h-3" />
-            Clean — No Flags
-          </span>
-        )}
-        {result.inputMode === 'hl7' && result.hl7Extraction && (
-          <span className="flex items-center gap-1 text-[10px] uppercase tracking-wider bg-blue-500/10 text-blue-500 border border-blue-500/30 px-2 py-0.5 rounded-full">
-            <Info className="w-3 h-3" />
-            {result.hl7Extraction.segment}-{result.hl7Extraction.fieldIndex}
-          </span>
-        )}
-      </div>
-
-      {/* Final SIG rendered */}
-      <div className="bg-muted/50 rounded-lg p-3 border border-border min-h-[56px]">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Framework SIG</p>
-        <div className="text-[14px] font-medium leading-relaxed flex flex-wrap gap-x-1.5 gap-y-0.5">
-          {result.resolvedTokens.map((token, i) => (
-            token.isHighRisk ? (
-              <HighRiskToken key={i} token={token} />
-            ) : token.unresolved ? (
-              <span key={i} className="text-amber-500 italic">{token.translation}</span>
-            ) : (
-              <span key={i}>{token.translation}</span>
-            )
-          ))}
-        </div>
-      </div>
-
-      {/* Copy button */}
-      <button
-        onClick={onCopy}
-        className={cn(
-          'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all',
-          copied
-            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-            : 'bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20'
-        )}
-      >
-        {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-        {copied ? 'Copied!' : 'Copy Standardized SIG'}
-      </button>
-    </div>
-  );
+function WorkbenchReview({ result, source }: { result: ParseResult; source: string }) {
+  const [draft, setDraft] = useState(result.finalSig.toUpperCase());
+  const [approved, setApproved] = useState<string>();
+  return <SigReviewPanel source={source} suggestion={result.finalSig} draft={draft} approved={approved}
+    unavailable={result.inputMode === 'hl7' && !!result.hl7Extraction?.warning}
+    warnings={result.steps.flatMap(step => step.warnings)}
+    onEdit={value => { setDraft(value.toUpperCase()); setApproved(undefined); }} onApprove={setApproved} />;
 }
 
 export function WorkbenchView() {
-  const [inputMode, setInputMode] = useState<InputMode>('hl7');
-  const [rawInput, setRawInput] = useState(HL7_SAMPLE);
-  const [result, setResult] = useState<ParseResult | null>(null);
+  const [inputMode, setInputMode] = useState<InputMode>('freetext');
+  const [rawInput, setRawInput] = useState('');
   const [dictionary, setDictionary] = useState<SigDictionaryEntry[]>([]);
   const [techRules, setTechRules] = useState<TechRule[]>([]);
   const [expansions, setExpansions] = useState<SigExpansion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [copied, setCopied] = useState(false);
-  const [autoCopyUnsafe, setAutoCopyUnsafe] = useState(() => localStorage.getItem('sig-assist:auto-copy-unsafe') === 'true');
   const [latestDiagnostic, setLatestDiagnostic] = useState<TranslationDiagnostic | null>(null);
   
-  const [drugName, setDrugName] = useState('Lactulose 10 GM/15ML');
+  const [drugName, setDrugName] = useState('');
   const [defaultSig, setDefaultSig] = useState('');
   
-  const debouncedInput = useDebounce(rawInput, 300);
-  const debouncedDrug = useDebounce(drugName, 300);
-  const debouncedDefaultSig = useDebounce(defaultSig, 300);
-  
-  const runCount = useRef(0);
-  const resultRef = useRef<ParseResult | null>(null);
-  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const diagnosticSinkRef = useRef(new SessionDiagnosticSink());
   const diagnosticKeysRef = useRef(new Set<string>());
 
@@ -247,7 +139,7 @@ export function WorkbenchView() {
         setDictionary(dict);
         setTechRules(rules);
         setExpansions(exps);
-      } catch (err) {
+      } catch {
         toast.error('Failed to load dictionary or rules');
       } finally {
         setLoading(false);
@@ -256,41 +148,10 @@ export function WorkbenchView() {
     load();
   }, []);
 
-  useEffect(() => {
-    if (loading || !debouncedInput.trim()) {
-      setResult(null);
-      resultRef.current = null;
-      return;
-    }
-    runCount.current += 1;
-    const parsed = runParser(debouncedInput, inputMode, dictionary, techRules, expansions, debouncedDrug, debouncedDefaultSig);
-    setResult(parsed);
-    resultRef.current = parsed;
-  }, [debouncedInput, inputMode, dictionary, techRules, expansions, loading, debouncedDrug, debouncedDefaultSig]);
-
-  const handleCopy = useCallback(async (silent = false) => {
-    const current = resultRef.current;
-    if (!current?.finalSig) return;
-    try {
-      await navigator.clipboard.writeText(current.finalSig);
-      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
-      setCopied(true);
-      if (!silent) toast.success('STANDARDIZED SIG COPIED TO CLIPBOARD');
-      copiedTimerRef.current = setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // clipboard access denied — silently ignore on blur
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('sig-assist:auto-copy-unsafe', String(autoCopyUnsafe));
-  }, [autoCopyUnsafe]);
-
-  // Clipboard writes may be denied unless this runs inside a browser user gesture.
-  // Manual copy remains the reliable Citrix/browser fallback.
-  useEffect(() => {
-    if (autoCopyUnsafe && result?.hasHighRisk) void handleCopy(true);
-  }, [autoCopyUnsafe, result, handleCopy]);
+  const result = useMemo(() => loading || !rawInput.trim() ? null
+    : runParser(rawInput, inputMode, dictionary, techRules, expansions, drugName, defaultSig),
+    [loading, rawInput, inputMode, dictionary, techRules, expansions, drugName, defaultSig]);
+  const source = JSON.stringify([rawInput, inputMode, drugName, defaultSig, result]);
 
   useEffect(() => {
     if (!result?.sigEngineOrder || (!result.hasHighRisk && !result.hasUnresolved)) return;
@@ -320,12 +181,10 @@ export function WorkbenchView() {
 
   const handleModeChange = useCallback((mode: InputMode) => {
     setInputMode(mode);
-    setRawInput(mode === 'hl7' ? HL7_SAMPLE : FREETEXT_SAMPLE);
   }, []);
 
   const handleClear = () => {
     setRawInput('');
-    setResult(null);
   };
 
   return (
@@ -356,18 +215,10 @@ export function WorkbenchView() {
         )}
         {!loading && (
           <span className="text-xs text-muted-foreground">
-            {dictionary.length} codes loaded · {techRules.filter((r) => r.enabled).length} rules · {expansions.filter((e) => e.enabled).length} expansions
+            {!supabase ? 'Local mode · ' : ''}{dictionary.length} codes loaded · {techRules.filter((r) => r.enabled).length} rules · {expansions.filter((e) => e.enabled).length} expansions
           </span>
         )}
         <div className="ml-auto flex items-center gap-1.5">
-          <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-pointer">
-            <input
-              type="checkbox"
-              checked={autoCopyUnsafe}
-              onChange={(event) => setAutoCopyUnsafe(event.target.checked)}
-            />
-            Auto-copy flagged SIGs
-          </label>
           {latestDiagnostic && (
             <button
               onClick={openDiagnosticIssue}
@@ -379,8 +230,9 @@ export function WorkbenchView() {
           )}
           <span className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
             <Zap className="w-3 h-3 text-primary" />
-            Live
+            Parser
           </span>
+          <button className="text-[11px] text-muted-foreground hover:text-foreground px-2 py-0.5 rounded hover:bg-muted" onClick={() => setRawInput(inputMode === 'hl7' ? HL7_SAMPLE : FREETEXT_SAMPLE)}>Example</button>
           <button
             onClick={handleClear}
             className="text-[11px] text-muted-foreground hover:text-foreground px-2 py-0.5 rounded hover:bg-muted transition-colors"
@@ -470,9 +322,10 @@ export function WorkbenchView() {
             {/* Final output */}
             <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
               <p className="text-[10px] uppercase tracking-wider text-primary font-semibold mb-3">
-                Final Standardized SIG
+                Review and correct SIG
               </p>
-              <FinalOutput result={result} copied={copied} onCopy={() => handleCopy(false)} />
+              {result ? <WorkbenchReview key={source} result={result} source={source} />
+                : <p className="text-sm text-muted-foreground">Enter original directions to prepare a draft for review.</p>}
             </div>
           </div>
         </div>

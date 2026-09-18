@@ -64,7 +64,9 @@ function route(text: string): Route | undefined {
 function frequency(text: string): Frequency | undefined {
   if (/before meals and at bedtime/.test(text)) return 'ACHS'; if (/before meals/.test(text)) return 'AC'; if (/every\s+(?:sun|sunday)/.test(text)) return 'QPMDAY7';
   if (/at bedtime/.test(text)) return 'QHS'; if (/every morning|in the morning/.test(text)) return 'QAM';
-  return [[/\b(?:1 time|daily|once daily)\b/, 'QD'], [/\b(?:2 times|twice daily)\b/, 'BID'], [/\b(?:3 times|three times)\b/, 'TID'], [/\b(?:4 times|four times)\b/, 'QID'], [/every 4 hours/, 'Q4H'], [/every 6 hours/, 'Q6H'], [/every 12 hours/, 'Q12H']].find(([pattern]) => (pattern as RegExp).test(text))?.[1] as Frequency | undefined;
+  // Normalization turns "twice daily" into "2 daily". Specific frequencies
+  // must precede the standalone "daily" match, or BID/TID/QID become QD.
+  return [[/\b(?:2 times|2 daily|bid)\b/, 'BID'], [/\b(?:3 times|3 daily|tid)\b/, 'TID'], [/\b(?:4 times|4 daily|qid)\b/, 'QID'], [/\b(?:every 4 hours|q4h)\b/, 'Q4H'], [/\b(?:every 6 hours|q6h)\b/, 'Q6H'], [/\b(?:every 12 hours|q12h)\b/, 'Q12H'], [/\b(?:1 time|daily|qd)\b/, 'QD']].find(([pattern]) => (pattern as RegExp).test(text))?.[1] as Frequency | undefined;
 }
 function scale(text: string): SlidingScaleBand[] | undefined {
   if (!/sliding scale/.test(text)) return undefined;
@@ -75,7 +77,10 @@ function scale(text: string): SlidingScaleBand[] | undefined {
   return bands.length ? bands.sort((a, b) => (a.lower ?? -Infinity) - (b.lower ?? -Infinity)) : undefined;
 }
 function indication(text: string): string | undefined {
-  const value = text.match(/(?:for|indications?:)\s+(.+?)(?:\s+for\s+\d+\s+days?|\s+until\s+\d|\s+hold\b|$)/i)?.[1]?.trim();
+  // A duration is not an indication. Remove only the already-parsed duration
+  // clause from this extraction view; the original source remains unchanged.
+  const withoutDuration = text.replace(/\bfor\s+\d+\s+days?\b[.,;]?/gi, ' ');
+  const value = withoutDuration.match(/(?:for|indications?:)\s+(.+?)(?:\s+until\s+\d|\s+hold\b|$)/i)?.[1]?.trim();
   return value ? indications.find(([matcher]) => matcher.test(value))?.[1] ?? `FOR ${value.toUpperCase()}` : undefined;
 }
 function validateScale(bands: SlidingScaleBand[], issues: SigIssue[]): void {

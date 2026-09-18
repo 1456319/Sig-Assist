@@ -1,3 +1,5 @@
+import type { ParsedSigOrder } from './sigEngine';
+
 export interface SigDictionaryEntry {
   id: string;
   sig_code: string;
@@ -79,5 +81,5 @@ export interface ParseResult {
   finalSig: string;
   hasHighRisk: boolean;
   hasUnresolved: boolean;
-  sigEngineOrder?: any; // To hold ParsedSigOrder from sigEngine
+  sigEngineOrder?: ParsedSigOrder;
 }

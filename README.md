@@ -1,5 +1,16 @@
 # Sig-Assist
 
+## Try the local review MVP
+
+Run `npm ci` and `npm run dev` with Node.js 22.12+. No Supabase configuration
+is required for the local **Order Queue**. Choose **Fill synthetic example**,
+add the order, review/correct the uppercase SIG, acknowledge review and copy.
+
+Orders and reversible exclusions stay in memory for the current tab. This
+prototype uses manual PON matching; live Iguana ingestion and clinical parser
+validation remain outstanding. See [the MVP implementation and handoff notes](docs/MVP-REVIEW-QUEUE.md)
+for workflow details, corrected-HAR findings, limitations and next steps.
+
 Long-Term Care Facilities and Assisted Living Facilities depend on closed-door pharmacies.. These pharmacies are dedicated only to the needs needs of these facilities 24-hours a day, and so must meet these needs totally and successfully meet them every single day. Typically, the process is thus:
 
 A facility nurse will type a medical order disctated, verbally, by a practitioner into their Electronic Medical Administration Records system. Although this sounds simple, it takes a great deal of competence to transcribe the order in a way that ensures it is both 100% correct, and syntactically entered in a manner which meets all regulatory standards and so can be transferred to the pharmacy for dispensing. If processed correctly, the EMAR entry is then converted to an HL7 message and transmitted to the pharmacy. Once reaching the pharmacy, it is accepted by the the pharmacy's Iguana (or similar) HL7 message receiver and minimally preprocessed before then being pushed to the appropriate state's pharmacy, where a human operator must parse the nurse's entry via some interface software like FrameworkLTC or some similar interface where a human operator interprets the HL7 nearly-raw message to sensical, pharmaceutically elegant instruction-set which is verified by a skilled pharmacist, then administered to residents by nurses.
