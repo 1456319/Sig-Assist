@@ -55,16 +55,7 @@ export const DiscrepancyPanel: React.FC<DiscrepancyPanelProps> = ({
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.altKey && (e.key === 'n' || e.key === 'N')) {
-        e.preventDefault();
-        toggleOpen();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [controlledIsOpen, onToggleOpen]);
+
 
   const handleSave = async () => {
     if (isSaving) return;
@@ -115,9 +106,6 @@ export const DiscrepancyPanel: React.FC<DiscrepancyPanelProps> = ({
             ? 'Close Feedback'
             : 'Flag Discrepancy or Uncaught Error / Preference Lead'}
         </span>
-        <kbd className="hidden sm:inline-block rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground">
-          Alt+N
-        </kbd>
       </button>
 
       {isOpen && (

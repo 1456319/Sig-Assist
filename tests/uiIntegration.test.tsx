@@ -62,7 +62,6 @@ describe('UI Components', () => {
       />
     );
     expect(html).toContain('Flag Discrepancy or Uncaught Error');
-    expect(html).toContain('Alt+N');
   });
 
   it('renders discrepancy capture panel in expanded state when isOpen is true', () => {

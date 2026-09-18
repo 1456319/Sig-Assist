@@ -102,8 +102,22 @@ export function translateClinicalSig(inbound: InboundOrder, preferences?: Techni
       allAbnormalities.push(...compiled.abnormalities);
     });
 
+    allAbnormalities.push({
+      id: `paxit_pkg_notice_${inbound.id}`,
+      tier: 'applied_correction',
+      title: 'Paxit Packaging Compatibility Notice',
+      message: 'The generated Sig CONTAINS A PACKAGING COMPATIBILITY NOTICE.',
+      correction: 'Prescription regimen contains split dosing or titration. If dispensing via Paxit multi-dose packaging, enter as linked separate orders in FrameworkLTC.',
+      trigger: 'Paxit oral solid multi-dose packaging constraint'
+    });
+
+    const isTitration = paxitEval.splitParts.some(p => p.prose.toLowerCase().includes('then')) || inbound.rawProse.toLowerCase().includes('then');
+    const firstWithoutInd = subOrders[0].suggestedSig.replace(/\s+(?:F[A-Z0-9]+|FOR\s+[\s\S]+)$/i, '');
+    const joiner = isTitration ? ' THEN ' : ' AND ';
+    const unifiedSig = subOrders.length >= 2 ? `${firstWithoutInd}${joiner}${subOrders[1].suggestedSig}` : subOrders[0].suggestedSig;
+
     return {
-      primarySig: subOrders[0].suggestedSig,
+      primarySig: unifiedSig,
       subOrders,
       abnormalities: allAbnormalities
     };

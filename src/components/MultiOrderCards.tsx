@@ -58,9 +58,9 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
   return (
     <div className="space-y-4">
       <div className="rounded-md border border-blue-200 bg-blue-50/50 p-3 text-xs text-blue-900 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
-        <span className="font-semibold">Multi-Order Packaging Regimen (Paxit):</span>
+        <span className="font-semibold">Packaging Compatibility Notice (Paxit Multi-Dose Strip):</span>
         <p className="mt-0.5 text-slate-600 dark:text-slate-400">
-          FrameworkLTC requires separate orders for split dosing or titration schedules. Review and copy each order card individually.
+          The unified prescription order is preserved above. If your pharmacy dispenses via automated Paxit multi-dose pouches, review and enter these linked drafts as separate dispense lines in FrameworkLTC.
         </p>
       </div>
 

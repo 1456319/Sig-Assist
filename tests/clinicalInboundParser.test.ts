@@ -69,5 +69,11 @@ DEFAULT SIG (OPTIONAL FIELD): MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO`;
     expect(parsed.indication).toBe('PAIN & INFLAMMATION');
     expect(parsed.sourceFormat).toBe('ncpdp_xml');
   });
+
+  it('normalizes smart quotes, en-dashes, and non-breaking spaces into ASCII', () => {
+    const raw = `ATORVASTATIN 20MG TABLET\nUSER ENTRY: Give 1\u00A0tablet by mouth daily \u2013 at bedtime \u2018for cholesterol\u2019`;
+    const parsed = parseInboundOrder(raw);
+    expect(parsed.rawProse).toBe("Give 1 tablet by mouth daily - at bedtime 'for cholesterol'");
+  });
 });
 

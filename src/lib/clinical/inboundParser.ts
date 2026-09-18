@@ -19,14 +19,23 @@ function unescapeXml(text: string): string {
   });
 }
 
+function normalizeCharacters(text: string): string {
+  return text
+    .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u201F]/g, '"')
+    .replace(/[\u2013\u2014\u2212]/g, '-')
+    .replace(/\u00A0/g, ' ');
+}
+
 function extractXmlTag(xml: string, tagName: string): string | undefined {
   const regex = new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\\/${tagName}>`, 'i');
   const match = xml.match(regex);
-  return match ? unescapeXml(match[1].trim()) : undefined;
+  return match ? normalizeCharacters(unescapeXml(match[1].trim())) : undefined;
 }
 
 export function parseInboundOrder(rawInput: string): InboundOrder {
-  const trimmed = rawInput.trim();
+  const normalized = normalizeCharacters(rawInput);
+  const trimmed = normalized.trim();
   const id = `order_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
   if (trimmed.startsWith('<') && trimmed.includes('</')) {

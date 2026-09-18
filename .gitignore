@@ -26,3 +26,6 @@ dist-ssr
 
 # Extracted SV data
 .secret_sv/
+docs/drive_samples/
+docs/deidentified_order.pdf
+docs/redact_pdf.py
