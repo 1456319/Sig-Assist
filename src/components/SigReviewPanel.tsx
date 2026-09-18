@@ -16,9 +16,10 @@ interface Props {
   onEdit: (draft: string) => void;
   onApprove: (stamp?: string) => void;
   onCopied?: (stamp: string) => void;
+  onResetSuggestion?: () => void;
 }
 
-export function SigReviewPanel({ source, suggestion, draft, approved, unavailable = false, warnings, onEdit, onApprove, onCopied }: Props) {
+export function SigReviewPanel({ source, suggestion, draft, approved, unavailable = false, warnings, onEdit, onApprove, onCopied, onResetSuggestion }: Props) {
   const { exclusions, setExclusions, policyRevision } = useReviewSession();
   const [code, setCode] = useState('');
   const [copying, setCopying] = useState(false);
@@ -42,6 +43,9 @@ export function SigReviewPanel({ source, suggestion, draft, approved, unavailabl
     if (copyBlockReason(source, draft, exclusions, approved, unavailable, policyRevision)) return;
     setCopying(true);
     try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error('Clipboard API unavailable in this context.');
+      }
       await navigator.clipboard.writeText(finalSig(draft));
       onCopied?.(stamp);
       toast.success('Reviewed SIG copied. Match the PON and preview it in Framework.');
@@ -69,6 +73,9 @@ export function SigReviewPanel({ source, suggestion, draft, approved, unavailabl
     </label>
     <div className="flex flex-wrap gap-2">
       <button className={`${reviewButtonClass} bg-primary text-primary-foreground`} disabled={!!reason || copying} onClick={copy}>Copy reviewed SIG</button>
+      {onResetSuggestion && suggestion && finalSig(draft) !== finalSig(suggestion) && (
+        <button type="button" className={reviewButtonClass} onClick={onResetSuggestion}>Use calculated suggestion</button>
+      )}
       <button className={reviewButtonClass} disabled={!draft.trim()} onClick={() => exclude({ kind: 'sig', value: draft })}>Never use this SIG · session</button>
     </div>
     {reason && <p className="text-xs text-muted-foreground" role="status">{reason}</p>}

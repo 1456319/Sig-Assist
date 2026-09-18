@@ -18,13 +18,14 @@ export function OrderQueueView() {
   const selected = orders.find(order => order.id === selectedId);
   const selectedDirections = selected?.directions;
   const selectedDrug = selected?.drug;
-  const parsed = useMemo(() => selectedDirections === undefined ? undefined : translateFreeTextSig(selectedDirections, { drug: selectedDrug ?? '' }), [selectedDirections, selectedDrug]);
+  const selectedDefaultSig = selected?.defaultSig;
+  const parsed = useMemo(() => selectedDirections === undefined ? undefined : translateFreeTextSig(selectedDirections, { drug: selectedDrug ?? '', defaultSig: selectedDefaultSig }), [selectedDirections, selectedDrug, selectedDefaultSig]);
   const filtered = orders.filter(order => [order.pon, order.facility, order.patientRef].some(value => value.toLowerCase().includes(query.toLowerCase())));
 
   function submit(event: FormEvent) {
     event.preventDefault();
     try {
-      const { sig } = translateFreeTextSig(form.directions, { drug: form.drug });
+      const { sig } = translateFreeTextSig(form.directions, { drug: form.drug, defaultSig: form.defaultSig });
       const next = saveOrder(orders, form, sig, reviseId);
       setOrders(next);
       setSelectedId(orderKey(form));
@@ -68,7 +69,10 @@ export function OrderQueueView() {
             <input required readOnly={!!reviseId} className={reviewInputClass} value={form[field]} onChange={event => setForm(value => ({ ...value, [field]: event.target.value }))} />
           </label>)}
         </div>
-        <label className="block text-sm space-y-1"><span>Drug / strength as ordered</span><input className={reviewInputClass} value={form.drug} onChange={event => setForm(value => ({ ...value, drug: event.target.value }))} /></label>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <label className="block text-sm space-y-1"><span>Drug / strength as ordered</span><input className={reviewInputClass} value={form.drug} onChange={event => setForm(value => ({ ...value, drug: event.target.value }))} /></label>
+          <label className="block text-sm space-y-1"><span>Default SIG template (optional blending)</span><input className={reviewInputClass} placeholder="e.g. DISSOLVE 1 PACKET IN 8 OZ WATER AND GIVE PO QD" value={form.defaultSig ?? ''} onChange={event => setForm(value => ({ ...value, defaultSig: event.target.value }))} /></label>
+        </div>
         <label className="block text-sm space-y-1"><span>Original nurse directions</span><textarea required rows={3} className={reviewInputClass} value={form.directions} onChange={event => setForm(value => ({ ...value, directions: event.target.value }))} /></label>
         <div className="flex gap-2 flex-wrap">
           <button type="submit" className={`${reviewButtonClass} bg-primary text-primary-foreground`}>{reviseId ? 'Save new revision' : 'Add to review queue'}</button>
@@ -102,7 +106,7 @@ export function OrderQueueView() {
           <div className="flex gap-2">
             <button className={reviewButtonClass} disabled={selected.cancelled} onClick={() => {
               setReviseId(selected.id);
-              setForm({ facility: selected.facility, patientRef: selected.patientRef, pon: selected.pon, drug: selected.drug, directions: selected.directions });
+              setForm({ facility: selected.facility, patientRef: selected.patientRef, pon: selected.pon, drug: selected.drug, directions: selected.directions, defaultSig: selected.defaultSig });
               updateSelected(order => ({ ...order, approved: undefined, copied: undefined }));
             }}>Revise source</button>
             <button className={reviewButtonClass} disabled={selected.cancelled} onClick={() => {
@@ -116,6 +120,7 @@ export function OrderQueueView() {
             draft={selected.draft} approved={selected.approved} unavailable={selected.cancelled || reviseId === selected.id}
             warnings={parsed.order.issues.map(issue => `${issue.severity.toUpperCase()}: ${issue.message}`)}
             onEdit={draft => updateSelected(order => editDraft(order, draft))}
+            onResetSuggestion={() => updateSelected(order => editDraft(order, parsed.sig))}
             onApprove={approved => updateSelected(order => ({ ...order, approved, copied: undefined }))}
             onCopied={stamp => updateSelected(order => order.approved === stamp && reviewStamp(sourceStamp(order), order.draft, exclusions, policyRevision) === stamp ? { ...order, copied: stamp } : order)} />
           {selected.previousSources.length > 0 && <details><summary className="cursor-pointer text-sm">Previous source revisions ({selected.previousSources.length})</summary>

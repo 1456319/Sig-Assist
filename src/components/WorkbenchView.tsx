@@ -111,10 +111,33 @@ function TraceStepCard({ step, defaultOpen }: { step: TraceStep; defaultOpen?: b
 function WorkbenchReview({ result, source }: { result: ParseResult; source: string }) {
   const [draft, setDraft] = useState(result.finalSig.toUpperCase());
   const [approved, setApproved] = useState<string>();
+  const isUserEditedRef = useRef(false);
+  const prevSuggestionRef = useRef(result.finalSig);
+
+  useEffect(() => {
+    if (result.finalSig !== prevSuggestionRef.current) {
+      prevSuggestionRef.current = result.finalSig;
+      if (!isUserEditedRef.current) {
+        setDraft(result.finalSig.toUpperCase());
+        setApproved(undefined);
+      }
+    }
+  }, [result.finalSig]);
+
   return <SigReviewPanel source={source} suggestion={result.finalSig} draft={draft} approved={approved}
     unavailable={result.inputMode === 'hl7' && !!result.hl7Extraction?.warning}
     warnings={result.steps.flatMap(step => step.warnings)}
-    onEdit={value => { setDraft(value.toUpperCase()); setApproved(undefined); }} onApprove={setApproved} />;
+    onEdit={value => {
+      isUserEditedRef.current = true;
+      setDraft(value.toUpperCase());
+      setApproved(undefined);
+    }}
+    onResetSuggestion={() => {
+      isUserEditedRef.current = false;
+      setDraft(result.finalSig.toUpperCase());
+      setApproved(undefined);
+    }}
+    onApprove={setApproved} />;
 }
 
 export function WorkbenchView() {
