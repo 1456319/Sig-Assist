@@ -148,19 +148,31 @@ export function calculateDoseAndVolume(drugName: string, rawProse: string): Dose
     };
   }
 
-  // Oral liquid / syrup / elixir / solution
-  if (upperDrug.includes('SYR') || upperDrug.includes('SOLN') || upperDrug.includes('ELIX') || upperDrug.includes('LIQ') || upperProse.includes(' ML ') || upperProse.includes(' MILLILITER')) {
-    const mlMatch = upperProse.match(/(\d+(?:\.\d+)?)\s*(?:ML|MILLILITER)/);
+  // Oral liquid / syrup / elixir / solution / suspension
+  const isLiquid = upperDrug.includes('SYR') ||
+    upperDrug.includes('SOLN') ||
+    upperDrug.includes('ELIX') ||
+    upperDrug.includes('LIQ') ||
+    upperDrug.includes('SUSP') ||
+    /\b\d+(?:\.\d+)?\s*ML\b/i.test(upperProse) ||
+    upperProse.includes('MILLILITER');
+
+  if (isLiquid) {
+    const mlMatch = upperProse.match(/\b(\d+(?:\.\d+)?)\s*(?:ML|MILLILITER)\b/);
     const vol = mlMatch ? parseFloat(mlMatch[1]) : 0;
-    const strengthMatch = upperDrug.match(/(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))?\s*MG\s*\/\s*(\d+(?:\.\d+)?)\s*ML/);
+    const strengthMatch = upperDrug.match(/(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))?\s*(MG|GM|MCG)\s*\/\s*(\d+(?:\.\d+)?)\s*ML/);
+
+    const drugWithoutConc = upperDrug.replace(/\/\s*\d*(?:\.\d+)?\s*ML.*/, '');
+    const isMultiIngredient = upperDrug.includes('-') || (upperDrug.match(/\//g) || []).length > 1 || drugWithoutConc.includes('/') || Boolean(strengthMatch?.[2]);
 
     let doseToken = `ADM ${vol}ML`;
-    if (strengthMatch && vol > 0) {
-      const concMg = parseFloat(strengthMatch[1]);
-      const concMl = parseFloat(strengthMatch[3] || '1');
-      const calculatedDose = (vol * concMg) / concMl;
+    if (strengthMatch && vol > 0 && !isMultiIngredient) {
+      const concVal = parseFloat(strengthMatch[1]);
+      const unit = strengthMatch[3];
+      const concMl = parseFloat(strengthMatch[4] || '1');
+      const calculatedDose = (vol * concVal) / concMl;
       const roundedDose = Number.isInteger(calculatedDose) ? calculatedDose.toString() : calculatedDose.toFixed(1);
-      doseToken = `ADM ${vol}ML (${roundedDose}MG)`;
+      doseToken = `ADM ${vol}ML (${roundedDose}${unit})`;
     }
 
     return {
@@ -193,7 +205,7 @@ export function calculateDoseAndVolume(drugName: string, rawProse: string): Dose
   if (halfMatch) {
     const strengthMatch = upperDrug.match(/(\d+(?:\.\d+)?)\s*(MG|MCG|GM)/);
     let targetDoseStr = '';
-    if (strengthMatch) {
+    if (strengthMatch && !upperDrug.includes('/') && !upperDrug.includes('-')) {
       const fullVal = parseFloat(strengthMatch[1]);
       const unit = strengthMatch[2];
       const halfVal = fullVal / 2;

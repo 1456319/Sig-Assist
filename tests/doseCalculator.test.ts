@@ -61,4 +61,30 @@ describe('doseCalculator', () => {
     expect(res.doseToken).toBe('[ROX10MG]');
     expect(res.routeToken).toBe('PO');
   });
+
+  it('omits target dose parenthetical for combination half-tablets', () => {
+    const hyphenated = calculateDoseAndVolume('CARBIDOPA-LEVODOPA 25-100 TAB', 'Give 0.5 tablet by mouth twice daily');
+    expect(hyphenated.doseToken).toBe('1/2T');
+    expect(hyphenated.routeToken).toBe('PO');
+
+    const slashed = calculateDoseAndVolume('HYDROCHLOROTHIAZIDE/TRIAMTERENE 25/37.5', 'Give 1/2 tablet by mouth every day');
+    expect(slashed.doseToken).toBe('1/2T');
+    expect(slashed.routeToken).toBe('PO');
+  });
+
+  it('omits target dose parenthetical for combination oral liquids', () => {
+    const res = calculateDoseAndVolume('GUAIASORB DM S/F LQ 100-10/5ML', 'Give 10 ml by mouth every 6 hours');
+    expect(res.doseToken).toBe('ADM 10ML');
+    expect(res.routeToken).toBe('PO');
+  });
+
+  it('supports liquid suspensions and GM/ML concentration calculations', () => {
+    const gmRes = calculateDoseAndVolume('ENULOSE SOLN 10GM/15ML', 'Give 15 ml by mouth two times a day');
+    expect(gmRes.doseToken).toBe('ADM 15ML (10GM)');
+    expect(gmRes.routeToken).toBe('PO');
+
+    const suspRes = calculateDoseAndVolume('AMOXICILLIN SUSP 250MG/5ML', 'Give 5ml by mouth three times a day');
+    expect(suspRes.doseToken).toBe('ADM 5ML (250MG)');
+    expect(suspRes.routeToken).toBe('PO');
+  });
 });
