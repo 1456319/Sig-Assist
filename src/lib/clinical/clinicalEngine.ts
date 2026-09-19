@@ -103,27 +103,34 @@ export function translateClinicalSig(inbound: InboundOrder, preferences?: Techni
     });
 
     allAbnormalities.push({
-      id: `paxit_pkg_notice_${inbound.id}`,
+      id: `paxit_split_req_${inbound.id}`,
       tier: 'applied_correction',
-      title: 'Paxit Packaging Compatibility Notice',
-      message: 'The generated Sig CONTAINS A PACKAGING COMPATIBILITY NOTICE.',
-      correction: 'Prescription regimen contains split dosing or titration. If dispensing via Paxit multi-dose packaging, enter as linked separate orders in FrameworkLTC.',
-      trigger: 'Paxit oral solid multi-dose packaging constraint'
+      title: 'Paxit Multi-Order Split Required',
+      message: 'The generated Sig CONTAINS A CORRECTION.',
+      correction: 'Paxit oral solid packaging cannot accept split SIGs on a single order. Separated into independent orders for FrameworkLTC entry.',
+      trigger: 'Paxit oral solid differential daily dosing / titration constraint'
     });
 
-    const isTitration = paxitEval.splitParts.some(p => p.prose.toLowerCase().includes('then')) || inbound.rawProse.toLowerCase().includes('then');
-    const firstWithoutInd = subOrders[0].suggestedSig.replace(/\s+(?:F[A-Z0-9]+|FOR\s+[\s\S]+)$/i, '');
-    const joiner = isTitration ? ' THEN ' : ' AND ';
-    const unifiedSig = subOrders.length >= 2 ? `${firstWithoutInd}${joiner}${subOrders[1].suggestedSig}` : subOrders[0].suggestedSig;
-
     return {
-      primarySig: unifiedSig,
+      primarySig: subOrders[0].suggestedSig,
       subOrders,
       abnormalities: allAbnormalities
     };
   }
 
   const compiled = assembleSig(inbound.drugName, inbound.rawProse, inbound.defaultSigTemplate, preferences, inbound.indication);
+  const abnormalities = [...compiled.abnormalities];
+
+  if (paxitEval.isControlled) {
+    abnormalities.push({
+      id: `controlled_substance_single_order_${inbound.id}`,
+      tier: 'applied_correction',
+      title: 'Controlled Substance — Single Order Required',
+      message: 'The generated Sig CONTAINS A PACKAGING & ORDER RESTRICTION.',
+      correction: 'Controlled substances cannot be split into multiple orders in FrameworkLTC. If quantity exceeds card capacity (60 count), FrameworkLTC will generate multiple labels/cards for this single order.',
+      trigger: 'Controlled substance (CII-CV) single order regulatory and packaging constraint'
+    });
+  }
 
   return {
     primarySig: compiled.sig,
@@ -131,8 +138,8 @@ export function translateClinicalSig(inbound: InboundOrder, preferences?: Techni
       id: `${inbound.id}_single`,
       label: 'Order 1 of 1',
       suggestedSig: compiled.sig,
-      abnormalities: compiled.abnormalities
+      abnormalities
     }],
-    abnormalities: compiled.abnormalities
+    abnormalities
   };
 }

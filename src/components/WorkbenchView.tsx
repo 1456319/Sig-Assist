@@ -19,10 +19,7 @@ import { DiscrepancyPanel } from './DiscrepancyPanel';
 import { translateClinicalSig } from '../lib/clinical/clinicalEngine';
 import { parseInboundOrder } from '../lib/clinical/inboundParser';
 import type { ClinicalSigResult, InboundOrder } from '../lib/clinical/types';
-
-const HL7_SAMPLE = `MSH|^~\\&|DEMO|DEMO-FACILITY|DEMO-RECEIVER||20260918120000||RDE^O11^RDE_O11|DEMO-MSG|T|2.5
-ORC|NW|DEMO-ORDER
-RXO|DEMO^EXAMPLE MEDICATION|||||Take 1 tablet by mouth twice daily`;
+import { HL7_SAMPLE } from '../lib/clinical/fixtures';
 
 const FREETEXT_SAMPLE = 'Take 1 tablet twice daily after meals prn';
 
@@ -180,7 +177,6 @@ export function WorkbenchView() {
   const result = useMemo(() => loading || !rawInput.trim() ? null
     : runParser(rawInput, inputMode, dictionary, techRules, expansions, drugName, defaultSig),
     [loading, rawInput, inputMode, dictionary, techRules, expansions, drugName, defaultSig]);
-  const source = JSON.stringify([rawInput, inputMode, drugName, defaultSig, result]);
 
   const clinicalInbound = useMemo((): InboundOrder | null => {
     if (!rawInput.trim()) return null;
@@ -200,6 +196,19 @@ export function WorkbenchView() {
       return null;
     }
   }, [clinicalInbound]);
+
+  const effectiveResult = useMemo(() => {
+    if (!result) return null;
+    if (clinicalResult?.primarySig) {
+      return {
+        ...result,
+        finalSig: clinicalResult.primarySig,
+      };
+    }
+    return result;
+  }, [result, clinicalResult]);
+
+  const source = JSON.stringify([rawInput, inputMode, drugName, defaultSig, effectiveResult]);
 
   useEffect(() => {
     if (!result?.sigEngineOrder || (!result.hasHighRisk && !result.hasUnresolved)) return;
@@ -379,8 +388,8 @@ export function WorkbenchView() {
 
               {clinicalResult && clinicalResult.subOrders.length > 1 ? (
                 <MultiOrderCards subOrders={clinicalResult.subOrders} />
-              ) : result ? (
-                <WorkbenchReview key={`${inputMode}:${rawInput}`} result={result} source={source} />
+              ) : effectiveResult ? (
+                <WorkbenchReview key={`${inputMode}:${rawInput}:${effectiveResult.finalSig}`} result={effectiveResult} source={source} />
               ) : (
                 <p className="text-sm text-muted-foreground">Enter original directions to prepare a draft for review.</p>
               )}

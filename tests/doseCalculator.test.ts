@@ -87,4 +87,22 @@ describe('doseCalculator', () => {
     expect(suspRes.doseToken).toBe('ADM 5ML (250MG)');
     expect(suspRes.routeToken).toBe('PO');
   });
+
+  it('correctly calculates decimal doses without matching decimal suffix as integer', () => {
+    const res = calculateDoseAndVolume('PREDNISONE TAB 10MG', 'Take 1.5 tablets by mouth daily');
+    expect(res.doseToken).toBe('1.5T (15MG)');
+    expect(res.routeToken).toBe('PO');
+  });
+
+  it('correctly calculates fraction doses like 3/4 tablet without matching denominator', () => {
+    const res = calculateDoseAndVolume('PREDNISONE TAB 10MG', 'Take 3/4 tablet by mouth daily');
+    expect(res.doseToken).toBe('3/4T (7.5MG)');
+    expect(res.routeToken).toBe('PO');
+  });
+
+  it('does not confuse one time a day with intramuscular route', () => {
+    const res = calculateDoseAndVolume('EXAMPLE INJ 10MG/1ML', 'Inject 1 ml subcutaneously one time a day');
+    expect(res.doseToken).toBe('INJ 1ML (10MG)');
+    expect(res.routeToken).toBe('SQ');
+  });
 });

@@ -4,6 +4,7 @@ import { renderToString } from 'react-dom/server';
 import { AbnormalityBanner } from '../src/components/AbnormalityBanner';
 import { DiscrepancyPanel } from '../src/components/DiscrepancyPanel';
 import { MultiOrderCards } from '../src/components/MultiOrderCards';
+import { ReviewContext } from '../src/hooks/use-review-session';
 import { WorkbenchView } from '../src/components/WorkbenchView';
 import { AbnormalityFinding, SubOrderResult } from '../src/lib/clinical/types';
 
@@ -106,7 +107,17 @@ describe('UI Components', () => {
       }
     ];
 
-    const html = renderToString(<MultiOrderCards subOrders={subOrders} />);
+    const html = renderToString(
+      <ReviewContext.Provider value={{
+        orders: [],
+        setOrders: () => {},
+        exclusions: [],
+        policyRevision: 0,
+        setExclusions: () => {}
+      }}>
+        <MultiOrderCards subOrders={subOrders} />
+      </ReviewContext.Provider>
+    );
 
     // Renders both sub-order labels
     expect(html).toContain('Order 1 of 2');

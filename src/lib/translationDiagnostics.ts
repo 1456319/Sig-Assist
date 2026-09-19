@@ -35,8 +35,15 @@ export function createTranslationDiagnostic(
   output: string,
   order: ParsedSigOrder,
 ): TranslationDiagnostic {
+  const generateId = () => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  };
+
   return {
-    id: crypto.randomUUID(),
+    id: generateId(),
     occurredAt: new Date().toISOString(),
     kind,
     source,
