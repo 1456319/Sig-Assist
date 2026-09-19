@@ -38,6 +38,7 @@ export class TraceLogger {
   private readonly subscribers = new Set<(event: TraceEvent) => void>();
   private activeTraceId: string | null = null;
   private onFlushHook?: (events: TraceEvent[]) => Promise<void>;
+  private lastFlushedIndex = 0;
 
   constructor(maxCapacity = 1000) {
     this.maxCapacity = maxCapacity;
@@ -86,6 +87,9 @@ export class TraceLogger {
     this.events.push(event);
     if (this.events.length > this.maxCapacity) {
       this.events.shift();
+      if (this.lastFlushedIndex > 0) {
+        this.lastFlushedIndex--;
+      }
     }
 
     // Console output for development / devtools inspection
@@ -112,20 +116,62 @@ export class TraceLogger {
     return event;
   }
 
-  public debug(layer: TraceLayer, component: string, message: string, details?: Record<string, unknown>, traceId?: string): TraceEvent {
-    return this.log(layer, 'DEBUG', component, message, details, undefined, traceId);
+  private resolveErrorAndTrace(
+    errorOrTraceId?: { name: string; message: string; stack?: string } | string,
+    traceId?: string
+  ): { error?: { name: string; message: string; stack?: string }; traceId?: string } {
+    if (typeof errorOrTraceId === 'string') {
+      return { traceId: errorOrTraceId };
+    }
+    return { error: errorOrTraceId, traceId };
   }
 
-  public info(layer: TraceLayer, component: string, message: string, details?: Record<string, unknown>, error?: { name: string; message: string; stack?: string }, traceId?: string): TraceEvent {
-    return this.log(layer, 'INFO', component, message, details, error, traceId);
+  public debug(
+    layer: TraceLayer,
+    component: string,
+    message: string,
+    details?: Record<string, unknown>,
+    errorOrTraceId?: { name: string; message: string; stack?: string } | string,
+    traceId?: string
+  ): TraceEvent {
+    const resolved = this.resolveErrorAndTrace(errorOrTraceId, traceId);
+    return this.log(layer, 'DEBUG', component, message, details, resolved.error, resolved.traceId);
   }
 
-  public warn(layer: TraceLayer, component: string, message: string, details?: Record<string, unknown>, error?: { name: string; message: string; stack?: string }, traceId?: string): TraceEvent {
-    return this.log(layer, 'WARN', component, message, details, error, traceId);
+  public info(
+    layer: TraceLayer,
+    component: string,
+    message: string,
+    details?: Record<string, unknown>,
+    errorOrTraceId?: { name: string; message: string; stack?: string } | string,
+    traceId?: string
+  ): TraceEvent {
+    const resolved = this.resolveErrorAndTrace(errorOrTraceId, traceId);
+    return this.log(layer, 'INFO', component, message, details, resolved.error, resolved.traceId);
   }
 
-  public error(layer: TraceLayer, component: string, message: string, details?: Record<string, unknown>, error?: { name: string; message: string; stack?: string }, traceId?: string): TraceEvent {
-    return this.log(layer, 'ERROR', component, message, details, error, traceId);
+  public warn(
+    layer: TraceLayer,
+    component: string,
+    message: string,
+    details?: Record<string, unknown>,
+    errorOrTraceId?: { name: string; message: string; stack?: string } | string,
+    traceId?: string
+  ): TraceEvent {
+    const resolved = this.resolveErrorAndTrace(errorOrTraceId, traceId);
+    return this.log(layer, 'WARN', component, message, details, resolved.error, resolved.traceId);
+  }
+
+  public error(
+    layer: TraceLayer,
+    component: string,
+    message: string,
+    details?: Record<string, unknown>,
+    errorOrTraceId?: { name: string; message: string; stack?: string } | string,
+    traceId?: string
+  ): TraceEvent {
+    const resolved = this.resolveErrorAndTrace(errorOrTraceId, traceId);
+    return this.log(layer, 'ERROR', component, message, details, resolved.error, resolved.traceId);
   }
 
   public getEvents(filter?: TraceFilter): TraceEvent[] {
@@ -150,6 +196,7 @@ export class TraceLogger {
 
   public clear(): void {
     this.events = [];
+    this.lastFlushedIndex = 0;
   }
 
   public subscribe(subscriber: (event: TraceEvent) => void): () => void {
@@ -168,9 +215,15 @@ export class TraceLogger {
   }
 
   public async flush(): Promise<void> {
-    if (this.onFlushHook && this.events.length > 0) {
-      await this.onFlushHook([...this.events]);
+    if (this.onFlushHook && this.events.length > this.lastFlushedIndex) {
+      const unflushed = this.events.slice(this.lastFlushedIndex);
+      this.lastFlushedIndex = this.events.length;
+      await this.onFlushHook(unflushed);
     }
+  }
+
+  public resetFlushCursor(): void {
+    this.lastFlushedIndex = 0;
   }
 
   public createScoped(scopeName: string, maxCapacity = 500): TraceLogger {

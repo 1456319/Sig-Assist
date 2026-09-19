@@ -405,24 +405,43 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
   async appendTraceLogs(events: TraceEvent[]): Promise<void> {
     if (!events || events.length === 0) return;
 
-    if (this.dirHandle) {
-      try {
-        const fileHandle = await this.dirHandle.getFileHandle('sig-assist-trace.jsonl', { create: true });
-        const file = await fileHandle.getFile();
-        const existing = await file.text();
-        const newLines = events.map((e) => JSON.stringify(e)).join('\n') + '\n';
-        const writable = await fileHandle.createWritable();
-        await writable.write(existing + newLines);
-        await writable.close();
-        return;
-      } catch {
-        // Fallback to localStorage on file system error
-      }
-    }
+    return new Promise<void>((resolve, reject) => {
+      this.writeQueueItems.push(async () => {
+        try {
+          if (this.dirHandle) {
+            try {
+              const fileHandle = await this.dirHandle.getFileHandle('sig-assist-trace.jsonl', { create: true });
+              const file = await fileHandle.getFile();
+              const newLines = events.map((e) => JSON.stringify(e)).join('\n') + '\n';
+              const writable = await fileHandle.createWritable({ keepExistingData: true });
+              if (typeof writable.seek === 'function') {
+                await writable.seek(file.size);
+                await writable.write(newLines);
+              } else {
+                const existing = await file.text();
+                await writable.write(existing + newLines);
+              }
+              await writable.close();
+              resolve();
+              return;
+            } catch {
+              // Fallback to localStorage on file system error
+            }
+          }
 
-    const existing = this.readLocalStorage<TraceEvent[]>('citrix_storage_trace_logs', []);
-    const combined = [...existing, ...events].slice(-500);
-    this.writeLocalStorage('citrix_storage_trace_logs', combined);
+          const existing = this.readLocalStorage<TraceEvent[]>('citrix_storage_trace_logs', []);
+          const existingIds = new Set(existing.map((e) => e.id));
+          const fresh = events.filter((e) => !existingIds.has(e.id));
+          const combined = [...existing, ...fresh].slice(-500);
+          this.writeLocalStorage('citrix_storage_trace_logs', combined);
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      });
+
+      this.processWriteQueue();
+    });
   }
 
   async readTraceLogs(): Promise<TraceEvent[]> {

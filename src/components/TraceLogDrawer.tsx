@@ -52,6 +52,7 @@ export function TraceLogDrawer({ isOpen, onClose }: TraceLogDrawerProps) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [copiedStatus, setCopiedStatus] = useState(false);
   const [flushedStatus, setFlushedStatus] = useState(false);
+  const [maxDisplayCount, setMaxDisplayCount] = useState(200);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Subscribe to live log streaming
@@ -65,6 +66,13 @@ export function TraceLogDrawer({ isOpen, onClose }: TraceLogDrawerProps) {
 
     return () => unsubscribe();
   }, [isOpen]);
+
+  // Auto-scroll on new events
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [events.length]);
 
   const filteredEvents = useMemo(() => {
     return events.filter((e) => {
@@ -81,6 +89,11 @@ export function TraceLogDrawer({ isOpen, onClose }: TraceLogDrawerProps) {
       return true;
     });
   }, [events, selectedLayer, selectedLevel, searchQuery]);
+
+  const visibleEvents = useMemo(() => {
+    if (filteredEvents.length <= maxDisplayCount) return filteredEvents;
+    return filteredEvents.slice(filteredEvents.length - maxDisplayCount);
+  }, [filteredEvents, maxDisplayCount]);
 
   if (!isOpen) return null;
 
@@ -315,13 +328,24 @@ export function TraceLogDrawer({ isOpen, onClose }: TraceLogDrawerProps) {
 
         {/* Trace Event Log Viewer */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 flex flex-col gap-2 font-mono text-xs scrollbar-thin">
+          {filteredEvents.length > maxDisplayCount && (
+            <div className="flex justify-center my-1">
+              <button
+                onClick={() => setMaxDisplayCount((prev) => prev + 200)}
+                className="text-[11px] text-primary hover:underline px-2.5 py-1 rounded bg-muted/60 border border-border"
+              >
+                Load {Math.min(200, filteredEvents.length - maxDisplayCount)} older events ({filteredEvents.length - maxDisplayCount} remaining)
+              </button>
+            </div>
+          )}
+
           {filteredEvents.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
               <Terminal className="w-8 h-8 opacity-30 mb-2" />
               <p className="text-xs">No diagnostic trace events match the current filter</p>
             </div>
           ) : (
-            filteredEvents.map((evt) => {
+            visibleEvents.map((evt) => {
               const isExpanded = expandedIds.has(evt.id);
               const hasExtra = Boolean(evt.details || evt.error);
 

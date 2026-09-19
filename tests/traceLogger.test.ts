@@ -88,17 +88,49 @@ describe('traceLogger', () => {
     expect(received.length).toBe(1);
   });
 
-  it('instruments full clinical translation and emits multi-layer trace logs', () => {
+  it('instruments full clinical translation and emits multi-layer trace logs with matching traceId', () => {
     const raw = `OXYCODONE-APAP 5-325\nUSER ENTRY: Take 2 tablets by mouth in the morning and 1 tablet at night before bedtime for 7 days as needed for severe pain`;
     const inbound = parseInboundOrder(raw);
+    expect(inbound.traceId).toBeDefined();
+
     const result = translateClinicalSig(inbound);
 
     expect(result.primarySig).toBe('2T PO QAM AND 1T PO QHS PRN FPAIN X7D 3GM');
+    expect(result.traceId).toBe(inbound.traceId);
 
     const events = traceLogger.getEvents();
     expect(events.length).toBeGreaterThan(0);
 
     const layers = new Set(events.map((e) => e.layer));
-    expect(layers.has('intake') || layers.has('clinical') || layers.has('packaging')).toBe(true);
+    expect(layers.has('intake') && layers.has('clinical') && layers.has('packaging')).toBe(true);
+
+    const clinicalAndPackagingEvents = events.filter((e) => e.layer === 'clinical' || e.layer === 'packaging');
+    expect(clinicalAndPackagingEvents.length).toBeGreaterThan(0);
+    expect(clinicalAndPackagingEvents.every((e) => e.traceId === inbound.traceId)).toBe(true);
+  });
+
+  it('flush cursor tracks flushed events and avoids duplicate emits on repeated flush', async () => {
+    const flushedBatches: TraceEvent[][] = [];
+    traceLogger.setOnFlushHook(async (batch) => {
+      flushedBatches.push(batch);
+    });
+
+    traceLogger.info('clinical', 'doseCalculator', 'Event 1');
+    traceLogger.info('clinical', 'doseCalculator', 'Event 2');
+
+    await traceLogger.flush();
+    expect(flushedBatches.length).toBe(1);
+    expect(flushedBatches[0].length).toBe(2);
+
+    // Repeated flush without new events should NOT emit anything
+    await traceLogger.flush();
+    expect(flushedBatches.length).toBe(1);
+
+    // After logging a 3rd event, flush only emits the 3rd event
+    traceLogger.info('clinical', 'doseCalculator', 'Event 3');
+    await traceLogger.flush();
+    expect(flushedBatches.length).toBe(2);
+    expect(flushedBatches[1].length).toBe(1);
+    expect(flushedBatches[1][0].message).toBe('Event 3');
   });
 });
