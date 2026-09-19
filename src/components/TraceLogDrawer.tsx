@@ -20,6 +20,7 @@ import {
 import { traceLogger, type TraceEvent, type TraceLayer, type TraceLevel } from '../lib/diagnostics/traceLogger';
 import { getCitrixStorageAdapter } from '../lib/citrixStorage';
 import { cn } from '../lib/utils';
+import { toast } from 'sonner';
 
 export interface TraceLogDrawerProps {
   isOpen: boolean;
@@ -54,17 +55,45 @@ export function TraceLogDrawer({ isOpen, onClose }: TraceLogDrawerProps) {
   const [flushedStatus, setFlushedStatus] = useState(false);
   const [maxDisplayCount, setMaxDisplayCount] = useState(200);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [flushFeedback, setFlushFeedback] = useState<{
+    status: 'success' | 'error' | 'idle';
+    message: string;
+  } | null>(null);
 
-  // Subscribe to live log streaming
+  // Subscribe to live log streaming without triggering render-phase updates
   useEffect(() => {
     if (!isOpen) return;
     setEvents(traceLogger.getEvents());
 
     const unsubscribe = traceLogger.subscribe(() => {
-      setEvents(traceLogger.getEvents());
+      // Defer state update so it never executes synchronously inside another component's render phase
+      queueMicrotask(() => {
+        setEvents(traceLogger.getEvents());
+      });
     });
 
     return () => unsubscribe();
+  }, [isOpen]);
+
+  // Hydrate persisted trace history when drawer opens
+  useEffect(() => {
+    if (!isOpen) return;
+    let isMounted = true;
+    const adapter = getCitrixStorageAdapter();
+    adapter.readTraceLogs().then((persisted) => {
+      if (isMounted && persisted && persisted.length > 0) {
+        const added = traceLogger.hydratePersistedEvents(persisted);
+        if (added > 0) {
+          setEvents(traceLogger.getEvents());
+        }
+      }
+    }).catch(() => {
+      // Safe fallback
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, [isOpen]);
 
   // Auto-scroll on new events
@@ -128,11 +157,32 @@ export function TraceLogDrawer({ isOpen, onClose }: TraceLogDrawerProps) {
 
   const handleFlush = async () => {
     try {
-      await traceLogger.flush();
+      const res = await traceLogger.flush();
+      const destLabel = res.destination === 'file_system' ? 'Citrix Share (sig-assist-trace.jsonl)' : 'Browser Storage';
+      if (res.flushedCount > 0) {
+        setFlushFeedback({
+          status: 'success',
+          message: `Flushed ${res.flushedCount} record${res.flushedCount === 1 ? '' : 's'} to ${destLabel}`,
+        });
+        toast.success(`Flushed ${res.flushedCount} trace events to ${destLabel}`);
+      } else {
+        setFlushFeedback({
+          status: 'idle',
+          message: `All records already synchronized to ${destLabel}`,
+        });
+        toast.info('All trace events already synchronized');
+      }
       setFlushedStatus(true);
       setTimeout(() => setFlushedStatus(false), 2000);
-    } catch {
-      // safe fallback
+      setTimeout(() => setFlushFeedback(null), 4000);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      setFlushFeedback({
+        status: 'error',
+        message: `Flush failed: ${errMsg}`,
+      });
+      toast.error(`Flush failed: ${errMsg}`);
+      setTimeout(() => setFlushFeedback(null), 6000);
     }
   };
 
@@ -272,6 +322,36 @@ export function TraceLogDrawer({ isOpen, onClose }: TraceLogDrawerProps) {
               </button>
             </div>
           </div>
+
+          {/* Flush destination / status banner */}
+          {flushFeedback && (
+            <div
+              data-testid="flush-feedback-banner"
+              className={`px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center justify-between transition-all ${
+                flushFeedback.status === 'success'
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                  : flushFeedback.status === 'error'
+                  ? 'bg-destructive/10 text-destructive border border-destructive/30'
+                  : 'bg-muted text-muted-foreground border border-border'
+              }`}
+            >
+              <div className="flex items-center gap-1.5">
+                {flushFeedback.status === 'success' && <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />}
+                {flushFeedback.status === 'error' && <AlertTriangle className="w-3.5 h-3.5 text-destructive flex-shrink-0" />}
+                {flushFeedback.status === 'idle' && <Info className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
+                <span>{flushFeedback.message}</span>
+              </div>
+              {flushFeedback.status === 'error' && (
+                <button
+                  type="button"
+                  onClick={handleFlush}
+                  className="underline text-[11px] font-semibold hover:opacity-80 ml-2"
+                >
+                  Retry
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Search & Level Filter */}
           <div className="flex items-center gap-2">

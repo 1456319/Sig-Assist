@@ -31,7 +31,7 @@ export interface CitrixStorageAdapter {
   appendDiscrepancy(report: DiscrepancyReport, options?: { immediate?: boolean; debounceMs?: number }): Promise<void>;
   readPreferences(): Promise<TechnicianPreferences>;
   writePreferences(prefs: TechnicianPreferences, options?: { immediate?: boolean; debounceMs?: number }): Promise<void>;
-  appendTraceLogs(events: TraceEvent[]): Promise<void>;
+  appendTraceLogs(events: TraceEvent[]): Promise<{ destination: 'file_system' | 'browser_cache'; recordsSaved: number }>;
   readTraceLogs(): Promise<TraceEvent[]>;
   flushPendingWrites(): Promise<void>;
   flush(): Promise<void>;
@@ -157,14 +157,16 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
     return fallback;
   }
 
-  private writeLocalStorage(key: string, value: unknown): void {
+  private writeLocalStorage(key: string, value: unknown): boolean {
     if (typeof localStorage !== 'undefined') {
       try {
         localStorage.setItem(key, JSON.stringify(value));
+        return true;
       } catch {
-        // guard against storage quota errors or restricted environments
+        return false;
       }
     }
+    return false;
   }
 
   private async commitWrite(
@@ -402,39 +404,50 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
     await Promise.all(promises);
   }
 
-  async appendTraceLogs(events: TraceEvent[]): Promise<void> {
-    if (!events || events.length === 0) return;
+  async appendTraceLogs(events: TraceEvent[]): Promise<{ destination: 'file_system' | 'browser_cache'; recordsSaved: number }> {
+    if (!events || events.length === 0) {
+      return { destination: this.getStorageMode(), recordsSaved: 0 };
+    }
 
-    return new Promise<void>((resolve, reject) => {
+    return new Promise<{ destination: 'file_system' | 'browser_cache'; recordsSaved: number }>((resolve, reject) => {
       this.writeQueueItems.push(async () => {
-        try {
-          if (this.dirHandle) {
-            try {
-              const fileHandle = await this.dirHandle.getFileHandle('sig-assist-trace.jsonl', { create: true });
-              const file = await fileHandle.getFile();
-              const newLines = events.map((e) => JSON.stringify(e)).join('\n') + '\n';
-              const writable = await fileHandle.createWritable({ keepExistingData: true });
-              if (typeof writable.seek === 'function') {
-                await writable.seek(file.size);
-                await writable.write(newLines);
-              } else {
-                const existing = await file.text();
-                await writable.write(existing + newLines);
-              }
-              await writable.close();
-              resolve();
-              return;
-            } catch {
-              // Fallback to localStorage on file system error
+        let fileSystemError: unknown = null;
+        if (this.dirHandle) {
+          try {
+            const fileHandle = await this.dirHandle.getFileHandle('sig-assist-trace.jsonl', { create: true });
+            const file = await fileHandle.getFile();
+            const newLines = events.map((e) => JSON.stringify(e)).join('\n') + '\n';
+            const writable = await fileHandle.createWritable({ keepExistingData: true });
+            if (typeof writable.seek === 'function') {
+              await writable.seek(file.size);
+              await writable.write(newLines);
+            } else {
+              const existing = await file.text();
+              await writable.write(existing + newLines);
             }
+            await writable.close();
+            resolve({ destination: 'file_system', recordsSaved: events.length });
+            return;
+          } catch (err) {
+            fileSystemError = err;
+            // Fallback to localStorage on file system error
           }
+        }
 
+        try {
           const existing = this.readLocalStorage<TraceEvent[]>('citrix_storage_trace_logs', []);
           const existingIds = new Set(existing.map((e) => e.id));
           const fresh = events.filter((e) => !existingIds.has(e.id));
           const combined = [...existing, ...fresh].slice(-500);
-          this.writeLocalStorage('citrix_storage_trace_logs', combined);
-          resolve();
+          const saved = this.writeLocalStorage('citrix_storage_trace_logs', combined);
+          if (!saved) {
+            const errorMsg = fileSystemError
+              ? `Citrix share write failed (${fileSystemError instanceof Error ? fileSystemError.message : String(fileSystemError)}) and browser cache storage failed (quota exceeded or storage unavailable).`
+              : 'Failed to persist trace logs to browser cache storage (quota exceeded or storage unavailable).';
+            reject(new Error(errorMsg));
+            return;
+          }
+          resolve({ destination: 'browser_cache', recordsSaved: fresh.length });
         } catch (err) {
           reject(err);
         }
@@ -493,12 +506,12 @@ let instance: CitrixStorageAdapter | null = null;
 
 export function getCitrixStorageAdapter(): CitrixStorageAdapter {
   if (!instance) {
-    instance = new MemoryCitrixStorageAdapter();
+    const created = new MemoryCitrixStorageAdapter();
+    instance = created;
     traceLogger.setOnFlushHook(async (events) => {
-      if (instance) {
-        await instance.appendTraceLogs(events);
-      }
+      return await created.appendTraceLogs(events);
     });
+    return created;
   }
   return instance;
 }

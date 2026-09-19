@@ -103,7 +103,11 @@ function cleanFirstClause(sig: string, isTitration: boolean): string {
 }
 
 export function translateClinicalSig(inbound: InboundOrder, preferences?: TechnicianPreferences): ClinicalSigResult {
-  const traceId = inbound.traceId || traceLogger.getActiveTraceId();
+  const traceId =
+    inbound.traceId ||
+    (inbound.id ? `TRC_${inbound.id}` : undefined) ||
+    (inbound.pon && inbound.pon !== 'UNKNOWN_PON' && inbound.pon !== 'MANUAL_ENTRY' ? `TRC_${inbound.pon}` : undefined) ||
+    traceLogger.generateTraceId('TRC');
   const prevTraceId = traceLogger.getActiveTraceId();
   traceLogger.setActiveTraceId(traceId);
 
@@ -234,6 +238,6 @@ export function translateClinicalSig(inbound: InboundOrder, preferences?: Techni
       traceId
     };
   } finally {
-    traceLogger.setActiveTraceId(prevTraceId);
+    traceLogger.setActiveTraceId(prevTraceId === 'GLOBAL' ? null : prevTraceId);
   }
 }

@@ -133,4 +133,104 @@ describe('traceLogger', () => {
     expect(flushedBatches[1].length).toBe(1);
     expect(flushedBatches[1][0].message).toBe('Event 3');
   });
+
+  it('retains unacknowledged batches for retry if onFlushHook fails, advancing cursor only on success', async () => {
+    let shouldFail = true;
+    const flushedBatches: TraceEvent[][] = [];
+
+    traceLogger.setOnFlushHook(async (batch) => {
+      if (shouldFail) {
+        throw new Error('Network timeout during Citrix share flush');
+      }
+      flushedBatches.push(batch);
+      return { destination: 'file_system', recordsSaved: batch.length };
+    });
+
+    traceLogger.info('clinical', 'doseCalculator', 'Event A');
+    traceLogger.info('clinical', 'doseCalculator', 'Event B');
+
+    // First flush fails
+    await expect(traceLogger.flush()).rejects.toThrow('Network timeout during Citrix share flush');
+    expect(flushedBatches.length).toBe(0);
+
+    // After failure, unacknowledged records must be retried on next flush
+    shouldFail = false;
+    const res = await traceLogger.flush();
+    expect(res.flushedCount).toBe(2);
+    expect(res.destination).toBe('file_system');
+    expect(flushedBatches.length).toBe(1);
+    expect(flushedBatches[0].map(e => e.message)).toEqual(['Event A', 'Event B']);
+
+    // Subsequent flush does not re-emit
+    const emptyRes = await traceLogger.flush();
+    expect(emptyRes.flushedCount).toBe(0);
+  });
+
+  it('hydrates persisted trace history, deduplicating IDs and surfacing in exports without re-flushing', async () => {
+    const persisted: TraceEvent[] = [
+      {
+        id: 'persisted_1',
+        traceId: 'HIST_1',
+        timestamp: new Date().toISOString(),
+        layer: 'intake',
+        level: 'INFO',
+        component: 'inboundParser',
+        message: 'Persisted past session message',
+      },
+    ];
+
+    const added = traceLogger.hydratePersistedEvents(persisted);
+    expect(added).toBe(1);
+
+    // Duplicate hydration ignores existing event
+    const duplicateAdded = traceLogger.hydratePersistedEvents(persisted);
+    expect(duplicateAdded).toBe(0);
+
+    // Surfaced in exports
+    expect(traceLogger.exportJsonl()).toContain('Persisted past session message');
+
+    // Flush hook does not re-emit already persisted events
+    const flushedBatches: TraceEvent[][] = [];
+    traceLogger.setOnFlushHook(async (batch) => {
+      flushedBatches.push(batch);
+    });
+
+    await traceLogger.flush();
+    expect(flushedBatches.length).toBe(0);
+  });
+
+  it('isolates trace IDs between intake parsing and subsequent queue/clinical translations', () => {
+    const initialTrace = traceLogger.getActiveTraceId();
+    expect(initialTrace).toBe('GLOBAL');
+
+    // 1. Parsing inbound order generates unique traceId without contaminating global activeTraceId
+    const inbound = parseInboundOrder('WARFARIN 5MG\nUSER ENTRY: Take 1 tablet daily');
+    expect(inbound.traceId).toBeDefined();
+    expect(inbound.traceId).toMatch(/^ORD_/);
+    expect(traceLogger.getActiveTraceId()).toBe('GLOBAL');
+
+    // 2. Queue translation with order-specific traceId executes cleanly with that traceId
+    const queueOrderResult = translateClinicalSig({
+      id: 'queue_order_99',
+      pon: 'PON_99',
+      drugName: 'LISINOPRIL 10MG',
+      rawProse: 'Take 1 tablet by mouth daily',
+      sourceFormat: 'manual_text',
+      traceId: 'ORD_queue_order_99_R1',
+    });
+    expect(queueOrderResult.traceId).toBe('ORD_queue_order_99_R1');
+    expect(traceLogger.getActiveTraceId()).toBe('GLOBAL');
+
+    // 3. Translation without explicit traceId generates its own TRC_ prefix and does not inherit prior intake
+    const fallbackResult = translateClinicalSig({
+      id: 'order_fallback',
+      pon: 'PON_FB',
+      drugName: 'METFORMIN 500MG',
+      rawProse: 'Take 1 tablet twice daily',
+      sourceFormat: 'manual_text',
+    });
+    expect(fallbackResult.traceId).toBe('TRC_order_fallback');
+    expect(fallbackResult.traceId).not.toBe(inbound.traceId);
+    expect(traceLogger.getActiveTraceId()).toBe('GLOBAL');
+  });
 });

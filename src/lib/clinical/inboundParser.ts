@@ -33,12 +33,11 @@ function extractXmlTag(xml: string, tagName: string): string | undefined {
   const match = xml.match(regex);
   return match ? normalizeCharacters(unescapeXml(match[1].trim())) : undefined;
 }
-
 export function parseInboundOrder(rawInput: string): InboundOrder {
   const normalized = normalizeCharacters(rawInput);
   const trimmed = normalized.trim();
   const id = `order_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-  const traceId = traceLogger.startTrace('ORD');
+  const traceId = traceLogger.generateTraceId('ORD');
 
   traceLogger.debug('intake', 'inboundParser', 'Beginning order intake parsing', {
     rawLength: rawInput.length,

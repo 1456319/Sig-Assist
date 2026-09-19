@@ -32,25 +32,36 @@ function generateId(): string {
   return Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
 }
 
+export interface TraceFlushResult {
+  flushedCount: number;
+  destination: 'file_system' | 'browser_cache' | string;
+}
+
 export class TraceLogger {
   private events: TraceEvent[] = [];
   private readonly maxCapacity: number;
   private readonly subscribers = new Set<(event: TraceEvent) => void>();
   private activeTraceId: string | null = null;
-  private onFlushHook?: (events: TraceEvent[]) => Promise<void>;
+  private onFlushHook?: (events: TraceEvent[]) => Promise<{ destination: 'file_system' | 'browser_cache' | string; recordsSaved: number } | void>;
   private lastFlushedIndex = 0;
 
   constructor(maxCapacity = 1000) {
     this.maxCapacity = maxCapacity;
   }
 
-  public setOnFlushHook(hook: (events: TraceEvent[]) => Promise<void>): void {
+  public setOnFlushHook(
+    hook: (events: TraceEvent[]) => Promise<{ destination: 'file_system' | 'browser_cache' | string; recordsSaved: number } | void>
+  ): void {
     this.onFlushHook = hook;
   }
 
-  public startTrace(prefix = 'TRC'): string {
+  public generateTraceId(prefix = 'TRC'): string {
     const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const traceId = `${prefix}_${Date.now().toString(36).toUpperCase()}_${randomSuffix}`;
+    return `${prefix}_${Date.now().toString(36).toUpperCase()}_${randomSuffix}`;
+  }
+
+  public startTrace(prefix = 'TRC'): string {
+    const traceId = this.generateTraceId(prefix);
     this.activeTraceId = traceId;
     return traceId;
   }
@@ -61,6 +72,18 @@ export class TraceLogger {
 
   public getActiveTraceId(): string {
     return this.activeTraceId || 'GLOBAL';
+  }
+
+  public hydratePersistedEvents(persisted: TraceEvent[]): number {
+    if (!persisted || persisted.length === 0) return 0;
+    const existingIds = new Set(this.events.map((e) => e.id));
+    const fresh = persisted.filter((e) => !existingIds.has(e.id));
+    if (fresh.length === 0) return 0;
+
+    const combined = [...fresh, ...this.events];
+    this.events = combined.slice(-this.maxCapacity);
+    this.lastFlushedIndex = Math.min(this.events.length, fresh.length + this.lastFlushedIndex);
+    return fresh.length;
   }
 
   public log(
@@ -197,6 +220,7 @@ export class TraceLogger {
   public clear(): void {
     this.events = [];
     this.lastFlushedIndex = 0;
+    this.activeTraceId = null;
   }
 
   public subscribe(subscriber: (event: TraceEvent) => void): () => void {
@@ -214,12 +238,19 @@ export class TraceLogger {
     return this.events.map((e) => JSON.stringify(e)).join('\n') + '\n';
   }
 
-  public async flush(): Promise<void> {
+  public async flush(): Promise<TraceFlushResult> {
     if (this.onFlushHook && this.events.length > this.lastFlushedIndex) {
-      const unflushed = this.events.slice(this.lastFlushedIndex);
-      this.lastFlushedIndex = this.events.length;
-      await this.onFlushHook(unflushed);
+      const startIndex = this.lastFlushedIndex;
+      const targetIndex = this.events.length;
+      const unflushed = this.events.slice(startIndex, targetIndex);
+      const result = await this.onFlushHook(unflushed);
+      this.lastFlushedIndex = targetIndex;
+      return {
+        flushedCount: unflushed.length,
+        destination: result && 'destination' in result ? result.destination : 'storage'
+      };
     }
+    return { flushedCount: 0, destination: 'storage' };
   }
 
   public resetFlushCursor(): void {

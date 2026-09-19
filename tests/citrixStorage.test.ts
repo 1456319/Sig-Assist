@@ -351,5 +351,41 @@ describe('citrixStorage', () => {
     expect(logs.length).toBe(1);
     expect(logs[0].message).toBe('Drawer opened');
   });
+
+  it('reports destination and record count on successful appendTraceLogs', async () => {
+    const adapter = getCitrixStorageAdapter();
+    const event = {
+      id: 'trc_dest_test',
+      traceId: 'ORD_DEST',
+      timestamp: new Date().toISOString(),
+      layer: 'ui' as const,
+      level: 'INFO' as const,
+      component: 'TraceDrawer',
+      message: 'Test destination reporting',
+    };
+
+    const res = await adapter.appendTraceLogs([event]);
+    expect(res.destination).toBe('browser_cache');
+    expect(res.recordsSaved).toBe(1);
+  });
+
+  it('rejects appendTraceLogs when file system fails and localStorage is unwritable', async () => {
+    const adapter = getCitrixStorageAdapter();
+    vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError');
+    });
+
+    const event = {
+      id: 'trc_fail_test',
+      traceId: 'ORD_FAIL',
+      timestamp: new Date().toISOString(),
+      layer: 'storage' as const,
+      level: 'ERROR' as const,
+      component: 'citrixStorage',
+      message: 'Failed to write due to quota',
+    };
+
+    await expect(adapter.appendTraceLogs([event])).rejects.toThrow('quota exceeded or storage unavailable');
+  });
 });
 

@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, afterEach, vi } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
+import { cleanup } from '@testing-library/react';
 import { AbnormalityBanner } from '../src/components/AbnormalityBanner';
 import { DiscrepancyPanel } from '../src/components/DiscrepancyPanel';
 import { MultiOrderCards } from '../src/components/MultiOrderCards';
@@ -9,6 +10,9 @@ import { WorkbenchView } from '../src/components/WorkbenchView';
 import { AbnormalityFinding, SubOrderResult } from '../src/lib/clinical/types';
 
 describe('UI Components', () => {
+  afterEach(() => {
+    cleanup();
+  });
   it('renders 3-tier abnormality banner with appropriate styling and notices', () => {
     const findings: AbnormalityFinding[] = [
       {
@@ -147,5 +151,170 @@ describe('UI Components', () => {
     const html = renderToString(<WorkbenchView />);
     expect(html).toContain('Review and correct SIG');
     expect(html).toContain('Flag Discrepancy or Uncaught Error');
+  });
+
+  it('MultiOrderCards: disables review, editing, and copying and invalidates approval when unavailable is true', async () => {
+    const { render, screen, fireEvent } = await import('@testing-library/react');
+    const subOrders: SubOrderResult[] = [
+      { id: 'sub_1', label: 'Order 1 of 2', suggestedSig: '2T PO QAM', abnormalities: [] },
+      { id: 'sub_2', label: 'Order 2 of 2', suggestedSig: '1T PO QHS', abnormalities: [] },
+    ];
+
+    const { rerender } = render(
+      <ReviewContext.Provider value={{
+        orders: [],
+        setOrders: () => {},
+        exclusions: [],
+        policyRevision: 0,
+        setExclusions: () => {}
+      }}>
+        <MultiOrderCards subOrders={subOrders} unavailable={false} />
+      </ReviewContext.Provider>
+    );
+
+    const checkboxes = screen.getAllByLabelText(/Reviewed and approved for FrameworkLTC/i) as HTMLInputElement[];
+    const checkbox = checkboxes[0];
+    const copyBtn = screen.getByRole('button', { name: /Copy Reviewed SIG \(Order 1 of 2\)/i }) as HTMLButtonElement;
+    const textarea = screen.getByLabelText(/Draft SIG \(Order 1 of 2\)/i) as HTMLTextAreaElement;
+
+    expect(checkbox.checked).toBe(false);
+    expect(copyBtn.disabled).toBe(true);
+    expect(textarea.disabled).toBe(false);
+
+    // Approve Order 1 of 2
+    fireEvent.click(checkbox);
+    expect(checkbox.checked).toBe(true);
+    expect(copyBtn.disabled).toBe(false);
+
+    // Now order becomes unavailable (e.g. cancelled or revising)
+    rerender(
+      <ReviewContext.Provider value={{
+        orders: [],
+        setOrders: () => {},
+        exclusions: [],
+        policyRevision: 0,
+        setExclusions: () => {}
+      }}>
+        <MultiOrderCards subOrders={subOrders} unavailable={true} />
+      </ReviewContext.Provider>
+    );
+
+    // Approval must be invalidated and controls locked
+    expect(checkbox.checked).toBe(false);
+    expect(checkbox.disabled).toBe(true);
+    expect(copyBtn.disabled).toBe(true);
+    expect(textarea.disabled).toBe(true);
+    expect(screen.getByTestId('multi-order-unavailable-banner')).toBeDefined();
+  });
+
+  it('OrderQueueView: revising a split-order immediately blocks copying and disables sub-orders', async () => {
+    const { render, screen, fireEvent } = await import('@testing-library/react');
+    const { OrderQueueView } = await import('../src/components/OrderQueueView');
+
+    const initialOrder = {
+      id: 'split_order_revise',
+      facility: 'Sunrise LTC',
+      patientRef: 'Room 101',
+      pon: 'PON-SPLIT-REV',
+      drug: 'PREDNISONE 10MG',
+      directions: 'Take 2 tablets in the morning and 1 tablet at night for 5 days',
+      draft: '2T PO QAM AND 1T PO QHS X5D',
+      revision: 1,
+      previousSources: [],
+    };
+
+    function TestHost() {
+      const [orders, setOrders] = React.useState([initialOrder]);
+      return (
+        <ReviewContext.Provider value={{
+          orders,
+          setOrders,
+          exclusions: [],
+          policyRevision: 0,
+          setExclusions: () => {}
+        }}>
+          <OrderQueueView />
+        </ReviewContext.Provider>
+      );
+    }
+
+    render(<TestHost />);
+
+    // Select the split order
+    const orderItem = screen.getByText('PON-SPLIT-REV');
+    fireEvent.click(orderItem);
+
+    // Locate the sub-order card controls
+    const checkboxes = screen.getAllByLabelText(/Reviewed and approved for FrameworkLTC/i) as HTMLInputElement[];
+    const copyButton1 = screen.getByRole('button', { name: /Copy Reviewed SIG \(Order 1 of 2\)/i }) as HTMLButtonElement;
+
+    // Approve Order 1 of 2
+    fireEvent.click(checkboxes[0]);
+    expect(checkboxes[0].checked).toBe(true);
+    expect(copyButton1.disabled).toBe(false);
+
+    // Click Revise source
+    const reviseBtn = screen.getByRole('button', { name: /Revise source/i });
+    fireEvent.click(reviseBtn);
+
+    // Revision mode must immediately disable copy button and checkbox
+    expect(copyButton1.disabled).toBe(true);
+    expect(checkboxes[0].disabled).toBe(true);
+    expect(screen.getByTestId('multi-order-unavailable-banner')).toBeDefined();
+  });
+
+  it('OrderQueueView: cancelling a split-order immediately blocks copying and disables sub-orders', async () => {
+    const { render, screen, fireEvent } = await import('@testing-library/react');
+    const { OrderQueueView } = await import('../src/components/OrderQueueView');
+
+    const initialOrder = {
+      id: 'split_order_cancel',
+      facility: 'Sunrise LTC',
+      patientRef: 'Room 102',
+      pon: 'PON-SPLIT-CNC',
+      drug: 'PREDNISONE 10MG',
+      directions: 'Take 2 tablets in the morning and 1 tablet at night for 5 days',
+      draft: '2T PO QAM AND 1T PO QHS X5D',
+      revision: 1,
+      previousSources: [],
+    };
+
+    function TestHost() {
+      const [orders, setOrders] = React.useState([initialOrder]);
+      return (
+        <ReviewContext.Provider value={{
+          orders,
+          setOrders,
+          exclusions: [],
+          policyRevision: 0,
+          setExclusions: () => {}
+        }}>
+          <OrderQueueView />
+        </ReviewContext.Provider>
+      );
+    }
+
+    render(<TestHost />);
+
+    // Select the split order
+    const orderItem = screen.getByText('PON-SPLIT-CNC');
+    fireEvent.click(orderItem);
+
+    const checkboxes = screen.getAllByLabelText(/Reviewed and approved for FrameworkLTC/i) as HTMLInputElement[];
+    const copyBtn = screen.getByRole('button', { name: /Copy Reviewed SIG \(Order 1 of 2\)/i }) as HTMLButtonElement;
+
+    // Approve Order 1 of 2
+    fireEvent.click(checkboxes[0]);
+    expect(copyBtn.disabled).toBe(false);
+
+    // Confirm cancel
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const cancelBtn = screen.getByRole('button', { name: /Cancel order/i });
+    fireEvent.click(cancelBtn);
+
+    // Cancelled state must immediately disable copy button and checkbox
+    expect(copyBtn.disabled).toBe(true);
+    expect(checkboxes[0].disabled).toBe(true);
+    expect(screen.getByTestId('multi-order-unavailable-banner')).toBeDefined();
   });
 });
