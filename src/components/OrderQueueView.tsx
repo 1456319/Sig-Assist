@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { translateFreeTextSig } from '../lib/sigEngine';
 import { cancelOrder, editDraft, orderKey, saveOrder, sourceStamp, type OrderSource, type QueueOrder } from '../lib/orderQueue';
@@ -10,6 +10,7 @@ import { HL7_SAMPLE } from '../lib/clinical/fixtures';
 import { translateClinicalSig } from '../lib/clinical/clinicalEngine';
 import { AbnormalityBanner } from './AbnormalityBanner';
 import { MultiOrderCards } from './MultiOrderCards';
+import { traceLogger } from '../lib/diagnostics/traceLogger';
 
 const emptySource: OrderSource = { facility: '', patientRef: '', pon: '', drug: '', directions: '' };
 const sample: OrderSource = { facility: 'DEMO-FACILITY', patientRef: 'DEMO-RESIDENT', pon: 'DEMO-PON-001', drug: 'Example medication 10 mg tablet', directions: 'Take 1 tablet by mouth twice daily for 7 days.' };
@@ -25,29 +26,50 @@ export function OrderQueueView() {
   const selectedDrug = selected?.drug;
   const selectedDefaultSig = selected?.defaultSig;
   const parsed = useMemo(() => selectedDirections === undefined ? undefined : translateFreeTextSig(selectedDirections, { drug: selectedDrug ?? '', defaultSig: selectedDefaultSig }), [selectedDirections, selectedDrug, selectedDefaultSig]);
+  function getOrderTraceId(order: QueueOrder): string {
+    return `ORD_${order.id}_R${order.revision}`;
+  }
+
   const clinicalResult = useMemo(() => {
     if (!selected) return undefined;
+    const traceId = getOrderTraceId(selected);
     return translateClinicalSig({
       id: selected.id,
       pon: selected.pon,
       drugName: selected.drug,
       rawProse: selected.directions,
       defaultSigTemplate: selected.defaultSig,
-      sourceFormat: 'manual_text'
+      sourceFormat: 'manual_text',
+      traceId
     });
   }, [selected]);
+
+  useEffect(() => {
+    if (selected) {
+      traceLogger.info('ui', 'OrderQueueView', 'Selected queue order evaluated', {
+        id: selected.id,
+        pon: selected.pon,
+        drug: selected.drug,
+        revision: selected.revision
+      }, undefined, getOrderTraceId(selected));
+    }
+  }, [selected]);
+
   const filtered = orders.filter(order => [order.pon, order.facility, order.patientRef].some(value => value.toLowerCase().includes(query.toLowerCase())));
 
   function submit(event: FormEvent) {
     event.preventDefault();
     try {
+      const orderId = orderKey(form);
+      const traceId = `ORD_${orderId}_R${reviseId ? 'REV' : '1'}`;
       const clinical = translateClinicalSig({
-        id: orderKey(form),
+        id: orderId,
         pon: form.pon,
         drugName: form.drug,
         rawProse: form.directions,
         defaultSigTemplate: form.defaultSig,
-        sourceFormat: 'manual_text'
+        sourceFormat: 'manual_text',
+        traceId
       });
       const sig = clinical.primarySig;
       const next = saveOrder(orders, form, sig, reviseId);
@@ -55,9 +77,12 @@ export function OrderQueueView() {
       setSelectedId(orderKey(form));
       setForm(emptySource);
       setReviseId(undefined);
+      traceLogger.info('ui', 'OrderQueueView', 'Order saved for review in queue', { pon: form.pon, drug: form.drug, sig }, undefined, traceId);
       toast.success(next === orders ? 'This exact order is already in the queue.' : 'Order saved for review.');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Unable to save the order.');
+      const err = error instanceof Error ? error : new Error(String(error));
+      traceLogger.error('ui', 'OrderQueueView', 'Failed to save order to queue', { pon: form.pon }, { name: err.name, message: err.message });
+      toast.error(err.message || 'Unable to save the order.');
     }
   }
 
@@ -140,15 +165,17 @@ export function OrderQueueView() {
             <p className="whitespace-pre-wrap break-words">{selected.directions}</p>
           </div>
           <div className="flex gap-2">
-            <button className={reviewButtonClass} disabled={selected.cancelled} onClick={() => {
+            <button className={reviewButtonClass} disabled={selected.cancelled || reviseId === selected.id} onClick={() => {
               setReviseId(selected.id);
               setForm({ facility: selected.facility, patientRef: selected.patientRef, pon: selected.pon, drug: selected.drug, directions: selected.directions, defaultSig: selected.defaultSig });
               updateSelected(order => ({ ...order, approved: undefined, copied: undefined }));
+              traceLogger.info('ui', 'OrderQueueView', 'Technician started source revision', { id: selected.id, pon: selected.pon }, undefined, getOrderTraceId(selected));
             }}>Revise source</button>
             <button className={reviewButtonClass} disabled={selected.cancelled} onClick={() => {
               if (window.confirm('Mark this order cancelled? Copying will be disabled.')) {
                 updateSelected(cancelOrder);
                 if (reviseId === selected.id) { setReviseId(undefined); setForm(emptySource); }
+                traceLogger.warn('ui', 'OrderQueueView', 'Technician marked order cancelled', { id: selected.id, pon: selected.pon }, undefined, getOrderTraceId(selected));
               }
             }}>Cancel order</button>
           </div>
@@ -162,7 +189,10 @@ export function OrderQueueView() {
               key={`${selected.id}:${selected.revision}`}
               primarySig={clinicalResult.primarySig}
               subOrders={clinicalResult.subOrders}
+              unavailable={selected.cancelled || reviseId === selected.id}
+              traceId={getOrderTraceId(selected)}
               onCopySubOrder={(_, draftSig) => {
+                if (selected.cancelled || reviseId === selected.id) return;
                 const stamp = reviewStamp(sourceStamp(selected), draftSig, exclusions, policyRevision);
                 updateSelected(order => ({ ...order, approved: stamp, copied: stamp }));
               }}

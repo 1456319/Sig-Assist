@@ -1,3 +1,5 @@
+import { traceLogger } from '../diagnostics/traceLogger';
+
 export interface PaxitPackagingEvaluation {
   readonly isPaxitSolid: boolean;
   readonly isControlled: boolean;
@@ -101,7 +103,7 @@ export function isControlledSubstance(drugName: string): boolean {
   return CONTROLLED_SUBSTANCE_PATTERNS.some((pattern) => pattern.test(drugName));
 }
 
-export function evaluatePaxitPackaging(drugName: string, rawProse: string): PaxitPackagingEvaluation {
+function evaluatePaxitPackagingInternal(drugName: string, rawProse: string): PaxitPackagingEvaluation {
   const upperDrug = drugName.toUpperCase();
   const upperProse = rawProse.toUpperCase();
 
@@ -192,3 +194,17 @@ export function evaluatePaxitPackaging(drugName: string, rawProse: string): Paxi
     splitDirectives: hasDifferentialDosing ? splitParts.map(p => p.prose) : []
   };
 }
+
+export function evaluatePaxitPackaging(drugName: string, rawProse: string): PaxitPackagingEvaluation {
+  const result = evaluatePaxitPackagingInternal(drugName, rawProse);
+  traceLogger.debug('packaging', 'paxitEngine', 'Evaluated packaging constraints', {
+    drugName,
+    isControlled: result.isControlled,
+    isPaxitSolid: result.isPaxitSolid,
+    requiresSplit: result.requiresSplit,
+    splitPartsCount: result.splitParts.length,
+    hasPackagingNotice: Boolean(result.packagingNotice)
+  });
+  return result;
+}
+

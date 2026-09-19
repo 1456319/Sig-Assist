@@ -1,4 +1,5 @@
 import { AbnormalityFinding } from './types';
+import { traceLogger } from '../diagnostics/traceLogger';
 
 export interface DoseCalculationResult {
   readonly doseToken: string;
@@ -8,7 +9,7 @@ export interface DoseCalculationResult {
   readonly apapLimitToken?: string;
 }
 
-export function calculateDoseAndVolume(drugName: string, rawProse: string): DoseCalculationResult {
+function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): DoseCalculationResult {
   const upperDrug = drugName.toUpperCase();
   const upperProse = rawProse.toUpperCase();
   const abnormalities: AbnormalityFinding[] = [];
@@ -286,3 +287,17 @@ export function calculateDoseAndVolume(drugName: string, rawProse: string): Dose
     apapLimitToken
   };
 }
+
+export function calculateDoseAndVolume(drugName: string, rawProse: string): DoseCalculationResult {
+  const result = calculateDoseAndVolumeInternal(drugName, rawProse);
+  traceLogger.debug('clinical', 'doseCalculator', 'Calculated dose and route tokens', {
+    drugName,
+    doseToken: result.doseToken,
+    routeToken: result.routeToken,
+    isApap: result.isApap,
+    apapLimitToken: result.apapLimitToken,
+    abnormalitiesCount: result.abnormalities.length
+  });
+  return result;
+}
+

@@ -12,6 +12,7 @@ import {
   ChevronRight,
   ActivitySquare,
   ReplaceAll,
+  Terminal,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { WorkbenchView } from './WorkbenchView';
@@ -20,6 +21,7 @@ import { RuleBuilderView } from './RuleBuilderView';
 import { ExpansionView } from './ExpansionView';
 import { SettingsView } from './SettingsView';
 import { OrderQueueView } from './OrderQueueView';
+import { TraceLogDrawer } from './TraceLogDrawer';
 
 export type AppView = 'queue' | 'workbench' | 'dictionary' | 'rules' | 'expansions' | 'settings';
 
@@ -35,6 +37,7 @@ const NAV_ITEMS: Array<{ id: AppView; label: string; icon: React.ElementType; de
 export function AppLayout() {
   const [activeView, setActiveView] = useState<AppView>('queue');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [traceDrawerOpen, setTraceDrawerOpen] = useState(false);
   const { theme, setTheme } = useTheme();
 
   const ActiveIcon = NAV_ITEMS.find((n) => n.id === activeView)?.icon ?? FlaskConical;
@@ -130,6 +133,14 @@ export function AppLayout() {
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setTraceDrawerOpen(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md bg-muted hover:bg-muted/80 text-foreground border border-border transition-colors shadow-sm"
+              title="Open Diagnostic Trace Logs"
+            >
+              <Terminal className="w-3.5 h-3.5 text-primary" />
+              <span>Trace Logs</span>
+            </button>
             <span className="text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-full border border-border uppercase tracking-wider">
               SIG Parser MVP v1
             </span>
@@ -146,6 +157,11 @@ export function AppLayout() {
           {activeView === 'settings'   && <SettingsView />}
         </main>
       </div>
+
+      <TraceLogDrawer
+        isOpen={traceDrawerOpen}
+        onClose={() => setTraceDrawerOpen(false)}
+      />
     </div>
   );
 }

@@ -5,16 +5,21 @@ import { Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { useReviewSession } from '../hooks/use-review-session';
 import { copyBlockReason, reviewStamp } from '../lib/reviewPolicy';
+import { traceLogger } from '../lib/diagnostics/traceLogger';
 
 export interface MultiOrderCardsProps {
   primarySig?: string;
   subOrders: SubOrderResult[];
+  unavailable?: boolean;
+  traceId?: string;
   onCopySubOrder?: (subOrder: SubOrderResult, draftSig: string) => void;
 }
 
 export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
   primarySig,
   subOrders,
+  unavailable = false,
+  traceId,
   onCopySubOrder,
 }) => {
   const [drafts, setDrafts] = useState<Record<string, string>>(() => {
@@ -30,23 +35,40 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
 
   const { exclusions, policyRevision } = useReviewSession();
 
+  React.useEffect(() => {
+    if (unavailable) {
+      setReviewedMap({});
+      setCopiedId(null);
+    }
+  }, [unavailable]);
+
   const handleDraftChange = (id: string, value: string) => {
+    if (unavailable) return;
+    traceLogger.debug('ui', 'MultiOrderCards', 'Technician edited draft Sig', { subOrderId: id, length: value.length }, undefined, traceId);
     setDrafts((prev) => ({ ...prev, [id]: value.toUpperCase() }));
     setReviewedMap((prev) => ({ ...prev, [id]: false }));
   };
 
   const handleReviewToggle = (id: string, checked: boolean) => {
+    if (unavailable) return;
+    traceLogger.info('ui', 'MultiOrderCards', 'Technician updated review checkbox', { subOrderId: id, reviewed: checked }, undefined, traceId);
     setReviewedMap((prev) => ({ ...prev, [id]: checked }));
   };
 
   const handleCopy = async (subOrder: SubOrderResult) => {
+    if (unavailable) {
+      toast.error('This order is cancelled, its source is changing, or its message profile is unverified.');
+      return;
+    }
+
     const draftSig = drafts[subOrder.id] ?? subOrder.suggestedSig;
     if (!reviewedMap[subOrder.id] || !draftSig.trim()) return;
 
     const isReviewed = !!reviewedMap[subOrder.id];
     const approved = isReviewed ? reviewStamp(subOrder.suggestedSig, draftSig, exclusions, policyRevision) : undefined;
-    const blockReason = copyBlockReason(subOrder.suggestedSig, draftSig, exclusions, approved, false, policyRevision);
+    const blockReason = copyBlockReason(subOrder.suggestedSig, draftSig, exclusions, approved, unavailable, policyRevision);
     if (blockReason) {
+      traceLogger.warn('ui', 'MultiOrderCards', 'Clipboard copy blocked by review policy', { subOrderId: subOrder.id, blockReason }, undefined, traceId);
       toast.error(blockReason);
       return;
     }
@@ -54,6 +76,11 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
     try {
       if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(draftSig);
+        traceLogger.info('ui', 'MultiOrderCards', 'Copied sub-order Sig to clipboard', {
+          subOrderId: subOrder.id,
+          label: subOrder.label,
+          draftSig
+        }, undefined, traceId);
         toast.success(`Copied ${subOrder.label} SIG to clipboard`);
         setCopiedId(subOrder.id);
         if (onCopySubOrder) {
@@ -63,9 +90,12 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
           setCopiedId(null);
         }, 2000);
       } else {
+        traceLogger.warn('ui', 'MultiOrderCards', 'Clipboard API unavailable or denied', { subOrderId: subOrder.id }, undefined, traceId);
         toast.error('Clipboard access denied or unavailable. Please copy manually.');
       }
-    } catch {
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      traceLogger.error('ui', 'MultiOrderCards', 'Clipboard copy failed', { subOrderId: subOrder.id }, { name: 'ClipboardError', message: errMsg }, traceId);
       toast.error('Clipboard copy failed. Please copy manually.');
     }
   };
@@ -86,6 +116,12 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
         </div>
       )}
 
+      {unavailable && (
+        <div data-testid="multi-order-unavailable-banner" className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive font-medium">
+          This order is cancelled or its directions are currently being revised. Review and clipboard copy actions are disabled until saved.
+        </div>
+      )}
+
       <div className="rounded-md border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
         <span className="font-semibold">Paxit Multi-Order Requirement:</span>
         <p className="mt-0.5 text-slate-600 dark:text-slate-400">
@@ -98,7 +134,7 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
         const isReviewed = !!reviewedMap[subOrder.id];
         const isCopied = copiedId === subOrder.id;
         const approved = isReviewed ? reviewStamp(subOrder.suggestedSig, draftSig, exclusions, policyRevision) : undefined;
-        const blockReason = copyBlockReason(subOrder.suggestedSig, draftSig, exclusions, approved, false, policyRevision);
+        const blockReason = copyBlockReason(subOrder.suggestedSig, draftSig, exclusions, approved, unavailable, policyRevision);
 
         return (
           <div
@@ -110,7 +146,7 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
               <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
                 {subOrder.label}
               </span>
-              {isReviewed && (
+              {isReviewed && !unavailable && (
                 <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
                   <Check className="h-3.5 w-3.5" /> Reviewed
                 </span>
@@ -131,7 +167,8 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
               <textarea
                 id={`draft-sig-${subOrder.id}`}
                 rows={2}
-                className="w-full rounded-md border border-border bg-background p-2 font-mono text-sm uppercase focus:outline-none focus:ring-2 focus:ring-primary"
+                disabled={unavailable}
+                className="w-full rounded-md border border-border bg-background p-2 font-mono text-sm uppercase focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 value={draftSig}
                 onChange={(e) => handleDraftChange(subOrder.id, e.target.value)}
               />
@@ -141,13 +178,14 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
               <input
                 type="checkbox"
                 id={`review-check-${subOrder.id}`}
-                checked={isReviewed}
+                checked={isReviewed && !unavailable}
+                disabled={unavailable}
                 onChange={(e) => handleReviewToggle(subOrder.id, e.target.checked)}
-                className="rounded border-border"
+                className="rounded border-border disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <label
                 htmlFor={`review-check-${subOrder.id}`}
-                className="text-xs font-medium text-foreground cursor-pointer select-none"
+                className={`text-xs font-medium select-none ${unavailable ? 'text-muted-foreground cursor-not-allowed' : 'text-foreground cursor-pointer'}`}
               >
                 Reviewed and approved for FrameworkLTC
               </label>
@@ -159,7 +197,7 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
               )}
               <button
                 type="button"
-                disabled={!isReviewed || !draftSig.trim() || !!blockReason}
+                disabled={unavailable || !isReviewed || !draftSig.trim() || !!blockReason}
                 onClick={() => handleCopy(subOrder)}
                 className="inline-flex items-center gap-1.5 rounded-md border border-border bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
               >

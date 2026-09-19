@@ -391,6 +391,8 @@ export function WorkbenchView() {
                   key={clinicalInbound?.id || `${drugName}:${rawInput}`}
                   primarySig={clinicalResult.primarySig}
                   subOrders={clinicalResult.subOrders}
+                  unavailable={result?.inputMode === 'hl7' && Boolean(result?.hl7Extraction?.warning)}
+                  traceId={clinicalInbound?.traceId || clinicalResult?.traceId}
                 />
               ) : effectiveResult ? (
                 <WorkbenchReview key={`${inputMode}:${rawInput}:${effectiveResult.finalSig}`} result={effectiveResult} source={source} />
