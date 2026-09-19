@@ -64,10 +64,12 @@ describe('citrixStorage', () => {
     _resetCitrixStorageAdapterForTesting();
     localStorage.clear();
     vi.restoreAllMocks();
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     delete (globalThis as any).showDirectoryPicker;
     if ((globalThis as any).window) {
       delete (globalThis as any).window.showDirectoryPicker;
     }
+    /* eslint-enable @typescript-eslint/no-explicit-any */
   });
 
   it('initializes with fallback browser_cache mode when File System API is unavailable in Node/test', () => {
@@ -147,6 +149,7 @@ describe('citrixStorage', () => {
 
   it('returns false if showDirectoryPicker throws an error (e.g. user cancelled prompt)', async () => {
     const adapter = getCitrixStorageAdapter();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (globalThis as any).window = {
       showDirectoryPicker: vi.fn().mockRejectedValue(new Error('The user aborted a request.')),
     };
@@ -159,6 +162,7 @@ describe('citrixStorage', () => {
 
   it('dispatches to FileSystemDirectoryHandle when connected, reading and writing JSON files', async () => {
     const mockDirHandle = createMockDirectoryHandle();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (globalThis as any).window = {
       showDirectoryPicker: vi.fn().mockResolvedValue(mockDirHandle),
     };
@@ -235,6 +239,7 @@ describe('citrixStorage', () => {
       getFileHandle: vi.fn().mockRejectedValue(new Error('Permission denied')),
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (globalThis as any).window = {
       showDirectoryPicker: vi.fn().mockResolvedValue(failingDirHandle),
     };
@@ -279,10 +284,12 @@ describe('citrixStorage', () => {
 
   it('resets singleton instance cleanly with _resetCitrixStorageAdapterForTesting', () => {
     const adapter1 = getCitrixStorageAdapter();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (adapter1 as any).testMarker = 42;
 
     _resetCitrixStorageAdapterForTesting();
     const adapter2 = getCitrixStorageAdapter();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((adapter2 as any).testMarker).toBeUndefined();
     expect(adapter1).not.toBe(adapter2);
   });

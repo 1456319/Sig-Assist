@@ -39,20 +39,20 @@ export const DEFAULT_PREFERENCES: TechnicianPreferences = {
 };
 
 class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
-  private dirHandle: any = null;
+  private dirHandle: FileSystemDirectoryHandle | null = null;
   private debounceDelayMs: number =
     typeof process !== 'undefined' && process.env?.NODE_ENV === 'test' ? 0 : 500;
 
   private pendingQueue: StoredQueueOrder[] | null = null;
-  private queueTimer: any = null;
+  private queueTimer: ReturnType<typeof setTimeout> | null = null;
   private queueResolvers: Array<() => void> = [];
 
   private pendingDiscrepancies: DiscrepancyReport[] | null = null;
-  private discrepanciesTimer: any = null;
+  private discrepanciesTimer: ReturnType<typeof setTimeout> | null = null;
   private discrepanciesResolvers: Array<() => void> = [];
 
   private pendingPreferences: TechnicianPreferences | null = null;
-  private preferencesTimer: any = null;
+  private preferencesTimer: ReturnType<typeof setTimeout> | null = null;
   private preferencesResolvers: Array<() => void> = [];
 
   isConnected(): boolean {
@@ -76,6 +76,7 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
       typeof window !== 'undefined'
         ? window
         : typeof globalThis !== 'undefined'
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ? (globalThis as any)
           : undefined;
 
@@ -405,7 +406,9 @@ export function getCitrixStorageAdapter(): CitrixStorageAdapter {
 }
 
 export function _resetCitrixStorageAdapterForTesting(): void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (instance && typeof (instance as any).clearPendingTimers === 'function') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (instance as any).clearPendingTimers();
   }
   instance = null;
