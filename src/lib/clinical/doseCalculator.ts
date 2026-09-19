@@ -122,8 +122,8 @@ export function calculateDoseAndVolume(drugName: string, rawProse: string): Dose
       if (mgMatch) mg = parseFloat(mgMatch[1]);
     }
 
-    const volStr = vol > 0 ? (Number.isInteger(vol) ? `${vol}ML` : `${vol.toFixed(1)}ML`) : (mlMatch ? `${mlMatch[1]}ML` : '');
-    const mgStr = mg > 0 ? (Number.isInteger(mg) ? `${mg}MG` : `${mg.toFixed(1)}MG`) : '';
+    const volStr = vol > 0 ? (Number.isInteger(vol) ? `${vol}ML` : `${parseFloat(vol.toFixed(3))}ML`) : (mlMatch ? `${mlMatch[1]}ML` : '');
+    const mgStr = mg > 0 ? (Number.isInteger(mg) ? `${mg}MG` : `${parseFloat(mg.toFixed(3))}MG`) : '';
     const doseToken = volStr && mgStr ? `INJ ${volStr} (${mgStr})` : (volStr ? `INJ ${volStr}` : `INJ ${mgStr}`);
 
     return {
@@ -203,6 +203,7 @@ export function calculateDoseAndVolume(drugName: string, rawProse: string): Dose
 
   const strengthMatch = upperDrug.match(/(\d+(?:\.\d+)?)\s*(MG|MCG|GM)/);
   const getTargetDose = (multiplier: number): string => {
+    if (multiplier <= 0) return '';
     if (strengthMatch && !upperDrug.includes('/') && !upperDrug.includes('-')) {
       const singleVal = parseFloat(strengthMatch[1]);
       const unit = strengthMatch[2];
@@ -227,14 +228,14 @@ export function calculateDoseAndVolume(drugName: string, rawProse: string): Dose
       const whole = parseInt(fractionMatch[2], 10);
       const num = parseInt(fractionMatch[3], 10);
       const den = parseInt(fractionMatch[4], 10);
-      multiplier = whole + num / den;
       label = `${whole}-${num}/${den}`;
+      multiplier = den > 0 ? whole + num / den : 0;
     } else if (fractionMatch[5]) {
       // Fraction e.g. 1/2, 3/4
       const num = parseInt(fractionMatch[5], 10);
       const den = parseInt(fractionMatch[6], 10);
-      multiplier = num / den;
       label = `${num}/${den}`;
+      multiplier = den > 0 ? num / den : 0;
     }
     const targetDoseStr = getTargetDose(multiplier);
     return {

@@ -29,7 +29,27 @@ export function ReviewSession({ children }: { children: ReactNode }) {
       }
       setIsHydrated(true);
     });
+
+    getCitrixStorageAdapter().readPreferences().then(prefs => {
+      if (prefs && (prefs.exclusions || prefs.policyRevision !== undefined)) {
+        setPolicy({
+          exclusions: prefs.exclusions || [],
+          revision: prefs.policyRevision || 0,
+        });
+      }
+    });
   }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    getCitrixStorageAdapter().readPreferences().then(prefs => {
+      getCitrixStorageAdapter().writePreferences({
+        ...prefs,
+        exclusions: policy.exclusions,
+        policyRevision: policy.revision,
+      });
+    });
+  }, [policy, isHydrated]);
 
   useEffect(() => {
     if (!isHydrated) return;

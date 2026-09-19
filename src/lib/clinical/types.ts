@@ -44,8 +44,15 @@ export interface DiscrepancyReport {
   readonly flaggedForRph: boolean;
 }
 
+export interface SigExclusionPreference {
+  readonly kind: 'code' | 'sig';
+  readonly value: string;
+}
+
 export interface TechnicianPreferences {
   readonly version: 1;
   readonly drugCodeOverrides: Record<string, string>;
   readonly defaultAdminTimes: Record<string, string>;
+  readonly exclusions?: SigExclusionPreference[];
+  readonly policyRevision?: number;
 }

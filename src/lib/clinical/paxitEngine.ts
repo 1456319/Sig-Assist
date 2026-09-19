@@ -132,6 +132,10 @@ export function evaluatePaxitPackaging(drugName: string, rawProse: string): Paxi
   const trailingContextMatch = rawProse.match(/\b((?:AS NEEDED\s+FOR|PRN\s+FOR|AS NEEDED|PRN|FOR)\s+(?!\d+\s*(?:DAYS?|D\b))[\s\S]+)$/i);
   const contextSuffix = trailingContextMatch ? ` ${trailingContextMatch[1].trim()}` : '';
 
+  // Extract acute duration clause (e.g. for 7 days / x14d) to preserve across split sub-orders
+  const durationMatch = rawProse.match(/\b(?:FOR|X)\s*(\d+)\s*(?:DAYS?|D\b)/i);
+  const durationSuffix = durationMatch ? ` for ${durationMatch[1]} days` : '';
+
   let hasDifferentialDosing = false;
   let splitParts: Array<{ prose: string; label: string }> = [];
 
@@ -144,23 +148,27 @@ export function evaluatePaxitPackaging(drugName: string, rawProse: string): Paxi
     if (count1 !== count2) {
       hasDifferentialDosing = true;
       splitParts = [
-        { prose: `Take ${count1} ${unitLabel} by mouth every morning${contextSuffix}`, label: 'Order 1 of 2' },
-        { prose: `Take ${count2} ${unitLabel} by mouth at bedtime${contextSuffix}`, label: 'Order 2 of 2' }
+        { prose: `Take ${count1} ${unitLabel} by mouth every morning${durationSuffix}${contextSuffix}`, label: 'Order 1 of 2' },
+        { prose: `Take ${count2} ${unitLabel} by mouth at bedtime${durationSuffix}${contextSuffix}`, label: 'Order 2 of 2' }
       ];
     }
   }
 
-  // Titration / step-down (supporting frequency keywords before duration)
+  // Titration / step-down (supporting frequency keywords before duration and phase 2 durations)
   if (!hasDifferentialDosing) {
-    const titrationMatch = upperProse.match(/(\d+)\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)\s*(?:(?:BY\s*MOUTH|PO)\s*)?(?:\s*(?:DAILY|QD|EVERY\s*DAY|ONCE\s*A\s*DAY))?\s*(?:X|FOR)\s*(\d+)\s*DAYS?\s*THEN\s*(?:TAKE\s*)?(\d+)\s*(?:TAB|TABLET|CAP|CAPSULE)?/i);
+    const titrationMatch = upperProse.match(
+      /(\d+)\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)\s*(?:(?:BY\s*MOUTH|PO)\s*)?(?:\s*(?:DAILY|QD|EVERY\s*DAY|ONCE\s*A\s*DAY))?\s*(?:X|FOR)\s*(\d+)\s*DAYS?\s*THEN\s*(?:TAKE\s*)?(\d+)\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?(?:\s*(?:BY\s*MOUTH|PO)\s*)?(?:\s*(?:DAILY|QD|EVERY\s*DAY|ONCE\s*A\s*DAY))?(?:\s*(?:X|FOR)\s*(\d+)\s*DAYS?)?/i
+    );
     if (titrationMatch) {
       hasDifferentialDosing = true;
       const count1 = titrationMatch[1];
       const days1 = titrationMatch[2];
       const count2 = titrationMatch[3];
+      const days2 = titrationMatch[4];
+      const days2Suffix = days2 ? ` for ${days2} days` : '';
       splitParts = [
         { prose: `Take ${count1} ${unitLabel} by mouth daily for ${days1} days${contextSuffix}`, label: 'Order 1 of 2' },
-        { prose: `Take ${count2} ${unitLabel} by mouth daily${contextSuffix}`, label: 'Order 2 of 2' }
+        { prose: `Take ${count2} ${unitLabel} by mouth daily${days2Suffix}${contextSuffix}`, label: 'Order 2 of 2' }
       ];
     }
   }

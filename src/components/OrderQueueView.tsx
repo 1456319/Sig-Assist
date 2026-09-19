@@ -7,6 +7,9 @@ import { useReviewSession } from '../hooks/use-review-session';
 import { SigReviewPanel, reviewButtonClass, reviewInputClass } from './SigReviewPanel';
 import { parseInboundOrder } from '../lib/clinical/inboundParser';
 import { HL7_SAMPLE } from '../lib/clinical/fixtures';
+import { translateClinicalSig } from '../lib/clinical/clinicalEngine';
+import { AbnormalityBanner } from './AbnormalityBanner';
+import { MultiOrderCards } from './MultiOrderCards';
 
 const emptySource: OrderSource = { facility: '', patientRef: '', pon: '', drug: '', directions: '' };
 const sample: OrderSource = { facility: 'DEMO-FACILITY', patientRef: 'DEMO-RESIDENT', pon: 'DEMO-PON-001', drug: 'Example medication 10 mg tablet', directions: 'Take 1 tablet by mouth twice daily for 7 days.' };
@@ -22,12 +25,31 @@ export function OrderQueueView() {
   const selectedDrug = selected?.drug;
   const selectedDefaultSig = selected?.defaultSig;
   const parsed = useMemo(() => selectedDirections === undefined ? undefined : translateFreeTextSig(selectedDirections, { drug: selectedDrug ?? '', defaultSig: selectedDefaultSig }), [selectedDirections, selectedDrug, selectedDefaultSig]);
+  const clinicalResult = useMemo(() => {
+    if (!selected) return undefined;
+    return translateClinicalSig({
+      id: selected.id,
+      pon: selected.pon,
+      drugName: selected.drug,
+      rawProse: selected.directions,
+      defaultSigTemplate: selected.defaultSig,
+      sourceFormat: 'manual_text'
+    });
+  }, [selected]);
   const filtered = orders.filter(order => [order.pon, order.facility, order.patientRef].some(value => value.toLowerCase().includes(query.toLowerCase())));
 
   function submit(event: FormEvent) {
     event.preventDefault();
     try {
-      const { sig } = translateFreeTextSig(form.directions, { drug: form.drug, defaultSig: form.defaultSig });
+      const clinical = translateClinicalSig({
+        id: orderKey(form),
+        pon: form.pon,
+        drugName: form.drug,
+        rawProse: form.directions,
+        defaultSigTemplate: form.defaultSig,
+        sourceFormat: 'manual_text'
+      });
+      const sig = clinical.primarySig;
       const next = saveOrder(orders, form, sig, reviseId);
       setOrders(next);
       setSelectedId(orderKey(form));
@@ -107,7 +129,7 @@ export function OrderQueueView() {
         {!filtered.length && <p className="text-sm text-muted-foreground">No orders to display.</p>}
       </section>
       <section aria-label="Selected order review" className="min-w-0 rounded-lg border border-border bg-card p-4 md:p-5 space-y-4">
-        {selected && parsed ? <>
+        {selected ? <>
           <div className="flex justify-between flex-wrap gap-2">
             <h3 className="font-semibold break-all">PON {selected.pon} · revision {selected.revision}</h3>
             <span className="text-sm">{status(selected)}</span>
@@ -130,13 +152,30 @@ export function OrderQueueView() {
               }
             }}>Cancel order</button>
           </div>
-          <SigReviewPanel key={`${selected.id}:${selected.revision}`} source={sourceStamp(selected)} suggestion={parsed.sig}
-            draft={selected.draft} approved={selected.approved} unavailable={selected.cancelled || reviseId === selected.id}
-            warnings={parsed.order.issues.map(issue => `${issue.severity.toUpperCase()}: ${issue.message}`)}
-            onEdit={draft => updateSelected(order => editDraft(order, draft))}
-            onResetSuggestion={() => updateSelected(order => editDraft(order, parsed.sig))}
-            onApprove={approved => updateSelected(order => ({ ...order, approved, copied: undefined }))}
-            onCopied={stamp => updateSelected(order => order.approved === stamp && reviewStamp(sourceStamp(order), order.draft, exclusions, policyRevision) === stamp ? { ...order, copied: stamp } : order)} />
+
+          {clinicalResult && clinicalResult.abnormalities.length > 0 && (
+            <AbnormalityBanner findings={clinicalResult.abnormalities} />
+          )}
+
+          {clinicalResult && clinicalResult.subOrders.length > 1 ? (
+            <MultiOrderCards
+              key={`${selected.id}:${selected.revision}`}
+              primarySig={clinicalResult.primarySig}
+              subOrders={clinicalResult.subOrders}
+              onCopySubOrder={(_, draftSig) => {
+                const stamp = reviewStamp(sourceStamp(selected), draftSig, exclusions, policyRevision);
+                updateSelected(order => ({ ...order, approved: stamp, copied: stamp }));
+              }}
+            />
+          ) : (
+            <SigReviewPanel key={`${selected.id}:${selected.revision}`} source={sourceStamp(selected)} suggestion={clinicalResult?.primarySig || parsed?.sig || selected.draft}
+              draft={selected.draft} approved={selected.approved} unavailable={selected.cancelled || reviseId === selected.id}
+              warnings={parsed?.order.issues.map(issue => `${issue.severity.toUpperCase()}: ${issue.message}`) || []}
+              onEdit={draft => updateSelected(order => editDraft(order, draft))}
+              onResetSuggestion={() => updateSelected(order => editDraft(order, clinicalResult?.primarySig || parsed?.sig || selected.draft))}
+              onApprove={approved => updateSelected(order => ({ ...order, approved, copied: undefined }))}
+              onCopied={stamp => updateSelected(order => order.approved === stamp && reviewStamp(sourceStamp(order), order.draft, exclusions, policyRevision) === stamp ? { ...order, copied: stamp } : order)} />
+          )}
           {selected.previousSources.length > 0 && <details><summary className="cursor-pointer text-sm">Previous source revisions ({selected.previousSources.length})</summary>
             {selected.previousSources.map((source, index) => <div key={index} className="border-t border-border mt-2 pt-2 text-sm"><p>Revision {index + 1} · {source.drug}</p><p className="whitespace-pre-wrap">{source.directions}</p></div>)}
           </details>}

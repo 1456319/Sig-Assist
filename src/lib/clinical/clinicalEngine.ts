@@ -84,6 +84,23 @@ function assembleSig(
   return { sig: cleanSig, abnormalities: allAbnormalities };
 }
 
+function cleanFirstClause(sig: string, isTitration: boolean): string {
+  let cleaned = sig;
+  let prev = '';
+  while (cleaned !== prev) {
+    prev = cleaned;
+    cleaned = cleaned
+      .replace(/\s+(?:3GME?|3GM)$/i, '')
+      .replace(/\s+(?:F[A-Z0-9]+|FOR\s+[\s\S]+)$/i, '')
+      .replace(/\s+PRN\b.*$/i, '')
+      .trim();
+    if (!isTitration) {
+      cleaned = cleaned.replace(/\s+(?:X\d+D|FOR\s+\d+\s+DAYS?)$/i, '').trim();
+    }
+  }
+  return cleaned;
+}
+
 export function translateClinicalSig(inbound: InboundOrder, preferences?: TechnicianPreferences): ClinicalSigResult {
   const paxitEval = evaluatePaxitPackaging(inbound.drugName, inbound.rawProse);
 
@@ -92,10 +109,7 @@ export function translateClinicalSig(inbound: InboundOrder, preferences?: Techni
     const isTitration = paxitEval.splitParts.some(p => p.prose.toLowerCase().includes('then')) || inbound.rawProse.toLowerCase().includes('then');
     const part1 = assembleSig(inbound.drugName, paxitEval.splitParts[0].prose, undefined, preferences, inbound.indication);
     const part2 = assembleSig(inbound.drugName, paxitEval.splitParts[1].prose, undefined, preferences, inbound.indication);
-    const part1Clean = part1.sig
-      .replace(/\s+(?:PRN\b.*|F[A-Z0-9]+|FOR\s+[\s\S]+|3GME?)$/i, '')
-      .replace(/\s+3GME?$/i, '')
-      .trim();
+    const part1Clean = cleanFirstClause(part1.sig, isTitration);
     const joiner = isTitration ? ' THEN ' : ' AND ';
     const compoundSig = `${part1Clean}${joiner}${part2.sig}`;
 
@@ -150,10 +164,7 @@ export function translateClinicalSig(inbound: InboundOrder, preferences?: Techni
     });
 
     const isTitration = paxitEval.splitParts.some(p => p.prose.toLowerCase().includes('then')) || inbound.rawProse.toLowerCase().includes('then');
-    const firstWithoutInd = subOrders[0].suggestedSig
-      .replace(/\s+(?:PRN\b.*|F[A-Z0-9]+|FOR\s+[\s\S]+|3GME?)$/i, '')
-      .replace(/\s+3GME?$/i, '')
-      .trim();
+    const firstWithoutInd = cleanFirstClause(subOrders[0].suggestedSig, isTitration);
     const joiner = isTitration ? ' THEN ' : ' AND ';
     const unifiedSig = subOrders.length >= 2 ? `${firstWithoutInd}${joiner}${subOrders[1].suggestedSig}` : subOrders[0].suggestedSig;
 

@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
-import { Download, Trash2, RefreshCw, Database, Shield, BookOpen, Wand2 } from 'lucide-react';
+import { Download, Trash2, RefreshCw, Database, Shield, BookOpen, Wand2, HardDrive, FolderOpen } from 'lucide-react';
 import { fetchAllSigEntries, deleteSigEntry, fetchAllSigEntries as fetchAll } from '../lib/sigDictionaryService';
 import { fetchAllTechRules, deleteTechRule } from '../lib/techRulesService';
+import { getCitrixStorageAdapter } from '../lib/citrixStorage';
 import { toast } from 'sonner';
 
 function StatCard({ icon: Icon, label, value, color }: {
@@ -67,6 +68,25 @@ export function SettingsView() {
   const [clearDictLoading, setClearDictLoading] = useState(false);
   const [clearRulesLoading, setClearRulesLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
+  const [storageMode, setStorageMode] = useState<'file_system' | 'browser_cache'>(() => getCitrixStorageAdapter().getStorageMode());
+  const [connectingDir, setConnectingDir] = useState(false);
+
+  const handleConnectDirectory = async () => {
+    setConnectingDir(true);
+    try {
+      const ok = await getCitrixStorageAdapter().connectDirectory();
+      if (ok) {
+        setStorageMode(getCitrixStorageAdapter().getStorageMode());
+        toast.success('Connected to Citrix network directory');
+      } else {
+        toast.error('Directory access was not granted or cancelled');
+      }
+    } catch {
+      toast.error('Failed to select directory');
+    } finally {
+      setConnectingDir(false);
+    }
+  };
 
   const refreshStats = useCallback(async () => {
     setStatsLoading(true);
@@ -159,6 +179,36 @@ export function SettingsView() {
           <StatCard icon={Shield}    label="High Risk Codes"  value={stats.highRisk} color="bg-destructive/10 text-destructive" />
           <StatCard icon={RefreshCw} label="Obsolete Codes"   value={stats.obsolete} color="bg-muted text-muted-foreground" />
           <StatCard icon={Wand2}     label="Tech Rules"       value={stats.rules}    color="bg-violet-500/10 text-violet-500" />
+        </div>
+      </section>
+
+      {/* Citrix Storage */}
+      <section>
+        <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground mb-4">
+          Citrix Storage & Share Connection
+        </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border border-border bg-card gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <HardDrive className="w-4 h-4 text-primary" />
+              <p className="text-[13px] font-medium text-foreground">
+                Mode: {storageMode === 'file_system' ? 'Direct File System Handle (Citrix Share)' : 'Local Browser Cache (Fallback)'}
+              </p>
+            </div>
+            <p className="text-[12px] text-muted-foreground">
+              {storageMode === 'file_system'
+                ? 'Orders, technician exclusions, and discrepancy logs are persisting directly to the selected network directory.'
+                : 'Grant File System Access to your mapped Citrix drive (e.g. client drive or network share) to serialize order records.'}
+            </p>
+          </div>
+          <button
+            onClick={handleConnectDirectory}
+            disabled={connectingDir}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[13px] bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors flex-shrink-0"
+          >
+            <FolderOpen className="w-3.5 h-3.5" />
+            {connectingDir ? 'Connecting...' : storageMode === 'file_system' ? 'Change Folder' : 'Select Citrix Folder'}
+          </button>
         </div>
       </section>
 

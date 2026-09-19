@@ -7,11 +7,13 @@ import { useReviewSession } from '../hooks/use-review-session';
 import { copyBlockReason, reviewStamp } from '../lib/reviewPolicy';
 
 export interface MultiOrderCardsProps {
+  primarySig?: string;
   subOrders: SubOrderResult[];
   onCopySubOrder?: (subOrder: SubOrderResult, draftSig: string) => void;
 }
 
 export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
+  primarySig,
   subOrders,
   onCopySubOrder,
 }) => {
@@ -70,6 +72,20 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
 
   return (
     <div className="space-y-4">
+      {primarySig && (
+        <div data-testid="unified-primary-sig-card" className="rounded-lg border border-primary/30 bg-primary/5 p-3.5 space-y-1.5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-primary uppercase tracking-wider">
+              Unified Prescription Regimen (Primary Clinical Record)
+            </span>
+            <span className="text-[11px] text-muted-foreground">Framework single-line summary</span>
+          </div>
+          <div className="font-mono text-sm font-bold text-foreground bg-background/90 rounded px-3 py-2 border border-border break-words">
+            {primarySig}
+          </div>
+        </div>
+      )}
+
       <div className="rounded-md border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
         <span className="font-semibold">Paxit Multi-Order Requirement:</span>
         <p className="mt-0.5 text-slate-600 dark:text-slate-400">

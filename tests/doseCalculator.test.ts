@@ -111,4 +111,15 @@ describe('doseCalculator', () => {
     expect(res.doseToken).toBe('2T (0.25MG)');
     expect(res.routeToken).toBe('PO');
   });
+
+  it('preserves injectable volume precision without rounding 0.25ml to 0.3ml', () => {
+    const res = calculateDoseAndVolume('FENTANYL INJ 50MCG/ML', 'Inject 0.25 ml subcutaneously every 4 hours PRN');
+    expect(res.doseToken).toBe('INJ 0.25ML');
+    expect(res.routeToken).toBe('SQ');
+  });
+
+  it('safely handles zero denominator fraction gracefully', () => {
+    const res = calculateDoseAndVolume('PREDNISONE TAB 10MG', 'Take 1/0 tablet by mouth daily');
+    expect(res.doseToken).toBe('1/0T');
+  });
 });
