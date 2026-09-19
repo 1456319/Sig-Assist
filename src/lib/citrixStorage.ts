@@ -1,4 +1,5 @@
 import { DiscrepancyReport, TechnicianPreferences } from './clinical/types';
+import type { OrderSource } from './orderQueue';
 
 export interface StoredQueueOrder {
   id: string;
@@ -9,6 +10,14 @@ export interface StoredQueueOrder {
   draftSig: string;
   isReviewed: boolean;
   status: 'pending' | 'completed' | 'skipped';
+  facility?: string;
+  patientRef?: string;
+  revision?: number;
+  previousSources?: OrderSource[];
+  cancelled?: boolean;
+  approved?: string;
+  copied?: string;
+  defaultSig?: string;
 }
 
 export interface CitrixStorageAdapter {
@@ -39,21 +48,37 @@ export const DEFAULT_PREFERENCES: TechnicianPreferences = {
 };
 
 class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
-  private dirHandle: any = null;
+  private dirHandle: FileSystemDirectoryHandle | null = null;
   private debounceDelayMs: number =
     typeof process !== 'undefined' && process.env?.NODE_ENV === 'test' ? 0 : 500;
 
   private pendingQueue: StoredQueueOrder[] | null = null;
-  private queueTimer: any = null;
+  private queueTimer: ReturnType<typeof setTimeout> | null = null;
   private queueResolvers: Array<() => void> = [];
 
   private pendingDiscrepancies: DiscrepancyReport[] | null = null;
-  private discrepanciesTimer: any = null;
+  private discrepanciesTimer: ReturnType<typeof setTimeout> | null = null;
   private discrepanciesResolvers: Array<() => void> = [];
 
   private pendingPreferences: TechnicianPreferences | null = null;
-  private preferencesTimer: any = null;
+  private preferencesTimer: ReturnType<typeof setTimeout> | null = null;
   private preferencesResolvers: Array<() => void> = [];
+
+  private isWriting = false;
+  private writeQueueItems: Array<() => Promise<void>> = [];
+
+  private async processWriteQueue() {
+    if (this.isWriting) return;
+    this.isWriting = true;
+    try {
+      while (this.writeQueueItems.length > 0) {
+        const task = this.writeQueueItems.shift();
+        if (task) await task();
+      }
+    } finally {
+      this.isWriting = false;
+    }
+  }
 
   isConnected(): boolean {
     return this.dirHandle !== null;
@@ -74,9 +99,9 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
   async connectDirectory(): Promise<boolean> {
     const win =
       typeof window !== 'undefined'
-        ? window
+        ? (window as unknown as { showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle> })
         : typeof globalThis !== 'undefined'
-          ? (globalThis as any)
+          ? (globalThis as unknown as { showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle> })
           : undefined;
 
     if (!win || typeof win.showDirectoryPicker !== 'function') {
@@ -145,30 +170,36 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
     data: unknown,
     resolvers: Array<() => void> = []
   ): Promise<void> {
-    try {
-      if (this.dirHandle) {
-        const written = await this.writeFile(filename, data);
-        if (written) {
+    return new Promise<void>((resolve) => {
+      this.writeQueueItems.push(async () => {
+        try {
+          let written = false;
+          if (this.dirHandle) {
+            written = await this.writeFile(filename, data);
+          }
+          if (!written) {
+            this.writeLocalStorage(storageKey, data);
+          }
           resolvers.forEach((r) => r());
-          return;
+        } catch {
+          resolvers.forEach((r) => r());
         }
-      }
-      this.writeLocalStorage(storageKey, data);
-      resolvers.forEach((r) => r());
-    } catch {
-      resolvers.forEach((r) => r());
-    }
+        resolve();
+      });
+      this.processWriteQueue();
+    });
   }
 
   async readQueue(): Promise<StoredQueueOrder[]> {
     if (this.pendingQueue !== null) {
       return this.pendingQueue;
     }
+    let data: StoredQueueOrder[] | null = null;
     if (this.dirHandle) {
-      const data = await this.readFile<StoredQueueOrder[]>('queue.json');
-      if (data !== null) {
-        return data;
-      }
+      data = await this.readFile<StoredQueueOrder[]>('queue.json');
+    }
+    if (data !== null) {
+      return data;
     }
     return this.readLocalStorage<StoredQueueOrder[]>('citrix_storage_queue', []);
   }
@@ -215,11 +246,12 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
     if (this.pendingDiscrepancies !== null) {
       return this.pendingDiscrepancies;
     }
+    let data: DiscrepancyReport[] | null = null;
     if (this.dirHandle) {
-      const data = await this.readFile<DiscrepancyReport[]>('discrepancies.json');
-      if (data !== null) {
-        return data;
-      }
+      data = await this.readFile<DiscrepancyReport[]>('discrepancies.json');
+    }
+    if (data !== null) {
+      return data;
     }
     return this.readLocalStorage<DiscrepancyReport[]>('citrix_storage_discrepancies', []);
   }
@@ -268,11 +300,12 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
     if (this.pendingPreferences !== null) {
       return this.pendingPreferences;
     }
+    let data: TechnicianPreferences | null = null;
     if (this.dirHandle) {
-      const data = await this.readFile<TechnicianPreferences>('preferences.json');
-      if (data !== null) {
-        return data;
-      }
+      data = await this.readFile<TechnicianPreferences>('preferences.json');
+    }
+    if (data !== null) {
+      return data;
     }
     return this.readLocalStorage<TechnicianPreferences>(
       'citrix_storage_preferences',
@@ -405,8 +438,8 @@ export function getCitrixStorageAdapter(): CitrixStorageAdapter {
 }
 
 export function _resetCitrixStorageAdapterForTesting(): void {
-  if (instance && typeof (instance as any).clearPendingTimers === 'function') {
-    (instance as any).clearPendingTimers();
+  if (instance && 'clearPendingTimers' in instance && typeof (instance as unknown as { clearPendingTimers: () => void }).clearPendingTimers === 'function') {
+    (instance as unknown as { clearPendingTimers: () => void }).clearPendingTimers();
   }
   instance = null;
 }

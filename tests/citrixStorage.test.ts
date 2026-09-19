@@ -64,9 +64,9 @@ describe('citrixStorage', () => {
     _resetCitrixStorageAdapterForTesting();
     localStorage.clear();
     vi.restoreAllMocks();
-    delete (globalThis as any).showDirectoryPicker;
-    if ((globalThis as any).window) {
-      delete (globalThis as any).window.showDirectoryPicker;
+    delete (globalThis as unknown as { showDirectoryPicker?: unknown }).showDirectoryPicker;
+    if ('window' in globalThis && globalThis.window) {
+      delete (globalThis.window as unknown as { showDirectoryPicker?: unknown }).showDirectoryPicker;
     }
   });
 
@@ -147,7 +147,7 @@ describe('citrixStorage', () => {
 
   it('returns false if showDirectoryPicker throws an error (e.g. user cancelled prompt)', async () => {
     const adapter = getCitrixStorageAdapter();
-    (globalThis as any).window = {
+    (globalThis as unknown as { window?: { showDirectoryPicker: unknown } }).window = {
       showDirectoryPicker: vi.fn().mockRejectedValue(new Error('The user aborted a request.')),
     };
 
@@ -159,7 +159,7 @@ describe('citrixStorage', () => {
 
   it('dispatches to FileSystemDirectoryHandle when connected, reading and writing JSON files', async () => {
     const mockDirHandle = createMockDirectoryHandle();
-    (globalThis as any).window = {
+    (globalThis as unknown as { window?: { showDirectoryPicker: unknown } }).window = {
       showDirectoryPicker: vi.fn().mockResolvedValue(mockDirHandle),
     };
 
@@ -235,7 +235,7 @@ describe('citrixStorage', () => {
       getFileHandle: vi.fn().mockRejectedValue(new Error('Permission denied')),
     };
 
-    (globalThis as any).window = {
+    (globalThis as unknown as { window?: { showDirectoryPicker: unknown } }).window = {
       showDirectoryPicker: vi.fn().mockResolvedValue(failingDirHandle),
     };
 
@@ -279,11 +279,11 @@ describe('citrixStorage', () => {
 
   it('resets singleton instance cleanly with _resetCitrixStorageAdapterForTesting', () => {
     const adapter1 = getCitrixStorageAdapter();
-    (adapter1 as any).testMarker = 42;
+    Object.assign(adapter1, { testMarker: 42 });
 
     _resetCitrixStorageAdapterForTesting();
     const adapter2 = getCitrixStorageAdapter();
-    expect((adapter2 as any).testMarker).toBeUndefined();
+    expect('testMarker' in adapter2).toBe(false);
     expect(adapter1).not.toBe(adapter2);
   });
 });
