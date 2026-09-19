@@ -38,21 +38,31 @@ export const DEFAULT_PREFERENCES: TechnicianPreferences = {
   },
 };
 
+interface FileSystemHandleMock {
+  getFileHandle(name: string, options?: { create?: boolean }): Promise<{
+    getFile(): Promise<{ text(): Promise<string> }>;
+    createWritable(): Promise<{
+      write(data: string): Promise<void>;
+      close(): Promise<void>;
+    }>;
+  }>;
+}
+
 class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
-  private dirHandle: any = null;
+  private dirHandle: FileSystemHandleMock | null = null;
   private debounceDelayMs: number =
     typeof process !== 'undefined' && process.env?.NODE_ENV === 'test' ? 0 : 500;
 
   private pendingQueue: StoredQueueOrder[] | null = null;
-  private queueTimer: any = null;
+  private queueTimer: ReturnType<typeof setTimeout> | null = null;
   private queueResolvers: Array<() => void> = [];
 
   private pendingDiscrepancies: DiscrepancyReport[] | null = null;
-  private discrepanciesTimer: any = null;
+  private discrepanciesTimer: ReturnType<typeof setTimeout> | null = null;
   private discrepanciesResolvers: Array<() => void> = [];
 
   private pendingPreferences: TechnicianPreferences | null = null;
-  private preferencesTimer: any = null;
+  private preferencesTimer: ReturnType<typeof setTimeout> | null = null;
   private preferencesResolvers: Array<() => void> = [];
 
   isConnected(): boolean {
@@ -74,9 +84,9 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
   async connectDirectory(): Promise<boolean> {
     const win =
       typeof window !== 'undefined'
-        ? window
+        ? (window as unknown as { showDirectoryPicker?: () => Promise<FileSystemHandleMock> })
         : typeof globalThis !== 'undefined'
-          ? (globalThis as any)
+          ? (globalThis as unknown as { showDirectoryPicker?: () => Promise<FileSystemHandleMock> })
           : undefined;
 
     if (!win || typeof win.showDirectoryPicker !== 'function') {
@@ -405,8 +415,8 @@ export function getCitrixStorageAdapter(): CitrixStorageAdapter {
 }
 
 export function _resetCitrixStorageAdapterForTesting(): void {
-  if (instance && typeof (instance as any).clearPendingTimers === 'function') {
-    (instance as any).clearPendingTimers();
+  if (instance && 'clearPendingTimers' in instance && typeof (instance as unknown as { clearPendingTimers: () => void }).clearPendingTimers === 'function') {
+    (instance as unknown as { clearPendingTimers: () => void }).clearPendingTimers();
   }
   instance = null;
 }

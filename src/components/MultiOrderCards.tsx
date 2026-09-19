@@ -26,6 +26,8 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
 
   const handleDraftChange = (id: string, value: string) => {
     setDrafts((prev) => ({ ...prev, [id]: value.toUpperCase() }));
+    // Editing invalidates review approval
+    setReviewedMap((prev) => ({ ...prev, [id]: false }));
   };
 
   const handleReviewToggle = (id: string, checked: boolean) => {
@@ -33,26 +35,32 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
   };
 
   const handleCopy = async (subOrder: SubOrderResult) => {
-    const draftSig = drafts[subOrder.id] ?? subOrder.suggestedSig;
+    const draftSig = (drafts[subOrder.id] ?? subOrder.suggestedSig).toUpperCase();
     if (!reviewedMap[subOrder.id] || !draftSig.trim()) return;
 
     if (onCopySubOrder) {
       onCopySubOrder(subOrder, draftSig);
     }
 
+    let copySucceeded = false;
     try {
       if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(draftSig);
         toast.success(`Copied ${subOrder.label} SIG to clipboard`);
+        copySucceeded = true;
+      } else {
+        toast.error('Clipboard API unavailable in this browser context');
       }
     } catch {
-      // clipboard fallback
+      toast.error(`Failed to copy ${subOrder.label} SIG to clipboard`);
     }
 
-    setCopiedId(subOrder.id);
-    setTimeout(() => {
-      setCopiedId(null);
-    }, 2000);
+    if (copySucceeded) {
+      setCopiedId(subOrder.id);
+      setTimeout(() => {
+        setCopiedId(null);
+      }, 2000);
+    }
   };
 
   return (

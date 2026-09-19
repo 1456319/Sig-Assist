@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { createTranslationDiagnostic, redactDirections, SessionDiagnosticSink, toGitHubIssueDraft } from './translationDiagnostics';
+import { createTranslationDiagnostic, generateUUID, redactDirections, SessionDiagnosticSink, toGitHubIssueDraft } from './translationDiagnostics';
 import { translateFreeTextSig } from './sigEngine';
 
 describe('translation diagnostics', () => {
   it('redacts long identifiers and dates by default', () => {
     expect(redactDirections('Give 1 tablet until 07/30/2026 for order 123456')).toContain('[DATE]');
     expect(redactDirections('Give 1 tablet until 07/30/2026 for order 123456')).toContain('[NUMBER]');
+  });
+
+  it('generates a valid UUID string even if crypto.randomUUID is absent', () => {
+    const uuid = generateUUID();
+    expect(uuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
   });
 
   it('creates a GitHub-ready redacted issue draft', () => {
