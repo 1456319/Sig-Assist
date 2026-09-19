@@ -10,7 +10,10 @@ export function ReviewSession({ children }: { children: ReactNode }) {
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
-    getCitrixStorageAdapter().readQueue().then(stored => {
+    Promise.all([
+      getCitrixStorageAdapter().readQueue(),
+      getCitrixStorageAdapter().readPreferences(),
+    ]).then(([stored, prefs]) => {
       if (stored && stored.length > 0) {
         setOrders(stored.map(o => ({
           ...o,
@@ -27,16 +30,13 @@ export function ReviewSession({ children }: { children: ReactNode }) {
           defaultSig: o.defaultSig,
         } as QueueOrder)));
       }
-      setIsHydrated(true);
-    });
-
-    getCitrixStorageAdapter().readPreferences().then(prefs => {
       if (prefs && (prefs.exclusions || prefs.policyRevision !== undefined)) {
         setPolicy({
           exclusions: prefs.exclusions || [],
           revision: prefs.policyRevision || 0,
         });
       }
+      setIsHydrated(true);
     });
   }, []);
 
