@@ -59,6 +59,15 @@ export function TraceLogDrawer({ isOpen, onClose }: TraceLogDrawerProps) {
     status: 'success' | 'error' | 'idle';
     message: string;
   } | null>(null);
+  const flushFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (flushFeedbackTimerRef.current) {
+        clearTimeout(flushFeedbackTimerRef.current);
+      }
+    };
+  }, []);
 
   // Subscribe to live log streaming without triggering render-phase updates
   useEffect(() => {
@@ -156,9 +165,14 @@ export function TraceLogDrawer({ isOpen, onClose }: TraceLogDrawerProps) {
   };
 
   const handleFlush = async () => {
+    if (flushFeedbackTimerRef.current) {
+      clearTimeout(flushFeedbackTimerRef.current);
+      flushFeedbackTimerRef.current = null;
+    }
     try {
       const res = await traceLogger.flush();
-      const destLabel = res.destination === 'file_system' ? 'Citrix Share (sig-assist-trace.jsonl)' : 'Browser Storage';
+      const effectiveDest = res.destination !== 'storage' ? res.destination : storageMode;
+      const destLabel = effectiveDest === 'file_system' ? 'Citrix Share (sig-assist-trace.jsonl)' : 'Browser Storage';
       if (res.flushedCount > 0) {
         setFlushFeedback({
           status: 'success',
@@ -174,7 +188,7 @@ export function TraceLogDrawer({ isOpen, onClose }: TraceLogDrawerProps) {
       }
       setFlushedStatus(true);
       setTimeout(() => setFlushedStatus(false), 2000);
-      setTimeout(() => setFlushFeedback(null), 4000);
+      flushFeedbackTimerRef.current = setTimeout(() => setFlushFeedback(null), 4000);
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
       setFlushFeedback({
@@ -182,7 +196,7 @@ export function TraceLogDrawer({ isOpen, onClose }: TraceLogDrawerProps) {
         message: `Flush failed: ${errMsg}`,
       });
       toast.error(`Flush failed: ${errMsg}`);
-      setTimeout(() => setFlushFeedback(null), 6000);
+      flushFeedbackTimerRef.current = setTimeout(() => setFlushFeedback(null), 6000);
     }
   };
 

@@ -81,8 +81,13 @@ export class TraceLogger {
     if (fresh.length === 0) return 0;
 
     const combined = [...fresh, ...this.events];
+    const dropped = Math.max(0, combined.length - this.maxCapacity);
+    const retainedFresh = Math.max(0, fresh.length - dropped);
+    const droppedFromEvents = Math.max(0, dropped - fresh.length);
+    const adjustedFlushedIndex = Math.max(0, this.lastFlushedIndex - droppedFromEvents);
+
     this.events = combined.slice(-this.maxCapacity);
-    this.lastFlushedIndex = Math.min(this.events.length, fresh.length + this.lastFlushedIndex);
+    this.lastFlushedIndex = Math.min(this.events.length, retainedFresh + adjustedFlushedIndex);
     return fresh.length;
   }
 

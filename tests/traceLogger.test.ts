@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import {
   traceLogger,
+  TraceLogger,
   type TraceEvent,
 } from '../src/lib/diagnostics/traceLogger';
 import { parseInboundOrder } from '../src/lib/clinical/inboundParser';
@@ -232,5 +233,41 @@ describe('traceLogger', () => {
     expect(fallbackResult.traceId).toBe('TRC_order_fallback');
     expect(fallbackResult.traceId).not.toBe(inbound.traceId);
     expect(traceLogger.getActiveTraceId()).toBe('GLOBAL');
+  });
+
+  it('preserves unflushed event cursor when hydrating history into a capacity-constrained logger', async () => {
+    // Instantiate a logger with maxCapacity = 5
+    const smallLogger = new TraceLogger(5);
+    let flushedEvents: TraceEvent[] = [];
+    smallLogger.setOnFlushHook(async (batch) => {
+      flushedEvents.push(...batch);
+    });
+
+    smallLogger.info('ui', 'test', 'e1');
+    smallLogger.info('ui', 'test', 'e2');
+
+    // Flush first 2 events
+    const firstRes = await smallLogger.flush();
+    expect(firstRes.flushedCount).toBe(2);
+    flushedEvents = [];
+
+    // Log 2 more events that remain unflushed
+    smallLogger.info('ui', 'test', 'e3_unflushed');
+    smallLogger.info('ui', 'test', 'e4_unflushed');
+
+    // Hydrate 3 persisted events. Combined = 3 (fresh) + 4 (in-memory) = 7 > 5.
+    // 2 fresh events are dropped, 1 fresh retained, all 4 in-memory retained.
+    const persisted: TraceEvent[] = [
+      { id: 'p1', traceId: 'T1', timestamp: new Date().toISOString(), layer: 'intake', level: 'INFO', component: 'c', message: 'p1' },
+      { id: 'p2', traceId: 'T2', timestamp: new Date().toISOString(), layer: 'intake', level: 'INFO', component: 'c', message: 'p2' },
+      { id: 'p3', traceId: 'T3', timestamp: new Date().toISOString(), layer: 'intake', level: 'INFO', component: 'c', message: 'p3' },
+    ];
+
+    smallLogger.hydratePersistedEvents(persisted);
+
+    const res = await smallLogger.flush();
+    // Must flush exactly the 2 unflushed in-memory events (e3_unflushed, e4_unflushed)
+    expect(res.flushedCount).toBe(2);
+    expect(flushedEvents.map((e) => e.message)).toEqual(['e3_unflushed', 'e4_unflushed']);
   });
 });

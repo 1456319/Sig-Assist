@@ -317,4 +317,41 @@ describe('UI Components', () => {
     expect(checkboxes[0].disabled).toBe(true);
     expect(screen.getByTestId('multi-order-unavailable-banner')).toBeDefined();
   });
+
+  it('WorkbenchView: marks split sub-orders as unavailable when HL7 input has an unverified profile warning', async () => {
+    const { render, screen, fireEvent } = await import('@testing-library/react');
+    const { WorkbenchView } = await import('../src/components/WorkbenchView');
+
+    render(
+      <ReviewContext.Provider value={{
+        orders: [],
+        setOrders: () => {},
+        exclusions: [],
+        policyRevision: 0,
+        setExclusions: () => {}
+      }}>
+        <WorkbenchView />
+      </ReviewContext.Provider>
+    );
+
+    // Switch to Raw HL7 mode
+    const hl7Button = screen.getByRole('button', { name: /Raw HL7/i });
+    fireEvent.click(hl7Button);
+
+    const textarea = screen.getByPlaceholderText(/Paste raw HL7 message here/i);
+    const hl7Message = [
+      'MSH|^~\\&|EHR|FAC|SIG|RX|202609191000||OMP^O09|MSG01|P|2.5',
+      'PID|1||12345^^^FAC^MR||DOE^JOHN',
+      'ORC|NW|ORD123|||||1^BID',
+      'RXO|PREDNISONE 10MG TABLET|||||||||||||||||||||||Take 2 tablets in the morning and 1 tablet at night for 5 days',
+    ].join('\n');
+
+    fireEvent.change(textarea, { target: { value: hl7Message } });
+
+    // MultiOrderCards should render the unavailable banner and lock copy buttons
+    expect(await screen.findByTestId('multi-order-unavailable-banner')).toBeDefined();
+    const copyBtns = screen.getAllByRole('button', { name: /Copy Reviewed SIG/i }) as HTMLButtonElement[];
+    expect(copyBtns.length).toBeGreaterThan(0);
+    expect(copyBtns[0].disabled).toBe(true);
+  });
 });
