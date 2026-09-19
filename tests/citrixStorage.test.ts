@@ -59,15 +59,34 @@ function createMockDirectoryHandle() {
   return mockDirHandle;
 }
 
+function setMockShowDirectoryPicker(fn: unknown) {
+  if (typeof window !== 'undefined') {
+    Object.defineProperty(window, 'showDirectoryPicker', {
+      value: fn,
+      writable: true,
+      configurable: true,
+    });
+  }
+  Object.defineProperty(globalThis, 'showDirectoryPicker', {
+    value: fn,
+    writable: true,
+    configurable: true,
+  });
+}
+
 describe('citrixStorage', () => {
   beforeEach(() => {
     _resetCitrixStorageAdapterForTesting();
-    localStorage.clear();
-    vi.restoreAllMocks();
-    delete (globalThis as unknown as { showDirectoryPicker?: unknown }).showDirectoryPicker;
-    if ('window' in globalThis && globalThis.window) {
-      delete (globalThis.window as unknown as { showDirectoryPicker?: unknown }).showDirectoryPicker;
+    try {
+      localStorage.clear();
+    } catch {
+      // safe fallback
     }
+    vi.restoreAllMocks();
+    if (typeof window !== 'undefined') {
+      delete (window as unknown as { showDirectoryPicker?: unknown }).showDirectoryPicker;
+    }
+    delete (globalThis as unknown as { showDirectoryPicker?: unknown }).showDirectoryPicker;
   });
 
   it('initializes with fallback browser_cache mode when File System API is unavailable in Node/test', () => {
@@ -147,9 +166,7 @@ describe('citrixStorage', () => {
 
   it('returns false if showDirectoryPicker throws an error (e.g. user cancelled prompt)', async () => {
     const adapter = getCitrixStorageAdapter();
-    (globalThis as unknown as { window?: { showDirectoryPicker: unknown } }).window = {
-      showDirectoryPicker: vi.fn().mockRejectedValue(new Error('The user aborted a request.')),
-    };
+    setMockShowDirectoryPicker(vi.fn().mockRejectedValue(new Error('The user aborted a request.')));
 
     const connected = await adapter.connectDirectory();
     expect(connected).toBe(false);
@@ -159,9 +176,7 @@ describe('citrixStorage', () => {
 
   it('dispatches to FileSystemDirectoryHandle when connected, reading and writing JSON files', async () => {
     const mockDirHandle = createMockDirectoryHandle();
-    (globalThis as unknown as { window?: { showDirectoryPicker: unknown } }).window = {
-      showDirectoryPicker: vi.fn().mockResolvedValue(mockDirHandle),
-    };
+    setMockShowDirectoryPicker(vi.fn().mockResolvedValue(mockDirHandle));
 
     const adapter = getCitrixStorageAdapter();
     const connected = await adapter.connectDirectory();
@@ -235,9 +250,7 @@ describe('citrixStorage', () => {
       getFileHandle: vi.fn().mockRejectedValue(new Error('Permission denied')),
     };
 
-    (globalThis as unknown as { window?: { showDirectoryPicker: unknown } }).window = {
-      showDirectoryPicker: vi.fn().mockResolvedValue(failingDirHandle),
-    };
+    setMockShowDirectoryPicker(vi.fn().mockResolvedValue(failingDirHandle));
 
     const adapter = getCitrixStorageAdapter();
     await adapter.connectDirectory();
@@ -269,9 +282,22 @@ describe('citrixStorage', () => {
 
   it('guards against localStorage quota errors gracefully without throwing', async () => {
     const adapter = getCitrixStorageAdapter();
-    vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+    const mockQuotaError = () => {
       throw new Error('QuotaExceededError');
-    });
+    };
+    if (typeof Storage !== 'undefined' && Storage.prototype) {
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(mockQuotaError);
+    }
+    if (typeof window !== 'undefined' && window.localStorage) {
+      vi.spyOn(window.localStorage, 'setItem').mockImplementation(mockQuotaError);
+    }
+    if (typeof localStorage !== 'undefined') {
+      try {
+        vi.spyOn(localStorage, 'setItem').mockImplementation(mockQuotaError);
+      } catch {
+        // non-configurable
+      }
+    }
 
     await expect(adapter.writeQueue([])).resolves.toBeUndefined();
     await expect(adapter.writePreferences(DEFAULT_PREFERENCES)).resolves.toBeUndefined();
@@ -289,9 +315,7 @@ describe('citrixStorage', () => {
 
   it('appends trace events to JSONL file on connected directory share', async () => {
     const mockDir = createMockDirectoryHandle();
-    (globalThis as unknown as { window?: { showDirectoryPicker: unknown } }).window = {
-      showDirectoryPicker: vi.fn().mockResolvedValue(mockDir),
-    };
+    setMockShowDirectoryPicker(vi.fn().mockResolvedValue(mockDir));
 
     const adapter = getCitrixStorageAdapter();
     await adapter.connectDirectory();
@@ -371,9 +395,22 @@ describe('citrixStorage', () => {
 
   it('rejects appendTraceLogs when file system fails and localStorage is unwritable', async () => {
     const adapter = getCitrixStorageAdapter();
-    vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+    const mockQuotaError = () => {
       throw new Error('QuotaExceededError');
-    });
+    };
+    if (typeof Storage !== 'undefined' && Storage.prototype) {
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(mockQuotaError);
+    }
+    if (typeof window !== 'undefined' && window.localStorage) {
+      vi.spyOn(window.localStorage, 'setItem').mockImplementation(mockQuotaError);
+    }
+    if (typeof localStorage !== 'undefined') {
+      try {
+        vi.spyOn(localStorage, 'setItem').mockImplementation(mockQuotaError);
+      } catch {
+        // non-configurable
+      }
+    }
 
     const event = {
       id: 'trc_fail_test',
