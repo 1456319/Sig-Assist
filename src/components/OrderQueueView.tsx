@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { translateFreeTextSig } from '../lib/sigEngine';
 import { cancelOrder, editDraft, orderKey, saveOrder, sourceStamp, type OrderSource, type QueueOrder } from '../lib/orderQueue';
@@ -7,57 +7,12 @@ import { useReviewSession } from '../hooks/use-review-session';
 import { SigReviewPanel, reviewButtonClass, reviewInputClass } from './SigReviewPanel';
 import { parseInboundOrder } from '../lib/clinical/inboundParser';
 import { HL7_SAMPLE } from '../lib/clinical/fixtures';
-import { getCitrixStorageAdapter, StoredQueueOrder } from '../lib/citrixStorage';
 
 const emptySource: OrderSource = { facility: '', patientRef: '', pon: '', drug: '', directions: '' };
 const sample: OrderSource = { facility: 'DEMO-FACILITY', patientRef: 'DEMO-RESIDENT', pon: 'DEMO-PON-001', drug: 'Example medication 10 mg tablet', directions: 'Take 1 tablet by mouth twice daily for 7 days.' };
 
 export function OrderQueueView() {
   const { orders, setOrders, exclusions, policyRevision } = useReviewSession();
-  const [isLoaded, setIsLoaded] = useState(false);
-  const loadingInitiatedRef = useRef(false);
-
-  useEffect(() => {
-    if (loadingInitiatedRef.current) return;
-    loadingInitiatedRef.current = true;
-
-    getCitrixStorageAdapter().readQueue().then(stored => {
-      if (stored && stored.length > 0) {
-        setOrders(stored.map(o => ({
-          ...o,
-          facility: o.facility || 'UNKNOWN',
-          patientRef: o.patientRef || 'UNKNOWN',
-          directions: o.rawProse,
-          drug: o.drugName,
-          revision: o.revision || 1,
-          previousSources: o.previousSources || [],
-          cancelled: o.cancelled || false,
-          draft: o.draftSig,
-        } as QueueOrder)));
-      }
-      setIsLoaded(true);
-    });
-  }, [setOrders]);
-
-  useEffect(() => {
-    if (!isLoaded) return;
-    const storedOrders: StoredQueueOrder[] = orders.map(o => ({
-      id: o.id,
-      pon: o.pon,
-      drugName: o.drug,
-      rawProse: o.directions,
-      suggestedSig: o.draft,
-      draftSig: o.draft,
-      isReviewed: !!o.approved,
-      status: o.cancelled ? 'skipped' : (o.copied ? 'completed' : 'pending'),
-      facility: o.facility,
-      patientRef: o.patientRef,
-      revision: o.revision,
-      previousSources: o.previousSources,
-      cancelled: o.cancelled,
-    }));
-    getCitrixStorageAdapter().writeQueue(storedOrders);
-  }, [orders, isLoaded]);
   const [form, setForm] = useState<OrderSource>(emptySource);
   const [selectedId, setSelectedId] = useState<string>();
   const [reviseId, setReviseId] = useState<string>();

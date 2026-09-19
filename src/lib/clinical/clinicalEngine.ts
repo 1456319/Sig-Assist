@@ -87,6 +87,44 @@ function assembleSig(
 export function translateClinicalSig(inbound: InboundOrder, preferences?: TechnicianPreferences): ClinicalSigResult {
   const paxitEval = evaluatePaxitPackaging(inbound.drugName, inbound.rawProse);
 
+  // Case A: Controlled substance with differential dosing or titration -> Compound SIG on single order
+  if (paxitEval.isControlled && paxitEval.splitParts.length > 0) {
+    const isTitration = paxitEval.splitParts.some(p => p.prose.toLowerCase().includes('then')) || inbound.rawProse.toLowerCase().includes('then');
+    const part1 = assembleSig(inbound.drugName, paxitEval.splitParts[0].prose, undefined, preferences, inbound.indication);
+    const part2 = assembleSig(inbound.drugName, paxitEval.splitParts[1].prose, undefined, preferences, inbound.indication);
+    const part1Clean = part1.sig
+      .replace(/\s+(?:PRN\b.*|F[A-Z0-9]+|FOR\s+[\s\S]+|3GME?)$/i, '')
+      .replace(/\s+3GME?$/i, '')
+      .trim();
+    const joiner = isTitration ? ' THEN ' : ' AND ';
+    const compoundSig = `${part1Clean}${joiner}${part2.sig}`;
+
+    const allAbnormalities: AbnormalityFinding[] = [
+      ...part1.abnormalities,
+      ...part2.abnormalities,
+      {
+        id: `controlled_substance_single_order_${inbound.id}`,
+        tier: 'applied_correction',
+        title: 'Controlled Substance — Single Order Required',
+        message: 'The generated Sig CONTAINS A PACKAGING & ORDER RESTRICTION.',
+        correction: 'Controlled substances cannot be split into multiple orders in FrameworkLTC. Regimen formatted as a compound SIG on a single order line. If quantity exceeds card capacity (60 count), FrameworkLTC will generate multiple labels/cards for this single order.',
+        trigger: 'Controlled substance (CII-CV) single order regulatory and packaging constraint'
+      }
+    ];
+
+    return {
+      primarySig: compoundSig,
+      subOrders: [{
+        id: `${inbound.id}_single`,
+        label: 'Order 1 of 1',
+        suggestedSig: compoundSig,
+        abnormalities: allAbnormalities
+      }],
+      abnormalities: allAbnormalities
+    };
+  }
+
+  // Case B: Non-controlled Paxit oral solid requiring multi-order split
   if (paxitEval.requiresSplit && paxitEval.splitParts.length > 0) {
     const subOrders: SubOrderResult[] = [];
     const allAbnormalities: AbnormalityFinding[] = [];
@@ -111,13 +149,22 @@ export function translateClinicalSig(inbound: InboundOrder, preferences?: Techni
       trigger: 'Paxit oral solid differential daily dosing / titration constraint'
     });
 
+    const isTitration = paxitEval.splitParts.some(p => p.prose.toLowerCase().includes('then')) || inbound.rawProse.toLowerCase().includes('then');
+    const firstWithoutInd = subOrders[0].suggestedSig
+      .replace(/\s+(?:PRN\b.*|F[A-Z0-9]+|FOR\s+[\s\S]+|3GME?)$/i, '')
+      .replace(/\s+3GME?$/i, '')
+      .trim();
+    const joiner = isTitration ? ' THEN ' : ' AND ';
+    const unifiedSig = subOrders.length >= 2 ? `${firstWithoutInd}${joiner}${subOrders[1].suggestedSig}` : subOrders[0].suggestedSig;
+
     return {
-      primarySig: subOrders[0].suggestedSig,
+      primarySig: unifiedSig,
       subOrders,
       abnormalities: allAbnormalities
     };
   }
 
+  // Case C: Standard single order (including non-split controlled substances)
   const compiled = assembleSig(inbound.drugName, inbound.rawProse, inbound.defaultSigTemplate, preferences, inbound.indication);
   const abnormalities = [...compiled.abnormalities];
 

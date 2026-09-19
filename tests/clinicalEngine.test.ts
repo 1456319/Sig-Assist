@@ -95,7 +95,7 @@ describe('clinicalEngine TESTS.txt validation', () => {
   it('splits Paxit differing daily doses with natural phrasing containing letters A/N/D', () => {
     const raw = `GABAPENTIN TAB 300MG\nUSER ENTRY: Take 2 tablets by mouth in the morning and 1 tablet at night before bedtime with food`;
     const res = translateClinicalSig(parseInboundOrder(raw));
-    expect(res.primarySig).toBe('2T (600MG) PO QAM');
+    expect(res.primarySig).toBe('2T (600MG) PO QAM AND 1T PO QHS');
     expect(res.subOrders.length).toBe(2);
     expect(res.subOrders[0].label).toBe('Order 1 of 2');
     expect(res.subOrders[0].suggestedSig).toContain('2T (600MG) PO QAM');
@@ -115,7 +115,7 @@ describe('clinicalEngine TESTS.txt validation', () => {
   it('supports titration step-down with frequency phrases like daily x14 days', () => {
     const raw = `PREDNISONE TAB 10MG\nUSER ENTRY: Take 2 tablets daily x14 days then 1 tablet daily`;
     const res = translateClinicalSig(parseInboundOrder(raw));
-    expect(res.primarySig).toBe('2T (20MG) PO QD X14D');
+    expect(res.primarySig).toBe('2T (20MG) PO QD X14D THEN 1T PO QD');
     expect(res.subOrders.length).toBe(2);
     expect(res.subOrders[0].label).toBe('Order 1 of 2');
     expect(res.subOrders[0].suggestedSig).toBe('2T (20MG) PO QD X14D');
@@ -127,7 +127,7 @@ describe('clinicalEngine TESTS.txt validation', () => {
   it('preserves trailing indication across synthesized Paxit split sub-orders and in primarySig', () => {
     const raw = `GABAPENTIN TAB 300MG\nUSER ENTRY: Take 2 tablets by mouth every morning and 1 at night before bedtime for pain`;
     const res = translateClinicalSig(parseInboundOrder(raw));
-    expect(res.primarySig).toBe('2T (600MG) PO QAM FPAIN');
+    expect(res.primarySig).toBe('2T (600MG) PO QAM AND 1T PO QHS FPAIN');
     expect(res.subOrders.length).toBe(2);
     expect(res.subOrders[0].suggestedSig).toBe('2T (600MG) PO QAM FPAIN');
     expect(res.subOrders[1].suggestedSig).toBe('1T PO QHS FPAIN');
@@ -136,7 +136,7 @@ describe('clinicalEngine TESTS.txt validation', () => {
   it('preserves freeform trailing indication across synthesized Paxit titration sub-orders and in primarySig', () => {
     const raw = `PREDNISONE TAB 10MG\nUSER ENTRY: Take 2 tablets daily x14 days then 1 tablet daily for neuropathy`;
     const res = translateClinicalSig(parseInboundOrder(raw));
-    expect(res.primarySig).toBe('2T (20MG) PO QD X14D FOR NEUROPATHY');
+    expect(res.primarySig).toBe('2T (20MG) PO QD X14D THEN 1T PO QD FOR NEUROPATHY');
     expect(res.subOrders.length).toBe(2);
     expect(res.subOrders[0].suggestedSig).toBe('2T (20MG) PO QD X14D FOR NEUROPATHY');
     expect(res.subOrders[1].suggestedSig).toBe('1T PO QD FOR NEUROPATHY');
@@ -147,6 +147,8 @@ describe('clinicalEngine TESTS.txt validation', () => {
     const res = translateClinicalSig(parseInboundOrder(raw));
     expect(res.subOrders.length).toBe(1);
     expect(res.subOrders[0].label).toBe('Order 1 of 1');
+    expect(res.primarySig).toBe('2T PO QAM AND 1T PO QHS PRN FPAIN 3GM');
+    expect(res.subOrders[0].suggestedSig).toBe('2T PO QAM AND 1T PO QHS PRN FPAIN 3GM');
     expect(res.abnormalities.some(a => a.id.startsWith('controlled_substance_single_order'))).toBe(true);
   });
 

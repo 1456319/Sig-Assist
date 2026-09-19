@@ -387,7 +387,7 @@ export function WorkbenchView() {
               )}
 
               {clinicalResult && clinicalResult.subOrders.length > 1 ? (
-                <MultiOrderCards subOrders={clinicalResult.subOrders} />
+                <MultiOrderCards key={clinicalInbound?.id || `${drugName}:${rawInput}`} subOrders={clinicalResult.subOrders} />
               ) : effectiveResult ? (
                 <WorkbenchReview key={`${inputMode}:${rawInput}:${effectiveResult.finalSig}`} result={effectiveResult} source={source} />
               ) : (

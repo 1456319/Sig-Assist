@@ -171,7 +171,7 @@ export function calculateDoseAndVolume(drugName: string, rawProse: string): Dose
       const unit = strengthMatch[3];
       const concMl = parseFloat(strengthMatch[4] || '1');
       const calculatedDose = (vol * concVal) / concMl;
-      const roundedDose = Number.isInteger(calculatedDose) ? calculatedDose.toString() : calculatedDose.toFixed(1);
+      const roundedDose = Number.isInteger(calculatedDose) ? calculatedDose.toString() : parseFloat(calculatedDose.toFixed(3)).toString();
       doseToken = `ADM ${vol}ML (${roundedDose}${unit})`;
     }
 
@@ -207,7 +207,7 @@ export function calculateDoseAndVolume(drugName: string, rawProse: string): Dose
       const singleVal = parseFloat(strengthMatch[1]);
       const unit = strengthMatch[2];
       const totalVal = singleVal * multiplier;
-      const roundedTotal = Number.isInteger(totalVal) ? totalVal.toString() : totalVal.toFixed(1);
+      const roundedTotal = Number.isInteger(totalVal) ? totalVal.toString() : parseFloat(totalVal.toFixed(3)).toString();
       return ` (${roundedTotal}${unit})`;
     }
     return '';

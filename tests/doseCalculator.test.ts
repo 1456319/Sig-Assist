@@ -105,4 +105,10 @@ describe('doseCalculator', () => {
     expect(res.doseToken).toBe('INJ 1ML (10MG)');
     expect(res.routeToken).toBe('SQ');
   });
+
+  it('preserves narrow therapeutic precision without rounding 0.25mg to 0.3mg', () => {
+    const res = calculateDoseAndVolume('DIGOXIN TAB 0.125MG', 'Take 2 tablets by mouth daily');
+    expect(res.doseToken).toBe('2T (0.25MG)');
+    expect(res.routeToken).toBe('PO');
+  });
 });

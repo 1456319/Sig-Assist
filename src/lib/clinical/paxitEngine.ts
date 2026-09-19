@@ -106,81 +106,81 @@ export function evaluatePaxitPackaging(drugName: string, rawProse: string): Paxi
   const upperProse = rawProse.toUpperCase();
 
   const isControlled = isControlledSubstance(upperDrug);
-  if (isControlled) {
-    return {
-      isPaxitSolid: false,
-      isControlled: true,
-      requiresSplit: false,
-      splitParts: [],
-      splitDirectives: [],
-      packagingNotice: 'Controlled Substance: Must remain on a single prescription order in FrameworkLTC (cannot be split into multiple orders). If total quantity exceeds card capacity (60 count), Framework will generate multiple labels/cards for this single order.'
-    };
-  }
-
-  const isOralSolid = upperDrug.includes('TAB') || upperDrug.includes('CAP') || upperDrug.includes('TABLET') || upperDrug.includes('CAPSULE');
+  const isOralSolid =
+    upperDrug.includes('TAB') ||
+    upperDrug.includes('CAP') ||
+    upperDrug.includes('TABLET') ||
+    upperDrug.includes('CAPSULE') ||
+    upperProse.includes('TAB') ||
+    upperProse.includes('CAP') ||
+    isControlled;
   const isExcluded = upperDrug.includes('GEL') || upperDrug.includes('SYR') || upperDrug.includes('INJ') || upperDrug.includes('SOLN');
 
   if (!isOralSolid || isExcluded) {
     return {
       isPaxitSolid: false,
-      isControlled: false,
+      isControlled,
       requiresSplit: false,
       splitParts: [],
       splitDirectives: []
     };
   }
 
-  const unitLabel = upperDrug.includes('CAP') ? 'capsule' : 'tablet';
+  const unitLabel = (upperDrug.includes('CAP') || upperProse.includes('CAP')) ? 'capsule' : 'tablet';
 
   // Extract trailing clinical context (indication or PRN clause) to preserve across split sub-orders
   const trailingContextMatch = rawProse.match(/\b((?:AS NEEDED\s+FOR|PRN\s+FOR|AS NEEDED|PRN|FOR)\s+(?!\d+\s*(?:DAYS?|D\b))[\s\S]+)$/i);
   const contextSuffix = trailingContextMatch ? ` ${trailingContextMatch[1].trim()}` : '';
+
+  let hasDifferentialDosing = false;
+  let splitParts: Array<{ prose: string; label: string }> = [];
 
   // Differing morning and bedtime doses (using non-greedy wildcard and \bAND\b word boundary)
   const diffDoseMatch = upperProse.match(/(\d+)\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?.*?\b(?:MORNING|QAM|AM)\b.*?\bAND\b\s*(\d+)\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?\s*(?:AT\s*NIGHT|AT\s*BEDTIME|BEDTIME|QHS|HS|EVENING|PM)\b/i);
   if (diffDoseMatch) {
     const count1 = diffDoseMatch[1];
     const count2 = diffDoseMatch[2];
-    // Guard: Only split if doses differ. Identical doses consolidate into BIDAMHS per spec Section 4.1
+    // Only flag differential dosing if counts differ
     if (count1 !== count2) {
-      const splitParts = [
+      hasDifferentialDosing = true;
+      splitParts = [
         { prose: `Take ${count1} ${unitLabel} by mouth every morning${contextSuffix}`, label: 'Order 1 of 2' },
         { prose: `Take ${count2} ${unitLabel} by mouth at bedtime${contextSuffix}`, label: 'Order 2 of 2' }
       ];
-      return {
-        isPaxitSolid: true,
-        isControlled: false,
-        requiresSplit: true,
-        splitParts,
-        splitDirectives: splitParts.map(p => p.prose)
-      };
     }
   }
 
   // Titration / step-down (supporting frequency keywords before duration)
-  const titrationMatch = upperProse.match(/(\d+)\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)\s*(?:(?:BY\s*MOUTH|PO)\s*)?(?:\s*(?:DAILY|QD|EVERY\s*DAY|ONCE\s*A\s*DAY))?\s*(?:X|FOR)\s*(\d+)\s*DAYS?\s*THEN\s*(?:TAKE\s*)?(\d+)\s*(?:TAB|TABLET|CAP|CAPSULE)?/i);
-  if (titrationMatch) {
-    const count1 = titrationMatch[1];
-    const days1 = titrationMatch[2];
-    const count2 = titrationMatch[3];
-    const splitParts = [
-      { prose: `Take ${count1} ${unitLabel} by mouth daily for ${days1} days${contextSuffix}`, label: 'Order 1 of 2' },
-      { prose: `Take ${count2} ${unitLabel} by mouth daily${contextSuffix}`, label: 'Order 2 of 2' }
-    ];
+  if (!hasDifferentialDosing) {
+    const titrationMatch = upperProse.match(/(\d+)\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)\s*(?:(?:BY\s*MOUTH|PO)\s*)?(?:\s*(?:DAILY|QD|EVERY\s*DAY|ONCE\s*A\s*DAY))?\s*(?:X|FOR)\s*(\d+)\s*DAYS?\s*THEN\s*(?:TAKE\s*)?(\d+)\s*(?:TAB|TABLET|CAP|CAPSULE)?/i);
+    if (titrationMatch) {
+      hasDifferentialDosing = true;
+      const count1 = titrationMatch[1];
+      const days1 = titrationMatch[2];
+      const count2 = titrationMatch[3];
+      splitParts = [
+        { prose: `Take ${count1} ${unitLabel} by mouth daily for ${days1} days${contextSuffix}`, label: 'Order 1 of 2' },
+        { prose: `Take ${count2} ${unitLabel} by mouth daily${contextSuffix}`, label: 'Order 2 of 2' }
+      ];
+    }
+  }
+
+  if (isControlled) {
     return {
-      isPaxitSolid: true,
-      isControlled: false,
-      requiresSplit: true,
-      splitParts,
-      splitDirectives: splitParts.map(p => p.prose)
+      isPaxitSolid: false,
+      isControlled: true,
+      requiresSplit: false,
+      splitParts: hasDifferentialDosing ? splitParts : [],
+      splitDirectives: hasDifferentialDosing ? splitParts.map(p => p.prose) : [],
+      packagingNotice: 'Controlled Substance: Must remain on a single prescription order in FrameworkLTC (cannot be split into multiple orders). If total quantity exceeds card capacity (60 count), Framework will generate multiple labels/cards for this single order.'
     };
   }
 
   return {
     isPaxitSolid: true,
     isControlled: false,
-    requiresSplit: false,
-    splitParts: [],
-    splitDirectives: []
+    requiresSplit: hasDifferentialDosing,
+    splitParts: hasDifferentialDosing ? splitParts : [],
+    splitDirectives: hasDifferentialDosing ? splitParts.map(p => p.prose) : []
   };
 }

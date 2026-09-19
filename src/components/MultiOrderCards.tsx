@@ -41,8 +41,12 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
     const draftSig = drafts[subOrder.id] ?? subOrder.suggestedSig;
     if (!reviewedMap[subOrder.id] || !draftSig.trim()) return;
 
-    if (onCopySubOrder) {
-      onCopySubOrder(subOrder, draftSig);
+    const isReviewed = !!reviewedMap[subOrder.id];
+    const approved = isReviewed ? reviewStamp(subOrder.suggestedSig, draftSig, exclusions, policyRevision) : undefined;
+    const blockReason = copyBlockReason(subOrder.suggestedSig, draftSig, exclusions, approved, false, policyRevision);
+    if (blockReason) {
+      toast.error(blockReason);
+      return;
     }
 
     try {
@@ -50,6 +54,9 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
         await navigator.clipboard.writeText(draftSig);
         toast.success(`Copied ${subOrder.label} SIG to clipboard`);
         setCopiedId(subOrder.id);
+        if (onCopySubOrder) {
+          onCopySubOrder(subOrder, draftSig);
+        }
         setTimeout(() => {
           setCopiedId(null);
         }, 2000);

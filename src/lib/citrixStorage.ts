@@ -15,6 +15,9 @@ export interface StoredQueueOrder {
   revision?: number;
   previousSources?: OrderSource[];
   cancelled?: boolean;
+  approved?: string;
+  copied?: string;
+  defaultSig?: string;
 }
 
 export interface CitrixStorageAdapter {
