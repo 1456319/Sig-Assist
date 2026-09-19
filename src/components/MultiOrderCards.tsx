@@ -5,6 +5,7 @@ import { Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { useReviewSession } from '../hooks/use-review-session';
 import { copyBlockReason, reviewStamp } from '../lib/reviewPolicy';
+import { traceLogger } from '../lib/diagnostics/traceLogger';
 
 export interface MultiOrderCardsProps {
   primarySig?: string;
@@ -31,11 +32,13 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
   const { exclusions, policyRevision } = useReviewSession();
 
   const handleDraftChange = (id: string, value: string) => {
+    traceLogger.debug('ui', 'MultiOrderCards', 'Technician edited draft Sig', { subOrderId: id, length: value.length });
     setDrafts((prev) => ({ ...prev, [id]: value.toUpperCase() }));
     setReviewedMap((prev) => ({ ...prev, [id]: false }));
   };
 
   const handleReviewToggle = (id: string, checked: boolean) => {
+    traceLogger.info('ui', 'MultiOrderCards', 'Technician updated review checkbox', { subOrderId: id, reviewed: checked });
     setReviewedMap((prev) => ({ ...prev, [id]: checked }));
   };
 
@@ -47,6 +50,7 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
     const approved = isReviewed ? reviewStamp(subOrder.suggestedSig, draftSig, exclusions, policyRevision) : undefined;
     const blockReason = copyBlockReason(subOrder.suggestedSig, draftSig, exclusions, approved, false, policyRevision);
     if (blockReason) {
+      traceLogger.warn('ui', 'MultiOrderCards', 'Clipboard copy blocked by review policy', { subOrderId: subOrder.id, blockReason });
       toast.error(blockReason);
       return;
     }
@@ -54,6 +58,11 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
     try {
       if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(draftSig);
+        traceLogger.info('ui', 'MultiOrderCards', 'Copied sub-order Sig to clipboard', {
+          subOrderId: subOrder.id,
+          label: subOrder.label,
+          draftSig
+        });
         toast.success(`Copied ${subOrder.label} SIG to clipboard`);
         setCopiedId(subOrder.id);
         if (onCopySubOrder) {
@@ -63,9 +72,12 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
           setCopiedId(null);
         }, 2000);
       } else {
+        traceLogger.warn('ui', 'MultiOrderCards', 'Clipboard API unavailable or denied', { subOrderId: subOrder.id });
         toast.error('Clipboard access denied or unavailable. Please copy manually.');
       }
-    } catch {
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      traceLogger.error('ui', 'MultiOrderCards', 'Clipboard copy failed', { subOrderId: subOrder.id }, { name: 'ClipboardError', message: errMsg });
       toast.error('Clipboard copy failed. Please copy manually.');
     }
   };

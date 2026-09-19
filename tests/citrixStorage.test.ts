@@ -286,4 +286,70 @@ describe('citrixStorage', () => {
     expect('testMarker' in adapter2).toBe(false);
     expect(adapter1).not.toBe(adapter2);
   });
+
+  it('appends trace events to JSONL file on connected directory share', async () => {
+    const mockDir = createMockDirectoryHandle();
+    (globalThis as unknown as { window?: { showDirectoryPicker: unknown } }).window = {
+      showDirectoryPicker: vi.fn().mockResolvedValue(mockDir),
+    };
+
+    const adapter = getCitrixStorageAdapter();
+    await adapter.connectDirectory();
+    expect(adapter.isConnected()).toBe(true);
+
+    const event1 = {
+      id: 'trc_1',
+      traceId: 'ORD_101',
+      timestamp: new Date().toISOString(),
+      layer: 'clinical' as const,
+      level: 'INFO' as const,
+      component: 'doseCalculator',
+      message: 'Computed dose token 1T',
+    };
+    const event2 = {
+      id: 'trc_2',
+      traceId: 'ORD_101',
+      timestamp: new Date().toISOString(),
+      layer: 'packaging' as const,
+      level: 'WARN' as const,
+      component: 'paxitEngine',
+      message: 'Differential split detected',
+    };
+
+    await adapter.appendTraceLogs([event1]);
+    await adapter.appendTraceLogs([event2]);
+
+    const logs = await adapter.readTraceLogs();
+    expect(logs.length).toBe(2);
+    expect(logs[0].id).toBe('trc_1');
+    expect(logs[1].id).toBe('trc_2');
+
+    const rawFile = mockDir.files.get('sig-assist-trace.jsonl');
+    expect(rawFile).toBeDefined();
+    const lines = rawFile!.trim().split('\n');
+    expect(lines.length).toBe(2);
+    expect(JSON.parse(lines[0]).component).toBe('doseCalculator');
+    expect(JSON.parse(lines[1]).component).toBe('paxitEngine');
+  });
+
+  it('falls back to localStorage for trace logs when directory is not connected', async () => {
+    const adapter = getCitrixStorageAdapter();
+    expect(adapter.isConnected()).toBe(false);
+
+    const event = {
+      id: 'trc_local_1',
+      traceId: 'ORD_LOCAL',
+      timestamp: new Date().toISOString(),
+      layer: 'ui' as const,
+      level: 'DEBUG' as const,
+      component: 'TraceDrawer',
+      message: 'Drawer opened',
+    };
+
+    await adapter.appendTraceLogs([event]);
+    const logs = await adapter.readTraceLogs();
+    expect(logs.length).toBe(1);
+    expect(logs[0].message).toBe('Drawer opened');
+  });
 });
+

@@ -10,6 +10,7 @@ import { HL7_SAMPLE } from '../lib/clinical/fixtures';
 import { translateClinicalSig } from '../lib/clinical/clinicalEngine';
 import { AbnormalityBanner } from './AbnormalityBanner';
 import { MultiOrderCards } from './MultiOrderCards';
+import { traceLogger } from '../lib/diagnostics/traceLogger';
 
 const emptySource: OrderSource = { facility: '', patientRef: '', pon: '', drug: '', directions: '' };
 const sample: OrderSource = { facility: 'DEMO-FACILITY', patientRef: 'DEMO-RESIDENT', pon: 'DEMO-PON-001', drug: 'Example medication 10 mg tablet', directions: 'Take 1 tablet by mouth twice daily for 7 days.' };
@@ -27,6 +28,7 @@ export function OrderQueueView() {
   const parsed = useMemo(() => selectedDirections === undefined ? undefined : translateFreeTextSig(selectedDirections, { drug: selectedDrug ?? '', defaultSig: selectedDefaultSig }), [selectedDirections, selectedDrug, selectedDefaultSig]);
   const clinicalResult = useMemo(() => {
     if (!selected) return undefined;
+    traceLogger.info('ui', 'OrderQueueView', 'Evaluating selected queue order with clinicalEngine', { id: selected.id, pon: selected.pon, drug: selected.drug });
     return translateClinicalSig({
       id: selected.id,
       pon: selected.pon,
@@ -55,9 +57,12 @@ export function OrderQueueView() {
       setSelectedId(orderKey(form));
       setForm(emptySource);
       setReviseId(undefined);
+      traceLogger.info('ui', 'OrderQueueView', 'Order saved for review in queue', { pon: form.pon, drug: form.drug, sig });
       toast.success(next === orders ? 'This exact order is already in the queue.' : 'Order saved for review.');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Unable to save the order.');
+      const err = error instanceof Error ? error : new Error(String(error));
+      traceLogger.error('ui', 'OrderQueueView', 'Failed to save order to queue', { pon: form.pon }, { name: err.name, message: err.message });
+      toast.error(err.message || 'Unable to save the order.');
     }
   }
 

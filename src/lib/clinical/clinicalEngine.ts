@@ -2,6 +2,7 @@ import { InboundOrder, ClinicalSigResult, SubOrderResult, AbnormalityFinding, Te
 import { calculateDoseAndVolume } from './doseCalculator';
 import { resolveFrequencyAndSchedule, INDICATION_MAP, SORTED_INDICATION_KEYS } from './frequencyEngine';
 import { evaluatePaxitPackaging } from './paxitEngine';
+import { traceLogger } from '../diagnostics/traceLogger';
 
 function resolveIndicationToken(fallbackIndication?: string): string | undefined {
   if (!fallbackIndication) return undefined;
@@ -102,6 +103,14 @@ function cleanFirstClause(sig: string, isTitration: boolean): string {
 }
 
 export function translateClinicalSig(inbound: InboundOrder, preferences?: TechnicianPreferences): ClinicalSigResult {
+  const traceId = inbound.traceId || traceLogger.getActiveTraceId();
+  traceLogger.info('clinical', 'clinicalEngine', 'Translating clinical Sig for inbound order', {
+    id: inbound.id,
+    pon: inbound.pon,
+    drugName: inbound.drugName,
+    rawProseLength: inbound.rawProse.length
+  }, undefined, traceId);
+
   const paxitEval = evaluatePaxitPackaging(inbound.drugName, inbound.rawProse);
 
   // Case A: Controlled substance with differential dosing or titration -> Compound SIG on single order
@@ -126,6 +135,12 @@ export function translateClinicalSig(inbound: InboundOrder, preferences?: Techni
       }
     ];
 
+    traceLogger.info('clinical', 'clinicalEngine', 'Formulated compound SIG for controlled substance', {
+      primarySig: compoundSig,
+      subOrdersCount: 1,
+      abnormalitiesCount: allAbnormalities.length
+    }, undefined, traceId);
+
     return {
       primarySig: compoundSig,
       subOrders: [{
@@ -134,7 +149,8 @@ export function translateClinicalSig(inbound: InboundOrder, preferences?: Techni
         suggestedSig: compoundSig,
         abnormalities: allAbnormalities
       }],
-      abnormalities: allAbnormalities
+      abnormalities: allAbnormalities,
+      traceId
     };
   }
 
@@ -168,10 +184,17 @@ export function translateClinicalSig(inbound: InboundOrder, preferences?: Techni
     const joiner = isTitration ? ' THEN ' : ' AND ';
     const unifiedSig = subOrders.length >= 2 ? `${firstWithoutInd}${joiner}${subOrders[1].suggestedSig}` : subOrders[0].suggestedSig;
 
+    traceLogger.info('clinical', 'clinicalEngine', 'Formulated split sub-orders for Paxit oral solid', {
+      primarySig: unifiedSig,
+      subOrdersCount: subOrders.length,
+      abnormalitiesCount: allAbnormalities.length
+    }, undefined, traceId);
+
     return {
       primarySig: unifiedSig,
       subOrders,
-      abnormalities: allAbnormalities
+      abnormalities: allAbnormalities,
+      traceId
     };
   }
 
@@ -190,6 +213,11 @@ export function translateClinicalSig(inbound: InboundOrder, preferences?: Techni
     });
   }
 
+  traceLogger.info('clinical', 'clinicalEngine', 'Formulated standard single order clinical SIG', {
+    primarySig: compiled.sig,
+    abnormalitiesCount: abnormalities.length
+  }, undefined, traceId);
+
   return {
     primarySig: compiled.sig,
     subOrders: [{
@@ -198,6 +226,7 @@ export function translateClinicalSig(inbound: InboundOrder, preferences?: Techni
       suggestedSig: compiled.sig,
       abnormalities
     }],
-    abnormalities
+    abnormalities,
+    traceId
   };
 }

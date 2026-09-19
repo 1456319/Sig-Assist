@@ -1,4 +1,5 @@
 import { InboundOrder } from './types';
+import { traceLogger } from '../diagnostics/traceLogger';
 
 function unescapeXml(text: string): string {
   return text.replace(/&(amp|lt|gt|quot|apos);/g, (_, entity) => {
@@ -37,6 +38,12 @@ export function parseInboundOrder(rawInput: string): InboundOrder {
   const normalized = normalizeCharacters(rawInput);
   const trimmed = normalized.trim();
   const id = `order_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const traceId = traceLogger.startTrace('ORD');
+
+  traceLogger.debug('intake', 'inboundParser', 'Beginning order intake parsing', {
+    rawLength: rawInput.length,
+    isXmlCandidate: trimmed.startsWith('<') && trimmed.includes('</')
+  }, traceId);
 
   if (trimmed.startsWith('<') && trimmed.includes('</')) {
     const pon = extractXmlTag(trimmed, 'PrescriberOrderNumber') ||
@@ -49,13 +56,21 @@ export function parseInboundOrder(rawInput: string): InboundOrder {
     const indication = extractXmlTag(trimmed, 'IndicationClarifyingFreeText') ||
                        extractXmlTag(trimmed, 'Indication');
 
+    traceLogger.info('intake', 'inboundParser', 'Parsed NCPDP XML inbound payload', {
+      pon,
+      drugName,
+      hasIndication: Boolean(indication),
+      rawProseLength: rawProse.length
+    }, undefined, traceId);
+
     return {
       id,
       pon,
       drugName,
       rawProse,
       indication,
-      sourceFormat: 'ncpdp_xml'
+      sourceFormat: 'ncpdp_xml',
+      traceId
     };
   }
 
@@ -82,12 +97,20 @@ export function parseInboundOrder(rawInput: string): InboundOrder {
     rawProse = lines[lines.length - 1];
   }
 
+  traceLogger.info('intake', 'inboundParser', 'Parsed manual text order', {
+    drugName,
+    rawProse,
+    hasDefaultTemplate: Boolean(defaultSigTemplate),
+    lineCount: lines.length
+  }, undefined, traceId);
+
   return {
     id,
     pon: 'MANUAL_ENTRY',
     drugName,
     rawProse,
     defaultSigTemplate,
-    sourceFormat: 'manual_text'
+    sourceFormat: 'manual_text',
+    traceId
   };
 }

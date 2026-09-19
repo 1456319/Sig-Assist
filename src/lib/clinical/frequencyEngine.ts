@@ -1,4 +1,5 @@
 import { AbnormalityFinding } from './types';
+import { traceLogger } from '../diagnostics/traceLogger';
 
 export interface FrequencyScheduleResult {
   readonly frequencyToken: string;
@@ -44,7 +45,7 @@ export const COMPILED_INDICATION_REGEXES: readonly CompiledIndicationRegex[] = S
   token: INDICATION_MAP[key],
 }));
 
-export function resolveFrequencyAndSchedule(rawProse: string, defaultTemplate?: string): FrequencyScheduleResult {
+function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?: string): FrequencyScheduleResult {
   const upper = rawProse.toUpperCase();
   const abnormalities: AbnormalityFinding[] = [];
 
@@ -199,3 +200,18 @@ export function resolveFrequencyAndSchedule(rawProse: string, defaultTemplate?: 
     abnormalities
   };
 }
+
+export function resolveFrequencyAndSchedule(rawProse: string, defaultTemplate?: string): FrequencyScheduleResult {
+  const result = resolveFrequencyAndScheduleInternal(rawProse, defaultTemplate);
+  traceLogger.debug('clinical', 'frequencyEngine', 'Resolved frequency and schedule tokens', {
+    frequencyToken: result.frequencyToken,
+    durationToken: result.durationToken,
+    prnToken: result.prnToken,
+    indicationToken: result.indicationToken,
+    holdToken: result.holdToken,
+    blendedTemplate: result.blendedTemplate,
+    abnormalitiesCount: result.abnormalities.length
+  });
+  return result;
+}
+

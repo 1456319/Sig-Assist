@@ -1,5 +1,6 @@
 import { DiscrepancyReport, TechnicianPreferences } from './clinical/types';
 import type { OrderSource } from './orderQueue';
+import { traceLogger, type TraceEvent } from './diagnostics/traceLogger';
 
 export interface StoredQueueOrder {
   id: string;
@@ -30,6 +31,8 @@ export interface CitrixStorageAdapter {
   appendDiscrepancy(report: DiscrepancyReport, options?: { immediate?: boolean; debounceMs?: number }): Promise<void>;
   readPreferences(): Promise<TechnicianPreferences>;
   writePreferences(prefs: TechnicianPreferences, options?: { immediate?: boolean; debounceMs?: number }): Promise<void>;
+  appendTraceLogs(events: TraceEvent[]): Promise<void>;
+  readTraceLogs(): Promise<TraceEvent[]>;
   flushPendingWrites(): Promise<void>;
   flush(): Promise<void>;
   setDebounceDelay?(ms: number): void;
@@ -399,6 +402,45 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
     await Promise.all(promises);
   }
 
+  async appendTraceLogs(events: TraceEvent[]): Promise<void> {
+    if (!events || events.length === 0) return;
+
+    if (this.dirHandle) {
+      try {
+        const fileHandle = await this.dirHandle.getFileHandle('sig-assist-trace.jsonl', { create: true });
+        const file = await fileHandle.getFile();
+        const existing = await file.text();
+        const newLines = events.map((e) => JSON.stringify(e)).join('\n') + '\n';
+        const writable = await fileHandle.createWritable();
+        await writable.write(existing + newLines);
+        await writable.close();
+        return;
+      } catch {
+        // Fallback to localStorage on file system error
+      }
+    }
+
+    const existing = this.readLocalStorage<TraceEvent[]>('citrix_storage_trace_logs', []);
+    const combined = [...existing, ...events].slice(-500);
+    this.writeLocalStorage('citrix_storage_trace_logs', combined);
+  }
+
+  async readTraceLogs(): Promise<TraceEvent[]> {
+    if (this.dirHandle) {
+      try {
+        const fileHandle = await this.dirHandle.getFileHandle('sig-assist-trace.jsonl');
+        const file = await fileHandle.getFile();
+        const text = await file.text();
+        const lines = text.trim().split('\n').filter(Boolean);
+        return lines.map((line) => JSON.parse(line) as TraceEvent);
+      } catch {
+        // Fallback to localStorage on file system error
+      }
+    }
+
+    return this.readLocalStorage<TraceEvent[]>('citrix_storage_trace_logs', []);
+  }
+
   async flush(): Promise<void> {
     return this.flushPendingWrites();
   }
@@ -433,6 +475,11 @@ let instance: CitrixStorageAdapter | null = null;
 export function getCitrixStorageAdapter(): CitrixStorageAdapter {
   if (!instance) {
     instance = new MemoryCitrixStorageAdapter();
+    traceLogger.setOnFlushHook(async (events) => {
+      if (instance) {
+        await instance.appendTraceLogs(events);
+      }
+    });
   }
   return instance;
 }
