@@ -3,14 +3,62 @@ import { toast } from 'sonner';
 import { translateFreeTextSig } from '../lib/sigEngine';
 import { cancelOrder, editDraft, orderKey, saveOrder, sourceStamp, type OrderSource, type QueueOrder } from '../lib/orderQueue';
 import { copyBlockReason, reviewStamp } from '../lib/reviewPolicy';
+import { useEffect, useRef } from 'react';
 import { useReviewSession } from '../hooks/use-review-session';
 import { SigReviewPanel, reviewButtonClass, reviewInputClass } from './SigReviewPanel';
+import { parseInboundOrder } from '../lib/clinical/inboundParser';
+import { HL7_SAMPLE } from '../lib/clinical/fixtures';
+import { getCitrixStorageAdapter, StoredQueueOrder } from '../lib/citrixStorage';
 
 const emptySource: OrderSource = { facility: '', patientRef: '', pon: '', drug: '', directions: '' };
 const sample: OrderSource = { facility: 'DEMO-FACILITY', patientRef: 'DEMO-RESIDENT', pon: 'DEMO-PON-001', drug: 'Example medication 10 mg tablet', directions: 'Take 1 tablet by mouth twice daily for 7 days.' };
 
 export function OrderQueueView() {
   const { orders, setOrders, exclusions, policyRevision } = useReviewSession();
+  const [isLoaded, setIsLoaded] = useState(false);
+  const loadingInitiatedRef = useRef(false);
+
+  useEffect(() => {
+    if (loadingInitiatedRef.current) return;
+    loadingInitiatedRef.current = true;
+
+    getCitrixStorageAdapter().readQueue().then(stored => {
+      if (stored && stored.length > 0) {
+        setOrders(stored.map(o => ({
+          ...o,
+          facility: o.facility || 'UNKNOWN',
+          patientRef: o.patientRef || 'UNKNOWN',
+          directions: o.rawProse,
+          drug: o.drugName,
+          revision: o.revision || 1,
+          previousSources: o.previousSources || [],
+          cancelled: o.cancelled || false,
+          draft: o.draftSig,
+        } as QueueOrder)));
+      }
+      setIsLoaded(true);
+    });
+  }, [setOrders]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    const storedOrders: StoredQueueOrder[] = orders.map(o => ({
+      id: o.id,
+      pon: o.pon,
+      drugName: o.drug,
+      rawProse: o.directions,
+      suggestedSig: o.draft, // Use draft as fallback for suggested if not explicitly tracked
+      draftSig: o.draft,
+      isReviewed: !!o.approved,
+      status: o.cancelled ? 'skipped' : (o.copied ? 'completed' : 'pending'),
+      facility: o.facility,
+      patientRef: o.patientRef,
+      revision: o.revision,
+      previousSources: o.previousSources,
+      cancelled: o.cancelled,
+    }));
+    getCitrixStorageAdapter().writeQueue(storedOrders);
+  }, [orders, isLoaded]);
   const [form, setForm] = useState<OrderSource>(emptySource);
   const [selectedId, setSelectedId] = useState<string>();
   const [reviseId, setReviseId] = useState<string>();
@@ -77,6 +125,18 @@ export function OrderQueueView() {
         <div className="flex gap-2 flex-wrap">
           <button type="submit" className={`${reviewButtonClass} bg-primary text-primary-foreground`}>{reviseId ? 'Save new revision' : 'Add to review queue'}</button>
           <button type="button" className={reviewButtonClass} onClick={() => { setReviseId(undefined); setForm({ ...sample }); }}>Fill synthetic example</button>
+          <button type="button" className={reviewButtonClass} onClick={() => {
+            const parsed = parseInboundOrder(HL7_SAMPLE);
+            setReviseId(undefined);
+            setForm({
+              facility: 'HL7-FACILITY',
+              patientRef: 'HL7-PATIENT',
+              pon: parsed.pon,
+              drug: parsed.drugName,
+              directions: parsed.rawProse,
+              defaultSig: parsed.defaultSigTemplate || '',
+            });
+          }}>Fill from HL7 fixture</button>
           {reviseId && <button type="button" className={reviewButtonClass} onClick={() => { setReviseId(undefined); setForm(emptySource); }}>Discard source edit</button>}
         </div>
       </form>

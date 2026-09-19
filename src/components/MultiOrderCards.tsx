@@ -3,6 +3,8 @@ import { SubOrderResult } from '../lib/clinical/types';
 import { AbnormalityBanner } from './AbnormalityBanner';
 import { Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import { useReviewSession } from '../hooks/use-review-session';
+import { copyBlockReason, reviewStamp } from '../lib/reviewPolicy';
 
 export interface MultiOrderCardsProps {
   subOrders: SubOrderResult[];
@@ -24,8 +26,11 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
   const [reviewedMap, setReviewedMap] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  const { exclusions, policyRevision } = useReviewSession();
+
   const handleDraftChange = (id: string, value: string) => {
     setDrafts((prev) => ({ ...prev, [id]: value.toUpperCase() }));
+    setReviewedMap((prev) => ({ ...prev, [id]: false }));
   };
 
   const handleReviewToggle = (id: string, checked: boolean) => {
@@ -44,15 +49,16 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
       if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(draftSig);
         toast.success(`Copied ${subOrder.label} SIG to clipboard`);
+        setCopiedId(subOrder.id);
+        setTimeout(() => {
+          setCopiedId(null);
+        }, 2000);
+      } else {
+        toast.error('Clipboard access denied or unavailable. Please copy manually.');
       }
     } catch {
-      // clipboard fallback
+      toast.error('Clipboard copy failed. Please copy manually.');
     }
-
-    setCopiedId(subOrder.id);
-    setTimeout(() => {
-      setCopiedId(null);
-    }, 2000);
   };
 
   return (
@@ -68,6 +74,8 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
         const draftSig = drafts[subOrder.id] ?? subOrder.suggestedSig;
         const isReviewed = !!reviewedMap[subOrder.id];
         const isCopied = copiedId === subOrder.id;
+        const approved = isReviewed ? reviewStamp(subOrder.suggestedSig, draftSig, exclusions, policyRevision) : undefined;
+        const blockReason = copyBlockReason(subOrder.suggestedSig, draftSig, exclusions, approved, false, policyRevision);
 
         return (
           <div
@@ -123,9 +131,12 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
             </div>
 
             <div>
+              {blockReason && (
+                <p className="text-xs text-destructive mb-2">{blockReason}</p>
+              )}
               <button
                 type="button"
-                disabled={!isReviewed || !draftSig.trim()}
+                disabled={!isReviewed || !draftSig.trim() || !!blockReason}
                 onClick={() => handleCopy(subOrder)}
                 className="inline-flex items-center gap-1.5 rounded-md border border-border bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
               >

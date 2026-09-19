@@ -19,10 +19,7 @@ import { DiscrepancyPanel } from './DiscrepancyPanel';
 import { translateClinicalSig } from '../lib/clinical/clinicalEngine';
 import { parseInboundOrder } from '../lib/clinical/inboundParser';
 import type { ClinicalSigResult, InboundOrder } from '../lib/clinical/types';
-
-const HL7_SAMPLE = `MSH|^~\\&|DEMO|DEMO-FACILITY|DEMO-RECEIVER||20260918120000||RDE^O11^RDE_O11|DEMO-MSG|T|2.5
-ORC|NW|DEMO-ORDER
-RXO|DEMO^EXAMPLE MEDICATION|||||Take 1 tablet by mouth twice daily`;
+import { HL7_SAMPLE } from '../lib/clinical/fixtures';
 
 const FREETEXT_SAMPLE = 'Take 1 tablet twice daily after meals prn';
 
