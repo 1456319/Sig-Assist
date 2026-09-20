@@ -449,4 +449,49 @@ describe('UI Components', () => {
     expect(await screen.findByText(/Missing Directions/i)).toBeDefined();
     expect(screen.getAllByText(/Dosing calculation cannot proceed/i).length).toBeGreaterThan(0);
   });
+
+  it('MultiOrderCards: policy revision increment invalidates approval and unchecks reviewed checkbox', async () => {
+    const { render, screen, fireEvent } = await import('@testing-library/react');
+    const subOrders: SubOrderResult[] = [
+      { id: 'sub_policy_1', label: 'Order 1 of 2', suggestedSig: '2T PO QAM', abnormalities: [] },
+      { id: 'sub_policy_2', label: 'Order 2 of 2', suggestedSig: '1T PO QHS', abnormalities: [] },
+    ];
+
+    const { rerender } = render(
+      <ReviewContext.Provider value={{
+        orders: [],
+        setOrders: () => {},
+        exclusions: [],
+        policyRevision: 1,
+        setExclusions: () => {}
+      }}>
+        <MultiOrderCards subOrders={subOrders} unavailable={false} />
+      </ReviewContext.Provider>
+    );
+
+    const checkboxes = screen.getAllByLabelText(/Reviewed and approved for FrameworkLTC/i) as HTMLInputElement[];
+    const checkbox = checkboxes[0];
+
+    // Approve sub-order under policy revision 1
+    fireEvent.click(checkbox);
+    expect(checkbox.checked).toBe(true);
+    expect(screen.getByText('Reviewed')).toBeDefined();
+
+    // Now policy revision updates to 2 (e.g. global policy update)
+    rerender(
+      <ReviewContext.Provider value={{
+        orders: [],
+        setOrders: () => {},
+        exclusions: [],
+        policyRevision: 2,
+        setExclusions: () => {}
+      }}>
+        <MultiOrderCards subOrders={subOrders} unavailable={false} />
+      </ReviewContext.Provider>
+    );
+
+    // Stale approval stamp from revision 1 is invalidated by blockReason; checkbox is unchecked and Reviewed badge is removed
+    expect(checkbox.checked).toBe(false);
+    expect(screen.queryByText('Reviewed')).toBeNull();
+  });
 });

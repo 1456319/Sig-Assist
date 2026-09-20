@@ -232,21 +232,22 @@ export function WorkbenchView() {
   const source = JSON.stringify([rawInput, inputMode, drugName, defaultSig, effectiveResult]);
 
   useEffect(() => {
-    if (!result?.sigEngineOrder || (!result.hasHighRisk && !result.hasUnresolved)) return;
-    const key = `${result.rawInput}\n${result.finalSig}`;
+    const target = effectiveResult || result;
+    if (!target?.sigEngineOrder || (!target.hasHighRisk && !target.hasUnresolved)) return;
+    const key = `${target.rawInput}\n${target.finalSig}`;
     if (diagnosticKeysRef.current.has(key)) return;
     diagnosticKeysRef.current.add(key);
     const event = createTranslationDiagnostic(
-      result.hasHighRisk ? 'blocked' : 'unaccepted-output',
+      target.hasHighRisk ? 'blocked' : 'unaccepted-output',
       'manual',
-      result.rawInput,
-      result.sigEngineOrder.drug,
-      result.finalSig,
-      result.sigEngineOrder,
+      target.rawInput,
+      target.sigEngineOrder.drug,
+      target.finalSig,
+      target.sigEngineOrder,
     );
     diagnosticSinkRef.current.record(event);
     setLatestDiagnostic(event);
-  }, [result]);
+  }, [effectiveResult, result]);
 
   const openDiagnosticIssue = useCallback(() => {
     if (!latestDiagnostic) return;
@@ -382,16 +383,16 @@ export function WorkbenchView() {
 
           <div className="flex-1 p-4 space-y-4 overflow-auto scrollbar-thin">
             {/* Step trace */}
-            {result && (
+            {(effectiveResult || result) && (
               <div className="space-y-2">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
                   Execution Trace
                 </p>
-                {result.steps.map((step) => (
+                {(effectiveResult || result)!.steps.map((step) => (
                   <TraceStepCard
                     key={step.step}
                     step={step}
-                    defaultOpen={step.step === result.steps.length}
+                    defaultOpen={step.step === (effectiveResult || result)!.steps.length}
                   />
                 ))}
               </div>

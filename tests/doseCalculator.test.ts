@@ -120,7 +120,7 @@ describe('doseCalculator', () => {
 
   it('safely handles zero denominator fraction gracefully and flags abnormality', () => {
     const res = calculateDoseAndVolume('PREDNISONE TAB 10MG', 'Take 1/0 tablet by mouth daily');
-    expect(res.doseToken).toBe('1/0T');
+    expect(res.doseToken).toBe('');
     expect(res.abnormalities.some(a => a.tier === 'potential_error' && a.title === 'Invalid Fraction Denominator')).toBe(true);
   });
 

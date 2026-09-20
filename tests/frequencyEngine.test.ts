@@ -83,6 +83,24 @@ describe('frequencyEngine', () => {
     expect(res.frequencyToken).toBe('Q5H');
   });
 
+  it('flags non-integer day supplies with potential_error and does not match trailing digits as days', () => {
+    const res = resolveFrequencyAndSchedule('Give 1 tablet by mouth daily for 1.5 days');
+    expect(res.durationToken).toBeUndefined();
+    expect(res.abnormalities.some(a => a.tier === 'potential_error' && a.title === 'Non-integer Day Supply')).toBe(true);
+  });
+
+  it('extracts SBP hold parameters and flags applied_correction abnormality', () => {
+    const res = resolveFrequencyAndSchedule('Give 1 tablet by mouth one time a day for HTN HOLD IF SBP < 100');
+    expect(res.holdToken).toBe('SBP100');
+    expect(res.abnormalities.some(a => a.tier === 'applied_correction' && a.title === 'Hold Directive Detected')).toBe(true);
+  });
+
+  it('extracts THEN STOP directives to stopToken', () => {
+    const res = resolveFrequencyAndSchedule('Take 1 tablet daily for 5 days then stop');
+    expect(res.durationToken).toBe('X5D');
+    expect(res.stopToken).toBe('THEN STOP');
+  });
+
   it('flags empty directions with potential_error abnormality and empty token', () => {
     const res = resolveFrequencyAndSchedule('   ');
     expect(res.frequencyToken).toBe('');

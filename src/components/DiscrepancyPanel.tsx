@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { getCitrixStorageAdapter } from '../lib/citrixStorage';
 import { MessageSquarePlus } from 'lucide-react';
+import { toast } from 'sonner';
 
 export interface DiscrepancyPanelProps {
   pon: string;
@@ -86,8 +87,9 @@ export const DiscrepancyPanel: React.FC<DiscrepancyPanelProps> = ({
         }
         onDiscrepancySaved();
       }, 1200);
-    } catch {
-      // handle storage errors gracefully
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      toast.error(`Failed to save discrepancy report: ${errMsg}`);
     } finally {
       setIsSaving(false);
     }

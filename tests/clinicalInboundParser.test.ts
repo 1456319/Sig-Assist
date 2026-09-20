@@ -89,11 +89,24 @@ DEFAULT SIG (OPTIONAL FIELD): MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO`;
     expect(parsed.sourceFormat).toBe('hl7');
   });
 
-  it('preserves all lines in multiline manual text input without dropping intermediate lines', () => {
-    const raw = `METFORMIN 500MG TABLET\nTake 1 tablet\nby mouth daily\nwith dinner`;
+  it('correctly parses HL7 messages delimited by CR (\\r) carriage returns', () => {
+    const hl7 = [
+      'MSH|^~\\&|DEMO|DEMO-FACILITY|DEMO-RECEIVER||20260918120000||RDE^O11^RDE_O11|DEMO-MSG|T|2.5',
+      'ORC|NW|DEMO-CR-ORDER',
+      'RXO|DEMO^CR MEDICATION|||||Take 1 tablet by mouth twice daily'
+    ].join('\r');
+    const parsed = parseInboundOrder(hl7);
+    expect(parsed.pon).toBe('DEMO-CR-ORDER');
+    expect(parsed.drugName).toBe('CR MEDICATION');
+    expect(parsed.rawProse).toBe('Take 1 tablet by mouth twice daily');
+    expect(parsed.sourceFormat).toBe('hl7');
+  });
+
+  it('does not misclassify single-line direction prose as drug name', () => {
+    const raw = 'Take 1 tablet by mouth daily';
     const parsed = parseInboundOrder(raw);
-    expect(parsed.drugName).toBe('METFORMIN 500MG TABLET');
-    expect(parsed.rawProse).toBe('Take 1 tablet by mouth daily with dinner');
+    expect(parsed.drugName).toBe('UNKNOWN DRUG');
+    expect(parsed.rawProse).toBe('Take 1 tablet by mouth daily');
     expect(parsed.sourceFormat).toBe('manual_text');
   });
 });

@@ -236,6 +236,36 @@ describe('clinicalEngine TESTS.txt validation', () => {
     expect(res.primarySig).toBe('2T (20MG) PO QD X5D THEN 1T PO BID X4D');
   });
 
+  it('preserves fraction quantities and triggers differential split orders without collapsing into BIDAMHS', () => {
+    const order = {
+      id: 'test_fraction_split_34',
+      pon: 'PON_FRAC_34',
+      drugName: 'PREDNISONE TAB 10MG',
+      rawProse: 'Take 3/4 tablet in the morning and 1 tablet at bedtime',
+      sourceFormat: 'manual_text' as const
+    };
+    const res = translateClinicalSig(order);
+    expect(res.subOrders.length).toBe(2);
+    expect(res.subOrders[0].suggestedSig).toBe('3/4T (7.5MG) PO QAM');
+    expect(res.subOrders[1].suggestedSig).toBe('1T PO QHS');
+    expect(res.primarySig).toBe('3/4T (7.5MG) PO QAM AND 1T PO QHS');
+  });
+
+  it('preserves first-phase frequency and THEN STOP in titration step-down', () => {
+    const order = {
+      id: 'test_titration_bid_to_qd_stop',
+      pon: 'PON_TITR_STOP',
+      drugName: 'PREDNISONE TAB 10MG',
+      rawProse: 'Take 1 tablet twice daily for 5 days then 1 tablet daily for 5 days then stop',
+      sourceFormat: 'manual_text' as const
+    };
+    const res = translateClinicalSig(order);
+    expect(res.subOrders.length).toBe(2);
+    expect(res.subOrders[0].suggestedSig).toBe('1T PO BID X5D');
+    expect(res.subOrders[1].suggestedSig).toBe('1T PO QD X5D THEN STOP');
+    expect(res.primarySig).toBe('1T PO BID X5D THEN 1T PO QD X5D THEN STOP');
+  });
+
   it('flags empty directions with potential_error and does not invent 1T PO QD', () => {
     const order = {
       id: 'test_empty_dir',

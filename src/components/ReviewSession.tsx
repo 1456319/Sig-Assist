@@ -3,6 +3,7 @@ import type { QueueOrder } from '../lib/orderQueue';
 import type { SigExclusion } from '../lib/reviewPolicy';
 import { ReviewContext } from '../hooks/use-review-session';
 import { getCitrixStorageAdapter, StoredQueueOrder } from '../lib/citrixStorage';
+import { toast } from 'sonner';
 
 export function ReviewSession({ children }: { children: ReactNode }) {
   const [orders, setOrders] = useState<QueueOrder[]>([]);
@@ -33,69 +34,93 @@ export function ReviewSession({ children }: { children: ReactNode }) {
           subOrderCopied: o.subOrderCopied,
         } as QueueOrder)));
       }
-      if (prefs && (prefs.exclusions || prefs.policyRevision !== undefined)) {
+      if (prefs) {
         setPolicy({
           exclusions: prefs.exclusions || [],
           revision: prefs.policyRevision || 0,
         });
       }
       setIsHydrated(true);
+    }).catch(err => {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Failed to initialize session storage: ${msg}`);
+      setIsHydrated(true);
     });
   }, []);
 
   useEffect(() => {
     const reconcileStorage = async () => {
-      const [stored, prefs] = await Promise.all([
-        getCitrixStorageAdapter().readQueue(),
-        getCitrixStorageAdapter().readPreferences(),
-      ]);
-      if (stored && stored.length > 0) {
-        setOrders(currentOrders => {
-          const orderMap = new Map<string, QueueOrder>();
-          stored.forEach(o => {
-            orderMap.set(o.id, {
-              ...o,
-              facility: o.facility || 'UNKNOWN',
-              patientRef: o.patientRef || 'UNKNOWN',
-              directions: o.rawProse,
-              drug: o.drugName,
-              revision: o.revision || 1,
-              previousSources: o.previousSources || [],
-              cancelled: o.cancelled || false,
-              draft: o.draftSig,
-              approved: o.approved,
-              copied: o.copied,
-              defaultSig: o.defaultSig,
-              subOrderDrafts: o.subOrderDrafts,
-              subOrderApprovals: o.subOrderApprovals,
-              subOrderCopied: o.subOrderCopied,
-            } as QueueOrder);
-          });
-          currentOrders.forEach(local => {
-            const remote = orderMap.get(local.id);
-            if (!remote) {
-              orderMap.set(local.id, local);
-            } else if (local.revision > remote.revision) {
-              orderMap.set(local.id, local);
-            } else {
-              const hasLocalSplitEdits = Boolean(
-                (local.subOrderDrafts && Object.keys(local.subOrderDrafts).length > 0) ||
-                (local.subOrderApprovals && Object.keys(local.subOrderApprovals).length > 0) ||
-                (local.subOrderCopied && Object.keys(local.subOrderCopied).length > 0)
-              );
-              if (local.revision === remote.revision && (local.approved || local.copied || local.draft !== remote.draft || hasLocalSplitEdits)) {
+      try {
+        const [stored, prefs] = await Promise.all([
+          getCitrixStorageAdapter().readQueue({ bypassPending: true }),
+          getCitrixStorageAdapter().readPreferences({ bypassPending: true }),
+        ]);
+        if (stored && stored.length > 0) {
+          setOrders(currentOrders => {
+            const orderMap = new Map<string, QueueOrder>();
+            stored.forEach(o => {
+              orderMap.set(o.id, {
+                ...o,
+                facility: o.facility || 'UNKNOWN',
+                patientRef: o.patientRef || 'UNKNOWN',
+                directions: o.rawProse,
+                drug: o.drugName,
+                revision: o.revision || 1,
+                previousSources: o.previousSources || [],
+                cancelled: o.cancelled || false,
+                draft: o.draftSig,
+                approved: o.approved,
+                copied: o.copied,
+                defaultSig: o.defaultSig,
+                subOrderDrafts: o.subOrderDrafts,
+                subOrderApprovals: o.subOrderApprovals,
+                subOrderCopied: o.subOrderCopied,
+              } as QueueOrder);
+            });
+            currentOrders.forEach(local => {
+              const remote = orderMap.get(local.id);
+              if (!remote) {
                 orderMap.set(local.id, local);
+              } else {
+                // Cancellation precedence: cancellation is a terminal lifecycle state
+                const isCancelled = Boolean(remote.cancelled || local.cancelled);
+                if (local.revision > remote.revision) {
+                  orderMap.set(local.id, {
+                    ...local,
+                    cancelled: isCancelled
+                  });
+                } else {
+                  const hasLocalSplitEdits = Boolean(
+                    (local.subOrderDrafts && Object.keys(local.subOrderDrafts).length > 0) ||
+                    (local.subOrderApprovals && Object.keys(local.subOrderApprovals).length > 0) ||
+                    (local.subOrderCopied && Object.keys(local.subOrderCopied).length > 0)
+                  );
+                  if (local.revision === remote.revision && (local.approved || local.copied || local.draft !== remote.draft || hasLocalSplitEdits)) {
+                    orderMap.set(local.id, {
+                      ...local,
+                      cancelled: isCancelled
+                    });
+                  } else {
+                    orderMap.set(local.id, {
+                      ...remote,
+                      cancelled: isCancelled
+                    });
+                  }
+                }
               }
-            }
+            });
+            return Array.from(orderMap.values());
           });
-          return Array.from(orderMap.values());
-        });
-      }
-      if (prefs && (prefs.exclusions || prefs.policyRevision !== undefined)) {
-        setPolicy(prev => ({
-          exclusions: prefs.exclusions || prev.exclusions,
-          revision: Math.max(prefs.policyRevision || 0, prev.revision)
-        }));
+        }
+        if (prefs && (prefs.exclusions || prefs.policyRevision !== undefined)) {
+          setPolicy(prev => ({
+            exclusions: prefs.exclusions || prev.exclusions,
+            revision: Math.max(prefs.policyRevision || 0, prev.revision)
+          }));
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        toast.error(`Storage reconciliation error: ${msg}`);
       }
     };
 
@@ -112,34 +137,65 @@ export function ReviewSession({ children }: { children: ReactNode }) {
         ...prefs,
         exclusions: policy.exclusions,
         policyRevision: policy.revision,
+      }).catch(err => {
+        const msg = err instanceof Error ? err.message : String(err);
+        toast.error(`Failed to save preferences to storage: ${msg}`);
       });
+    }).catch(err => {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Failed to read preferences from storage: ${msg}`);
     });
   }, [policy, isHydrated]);
 
   useEffect(() => {
     if (!isHydrated) return;
-    const storedOrders: StoredQueueOrder[] = orders.map(o => ({
-      id: o.id,
-      pon: o.pon,
-      drugName: o.drug,
-      rawProse: o.directions,
-      suggestedSig: o.draft,
-      draftSig: o.draft,
-      isReviewed: !!o.approved,
-      status: o.cancelled ? 'skipped' : (o.copied ? 'completed' : 'pending'),
-      facility: o.facility,
-      patientRef: o.patientRef,
-      revision: o.revision,
-      previousSources: o.previousSources,
-      cancelled: o.cancelled,
-      approved: o.approved,
-      copied: o.copied,
-      defaultSig: o.defaultSig,
-      subOrderDrafts: o.subOrderDrafts,
-      subOrderApprovals: o.subOrderApprovals,
-      subOrderCopied: o.subOrderCopied,
-    }));
-    getCitrixStorageAdapter().writeQueue(storedOrders);
+    const storedOrders: StoredQueueOrder[] = orders.map(o => {
+      let isReviewed = Boolean(o.approved);
+      let isCompleted = Boolean(o.copied);
+
+      const subOrderDraftKeys = o.subOrderDrafts ? Object.keys(o.subOrderDrafts) : [];
+      const subOrderApprovalKeys = o.subOrderApprovals ? Object.keys(o.subOrderApprovals) : [];
+      const subOrderCopiedKeys = o.subOrderCopied ? Object.keys(o.subOrderCopied) : [];
+
+      if (subOrderDraftKeys.length > 1 || subOrderApprovalKeys.length > 1 || subOrderCopiedKeys.length > 1) {
+        const allIds = Array.from(new Set([...subOrderDraftKeys, ...subOrderApprovalKeys, ...subOrderCopiedKeys]));
+        if (allIds.length > 0) {
+          const allApproved = allIds.every(id => Boolean(o.subOrderApprovals?.[id]));
+          const allCopied = allApproved && allIds.every(id => Boolean(o.subOrderCopied?.[id]));
+          isReviewed = allApproved;
+          isCompleted = allCopied;
+        }
+      }
+
+      const status: 'pending' | 'completed' | 'skipped' = o.cancelled ? 'skipped' : (isCompleted ? 'completed' : 'pending');
+
+      return {
+        id: o.id,
+        pon: o.pon,
+        drugName: o.drug,
+        rawProse: o.directions,
+        suggestedSig: o.draft,
+        draftSig: o.draft,
+        isReviewed,
+        status,
+        facility: o.facility,
+        patientRef: o.patientRef,
+        revision: o.revision,
+        previousSources: o.previousSources,
+        cancelled: o.cancelled,
+        approved: o.approved,
+        copied: o.copied,
+        defaultSig: o.defaultSig,
+        subOrderDrafts: o.subOrderDrafts,
+        subOrderApprovals: o.subOrderApprovals,
+        subOrderCopied: o.subOrderCopied,
+      };
+    });
+
+    getCitrixStorageAdapter().writeQueue(storedOrders).catch(err => {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Failed to save order queue to storage: ${msg}`);
+    });
   }, [orders, isHydrated]);
 
   useEffect(() => {

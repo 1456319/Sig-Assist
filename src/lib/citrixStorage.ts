@@ -27,15 +27,16 @@ export interface StoredQueueOrder {
 export interface CitrixStorageAdapter {
   isConnected(): boolean;
   getStorageMode(): 'file_system' | 'browser_cache';
+  getDestinationId(): string;
   connectDirectory(): Promise<boolean>;
   onDirectoryConnected?(callback: () => Promise<void> | void): () => void;
-  readQueue(): Promise<StoredQueueOrder[]>;
+  readQueue(options?: { bypassPending?: boolean }): Promise<StoredQueueOrder[]>;
   writeQueue(orders: StoredQueueOrder[], options?: { immediate?: boolean; debounceMs?: number }): Promise<void>;
-  readDiscrepancies(): Promise<DiscrepancyReport[]>;
+  readDiscrepancies(options?: { bypassPending?: boolean }): Promise<DiscrepancyReport[]>;
   appendDiscrepancy(report: DiscrepancyReport, options?: { immediate?: boolean; debounceMs?: number }): Promise<void>;
-  readPreferences(): Promise<TechnicianPreferences>;
+  readPreferences(options?: { bypassPending?: boolean }): Promise<TechnicianPreferences>;
   writePreferences(prefs: TechnicianPreferences, options?: { immediate?: boolean; debounceMs?: number }): Promise<void>;
-  appendTraceLogs(events: TraceEvent[]): Promise<{ destination: 'file_system' | 'browser_cache'; recordsSaved: number }>;
+  appendTraceLogs(events: TraceEvent[]): Promise<{ destination: 'file_system' | 'browser_cache'; destinationId: string; recordsSaved: number }>;
   readTraceLogs(): Promise<TraceEvent[]>;
   flushPendingWrites(): Promise<void>;
   flush(): Promise<void>;
@@ -91,12 +92,24 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
     }
   }
 
+  private destinationId: string | null = null;
+
   isConnected(): boolean {
     return this.dirHandle !== null;
   }
 
   getStorageMode(): 'file_system' | 'browser_cache' {
     return this.dirHandle ? 'file_system' : 'browser_cache';
+  }
+
+  getDestinationId(): string {
+    if (this.dirHandle) {
+      if (!this.destinationId) {
+        this.destinationId = `dir_${this.dirHandle.name || 'share'}_${Math.random().toString(36).substring(2, 10)}`;
+      }
+      return this.destinationId;
+    }
+    return 'browser_cache';
   }
 
   setDebounceDelay(ms: number): void {
@@ -126,7 +139,10 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
       return false;
     }
     try {
-      this.dirHandle = await win.showDirectoryPicker();
+      await this.flushPendingWrites();
+      const newHandle = await win.showDirectoryPicker();
+      this.dirHandle = newHandle;
+      this.destinationId = `dir_${newHandle.name || 'share'}_${Math.random().toString(36).substring(2, 10)}`;
       this.fallbackActive = {};
       for (const fn of this.directoryConnectedListeners) {
         try {
@@ -238,8 +254,8 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
     });
   }
 
-  async readQueue(): Promise<StoredQueueOrder[]> {
-    if (this.pendingQueue !== null) {
+  async readQueue(options?: { bypassPending?: boolean }): Promise<StoredQueueOrder[]> {
+    if (!options?.bypassPending && this.pendingQueue !== null) {
       return this.pendingQueue;
     }
     let data: StoredQueueOrder[] | null = null;
@@ -296,8 +312,8 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
     });
   }
 
-  async readDiscrepancies(): Promise<DiscrepancyReport[]> {
-    if (this.pendingDiscrepancies !== null) {
+  async readDiscrepancies(options?: { bypassPending?: boolean }): Promise<DiscrepancyReport[]> {
+    if (!options?.bypassPending && this.pendingDiscrepancies !== null) {
       return this.pendingDiscrepancies;
     }
     let data: DiscrepancyReport[] | null = null;
@@ -362,8 +378,8 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
     return currentOp;
   }
 
-  async readPreferences(): Promise<TechnicianPreferences> {
-    if (this.pendingPreferences !== null) {
+  async readPreferences(options?: { bypassPending?: boolean }): Promise<TechnicianPreferences> {
+    if (!options?.bypassPending && this.pendingPreferences !== null) {
       return this.pendingPreferences;
     }
     let data: TechnicianPreferences | null = null;
@@ -471,12 +487,12 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
     await Promise.all(promises);
   }
 
-  async appendTraceLogs(events: TraceEvent[]): Promise<{ destination: 'file_system' | 'browser_cache'; recordsSaved: number }> {
+  async appendTraceLogs(events: TraceEvent[]): Promise<{ destination: 'file_system' | 'browser_cache'; destinationId: string; recordsSaved: number }> {
     if (!events || events.length === 0) {
-      return { destination: this.getStorageMode(), recordsSaved: 0 };
+      return { destination: this.getStorageMode(), destinationId: this.getDestinationId(), recordsSaved: 0 };
     }
 
-    return new Promise<{ destination: 'file_system' | 'browser_cache'; recordsSaved: number }>((resolve, reject) => {
+    return new Promise<{ destination: 'file_system' | 'browser_cache'; destinationId: string; recordsSaved: number }>((resolve, reject) => {
       this.writeQueueItems.push(async () => {
         let fileSystemError: unknown = null;
         if (this.dirHandle) {
@@ -493,7 +509,7 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
               await writable.write(existing + newLines);
             }
             await writable.close();
-            resolve({ destination: 'file_system', recordsSaved: events.length });
+            resolve({ destination: 'file_system', destinationId: this.getDestinationId(), recordsSaved: events.length });
             return;
           } catch (err) {
             fileSystemError = err;
@@ -514,7 +530,7 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
             reject(new Error(errorMsg));
             return;
           }
-          resolve({ destination: 'browser_cache', recordsSaved: fresh.length });
+          resolve({ destination: 'browser_cache', destinationId: 'browser_cache', recordsSaved: fresh.length });
         } catch (err) {
           reject(err);
         }

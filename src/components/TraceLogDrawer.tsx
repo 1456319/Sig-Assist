@@ -91,7 +91,8 @@ export function TraceLogDrawer({ isOpen, onClose }: TraceLogDrawerProps) {
     const adapter = getCitrixStorageAdapter();
     adapter.readTraceLogs().then((persisted) => {
       if (isMounted && persisted && persisted.length > 0) {
-        const added = traceLogger.hydratePersistedEvents(persisted);
+        const dest = adapter.getDestinationId ? adapter.getDestinationId() : adapter.getStorageMode();
+        const added = traceLogger.hydratePersistedEvents(persisted, dest);
         if (added > 0) {
           setEvents(traceLogger.getEvents());
         }

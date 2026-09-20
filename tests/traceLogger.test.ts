@@ -327,4 +327,29 @@ describe('traceLogger', () => {
     expect(logger.getPendingFlushCount('browser_cache')).toBe(0);
     expect(logger.getPendingFlushCount('file_system')).toBe(1);
   });
+
+  it('re-aligns sequence numbers on hydration and tracks destinationId across shares', async () => {
+    const logger = new TraceLogger(20);
+    const persisted: TraceEvent[] = [
+      { id: 'p1', seq: 100, traceId: 'T1', timestamp: new Date().toISOString(), layer: 'intake', level: 'INFO', component: 'c', message: 'p1' },
+      { id: 'p2', seq: 105, traceId: 'T2', timestamp: new Date().toISOString(), layer: 'intake', level: 'INFO', component: 'c', message: 'p2' },
+    ];
+
+    logger.hydratePersistedEvents(persisted, 'dir_shareA_123');
+
+    // Newly logged event must have seq > 105
+    const newEvt = logger.info('clinical', 'doseCalculator', 'post_hydration_event');
+    expect(newEvt.seq).toBeGreaterThan(105);
+
+    // Flushed batches to share B (a new share) should include the new event
+    const flushedToShareB: TraceEvent[] = [];
+    logger.setOnFlushHook(async (batch) => {
+      flushedToShareB.push(...batch);
+      return { destination: 'file_system', destinationId: 'dir_shareB_456', recordsSaved: batch.length };
+    });
+
+    const res = await logger.flush('dir_shareB_456');
+    expect(res.flushedCount).toBeGreaterThan(0);
+    expect(flushedToShareB.some((e) => e.message === 'post_hydration_event')).toBe(true);
+  });
 });

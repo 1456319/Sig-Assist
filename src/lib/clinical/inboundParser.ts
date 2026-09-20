@@ -75,7 +75,7 @@ export function parseInboundOrder(rawInput: string): InboundOrder {
 
   const isHl7Candidate = trimmed.startsWith('MSH|') || /^MSH\|/m.test(trimmed);
   if (isHl7Candidate) {
-    const hl7Lines = trimmed.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const hl7Lines = trimmed.split(/\r\n|\r|\n/).map(l => l.trim()).filter(Boolean);
     let pon = 'UNKNOWN_PON';
     let drugName = 'UNKNOWN DRUG';
     let rawProse = '';
@@ -120,12 +120,17 @@ export function parseInboundOrder(rawInput: string): InboundOrder {
     };
   }
 
-  const lines = trimmed.split('\n').map(l => l.trim()).filter(Boolean);
+  const lines = trimmed.split(/\r\n|\r|\n/).map(l => l.trim()).filter(Boolean);
   let drugName = 'UNKNOWN DRUG';
   let rawProse = '';
   let defaultSigTemplate: string | undefined;
   let hasUserEntry = false;
   const remainingLines: string[] = [];
+
+  const isDirectionProse = (text: string): boolean => {
+    const upper = text.trim().toUpperCase();
+    return /^(?:TAKE|GIVE|INJECT|INHALE|APPLY|INSTILL|USE|INSERT|PLACE|CHEW|SWALLOW|DISSOLVE|ADM|ADMINISTER|1|2|3|4|5|0\.\d+|\d+\/\d+|HALF)\b/i.test(upper);
+  };
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -138,7 +143,11 @@ export function parseInboundOrder(rawInput: string): InboundOrder {
     } else if (defaultSigMatch) {
       defaultSigTemplate = defaultSigMatch[1].trim();
     } else if (i === 0) {
-      drugName = line.replace(/^\d+\)\s*/, '').trim();
+      if (isDirectionProse(line)) {
+        remainingLines.push(line);
+      } else {
+        drugName = line.replace(/^\d+\)\s*/, '').trim();
+      }
     } else {
       remainingLines.push(line);
     }

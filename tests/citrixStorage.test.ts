@@ -527,5 +527,83 @@ describe('citrixStorage', () => {
     const readAfterFailure = await adapter.readQueue();
     expect(readAfterFailure).toEqual([updatedOrder]);
   });
+
+  it('bypasses pending debounce queue when bypassPending option is true', async () => {
+    const mockDir = createMockDirectoryHandle();
+    const diskOrder: StoredQueueOrder = {
+      id: 'disk_order',
+      pon: 'PON_DISK',
+      drugName: 'DISK DRUG',
+      rawProse: 'disk prose',
+      suggestedSig: 'disk sig',
+      isReviewed: false,
+      status: 'pending',
+    };
+    mockDir.files.set('queue.json', JSON.stringify([diskOrder]));
+    setMockShowDirectoryPicker(vi.fn().mockResolvedValue(mockDir));
+
+    const adapter = getCitrixStorageAdapter();
+    await adapter.connectDirectory();
+
+    const pendingLocalOrder: StoredQueueOrder = {
+      id: 'pending_order',
+      pon: 'PON_PENDING',
+      drugName: 'PENDING DRUG',
+      rawProse: 'pending prose',
+      suggestedSig: 'pending sig',
+      isReviewed: true,
+      status: 'completed',
+    };
+
+    // Stage a debounced write
+    adapter.writeQueue([pendingLocalOrder], { debounceMs: 5000 });
+
+    // Normal readQueue returns in-memory pending order
+    const normalRead = await adapter.readQueue();
+    expect(normalRead).toEqual([pendingLocalOrder]);
+
+    // readQueue({ bypassPending: true }) returns the order currently on disk
+    const bypassedRead = await adapter.readQueue({ bypassPending: true });
+    expect(bypassedRead).toEqual([diskOrder]);
+
+    // Clean up
+    await adapter.flushPendingWrites();
+  });
+
+  it('flushes pending writes and generates unique destinationId on directory switch', async () => {
+    const mockDir1 = createMockDirectoryHandle();
+    setMockShowDirectoryPicker(vi.fn().mockResolvedValue(mockDir1));
+
+    const adapter = getCitrixStorageAdapter();
+    await adapter.connectDirectory();
+    const destId1 = adapter.getDestinationId();
+    expect(destId1).toMatch(/^dir_/);
+
+    const pendingOrder: StoredQueueOrder = {
+      id: 'pending_switch',
+      pon: 'PON_SWITCH',
+      drugName: 'SWITCH DRUG',
+      rawProse: 'switch prose',
+      suggestedSig: 'switch sig',
+      isReviewed: true,
+      status: 'completed',
+    };
+
+    // Queue debounced write
+    adapter.writeQueue([pendingOrder], { debounceMs: 5000 });
+
+    // Switch to directory 2
+    const mockDir2 = createMockDirectoryHandle();
+    setMockShowDirectoryPicker(vi.fn().mockResolvedValue(mockDir2));
+
+    await adapter.connectDirectory();
+    const destId2 = adapter.getDestinationId();
+    expect(destId2).toMatch(/^dir_/);
+    expect(destId2).not.toBe(destId1);
+
+    // mockDir1 must have received the flushed write before switching!
+    expect(mockDir1.files.has('queue.json')).toBe(true);
+    expect(JSON.parse(mockDir1.files.get('queue.json')!)).toEqual([pendingOrder]);
+  });
 });
 

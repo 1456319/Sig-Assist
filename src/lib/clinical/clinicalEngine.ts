@@ -77,6 +77,10 @@ function assembleSig(
     parts.push(freqRes.holdToken);
   }
 
+  if (freqRes.stopToken) {
+    parts.push(freqRes.stopToken);
+  }
+
   if (doseRes.apapLimitToken) {
     parts.push(doseRes.apapLimitToken);
   }

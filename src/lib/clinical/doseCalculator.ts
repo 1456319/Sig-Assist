@@ -245,9 +245,7 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
       const whole = parseInt(fractionMatch[2], 10);
       const num = parseInt(fractionMatch[3], 10);
       const den = parseInt(fractionMatch[4], 10);
-      label = `${whole}-${num}/${den}`;
       if (den === 0) {
-        multiplier = 0;
         abnormalities.push({
           id: `abn_fraction_zero_den_${Date.now()}`,
           tier: 'potential_error',
@@ -255,6 +253,13 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
           message: `Dose expression '${fractionMatch[0]}' contains a zero denominator, resulting in an undefined dose quantity.`,
           trigger: fractionMatch[0]
         });
+        return {
+          doseToken: '',
+          routeToken: 'PO',
+          abnormalities,
+          isApap,
+          apapLimitToken
+        };
       } else {
         multiplier = whole + num / den;
       }
@@ -264,7 +269,6 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
       const den = parseInt(fractionMatch[6], 10);
       label = `${num}/${den}`;
       if (den === 0) {
-        multiplier = 0;
         abnormalities.push({
           id: `abn_fraction_zero_den_${Date.now()}`,
           tier: 'potential_error',
@@ -272,6 +276,13 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
           message: `Dose expression '${fractionMatch[0]}' contains a zero denominator, resulting in an undefined dose quantity.`,
           trigger: fractionMatch[0]
         });
+        return {
+          doseToken: '',
+          routeToken: 'PO',
+          abnormalities,
+          isApap,
+          apapLimitToken
+        };
       } else {
         multiplier = num / den;
       }

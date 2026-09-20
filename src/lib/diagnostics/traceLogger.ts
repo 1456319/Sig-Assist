@@ -78,11 +78,20 @@ export class TraceLogger {
     return this.activeTraceId || 'GLOBAL';
   }
 
-  public hydratePersistedEvents(persisted: TraceEvent[]): number {
+  public hydratePersistedEvents(persisted: TraceEvent[], destination?: string): number {
     if (!persisted || persisted.length === 0) return 0;
     const existingIds = new Set(this.events.map((e) => e.id));
     const fresh = persisted.filter((e) => !existingIds.has(e.id));
     if (fresh.length === 0) return 0;
+
+    const maxPersistedSeq = Math.max(0, ...persisted.map((e) => e.seq ?? 0));
+    this.nextSeq = Math.max(this.nextSeq, maxPersistedSeq + 1);
+
+    const destKey = destination || 'storage';
+    this.lastFlushedSeqByDest[destKey] = Math.max(this.lastFlushedSeqByDest[destKey] ?? 0, maxPersistedSeq);
+    this.lastFlushedSeqByDest['storage'] = Math.max(this.lastFlushedSeqByDest['storage'] ?? 0, maxPersistedSeq);
+    this.lastFlushedSeqByDest['browser_cache'] = Math.max(this.lastFlushedSeqByDest['browser_cache'] ?? 0, maxPersistedSeq);
+    this.lastFlushedSeqByDest['file_system'] = Math.max(this.lastFlushedSeqByDest['file_system'] ?? 0, maxPersistedSeq);
 
     const combined = [...fresh, ...this.events];
     const dropped = Math.max(0, combined.length - this.maxCapacity);
@@ -270,8 +279,10 @@ export class TraceLogger {
       const maxSeqInBatch = Math.max(...unflushed.map((e) => e.seq ?? 0));
       const result = await this.onFlushHook(unflushed);
       const actualDest = result && 'destination' in result && result.destination ? result.destination : destKey;
+      const destId = result && typeof result === 'object' && 'destinationId' in result && result.destinationId ? (result.destinationId as string) : actualDest;
 
       this.lastFlushedSeqByDest[actualDest] = maxSeqInBatch;
+      this.lastFlushedSeqByDest[destId] = maxSeqInBatch;
       if (destKey === 'storage') {
         this.lastFlushedSeqByDest['storage'] = maxSeqInBatch;
       }

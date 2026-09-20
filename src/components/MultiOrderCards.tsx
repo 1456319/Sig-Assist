@@ -158,9 +158,9 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
       {subOrders.map((subOrder) => {
         const draftSig = drafts[subOrder.id] ?? subOrder.suggestedSig;
         const approved = approvals[subOrder.id];
-        const isReviewed = Boolean(approved);
-        const isCopied = copiedId === subOrder.id;
         const blockReason = copyBlockReason(subOrder.suggestedSig, draftSig, exclusions, approved, unavailable, policyRevision);
+        const isReviewed = Boolean(approved && !blockReason);
+        const isCopied = copiedId === subOrder.id;
 
         return (
           <div
