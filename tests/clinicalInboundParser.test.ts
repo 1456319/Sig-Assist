@@ -117,5 +117,13 @@ DEFAULT SIG (OPTIONAL FIELD): MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO`;
     expect(parsed.rawProse).toBe('Apply to affected area twice daily');
     expect(parsed.sourceFormat).toBe('manual_text');
   });
+
+  it('correctly identifies direction prose even with a numbered prefix e.g. "1) Take 1 tablet by mouth daily"', () => {
+    const raw = '1) Take 1 tablet by mouth daily';
+    const parsed = parseInboundOrder(raw);
+    expect(parsed.drugName).toBe('UNKNOWN DRUG');
+    expect(parsed.rawProse).toBe('Take 1 tablet by mouth daily');
+    expect(parsed.sourceFormat).toBe('manual_text');
+  });
 });
 

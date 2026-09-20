@@ -144,10 +144,11 @@ export function parseInboundOrder(rawInput: string): InboundOrder {
     } else if (defaultSigMatch) {
       defaultSigTemplate = defaultSigMatch[1].trim();
     } else if (i === 0) {
-      if (isDirectionProse(line)) {
-        remainingLines.push(line);
+      const cleaned = line.replace(/^\d+\)\s*/, '').trim();
+      if (isDirectionProse(cleaned)) {
+        remainingLines.push(cleaned);
       } else {
-        drugName = line.replace(/^\d+\)\s*/, '').trim();
+        drugName = cleaned;
       }
     } else {
       remainingLines.push(line);

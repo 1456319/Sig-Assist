@@ -3,6 +3,7 @@ import type { QueueOrder } from '../lib/orderQueue';
 import type { SigExclusion } from '../lib/reviewPolicy';
 import { ReviewContext } from '../hooks/use-review-session';
 import { getCitrixStorageAdapter, StoredQueueOrder } from '../lib/citrixStorage';
+import { translateClinicalSig } from '../lib/clinical/clinicalEngine';
 import { toast } from 'sonner';
 
 export function ReviewSession({ children }: { children: ReactNode }) {
@@ -153,17 +154,34 @@ export function ReviewSession({ children }: { children: ReactNode }) {
       let isReviewed = Boolean(o.approved);
       let isCompleted = Boolean(o.copied);
 
-      const subOrderDraftKeys = o.subOrderDrafts ? Object.keys(o.subOrderDrafts) : [];
-      const subOrderApprovalKeys = o.subOrderApprovals ? Object.keys(o.subOrderApprovals) : [];
-      const subOrderCopiedKeys = o.subOrderCopied ? Object.keys(o.subOrderCopied) : [];
-
-      if (subOrderDraftKeys.length > 1 || subOrderApprovalKeys.length > 1 || subOrderCopiedKeys.length > 1) {
-        const allIds = Array.from(new Set([...subOrderDraftKeys, ...subOrderApprovalKeys, ...subOrderCopiedKeys]));
-        if (allIds.length > 0) {
-          const allApproved = allIds.every(id => Boolean(o.subOrderApprovals?.[id]));
-          const allCopied = allApproved && allIds.every(id => Boolean(o.subOrderCopied?.[id]));
+      try {
+        const clinical = translateClinicalSig({
+          id: o.id,
+          pon: o.pon,
+          drugName: o.drug,
+          rawProse: o.directions,
+          defaultSigTemplate: o.defaultSig,
+          sourceFormat: 'manual_text',
+        });
+        if (clinical.subOrders.length > 1) {
+          const allApproved = clinical.subOrders.every(sub => Boolean(o.subOrderApprovals?.[sub.id]));
+          const allCopied = allApproved && clinical.subOrders.every(sub => Boolean(o.subOrderCopied?.[sub.id]));
           isReviewed = allApproved;
           isCompleted = allCopied;
+        }
+      } catch {
+        const subOrderDraftKeys = o.subOrderDrafts ? Object.keys(o.subOrderDrafts) : [];
+        const subOrderApprovalKeys = o.subOrderApprovals ? Object.keys(o.subOrderApprovals) : [];
+        const subOrderCopiedKeys = o.subOrderCopied ? Object.keys(o.subOrderCopied) : [];
+
+        if (subOrderDraftKeys.length > 1 || subOrderApprovalKeys.length > 1 || subOrderCopiedKeys.length > 1) {
+          const allIds = Array.from(new Set([...subOrderDraftKeys, ...subOrderApprovalKeys, ...subOrderCopiedKeys]));
+          if (allIds.length > 0) {
+            const allApproved = allIds.every(id => Boolean(o.subOrderApprovals?.[id]));
+            const allCopied = allApproved && allIds.every(id => Boolean(o.subOrderCopied?.[id]));
+            isReviewed = allApproved;
+            isCompleted = allCopied;
+          }
         }
       }
 

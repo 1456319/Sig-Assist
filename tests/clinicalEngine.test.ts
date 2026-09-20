@@ -251,6 +251,36 @@ describe('clinicalEngine TESTS.txt validation', () => {
     expect(res.primarySig).toBe('3/4T (7.5MG) PO QAM AND 1T PO QHS');
   });
 
+  it('correctly splits differential dosing with space-separated mixed number (e.g. 1 1/2 tablets in morning and 1 at bedtime)', () => {
+    const order = {
+      id: 'test_space_mixed_diff',
+      pon: 'PON_SPACE_MIX_DIFF',
+      drugName: 'PREDNISONE TAB 10MG',
+      rawProse: 'Take 1 1/2 tablets in morning and 1 tablet at bedtime',
+      sourceFormat: 'manual_text' as const
+    };
+    const res = translateClinicalSig(order);
+    expect(res.subOrders.length).toBe(2);
+    expect(res.subOrders[0].suggestedSig).toBe('1-1/2T (15MG) PO QAM');
+    expect(res.subOrders[1].suggestedSig).toBe('1T PO QHS');
+    expect(res.primarySig).toBe('1-1/2T (15MG) PO QAM AND 1T PO QHS');
+  });
+
+  it('correctly parses space-separated mixed number in titration step-down (e.g. 1 1/2 tablets daily for 5 days then 1 tablet daily for 5 days)', () => {
+    const order = {
+      id: 'test_space_mixed_titr',
+      pon: 'PON_SPACE_MIX_TITR',
+      drugName: 'PREDNISONE TAB 10MG',
+      rawProse: 'Take 1 1/2 tablets daily for 5 days then 1 tablet daily for 5 days',
+      sourceFormat: 'manual_text' as const
+    };
+    const res = translateClinicalSig(order);
+    expect(res.subOrders.length).toBe(2);
+    expect(res.subOrders[0].suggestedSig).toBe('1-1/2T (15MG) PO QD X5D');
+    expect(res.subOrders[1].suggestedSig).toBe('1T PO QD X5D');
+    expect(res.primarySig).toBe('1-1/2T (15MG) PO QD X5D THEN 1T PO QD X5D');
+  });
+
   it('treats equal mixed-number doses with spaces around hyphens as a single unified regimen without false split', () => {
     const order = {
       id: 'test_mixed_equal_spaces',

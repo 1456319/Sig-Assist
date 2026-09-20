@@ -171,7 +171,7 @@ function evaluatePaxitPackagingInternal(drugName: string, rawProse: string): Pax
   let hasDifferentialDosing = false;
   let splitParts: Array<{ prose: string; label: string }> = [];
 
-  const countPattern = '(?:HALF|\\d+\\s*[-/]\\s*\\d+(?:/\\d+)?|\\d+(?:\\.\\d+)?)';
+  const countPattern = '(?:HALF|\\d+\\s*[- ]\\s*\\d+/\\d+|\\d+/\\d+|\\d+(?:\\.\\d+)?)';
 
   // Differing morning and bedtime doses (supporting decimals and fractions)
   const diffDoseRegex = new RegExp(
@@ -195,7 +195,7 @@ function evaluatePaxitPackagingInternal(drugName: string, rawProse: string): Pax
   // Titration / step-down (supporting decimals, secondary frequency, phase 2 duration, and stop directives)
   if (!hasDifferentialDosing) {
     const titrationRegex = new RegExp(
-      `(${countPattern})\\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?\\s*(?:(?:BY\\s*MOUTH|PO)\\s*)?(?:\\s*(\\bDAILY\\b|\\bQD\\b|\\bEVERY\\s*DAY\\b|\\bONCE\\s*(?:A\\s*)?DAY\\b|\\bTWICE\\s*(?:A\\s*)?DAY\\b|\\bTWICE\\s*DAILY\\b|\\bBID\\b|\\bTHREE\\s*TIMES\\s*(?:A\\s*)?DAY\\b|\\bTID\\b|\\bFOUR\\s*TIMES\\s*(?:A\\s*)?DAY\\b|\\bQID\\b|\\bEVERY\\s*12\\s*HOURS?\\b|\\bQ12H\\b|\\bEVERY\\s*8\\s*HOURS?\\b|\\bQ8H\\b|\\bEVERY\\s*6\\s*HOURS?\\b|\\bQ6H\\b|\\bEVERY\\s*4\\s*HOURS?\\b|\\bQ4H\\b|\\bEVERY\\s*MORNING\\b|\\bQAM\\b|\\bAT\\s*BEDTIME\\b|\\bBEDTIME\\b|\\bQHS\\b))?\\s*(?:X|FOR)\\s*(\\d+)\\s*DAYS?\\s*THEN\\s*(?:TAKE\\s*)?(${countPattern})\\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?\\s*(?:(?:BY\\s*MOUTH|PO)\\s*)?(?:\\s*(\\bDAILY\\b|\\bQD\\b|\\bEVERY\\s*DAY\\b|\\bONCE\\s*(?:A\\s*)?DAY\\b|\\bTWICE\\s*(?:A\\s*)?DAY\\b|\\bTWICE\\s*DAILY\\b|\\bBID\\b|\\bTHREE\\s*TIMES\\s*(?:A\\s*)?DAY\\b|\\bTID\\b|\\bFOUR\\s*TIMES\\s*(?:A\\s*)?DAY\\b|\\bQID\\b|\\bEVERY\\s*12\\s*HOURS?\\b|\\bQ12H\\b|\\bEVERY\\s*8\\s*HOURS?\\b|\\bQ8H\\b|\\bEVERY\\s*6\\s*HOURS?\\b|\\bQ6H\\b|\\bEVERY\\s*4\\s*HOURS?\\b|\\bQ4H\\b|\\bEVERY\\s*MORNING\\b|\\bIN\\s*THE\\s*MORNING\\b|\\bQAM\\b|\\bAT\\s*BEDTIME\\b|\\bBEDTIME\\b|\\bQHS\\b))?(?:\\s*(?:X|FOR)\\s*(\\d+)\\s*DAYS?)?(?:\\s*THEN\\s*(?:STOP|DISCONTINUE))?`,
+      `(${countPattern})\\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?\\s*(?:(?:BY\\s*MOUTH|PO)\\s*)?(?:\\s*(\\bDAILY\\b|\\bQD\\b|\\bEVERY\\s*DAY\\b|\\bONCE\\s*(?:A\\s*)?DAY\\b|\\bTWICE\\s*(?:A\\s*)?DAY\\b|\\bTWICE\\s*DAILY\\b|\\bBID\\b|\\bTHREE\\s*TIMES\\s*(?:A\\s*)?DAY\\b|\\bTID\\b|\\bFOUR\\s*TIMES\\s*(?:A\\s*)?DAY\\b|\\bQID\\b|\\bEVERY\\s*12\\s*HOURS?\\b|\\bQ12H\\b|\\bEVERY\\s*8\\s*HOURS?\\b|\\bQ8H\\b|\\bEVERY\\s*6\\s*HOURS?\\b|\\bQ6H\\b|\\bEVERY\\s*4\\s*HOURS?\\b|\\bQ4H\\b|\\bEVERY\\s*MORNING\\b|\\bIN\\s*THE\\s*MORNING\\b|\\bQAM\\b|\\bAT\\s*BEDTIME\\b|\\bBEDTIME\\b|\\bQHS\\b))?\\s*(?:X|FOR)\\s*(\\d+)\\s*DAYS?\\s*THEN\\s*(?:TAKE\\s*)?(${countPattern})\\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?\\s*(?:(?:BY\\s*MOUTH|PO)\\s*)?(?:\\s*(\\bDAILY\\b|\\bQD\\b|\\bEVERY\\s*DAY\\b|\\bONCE\\s*(?:A\\s*)?DAY\\b|\\bTWICE\\s*(?:A\\s*)?DAY\\b|\\bTWICE\\s*DAILY\\b|\\bBID\\b|\\bTHREE\\s*TIMES\\s*(?:A\\s*)?DAY\\b|\\bTID\\b|\\bFOUR\\s*TIMES\\s*(?:A\\s*)?DAY\\b|\\bQID\\b|\\bEVERY\\s*12\\s*HOURS?\\b|\\bQ12H\\b|\\bEVERY\\s*8\\s*HOURS?\\b|\\bQ8H\\b|\\bEVERY\\s*6\\s*HOURS?\\b|\\bQ6H\\b|\\bEVERY\\s*4\\s*HOURS?\\b|\\bQ4H\\b|\\bEVERY\\s*MORNING\\b|\\bIN\\s*THE\\s*MORNING\\b|\\bQAM\\b|\\bAT\\s*BEDTIME\\b|\\bBEDTIME\\b|\\bQHS\\b))?(?:\\s*(?:X|FOR)\\s*(\\d+)\\s*DAYS?)?(?:\\s*THEN\\s*(?:STOP|DISCONTINUE))?`,
       'i'
     );
     const titrationMatch = upperProse.match(titrationRegex);
