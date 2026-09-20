@@ -5,7 +5,7 @@ export interface InboundOrder {
   readonly rawProse: string;
   readonly defaultSigTemplate?: string;
   readonly indication?: string;
-  readonly sourceFormat: 'ncpdp_xml' | 'manual_text';
+  readonly sourceFormat: 'ncpdp_xml' | 'manual_text' | 'hl7';
   readonly traceId?: string;
 }
 

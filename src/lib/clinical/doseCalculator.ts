@@ -14,6 +14,22 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
   const upperProse = rawProse.toUpperCase();
   const abnormalities: AbnormalityFinding[] = [];
 
+  if (!rawProse.trim()) {
+    abnormalities.push({
+      id: `abn_dose_empty_${Date.now()}`,
+      tier: 'potential_error',
+      title: 'Missing Directions',
+      message: 'Original directions are empty or missing. Dosing calculation cannot proceed.',
+      trigger: 'Empty directions'
+    });
+    return {
+      doseToken: '',
+      routeToken: '',
+      abnormalities,
+      isApap: false
+    };
+  }
+
   const isApap = upperDrug.includes('APAP') || upperDrug.includes('ACETAMINOPHEN') || upperProse.includes('ACETAMINOPHEN');
   let apapLimitToken: string | undefined;
   if (isApap) {
@@ -230,13 +246,35 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
       const num = parseInt(fractionMatch[3], 10);
       const den = parseInt(fractionMatch[4], 10);
       label = `${whole}-${num}/${den}`;
-      multiplier = den > 0 ? whole + num / den : 0;
+      if (den === 0) {
+        multiplier = 0;
+        abnormalities.push({
+          id: `abn_fraction_zero_den_${Date.now()}`,
+          tier: 'potential_error',
+          title: 'Invalid Fraction Denominator',
+          message: `Dose expression '${fractionMatch[0]}' contains a zero denominator, resulting in an undefined dose quantity.`,
+          trigger: fractionMatch[0]
+        });
+      } else {
+        multiplier = whole + num / den;
+      }
     } else if (fractionMatch[5]) {
       // Fraction e.g. 1/2, 3/4
       const num = parseInt(fractionMatch[5], 10);
       const den = parseInt(fractionMatch[6], 10);
       label = `${num}/${den}`;
-      multiplier = den > 0 ? num / den : 0;
+      if (den === 0) {
+        multiplier = 0;
+        abnormalities.push({
+          id: `abn_fraction_zero_den_${Date.now()}`,
+          tier: 'potential_error',
+          title: 'Invalid Fraction Denominator',
+          message: `Dose expression '${fractionMatch[0]}' contains a zero denominator, resulting in an undefined dose quantity.`,
+          trigger: fractionMatch[0]
+        });
+      } else {
+        multiplier = num / den;
+      }
     }
     const targetDoseStr = getTargetDose(multiplier);
     return {

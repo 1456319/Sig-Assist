@@ -19,12 +19,16 @@ export interface StoredQueueOrder {
   approved?: string;
   copied?: string;
   defaultSig?: string;
+  subOrderDrafts?: Record<string, string>;
+  subOrderApprovals?: Record<string, string>;
+  subOrderCopied?: Record<string, string>;
 }
 
 export interface CitrixStorageAdapter {
   isConnected(): boolean;
   getStorageMode(): 'file_system' | 'browser_cache';
   connectDirectory(): Promise<boolean>;
+  onDirectoryConnected?(callback: () => Promise<void> | void): () => void;
   readQueue(): Promise<StoredQueueOrder[]>;
   writeQueue(orders: StoredQueueOrder[], options?: { immediate?: boolean; debounceMs?: number }): Promise<void>;
   readDiscrepancies(): Promise<DiscrepancyReport[]>;
@@ -57,15 +61,19 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
 
   private pendingQueue: StoredQueueOrder[] | null = null;
   private queueTimer: ReturnType<typeof setTimeout> | null = null;
-  private queueResolvers: Array<() => void> = [];
+  private queueResolvers: Array<{ resolve: () => void; reject: (err: unknown) => void } | (() => void)> = [];
 
   private pendingDiscrepancies: DiscrepancyReport[] | null = null;
   private discrepanciesTimer: ReturnType<typeof setTimeout> | null = null;
-  private discrepanciesResolvers: Array<() => void> = [];
+  private discrepanciesResolvers: Array<{ resolve: () => void; reject: (err: unknown) => void } | (() => void)> = [];
+  private discrepancyAppendChain: Promise<void> = Promise.resolve();
 
   private pendingPreferences: TechnicianPreferences | null = null;
   private preferencesTimer: ReturnType<typeof setTimeout> | null = null;
-  private preferencesResolvers: Array<() => void> = [];
+  private preferencesResolvers: Array<{ resolve: () => void; reject: (err: unknown) => void } | (() => void)> = [];
+
+  private directoryConnectedListeners = new Set<() => Promise<void> | void>();
+  private fallbackActive: Record<string, boolean> = {};
 
   private isWriting = false;
   private writeQueueItems: Array<() => Promise<void>> = [];
@@ -99,6 +107,13 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
     return this.debounceDelayMs;
   }
 
+  onDirectoryConnected(callback: () => Promise<void> | void): () => void {
+    this.directoryConnectedListeners.add(callback);
+    return () => {
+      this.directoryConnectedListeners.delete(callback);
+    };
+  }
+
   async connectDirectory(): Promise<boolean> {
     const win =
       typeof window !== 'undefined'
@@ -112,6 +127,14 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
     }
     try {
       this.dirHandle = await win.showDirectoryPicker();
+      this.fallbackActive = {};
+      for (const fn of this.directoryConnectedListeners) {
+        try {
+          await fn();
+        } catch {
+          // ignore error during notification
+        }
+      }
       return true;
     } catch {
       return false;
@@ -173,23 +196,43 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
     filename: string,
     storageKey: string,
     data: unknown,
-    resolvers: Array<() => void> = []
+    resolvers: Array<{ resolve: () => void; reject: (err: unknown) => void } | (() => void)> = []
   ): Promise<void> {
-    return new Promise<void>((resolve) => {
+    return new Promise<void>((resolve, reject) => {
       this.writeQueueItems.push(async () => {
         try {
-          let written = false;
+          let writtenToFile = false;
           if (this.dirHandle) {
-            written = await this.writeFile(filename, data);
+            writtenToFile = await this.writeFile(filename, data);
+            if (writtenToFile) {
+              this.fallbackActive[filename] = false;
+            } else {
+              this.fallbackActive[filename] = true;
+            }
           }
-          if (!written) {
-            this.writeLocalStorage(storageKey, data);
+          let writtenToLocal = false;
+          if (!writtenToFile) {
+            writtenToLocal = this.writeLocalStorage(storageKey, data);
           }
-          resolvers.forEach((r) => r());
-        } catch {
-          resolvers.forEach((r) => r());
+          if (!writtenToFile && !writtenToLocal) {
+            const err = new Error(`StorageWriteError: Failed to write ${filename} to both file system and browser local storage.`);
+            resolvers.forEach((r) => {
+              if (r && typeof r === 'object' && 'reject' in r && typeof r.reject === 'function') r.reject(err);
+            });
+            reject(err);
+            return;
+          }
+          resolvers.forEach((r) => {
+            if (typeof r === 'function') r();
+            else if (r && typeof r === 'object' && 'resolve' in r && typeof r.resolve === 'function') r.resolve();
+          });
+          resolve();
+        } catch (err) {
+          resolvers.forEach((r) => {
+            if (r && typeof r === 'object' && 'reject' in r && typeof r.reject === 'function') r.reject(err);
+          });
+          reject(err);
         }
-        resolve();
       });
       this.processWriteQueue();
     });
@@ -200,7 +243,7 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
       return this.pendingQueue;
     }
     let data: StoredQueueOrder[] | null = null;
-    if (this.dirHandle) {
+    if (this.dirHandle && !this.fallbackActive['queue.json']) {
       data = await this.readFile<StoredQueueOrder[]>('queue.json');
     }
     if (data !== null) {
@@ -232,8 +275,8 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
       clearTimeout(this.queueTimer);
     }
 
-    return new Promise<void>((resolve) => {
-      this.queueResolvers.push(resolve);
+    return new Promise<void>((resolve, reject) => {
+      this.queueResolvers.push({ resolve, reject });
       this.queueTimer = setTimeout(async () => {
         this.queueTimer = null;
         const currentData = this.pendingQueue;
@@ -241,7 +284,13 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
         const currentResolvers = this.queueResolvers;
         this.queueResolvers = [];
         if (currentData !== null) {
-          await this.commitWrite('queue.json', 'citrix_storage_queue', currentData, currentResolvers);
+          try {
+            await this.commitWrite('queue.json', 'citrix_storage_queue', currentData, currentResolvers);
+          } catch (err) {
+            currentResolvers.forEach((r) => {
+              if (typeof r === 'object' && 'reject' in r) r.reject(err);
+            });
+          }
         }
       }, delay);
     });
@@ -252,7 +301,7 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
       return this.pendingDiscrepancies;
     }
     let data: DiscrepancyReport[] | null = null;
-    if (this.dirHandle) {
+    if (this.dirHandle && !this.fallbackActive['discrepancies.json']) {
       data = await this.readFile<DiscrepancyReport[]>('discrepancies.json');
     }
     if (data !== null) {
@@ -265,40 +314,52 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
     report: DiscrepancyReport,
     options?: { immediate?: boolean; debounceMs?: number }
   ): Promise<void> {
-    const existing = await this.readDiscrepancies();
-    const updated = [...existing, report];
-    const delay = options?.immediate ? 0 : (options?.debounceMs ?? this.debounceDelayMs);
+    const runAppend = async () => {
+      const existing = await this.readDiscrepancies();
+      const updated = [...existing, report];
+      const delay = options?.immediate ? 0 : (options?.debounceMs ?? this.debounceDelayMs);
 
-    if (delay <= 0) {
-      this.pendingDiscrepancies = null;
+      if (delay <= 0) {
+        this.pendingDiscrepancies = null;
+        if (this.discrepanciesTimer) {
+          clearTimeout(this.discrepanciesTimer);
+          this.discrepanciesTimer = null;
+        }
+        const prevResolvers = this.discrepanciesResolvers;
+        this.discrepanciesResolvers = [];
+        await this.commitWrite('discrepancies.json', 'citrix_storage_discrepancies', updated, prevResolvers);
+        return;
+      }
+
+      this.pendingDiscrepancies = updated;
       if (this.discrepanciesTimer) {
         clearTimeout(this.discrepanciesTimer);
-        this.discrepanciesTimer = null;
       }
-      const prevResolvers = this.discrepanciesResolvers;
-      this.discrepanciesResolvers = [];
-      await this.commitWrite('discrepancies.json', 'citrix_storage_discrepancies', updated, prevResolvers);
-      return;
-    }
 
-    this.pendingDiscrepancies = updated;
-    if (this.discrepanciesTimer) {
-      clearTimeout(this.discrepanciesTimer);
-    }
+      return new Promise<void>((resolve, reject) => {
+        this.discrepanciesResolvers.push({ resolve, reject });
+        this.discrepanciesTimer = setTimeout(async () => {
+          this.discrepanciesTimer = null;
+          const currentData = this.pendingDiscrepancies;
+          this.pendingDiscrepancies = null;
+          const currentResolvers = this.discrepanciesResolvers;
+          this.discrepanciesResolvers = [];
+          if (currentData !== null) {
+            try {
+              await this.commitWrite('discrepancies.json', 'citrix_storage_discrepancies', currentData, currentResolvers);
+            } catch (err) {
+              currentResolvers.forEach((r) => {
+                if (typeof r === 'object' && 'reject' in r) r.reject(err);
+              });
+            }
+          }
+        }, delay);
+      });
+    };
 
-    return new Promise<void>((resolve) => {
-      this.discrepanciesResolvers.push(resolve);
-      this.discrepanciesTimer = setTimeout(async () => {
-        this.discrepanciesTimer = null;
-        const currentData = this.pendingDiscrepancies;
-        this.pendingDiscrepancies = null;
-        const currentResolvers = this.discrepanciesResolvers;
-        this.discrepanciesResolvers = [];
-        if (currentData !== null) {
-          await this.commitWrite('discrepancies.json', 'citrix_storage_discrepancies', currentData, currentResolvers);
-        }
-      }, delay);
-    });
+    const currentOp = this.discrepancyAppendChain.then(runAppend, runAppend);
+    this.discrepancyAppendChain = currentOp.catch(() => {});
+    return currentOp;
   }
 
   async readPreferences(): Promise<TechnicianPreferences> {
@@ -306,7 +367,7 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
       return this.pendingPreferences;
     }
     let data: TechnicianPreferences | null = null;
-    if (this.dirHandle) {
+    if (this.dirHandle && !this.fallbackActive['preferences.json']) {
       data = await this.readFile<TechnicianPreferences>('preferences.json');
     }
     if (data !== null) {
@@ -341,8 +402,8 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
       clearTimeout(this.preferencesTimer);
     }
 
-    return new Promise<void>((resolve) => {
-      this.preferencesResolvers.push(resolve);
+    return new Promise<void>((resolve, reject) => {
+      this.preferencesResolvers.push({ resolve, reject });
       this.preferencesTimer = setTimeout(async () => {
         this.preferencesTimer = null;
         const currentData = this.pendingPreferences;
@@ -350,7 +411,13 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
         const currentResolvers = this.preferencesResolvers;
         this.preferencesResolvers = [];
         if (currentData !== null) {
-          await this.commitWrite('preferences.json', 'citrix_storage_preferences', currentData, currentResolvers);
+          try {
+            await this.commitWrite('preferences.json', 'citrix_storage_preferences', currentData, currentResolvers);
+          } catch (err) {
+            currentResolvers.forEach((r) => {
+              if (typeof r === 'object' && 'reject' in r) r.reject(err);
+            });
+          }
         }
       }, delay);
     });
@@ -493,11 +560,20 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
     this.pendingQueue = null;
     this.pendingDiscrepancies = null;
     this.pendingPreferences = null;
-    this.queueResolvers.forEach((r) => r());
+    this.queueResolvers.forEach((r) => {
+      if (typeof r === 'function') r();
+      else if (r && typeof r.resolve === 'function') r.resolve();
+    });
     this.queueResolvers = [];
-    this.discrepanciesResolvers.forEach((r) => r());
+    this.discrepanciesResolvers.forEach((r) => {
+      if (typeof r === 'function') r();
+      else if (r && typeof r.resolve === 'function') r.resolve();
+    });
     this.discrepanciesResolvers = [];
-    this.preferencesResolvers.forEach((r) => r());
+    this.preferencesResolvers.forEach((r) => {
+      if (typeof r === 'function') r();
+      else if (r && typeof r.resolve === 'function') r.resolve();
+    });
     this.preferencesResolvers = [];
   }
 }

@@ -206,4 +206,46 @@ describe('clinicalEngine TESTS.txt validation', () => {
     expect(res.subOrders[0].suggestedSig).toBe('2T (600MG) PO QAM FPAIN');
     expect(res.subOrders[1].suggestedSig).toBe('1T PO QHS FPAIN');
   });
+
+  it('preserves decimal quantities during Paxit regimen splitting', () => {
+    const order = {
+      id: 'test_decimal_split',
+      pon: 'PON_DEC_1',
+      drugName: 'PREDNISONE TAB 10MG',
+      rawProse: 'Take 2.5 tablets in the morning and 1 tablet at bedtime',
+      sourceFormat: 'manual_text' as const
+    };
+    const res = translateClinicalSig(order);
+    expect(res.subOrders.length).toBe(2);
+    expect(res.subOrders[0].suggestedSig).toBe('2.5T (25MG) PO QAM');
+    expect(res.subOrders[1].suggestedSig).toBe('1T PO QHS');
+  });
+
+  it('preserves secondary phase frequency and duration during titration synthesis', () => {
+    const order = {
+      id: 'test_titration_bid',
+      pon: 'PON_TITR_1',
+      drugName: 'PREDNISONE TAB 10MG',
+      rawProse: 'Take 2 tablets daily for 5 days then take 1 tablet twice daily for 4 days',
+      sourceFormat: 'manual_text' as const
+    };
+    const res = translateClinicalSig(order);
+    expect(res.subOrders.length).toBe(2);
+    expect(res.subOrders[0].suggestedSig).toBe('2T (20MG) PO QD X5D');
+    expect(res.subOrders[1].suggestedSig).toBe('1T PO BID X4D');
+    expect(res.primarySig).toBe('2T (20MG) PO QD X5D THEN 1T PO BID X4D');
+  });
+
+  it('flags empty directions with potential_error and does not invent 1T PO QD', () => {
+    const order = {
+      id: 'test_empty_dir',
+      pon: 'PON_EMPTY',
+      drugName: 'LISINOPRIL TAB 10MG',
+      rawProse: '   ',
+      sourceFormat: 'manual_text' as const
+    };
+    const res = translateClinicalSig(order);
+    expect(res.primarySig).toBe('');
+    expect(res.abnormalities.some(a => a.tier === 'potential_error')).toBe(true);
+  });
 });

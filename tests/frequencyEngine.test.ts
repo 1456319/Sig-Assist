@@ -69,5 +69,24 @@ describe('frequencyEngine', () => {
     expect(res.frequencyToken).toBe('CBS AC SS');
     expect(res.slidingScaleString).toMatch(/^CBS AC SS /);
   });
+
+  it('resolves Q8H and EVERY 8 HOURS to Q8H frequency token', () => {
+    const res1 = resolveFrequencyAndSchedule('Give 1 tablet by mouth every 8 hours for pain');
+    expect(res1.frequencyToken).toBe('Q8H');
+
+    const res2 = resolveFrequencyAndSchedule('Take 1 capsule PO Q8H');
+    expect(res2.frequencyToken).toBe('Q8H');
+  });
+
+  it('resolves generic EVERY N HOURS pattern', () => {
+    const res = resolveFrequencyAndSchedule('Take 1 tablet every 5 hours as needed');
+    expect(res.frequencyToken).toBe('Q5H');
+  });
+
+  it('flags empty directions with potential_error abnormality and empty token', () => {
+    const res = resolveFrequencyAndSchedule('   ');
+    expect(res.frequencyToken).toBe('');
+    expect(res.abnormalities.some(a => a.tier === 'potential_error')).toBe(true);
+  });
 });
 

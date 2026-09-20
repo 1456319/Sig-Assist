@@ -49,6 +49,20 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
   const upper = rawProse.toUpperCase();
   const abnormalities: AbnormalityFinding[] = [];
 
+  if (!upper.trim()) {
+    abnormalities.push({
+      id: `abn_freq_empty_${Date.now()}`,
+      tier: 'potential_error',
+      title: 'Missing Frequency',
+      message: 'Original directions are empty or missing frequency directives.',
+      trigger: 'Empty directions'
+    });
+    return {
+      frequencyToken: '',
+      abnormalities
+    };
+  }
+
   // Sliding scale insulin check
   if (upper.includes('SLIDING SCALE')) {
     const isAcHs = /\b(BEDTIME|HS|ACHS)\b/i.test(upper);
@@ -166,10 +180,15 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     frequencyToken = 'QAM';
   } else if (upper.includes('EVERY 12 HOURS') || /\bQ12H\b/i.test(upper)) {
     frequencyToken = 'Q12H';
+  } else if (upper.includes('EVERY 8 HOURS') || /\bQ8H\b/i.test(upper)) {
+    frequencyToken = 'Q8H';
   } else if (upper.includes('EVERY 6 HOURS') || /\bQ6H\b/i.test(upper)) {
     frequencyToken = 'Q6H';
   } else if (upper.includes('EVERY 4 HOURS') || /\bQ4H\b/i.test(upper)) {
     frequencyToken = 'Q4H';
+  } else if (/\bEVERY\s+(\d+)\s*HOURS?\b/i.test(upper) || /\bQ(\d+)H\b/i.test(upper)) {
+    const qhMatch = upper.match(/\bEVERY\s+(\d+)\s*HOURS?\b/i) || upper.match(/\bQ(\d+)H\b/i);
+    frequencyToken = `Q${qhMatch![1]}H`;
   } else if (upper.includes('FOUR TIMES A DAY') || /\bQID\b/i.test(upper)) {
     frequencyToken = 'QID';
   } else if (upper.includes('THREE TIMES A DAY') || /\bTID\b/i.test(upper)) {

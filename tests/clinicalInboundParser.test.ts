@@ -75,5 +75,26 @@ DEFAULT SIG (OPTIONAL FIELD): MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO`;
     const parsed = parseInboundOrder(raw);
     expect(parsed.rawProse).toBe("Give 1 tablet by mouth daily - at bedtime 'for cholesterol'");
   });
+
+  it('correctly extracts PON, drug name, and directions from HL7 message', () => {
+    const hl7 = [
+      'MSH|^~\\&|DEMO|DEMO-FACILITY|DEMO-RECEIVER||20260918120000||RDE^O11^RDE_O11|DEMO-MSG|T|2.5',
+      'ORC|NW|DEMO-ORDER',
+      'RXO|DEMO^EXAMPLE MEDICATION|||||Take 1 tablet by mouth twice daily'
+    ].join('\n');
+    const parsed = parseInboundOrder(hl7);
+    expect(parsed.pon).toBe('DEMO-ORDER');
+    expect(parsed.drugName).toBe('EXAMPLE MEDICATION');
+    expect(parsed.rawProse).toBe('Take 1 tablet by mouth twice daily');
+    expect(parsed.sourceFormat).toBe('hl7');
+  });
+
+  it('preserves all lines in multiline manual text input without dropping intermediate lines', () => {
+    const raw = `METFORMIN 500MG TABLET\nTake 1 tablet\nby mouth daily\nwith dinner`;
+    const parsed = parseInboundOrder(raw);
+    expect(parsed.drugName).toBe('METFORMIN 500MG TABLET');
+    expect(parsed.rawProse).toBe('Take 1 tablet by mouth daily with dinner');
+    expect(parsed.sourceFormat).toBe('manual_text');
+  });
 });
 

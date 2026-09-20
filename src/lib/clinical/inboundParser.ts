@@ -73,10 +73,58 @@ export function parseInboundOrder(rawInput: string): InboundOrder {
     };
   }
 
+  const isHl7Candidate = trimmed.startsWith('MSH|') || /^MSH\|/m.test(trimmed);
+  if (isHl7Candidate) {
+    const hl7Lines = trimmed.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    let pon = 'UNKNOWN_PON';
+    let drugName = 'UNKNOWN DRUG';
+    let rawProse = '';
+
+    const orcLine = hl7Lines.find(l => l.startsWith('ORC|'));
+    if (orcLine) {
+      const parts = orcLine.split('|');
+      pon = parts[2]?.trim() || parts[3]?.trim() || 'UNKNOWN_PON';
+    }
+
+    const rxoLine = hl7Lines.find(l => l.startsWith('RXO|'));
+    if (rxoLine) {
+      const parts = rxoLine.split('|');
+      if (parts[1]) {
+        const drugField = parts[1].trim();
+        drugName = drugField.includes('^') ? (drugField.split('^')[1] || drugField.split('^')[0]).trim() : drugField;
+      }
+      rawProse = parts[6]?.trim() || parts[7]?.trim() || parts.slice(2).find(f => f.trim().length > 0)?.trim() || '';
+    }
+
+    if (!rawProse) {
+      const rxeLine = hl7Lines.find(l => l.startsWith('RXE|'));
+      if (rxeLine) {
+        const parts = rxeLine.split('|');
+        rawProse = parts[7]?.trim() || '';
+      }
+    }
+
+    traceLogger.info('intake', 'inboundParser', 'Parsed HL7 inbound payload', {
+      pon,
+      drugName,
+      rawProseLength: rawProse.length
+    }, undefined, traceId);
+
+    return {
+      id,
+      pon,
+      drugName,
+      rawProse,
+      sourceFormat: 'hl7',
+      traceId
+    };
+  }
+
   const lines = trimmed.split('\n').map(l => l.trim()).filter(Boolean);
   let drugName = 'UNKNOWN DRUG';
   let rawProse = '';
   let defaultSigTemplate: string | undefined;
+  const remainingLines: string[] = [];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -89,11 +137,19 @@ export function parseInboundOrder(rawInput: string): InboundOrder {
       defaultSigTemplate = defaultSigMatch[1].trim();
     } else if (i === 0) {
       drugName = line.replace(/^\d+\)\s*/, '').trim();
+    } else {
+      remainingLines.push(line);
     }
   }
 
-  if (!rawProse && lines.length > 0) {
-    rawProse = lines[lines.length - 1];
+  if (!rawProse) {
+    if (remainingLines.length > 0) {
+      rawProse = remainingLines.join(' ').trim();
+    } else if (lines.length === 1) {
+      rawProse = lines[0].trim();
+    }
+  } else if (remainingLines.length > 0) {
+    rawProse = `${rawProse} ${remainingLines.join(' ')}`.trim();
   }
 
   traceLogger.info('intake', 'inboundParser', 'Parsed manual text order', {

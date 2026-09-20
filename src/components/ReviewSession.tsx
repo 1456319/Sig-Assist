@@ -28,6 +28,9 @@ export function ReviewSession({ children }: { children: ReactNode }) {
           approved: o.approved,
           copied: o.copied,
           defaultSig: o.defaultSig,
+          subOrderDrafts: o.subOrderDrafts,
+          subOrderApprovals: o.subOrderApprovals,
+          subOrderCopied: o.subOrderCopied,
         } as QueueOrder)));
       }
       if (prefs && (prefs.exclusions || prefs.policyRevision !== undefined)) {
@@ -38,6 +41,61 @@ export function ReviewSession({ children }: { children: ReactNode }) {
       }
       setIsHydrated(true);
     });
+  }, []);
+
+  useEffect(() => {
+    const reconcileStorage = async () => {
+      const [stored, prefs] = await Promise.all([
+        getCitrixStorageAdapter().readQueue(),
+        getCitrixStorageAdapter().readPreferences(),
+      ]);
+      if (stored && stored.length > 0) {
+        setOrders(currentOrders => {
+          const orderMap = new Map<string, QueueOrder>();
+          stored.forEach(o => {
+            orderMap.set(o.id, {
+              ...o,
+              facility: o.facility || 'UNKNOWN',
+              patientRef: o.patientRef || 'UNKNOWN',
+              directions: o.rawProse,
+              drug: o.drugName,
+              revision: o.revision || 1,
+              previousSources: o.previousSources || [],
+              cancelled: o.cancelled || false,
+              draft: o.draftSig,
+              approved: o.approved,
+              copied: o.copied,
+              defaultSig: o.defaultSig,
+              subOrderDrafts: o.subOrderDrafts,
+              subOrderApprovals: o.subOrderApprovals,
+              subOrderCopied: o.subOrderCopied,
+            } as QueueOrder);
+          });
+          currentOrders.forEach(local => {
+            const remote = orderMap.get(local.id);
+            if (!remote) {
+              orderMap.set(local.id, local);
+            } else if (local.revision > remote.revision) {
+              orderMap.set(local.id, local);
+            } else if (local.revision === remote.revision && (local.approved || local.copied || local.draft !== remote.draft)) {
+              orderMap.set(local.id, local);
+            }
+          });
+          return Array.from(orderMap.values());
+        });
+      }
+      if (prefs && (prefs.exclusions || prefs.policyRevision !== undefined)) {
+        setPolicy(prev => ({
+          exclusions: prefs.exclusions || prev.exclusions,
+          revision: Math.max(prefs.policyRevision || 0, prev.revision)
+        }));
+      }
+    };
+
+    const unsub = getCitrixStorageAdapter().onDirectoryConnected?.(reconcileStorage);
+    return () => {
+      unsub?.();
+    };
   }, []);
 
   useEffect(() => {
@@ -70,6 +128,9 @@ export function ReviewSession({ children }: { children: ReactNode }) {
       approved: o.approved,
       copied: o.copied,
       defaultSig: o.defaultSig,
+      subOrderDrafts: o.subOrderDrafts,
+      subOrderApprovals: o.subOrderApprovals,
+      subOrderCopied: o.subOrderCopied,
     }));
     getCitrixStorageAdapter().writeQueue(storedOrders);
   }, [orders, isHydrated]);

@@ -152,15 +152,19 @@ export function TraceLogDrawer({ isOpen, onClose }: TraceLogDrawerProps) {
   };
 
   const handleCopyJsonl = async () => {
+    if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+      toast.error('Clipboard access is unavailable or denied');
+      return;
+    }
     try {
       const jsonl = traceLogger.exportJsonl();
-      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(jsonl);
-      }
+      await navigator.clipboard.writeText(jsonl);
       setCopiedStatus(true);
+      toast.success('Trace log copied to clipboard');
       setTimeout(() => setCopiedStatus(false), 2000);
-    } catch {
-      // Fallback
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      toast.error(`Clipboard copy failed: ${errMsg}`);
     }
   };
 
@@ -169,9 +173,10 @@ export function TraceLogDrawer({ isOpen, onClose }: TraceLogDrawerProps) {
       clearTimeout(flushFeedbackTimerRef.current);
       flushFeedbackTimerRef.current = null;
     }
+    const currentMode = storageAdapter.getStorageMode();
     try {
-      const res = await traceLogger.flush();
-      const effectiveDest = res.destination !== 'storage' ? res.destination : storageMode;
+      const res = await traceLogger.flush(currentMode);
+      const effectiveDest = res.destination !== 'storage' ? res.destination : currentMode;
       const destLabel = effectiveDest === 'file_system' ? 'Citrix Share (sig-assist-trace.jsonl)' : 'Browser Storage';
       if (res.flushedCount > 0) {
         setFlushFeedback({
@@ -184,7 +189,7 @@ export function TraceLogDrawer({ isOpen, onClose }: TraceLogDrawerProps) {
           status: 'idle',
           message: `All records already synchronized to ${destLabel}`,
         });
-        toast.info('All trace events already synchronized');
+        toast.info(`All trace events already synchronized to ${destLabel}`);
       }
       setFlushedStatus(true);
       setTimeout(() => setFlushedStatus(false), 2000);

@@ -3,6 +3,7 @@ export type TraceLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
 
 export interface TraceEvent {
   id: string;
+  seq?: number;
   traceId: string;
   timestamp: string;
   layer: TraceLayer;
@@ -44,6 +45,9 @@ export class TraceLogger {
   private activeTraceId: string | null = null;
   private onFlushHook?: (events: TraceEvent[]) => Promise<{ destination: 'file_system' | 'browser_cache' | string; recordsSaved: number } | void>;
   private lastFlushedIndex = 0;
+  private nextSeq = 1;
+  private lastFlushedSeqByDest: Record<string, number> = {};
+  private activeFlushChain: Promise<TraceFlushResult> = Promise.resolve({ flushedCount: 0, destination: 'storage' });
 
   constructor(maxCapacity = 1000) {
     this.maxCapacity = maxCapacity;
@@ -102,6 +106,7 @@ export class TraceLogger {
   ): TraceEvent {
     const event: TraceEvent = {
       id: generateId(),
+      seq: this.nextSeq++,
       traceId: traceId || this.activeTraceId || 'GLOBAL',
       timestamp: new Date().toISOString(),
       layer,
@@ -225,7 +230,14 @@ export class TraceLogger {
   public clear(): void {
     this.events = [];
     this.lastFlushedIndex = 0;
+    this.lastFlushedSeqByDest = {};
     this.activeTraceId = null;
+  }
+
+  public getPendingFlushCount(destination?: string): number {
+    const destKey = destination || 'storage';
+    const lastSeq = this.lastFlushedSeqByDest[destKey] ?? this.lastFlushedSeqByDest['storage'] ?? 0;
+    return this.events.filter((e) => (e.seq ?? 0) > lastSeq).length;
   }
 
   public subscribe(subscriber: (event: TraceEvent) => void): () => void {
@@ -243,23 +255,46 @@ export class TraceLogger {
     return this.events.map((e) => JSON.stringify(e)).join('\n') + '\n';
   }
 
-  public async flush(): Promise<TraceFlushResult> {
-    if (this.onFlushHook && this.events.length > this.lastFlushedIndex) {
-      const startIndex = this.lastFlushedIndex;
-      const targetIndex = this.events.length;
-      const unflushed = this.events.slice(startIndex, targetIndex);
+  public async flush(targetDestination?: string): Promise<TraceFlushResult> {
+    const runFlush = async (): Promise<TraceFlushResult> => {
+      if (!this.onFlushHook) {
+        return { flushedCount: 0, destination: targetDestination || 'storage' };
+      }
+      const destKey = targetDestination || 'storage';
+      const lastSeq = this.lastFlushedSeqByDest[destKey] ?? 0;
+      const unflushed = this.events.filter((e) => (e.seq ?? 0) > lastSeq);
+      if (unflushed.length === 0) {
+        return { flushedCount: 0, destination: destKey };
+      }
+
+      const maxSeqInBatch = Math.max(...unflushed.map((e) => e.seq ?? 0));
       const result = await this.onFlushHook(unflushed);
-      this.lastFlushedIndex = targetIndex;
+      const actualDest = result && 'destination' in result && result.destination ? result.destination : destKey;
+
+      this.lastFlushedSeqByDest[actualDest] = maxSeqInBatch;
+      if (actualDest !== destKey) {
+        this.lastFlushedSeqByDest[destKey] = maxSeqInBatch;
+      }
+      this.lastFlushedIndex = this.events.length;
+
       return {
         flushedCount: unflushed.length,
-        destination: result && 'destination' in result ? result.destination : 'storage'
+        destination: actualDest
       };
-    }
-    return { flushedCount: 0, destination: 'storage' };
+    };
+
+    const next = this.activeFlushChain.then(runFlush, runFlush);
+    this.activeFlushChain = next.catch(() => ({ flushedCount: 0, destination: targetDestination || 'storage' }));
+    return next;
   }
 
-  public resetFlushCursor(): void {
-    this.lastFlushedIndex = 0;
+  public resetFlushCursor(destination?: string): void {
+    if (destination) {
+      this.lastFlushedSeqByDest[destination] = 0;
+    } else {
+      this.lastFlushedSeqByDest = {};
+      this.lastFlushedIndex = 0;
+    }
   }
 
   public createScoped(scopeName: string, maxCapacity = 500): TraceLogger {

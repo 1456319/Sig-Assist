@@ -141,11 +141,17 @@ function evaluatePaxitPackagingInternal(drugName: string, rawProse: string): Pax
   let hasDifferentialDosing = false;
   let splitParts: Array<{ prose: string; label: string }> = [];
 
-  // Differing morning and bedtime doses (using non-greedy wildcard and \bAND\b word boundary)
-  const diffDoseMatch = upperProse.match(/(\d+)\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?.*?\b(?:MORNING|QAM|AM)\b.*?\bAND\b\s*(\d+)\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?\s*(?:AT\s*NIGHT|AT\s*BEDTIME|BEDTIME|QHS|HS|EVENING|PM)\b/i);
+  const countPattern = '(?:\\d+(?:\\.\\d+)?|\\d+\\s*[-/]\\s*\\d+(?:/\\d+)?)';
+
+  // Differing morning and bedtime doses (supporting decimals and fractions)
+  const diffDoseRegex = new RegExp(
+    `(${countPattern})\\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?.*?\\b(?:MORNING|QAM|AM)\\b.*?\\bAND\\b\\s*(${countPattern})\\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?\\s*(?:AT\\s*NIGHT|AT\\s*BEDTIME|BEDTIME|QHS|HS|EVENING|PM)\\b`,
+    'i'
+  );
+  const diffDoseMatch = upperProse.match(diffDoseRegex);
   if (diffDoseMatch) {
-    const count1 = diffDoseMatch[1];
-    const count2 = diffDoseMatch[2];
+    const count1 = diffDoseMatch[1].trim();
+    const count2 = diffDoseMatch[2].trim();
     // Only flag differential dosing if counts differ
     if (count1 !== count2) {
       hasDifferentialDosing = true;
@@ -156,21 +162,40 @@ function evaluatePaxitPackagingInternal(drugName: string, rawProse: string): Pax
     }
   }
 
-  // Titration / step-down (supporting frequency keywords before duration and phase 2 durations)
+  // Titration / step-down (supporting decimals, secondary frequency, phase 2 duration, and stop directives)
   if (!hasDifferentialDosing) {
-    const titrationMatch = upperProse.match(
-      /(\d+)\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)\s*(?:(?:BY\s*MOUTH|PO)\s*)?(?:\s*(?:DAILY|QD|EVERY\s*DAY|ONCE\s*A\s*DAY))?\s*(?:X|FOR)\s*(\d+)\s*DAYS?\s*THEN\s*(?:TAKE\s*)?(\d+)\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?(?:\s*(?:BY\s*MOUTH|PO)\s*)?(?:\s*(?:DAILY|QD|EVERY\s*DAY|ONCE\s*A\s*DAY))?(?:\s*(?:X|FOR)\s*(\d+)\s*DAYS?)?/i
+    const titrationRegex = new RegExp(
+      `(${countPattern})\\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?\\s*(?:(?:BY\\s*MOUTH|PO)\\s*)?(?:\\s*(?:DAILY|QD|EVERY\\s*DAY|ONCE\\s*A\\s*DAY|TWICE\\s*(?:A\\s*)?DAY|TWICE\\s*DAILY|BID))?\\s*(?:X|FOR)\\s*(\\d+)\\s*DAYS?\\s*THEN\\s*(?:TAKE\\s*)?(${countPattern})\\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?\\s*(?:(?:BY\\s*MOUTH|PO)\\s*)?(?:\\s*(DAILY|QD|EVERY\\s*DAY|ONCE\\s*A\\s*DAY|TWICE\\s*(?:A\\s*)?DAY|TWICE\\s*DAILY|BID|THREE\\s*TIMES\\s*(?:A\\s*)?DAY|TID|FOUR\\s*TIMES\\s*(?:A\\s*)?DAY|QID|EVERY\\s*12\\s*HOURS?|Q12H|EVERY\\s*8\\s*HOURS?|Q8H|EVERY\\s*6\\s*HOURS?|Q6H|EVERY\\s*4\\s*HOURS?|Q4H|EVERY\\s*MORNING|IN\\s*THE\\s*MORNING|QAM|AT\\s*BEDTIME|BEDTIME|QHS))?(?:\\s*(?:X|FOR)\\s*(\\d+)\\s*DAYS?)?(?:\\s*THEN\\s*(?:STOP|DISCONTINUE))?`,
+      'i'
     );
+    const titrationMatch = upperProse.match(titrationRegex);
     if (titrationMatch) {
       hasDifferentialDosing = true;
-      const count1 = titrationMatch[1];
-      const days1 = titrationMatch[2];
-      const count2 = titrationMatch[3];
-      const days2 = titrationMatch[4];
-      const days2Suffix = days2 ? ` for ${days2} days` : '';
+      const count1 = titrationMatch[1].trim();
+      const days1 = titrationMatch[2].trim();
+      const count2 = titrationMatch[3].trim();
+      const rawFreq2 = titrationMatch[4];
+      const days2 = titrationMatch[5];
+
+      let phase2Freq = 'daily';
+      if (rawFreq2) {
+        const u = rawFreq2.toUpperCase();
+        if (u.includes('TWICE') || /\bBID\b/.test(u)) phase2Freq = 'twice daily';
+        else if (u.includes('THREE') || /\bTID\b/.test(u)) phase2Freq = 'three times a day';
+        else if (u.includes('FOUR') || /\bQID\b/.test(u)) phase2Freq = 'four times a day';
+        else if (u.includes('12 HOUR') || /\bQ12H\b/.test(u)) phase2Freq = 'every 12 hours';
+        else if (u.includes('8 HOUR') || /\bQ8H\b/.test(u)) phase2Freq = 'every 8 hours';
+        else if (u.includes('6 HOUR') || /\bQ6H\b/.test(u)) phase2Freq = 'every 6 hours';
+        else if (u.includes('4 HOUR') || /\bQ4H\b/.test(u)) phase2Freq = 'every 4 hours';
+        else if (u.includes('MORNING') || /\bQAM\b/.test(u)) phase2Freq = 'every morning';
+        else if (u.includes('BEDTIME') || /\bQHS\b/.test(u)) phase2Freq = 'at bedtime';
+      }
+
+      const days2Suffix = days2 ? ` for ${days2.trim()} days` : '';
+      const stopSuffix = /\bTHEN\s*(?:STOP|DISCONTINUE)\b/i.test(upperProse) ? ' then stop' : '';
       splitParts = [
         { prose: `Take ${count1} ${unitLabel} by mouth daily for ${days1} days${contextSuffix}`, label: 'Order 1 of 2' },
-        { prose: `Take ${count2} ${unitLabel} by mouth daily${days2Suffix}${contextSuffix}`, label: 'Order 2 of 2' }
+        { prose: `Take ${count2} ${unitLabel} by mouth ${phase2Freq}${days2Suffix}${stopSuffix}${contextSuffix}`, label: 'Order 2 of 2' }
       ];
     }
   }

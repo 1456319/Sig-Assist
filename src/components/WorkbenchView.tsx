@@ -200,13 +200,34 @@ export function WorkbenchView() {
   const effectiveResult = useMemo(() => {
     if (!result) return null;
     if (clinicalResult?.primarySig) {
+      const clinicalSteps: TraceStep[] = [
+        {
+          step: 1,
+          label: 'Inbound Clinical Intake',
+          input: rawInput,
+          output: `Drug: ${clinicalInbound?.drugName || 'UNKNOWN'} | Directions: ${clinicalInbound?.rawProse || ''}`,
+          warnings: [],
+          rulesApplied: ['clinical-inbound-parser']
+        },
+        {
+          step: 2,
+          label: 'Clinical Regimen Translation',
+          input: clinicalInbound?.rawProse || '',
+          output: clinicalResult.primarySig,
+          warnings: clinicalResult.abnormalities.map(a => `${a.title}: ${a.message}`),
+          rulesApplied: ['clinical-translation-engine']
+        }
+      ];
       return {
         ...result,
         finalSig: clinicalResult.primarySig,
+        steps: clinicalSteps,
+        hasHighRisk: clinicalResult.abnormalities.some(a => a.tier === 'potential_error'),
+        hasUnresolved: clinicalResult.abnormalities.some(a => a.tier === 'uncorrected_gap')
       };
     }
     return result;
-  }, [result, clinicalResult]);
+  }, [result, clinicalResult, rawInput, clinicalInbound]);
 
   const source = JSON.stringify([rawInput, inputMode, drugName, defaultSig, effectiveResult]);
 

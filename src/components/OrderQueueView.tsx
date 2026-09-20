@@ -92,6 +92,43 @@ export function OrderQueueView() {
 
   function status(order: QueueOrder) {
     if (order.cancelled) return 'Cancelled';
+    try {
+      const clinical = translateClinicalSig({
+        id: order.id,
+        pon: order.pon,
+        drugName: order.drug,
+        rawProse: order.directions,
+        defaultSigTemplate: order.defaultSig,
+        sourceFormat: 'manual_text',
+      });
+      if (clinical.subOrders.length > 1) {
+        let allApproved = true;
+        let allCopied = true;
+        for (const sub of clinical.subOrders) {
+          const draftSig = order.subOrderDrafts?.[sub.id] ?? sub.suggestedSig;
+          const approval = order.subOrderApprovals?.[sub.id];
+          if (!approval) {
+            allApproved = false;
+            allCopied = false;
+            break;
+          }
+          const block = copyBlockReason(sub.suggestedSig, draftSig, exclusions, approval, false, policyRevision);
+          if (block) {
+            allApproved = false;
+            allCopied = false;
+            break;
+          }
+          if (!order.subOrderCopied?.[sub.id] || order.subOrderCopied[sub.id] !== approval) {
+            allCopied = false;
+          }
+        }
+        if (!allApproved) return 'Needs review';
+        return allCopied ? 'Copied' : 'Reviewed';
+      }
+    } catch {
+      // fallback to single order logic
+    }
+
     const stamp = reviewStamp(sourceStamp(order), order.draft, exclusions, policyRevision);
     if (copyBlockReason(sourceStamp(order), order.draft, exclusions, order.approved, false, policyRevision)) return 'Needs review';
     return order.copied === stamp ? 'Copied' : 'Reviewed';
@@ -191,10 +228,34 @@ export function OrderQueueView() {
               subOrders={clinicalResult.subOrders}
               unavailable={selected.cancelled || reviseId === selected.id}
               traceId={getOrderTraceId(selected)}
-              onCopySubOrder={(_, draftSig) => {
+              initialDrafts={selected.subOrderDrafts}
+              initialApprovals={selected.subOrderApprovals}
+              onDraftChange={(subOrderId, draftSig) => {
+                updateSelected(order => {
+                  const nextApprovals = { ...(order.subOrderApprovals || {}) };
+                  delete nextApprovals[subOrderId];
+                  return {
+                    ...order,
+                    subOrderDrafts: { ...(order.subOrderDrafts || {}), [subOrderId]: draftSig },
+                    subOrderApprovals: nextApprovals
+                  };
+                });
+              }}
+              onApprovalChange={(subOrderId, stamp) => {
+                updateSelected(order => {
+                  const nextApprovals = { ...(order.subOrderApprovals || {}) };
+                  if (stamp) nextApprovals[subOrderId] = stamp;
+                  else delete nextApprovals[subOrderId];
+                  return { ...order, subOrderApprovals: nextApprovals };
+                });
+              }}
+              onCopySubOrder={(subOrder, draftSig, stamp) => {
                 if (selected.cancelled || reviseId === selected.id) return;
-                const stamp = reviewStamp(sourceStamp(selected), draftSig, exclusions, policyRevision);
-                updateSelected(order => ({ ...order, approved: stamp, copied: stamp }));
+                const effectiveStamp = stamp || reviewStamp(subOrder.suggestedSig, draftSig, exclusions, policyRevision);
+                updateSelected(order => ({
+                  ...order,
+                  subOrderCopied: { ...(order.subOrderCopied || {}), [subOrder.id]: effectiveStamp }
+                }));
               }}
             />
           ) : (

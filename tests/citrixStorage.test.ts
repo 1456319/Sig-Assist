@@ -280,7 +280,7 @@ describe('citrixStorage', () => {
     expect(loadedOrders).toEqual(testOrders);
   });
 
-  it('guards against localStorage quota errors gracefully without throwing', async () => {
+  it('rejects with StorageWriteError when localStorage quota is exceeded and no file system is connected', async () => {
     const adapter = getCitrixStorageAdapter();
     const mockQuotaError = () => {
       throw new Error('QuotaExceededError');
@@ -299,8 +299,8 @@ describe('citrixStorage', () => {
       }
     }
 
-    await expect(adapter.writeQueue([])).resolves.toBeUndefined();
-    await expect(adapter.writePreferences(DEFAULT_PREFERENCES)).resolves.toBeUndefined();
+    await expect(adapter.writeQueue([])).rejects.toThrow(/StorageWriteError/);
+    await expect(adapter.writePreferences(DEFAULT_PREFERENCES)).rejects.toThrow(/StorageWriteError/);
   });
 
   it('resets singleton instance cleanly with _resetCitrixStorageAdapterForTesting', () => {
@@ -423,6 +423,109 @@ describe('citrixStorage', () => {
     };
 
     await expect(adapter.appendTraceLogs([event])).rejects.toThrow('quota exceeded or storage unavailable');
+  });
+
+  it('serializes concurrent appendDiscrepancy calls preserving all records without clobbering', async () => {
+    const adapter = getCitrixStorageAdapter();
+    const report1: DiscrepancyReport = {
+      id: 'd1',
+      timestamp: new Date().toISOString(),
+      pon: 'P1',
+      drugName: 'DRUG 1',
+      rawProse: 'prose 1',
+      generatedSig: 'sig 1',
+      technicianSig: 'tech 1',
+      notes: 'note 1',
+      flaggedForRph: false,
+    };
+    const report2: DiscrepancyReport = {
+      id: 'd2',
+      timestamp: new Date().toISOString(),
+      pon: 'P2',
+      drugName: 'DRUG 2',
+      rawProse: 'prose 2',
+      generatedSig: 'sig 2',
+      technicianSig: 'tech 2',
+      notes: 'note 2',
+      flaggedForRph: false,
+    };
+    const report3: DiscrepancyReport = {
+      id: 'd3',
+      timestamp: new Date().toISOString(),
+      pon: 'P3',
+      drugName: 'DRUG 3',
+      rawProse: 'prose 3',
+      generatedSig: 'sig 3',
+      technicianSig: 'tech 3',
+      notes: 'note 3',
+      flaggedForRph: false,
+    };
+
+    // Execute concurrently
+    await Promise.all([
+      adapter.appendDiscrepancy(report1, { immediate: true }),
+      adapter.appendDiscrepancy(report2, { immediate: true }),
+      adapter.appendDiscrepancy(report3, { immediate: true }),
+    ]);
+
+    const all = await adapter.readDiscrepancies();
+    expect(all.length).toBe(3);
+    const ids = all.map((r) => r.id);
+    expect(ids).toContain('d1');
+    expect(ids).toContain('d2');
+    expect(ids).toContain('d3');
+  });
+
+  it('bypasses stale file on disk when file write fails and falls back to localStorage', async () => {
+    const mockDir = createMockDirectoryHandle();
+    // Seed the mock disk with an old order
+    const staleOrder: StoredQueueOrder = {
+      id: 'stale_order',
+      pon: 'PON_STALE',
+      drugName: 'STALE DRUG',
+      rawProse: 'old prose',
+      suggestedSig: 'old sig',
+      draftSig: 'old sig',
+      isReviewed: false,
+      status: 'pending',
+    };
+    mockDir.files.set('queue.json', JSON.stringify([staleOrder]));
+
+    setMockShowDirectoryPicker(vi.fn().mockResolvedValue(mockDir));
+
+    const adapter = getCitrixStorageAdapter();
+    await adapter.connectDirectory();
+
+    // Verify initial read retrieves the file from disk
+    const initialRead = await adapter.readQueue();
+    expect(initialRead).toEqual([staleOrder]);
+
+    // Now make getFileHandle for writing fail (e.g. permission denied or disk error)
+    const originalGetFileHandle = mockDir.getFileHandle;
+    mockDir.getFileHandle = vi.fn().mockImplementation(async (name: string, options?: { create?: boolean }) => {
+      if (options?.create) {
+        throw new Error('EACCES: Disk write error');
+      }
+      return originalGetFileHandle(name, options);
+    });
+
+    const updatedOrder: StoredQueueOrder = {
+      id: 'updated_order',
+      pon: 'PON_NEW',
+      drugName: 'NEW DRUG',
+      rawProse: 'new prose',
+      suggestedSig: 'new sig',
+      draftSig: 'new sig',
+      isReviewed: true,
+      status: 'completed',
+    };
+
+    // writeQueue fails to write to disk, falls back to localStorage, and sets fallbackActive['queue.json'] = true
+    await adapter.writeQueue([updatedOrder], { immediate: true });
+
+    // readQueue must return the updated order from localStorage, NOT the stale file from disk
+    const readAfterFailure = await adapter.readQueue();
+    expect(readAfterFailure).toEqual([updatedOrder]);
   });
 });
 

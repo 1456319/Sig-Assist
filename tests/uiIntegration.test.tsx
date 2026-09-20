@@ -354,4 +354,75 @@ describe('UI Components', () => {
     expect(copyBtns.length).toBeGreaterThan(0);
     expect(copyBtns[0].disabled).toBe(true);
   });
+
+  it('OrderQueueView: preserves sub-order draft edits across order switching in queue', async () => {
+    const { render, screen, fireEvent } = await import('@testing-library/react');
+    const { OrderQueueView } = await import('../src/components/OrderQueueView');
+
+    const splitOrder = {
+      id: 'split_order_switch',
+      facility: 'Facility 1',
+      patientRef: 'Room 101',
+      pon: 'PON-SPLIT-SW',
+      drug: 'PREDNISONE 10MG',
+      directions: 'Take 2 tablets in the morning and 1 tablet at night for 5 days',
+      draft: '2T PO QAM AND 1T PO QHS X5D',
+      revision: 1,
+      previousSources: [],
+    };
+
+    const singleOrder = {
+      id: 'single_order_switch',
+      facility: 'Facility 1',
+      patientRef: 'Room 102',
+      pon: 'PON-SINGLE-SW',
+      drug: 'METOPROLOL 25MG',
+      directions: 'Take 1 tablet daily',
+      draft: '1T PO QD',
+      revision: 1,
+      previousSources: [],
+    };
+
+    function TestHost() {
+      const [orders, setOrders] = React.useState([splitOrder, singleOrder]);
+      return (
+        <ReviewContext.Provider value={{
+          orders,
+          setOrders,
+          exclusions: [],
+          policyRevision: 0,
+          setExclusions: () => {}
+        }}>
+          <OrderQueueView />
+        </ReviewContext.Provider>
+      );
+    }
+
+    render(<TestHost />);
+
+    // 1. Select the split order
+    fireEvent.click(screen.getByText('PON-SPLIT-SW'));
+
+    // Find the draft textareas in MultiOrderCards
+    const textareas = screen.getAllByRole('textbox') as HTMLTextAreaElement[];
+    // Target the first sub-order draft textarea
+    const subOrderTextarea = textareas.find((t) => t.value.includes('PO QAM'));
+    expect(subOrderTextarea).toBeDefined();
+
+    // Edit the draft SIG
+    fireEvent.change(subOrderTextarea!, { target: { value: '2T PO QAM WITH FOOD' } });
+    expect(subOrderTextarea!.value).toBe('2T PO QAM WITH FOOD');
+
+    // 2. Switch away to the single order
+    fireEvent.click(screen.getByText('PON-SINGLE-SW'));
+    expect(screen.getByText('Original directions · unchanged')).toBeDefined();
+
+    // 3. Switch back to the split order
+    fireEvent.click(screen.getByText('PON-SPLIT-SW'));
+
+    // Verify the modified draft SIG was preserved in state and re-rendered
+    const reselectedTextareas = screen.getAllByRole('textbox') as HTMLTextAreaElement[];
+    const reselectedDraft = reselectedTextareas.find((t) => t.value.includes('2T PO QAM WITH FOOD'));
+    expect(reselectedDraft).toBeDefined();
+  });
 });

@@ -270,4 +270,42 @@ describe('traceLogger', () => {
     expect(res.flushedCount).toBe(2);
     expect(flushedEvents.map((e) => e.message)).toEqual(['e3_unflushed', 'e4_unflushed']);
   });
+
+  it('serializes concurrent flush calls without duplicate emissions and safely handles buffer shifts', async () => {
+    const logger = new TraceLogger(3); // Small capacity to force buffer shifts
+    const flushedBatches: TraceEvent[][] = [];
+
+    logger.setOnFlushHook(async (batch) => {
+      // Simulate asynchronous flush latency
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      flushedBatches.push([...batch]);
+      return { destination: 'file_system', recordsSaved: batch.length };
+    });
+
+    // Log 2 events
+    logger.info('clinical', 'test', 'm1');
+    logger.info('clinical', 'test', 'm2');
+
+    // Trigger two concurrent flush calls
+    const [res1, res2] = await Promise.all([
+      logger.flush('file_system'),
+      logger.flush('file_system'),
+    ]);
+
+    // One should flush the 2 events, the second should see 0 unflushed
+    expect(res1.flushedCount + res2.flushedCount).toBe(2);
+    expect(flushedBatches.length).toBe(1);
+    expect(flushedBatches[0].map((e) => e.message)).toEqual(['m1', 'm2']);
+
+    // Now log 3 more events (causing buffer shifts since maxCapacity is 3)
+    logger.info('clinical', 'test', 'm3');
+    logger.info('clinical', 'test', 'm4');
+    logger.info('clinical', 'test', 'm5');
+
+    // Flush again: sequence-based tracking should flush all 3 new events
+    const res3 = await logger.flush('file_system');
+    expect(res3.flushedCount).toBe(3);
+    expect(flushedBatches.length).toBe(2);
+    expect(flushedBatches[1].map((e) => e.message)).toEqual(['m3', 'm4', 'm5']);
+  });
 });
