@@ -90,8 +90,9 @@ export class TraceLogger {
     const destKey = destination || 'storage';
     this.lastFlushedSeqByDest[destKey] = Math.max(this.lastFlushedSeqByDest[destKey] ?? 0, maxPersistedSeq);
     this.lastFlushedSeqByDest['storage'] = Math.max(this.lastFlushedSeqByDest['storage'] ?? 0, maxPersistedSeq);
-    this.lastFlushedSeqByDest['browser_cache'] = Math.max(this.lastFlushedSeqByDest['browser_cache'] ?? 0, maxPersistedSeq);
-    this.lastFlushedSeqByDest['file_system'] = Math.max(this.lastFlushedSeqByDest['file_system'] ?? 0, maxPersistedSeq);
+    if (!destination || destination === 'browser_cache' || destination === 'storage') {
+      this.lastFlushedSeqByDest['browser_cache'] = Math.max(this.lastFlushedSeqByDest['browser_cache'] ?? 0, maxPersistedSeq);
+    }
 
     const combined = [...fresh, ...this.events];
     const dropped = Math.max(0, combined.length - this.maxCapacity);

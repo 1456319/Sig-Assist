@@ -175,8 +175,9 @@ export function TraceLogDrawer({ isOpen, onClose }: TraceLogDrawerProps) {
       flushFeedbackTimerRef.current = null;
     }
     const currentMode = storageAdapter.getStorageMode();
+    const currentDest = storageAdapter.getDestinationId ? storageAdapter.getDestinationId() : currentMode;
     try {
-      const res = await traceLogger.flush(currentMode);
+      const res = await traceLogger.flush(currentDest);
       const effectiveDest = res.destination !== 'storage' ? res.destination : currentMode;
       const destLabel = effectiveDest === 'file_system' ? 'Citrix Share (sig-assist-trace.jsonl)' : 'Browser Storage';
       if (res.flushedCount > 0) {

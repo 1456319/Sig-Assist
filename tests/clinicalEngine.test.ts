@@ -251,6 +251,22 @@ describe('clinicalEngine TESTS.txt validation', () => {
     expect(res.primarySig).toBe('3/4T (7.5MG) PO QAM AND 1T PO QHS');
   });
 
+  it('treats equal mixed-number doses with spaces around hyphens as a single unified regimen without false split', () => {
+    const order = {
+      id: 'test_mixed_equal_spaces',
+      pon: 'PON_MIX_EQ',
+      drugName: 'PREDNISONE TAB 10MG',
+      rawProse: 'Take 1 - 1/2 tablet in the morning and 1 - 1/2 tablet at bedtime',
+      sourceFormat: 'manual_text' as const
+    };
+    const res = translateClinicalSig(order);
+    // Since 1.5 AM and 1.5 PM are identical doses, it must NOT split into Paxit sub-orders (single Order 1 of 1)
+    expect(res.subOrders.length).toBe(1);
+    expect(res.subOrders[0].label).toBe('Order 1 of 1');
+    expect(res.subOrders[0].suggestedSig).toContain('1-1/2T');
+    expect(res.subOrders[0].suggestedSig).toContain('BIDAMHS');
+  });
+
   it('preserves first-phase frequency and THEN STOP in titration step-down', () => {
     const order = {
       id: 'test_titration_bid_to_qd_stop',

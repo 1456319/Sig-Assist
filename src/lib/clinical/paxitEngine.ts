@@ -142,7 +142,7 @@ function evaluatePaxitPackagingInternal(drugName: string, rawProse: string): Pax
     const upper = raw.trim().toUpperCase();
     if (upper === 'HALF') return 0.5;
     if (upper.includes('/')) {
-      const parts = upper.split(/[- ]/);
+      const parts = upper.split(/[- ]+/);
       if (parts.length === 2) {
         const [num, den] = parts[1].split('/').map(Number);
         return Number(parts[0]) + (den ? num / den : 0);

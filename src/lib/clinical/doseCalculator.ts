@@ -262,6 +262,7 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
         };
       } else {
         multiplier = whole + num / den;
+        label = `${whole}-${num}/${den}`;
       }
     } else if (fractionMatch[5]) {
       // Fraction e.g. 1/2, 3/4

@@ -106,5 +106,22 @@ describe('frequencyEngine', () => {
     expect(res.frequencyToken).toBe('');
     expect(res.abnormalities.some(a => a.tier === 'potential_error')).toBe(true);
   });
+
+  it('does not append stopToken for negative or non-termination stop phrases like "do not stop abruptly"', () => {
+    const res1 = resolveFrequencyAndSchedule('Take 1 tablet daily. Do not stop abruptly.');
+    expect(res1.stopToken).toBeUndefined();
+
+    const res2 = resolveFrequencyAndSchedule('Take 1 tablet daily to help stop smoking.');
+    expect(res2.stopToken).toBeUndefined();
+
+    const res3 = resolveFrequencyAndSchedule('Take 1 tablet daily for pain. Stop if nausea occurs.');
+    expect(res3.stopToken).toBeUndefined();
+  });
+
+  it('strips trailing HOLD directives from unmapped indications', () => {
+    const res = resolveFrequencyAndSchedule('Take 1 tablet daily for tremors hold if SBP less than 100');
+    expect(res.indicationToken).toBe('FOR TREMORS');
+    expect(res.holdToken).toBe('SBP100');
+  });
 });
 

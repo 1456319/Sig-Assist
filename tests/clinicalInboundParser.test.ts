@@ -109,5 +109,13 @@ DEFAULT SIG (OPTIONAL FIELD): MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO`;
     expect(parsed.rawProse).toBe('Take 1 tablet by mouth daily');
     expect(parsed.sourceFormat).toBe('manual_text');
   });
+
+  it('correctly classifies medication names beginning with digits (e.g. 5-FU CREAM 5%) as drug name', () => {
+    const raw = '5-FU CREAM 5%\nApply to affected area twice daily';
+    const parsed = parseInboundOrder(raw);
+    expect(parsed.drugName).toBe('5-FU CREAM 5%');
+    expect(parsed.rawProse).toBe('Apply to affected area twice daily');
+    expect(parsed.sourceFormat).toBe('manual_text');
+  });
 });
 

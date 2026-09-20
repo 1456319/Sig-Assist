@@ -352,4 +352,28 @@ describe('traceLogger', () => {
     expect(res.flushedCount).toBeGreaterThan(0);
     expect(flushedToShareB.some((e) => e.message === 'post_hydration_event')).toBe(true);
   });
+
+  it('hydrating from browser_cache does not burn file_system share watermark, ensuring all events flush to new share', async () => {
+    const logger = new TraceLogger(20);
+    const persisted: TraceEvent[] = [
+      { id: 'bc1', seq: 10, traceId: 'T1', timestamp: new Date().toISOString(), layer: 'intake', level: 'INFO', component: 'c', message: 'bc1' },
+      { id: 'bc2', seq: 15, traceId: 'T2', timestamp: new Date().toISOString(), layer: 'intake', level: 'INFO', component: 'c', message: 'bc2' },
+    ];
+
+    // Hydrate from browser_cache (e.g. offline cache)
+    logger.hydratePersistedEvents(persisted, 'browser_cache');
+
+    // Flushed to a newly connected directory share
+    const flushedToShare: TraceEvent[] = [];
+    logger.setOnFlushHook(async (batch) => {
+      flushedToShare.push(...batch);
+      return { destination: 'file_system', destinationId: 'dir_shareNew_999', recordsSaved: batch.length };
+    });
+
+    // Calling flush with new directory destination flushes ALL hydrated events to disk
+    const res = await logger.flush('dir_shareNew_999');
+    expect(res.flushedCount).toBe(2);
+    expect(flushedToShare.length).toBe(2);
+    expect(flushedToShare.map(e => e.id)).toEqual(['bc1', 'bc2']);
+  });
 });

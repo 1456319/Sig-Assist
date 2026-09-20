@@ -152,7 +152,7 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
 
   // Stop directives
   let stopToken: string | undefined;
-  if (/\b(?:THEN\s+)?(?:STOP|DISCONTINUE)\b/i.test(upper)) {
+  if (/\bTHEN\s+(?:STOP|DISCONTINUE)\b/i.test(upper)) {
     stopToken = 'THEN STOP';
   }
 
@@ -193,8 +193,8 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
   if (!indicationToken) {
     const forMatch = upper.match(/\bFOR\s+(?!\d+\s*DAYS?)(?!HOLD)([A-Z0-9/\-\s]+)$/i);
     if (forMatch) {
-      const rawInd = forMatch[1].trim();
-      if (!rawInd.includes('DAY') && !rawInd.includes('HOUR') && !rawInd.startsWith('HOLD')) {
+      const rawInd = forMatch[1].replace(/\bHOLD\b.*$/i, '').trim();
+      if (rawInd && !rawInd.includes('DAY') && !rawInd.includes('HOUR') && !rawInd.startsWith('HOLD')) {
         indicationToken = `FOR ${rawInd}`;
       }
     }
