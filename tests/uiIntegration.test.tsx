@@ -425,4 +425,28 @@ describe('UI Components', () => {
     const reselectedDraft = reselectedTextareas.find((t) => t.value.includes('2T PO QAM WITH FOOD'));
     expect(reselectedDraft).toBeDefined();
   });
+
+  it('WorkbenchView: surfaces Missing Directions clinical abnormality when directions are empty', async () => {
+    const { render, screen, fireEvent } = await import('@testing-library/react');
+    const { WorkbenchView } = await import('../src/components/WorkbenchView');
+
+    render(
+      <ReviewContext.Provider value={{
+        orders: [],
+        setOrders: () => {},
+        exclusions: [],
+        policyRevision: 0,
+        setExclusions: () => {}
+      }}>
+        <WorkbenchView />
+      </ReviewContext.Provider>
+    );
+
+    const textarea = screen.getByPlaceholderText(/Enter free text SIG/i);
+    fireEvent.change(textarea, { target: { value: 'METOPROLOL 25MG\nUSER ENTRY: ' } });
+
+    // Should display abnormality banner for Missing Directions
+    expect(await screen.findByText(/Missing Directions/i)).toBeDefined();
+    expect(screen.getAllByText(/Dosing calculation cannot proceed/i).length).toBeGreaterThan(0);
+  });
 });

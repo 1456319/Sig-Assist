@@ -199,7 +199,7 @@ export function WorkbenchView() {
 
   const effectiveResult = useMemo(() => {
     if (!result) return null;
-    if (clinicalResult?.primarySig) {
+    if (clinicalResult && (clinicalResult.primarySig || clinicalResult.abnormalities.length > 0)) {
       const clinicalSteps: TraceStep[] = [
         {
           step: 1,

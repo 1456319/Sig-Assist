@@ -77,8 +77,15 @@ export function ReviewSession({ children }: { children: ReactNode }) {
               orderMap.set(local.id, local);
             } else if (local.revision > remote.revision) {
               orderMap.set(local.id, local);
-            } else if (local.revision === remote.revision && (local.approved || local.copied || local.draft !== remote.draft)) {
-              orderMap.set(local.id, local);
+            } else {
+              const hasLocalSplitEdits = Boolean(
+                (local.subOrderDrafts && Object.keys(local.subOrderDrafts).length > 0) ||
+                (local.subOrderApprovals && Object.keys(local.subOrderApprovals).length > 0) ||
+                (local.subOrderCopied && Object.keys(local.subOrderCopied).length > 0)
+              );
+              if (local.revision === remote.revision && (local.approved || local.copied || local.draft !== remote.draft || hasLocalSplitEdits)) {
+                orderMap.set(local.id, local);
+              }
             }
           });
           return Array.from(orderMap.values());

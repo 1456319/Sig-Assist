@@ -308,4 +308,23 @@ describe('traceLogger', () => {
     expect(flushedBatches.length).toBe(2);
     expect(flushedBatches[1].map((e) => e.message)).toEqual(['m3', 'm4', 'm5']);
   });
+
+  it('does not advance file_system watermark when hook reports fallback to browser_cache', async () => {
+    const logger = new TraceLogger(10);
+    logger.setOnFlushHook(async (batch) => {
+      // Simulate file_system failure falling back to browser_cache
+      return { destination: 'browser_cache', recordsSaved: batch.length };
+    });
+
+    logger.info('clinical', 'doseCalculator', 'Event to flush');
+
+    // Flush with targetDestination = 'file_system'
+    const res = await logger.flush('file_system');
+    expect(res.destination).toBe('browser_cache');
+    expect(res.flushedCount).toBe(1);
+
+    // Pending count for browser_cache must be 0, but for file_system must still be 1!
+    expect(logger.getPendingFlushCount('browser_cache')).toBe(0);
+    expect(logger.getPendingFlushCount('file_system')).toBe(1);
+  });
 });

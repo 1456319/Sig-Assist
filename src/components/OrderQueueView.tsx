@@ -90,49 +90,65 @@ export function OrderQueueView() {
     setOrders(items => items.map(order => order.id === selectedId ? update(order) : order));
   }
 
-  function status(order: QueueOrder) {
-    if (order.cancelled) return 'Cancelled';
-    try {
-      const clinical = translateClinicalSig({
-        id: order.id,
-        pon: order.pon,
-        drugName: order.drug,
-        rawProse: order.directions,
-        defaultSigTemplate: order.defaultSig,
-        sourceFormat: 'manual_text',
-      });
-      if (clinical.subOrders.length > 1) {
-        let allApproved = true;
-        let allCopied = true;
-        for (const sub of clinical.subOrders) {
-          const draftSig = order.subOrderDrafts?.[sub.id] ?? sub.suggestedSig;
-          const approval = order.subOrderApprovals?.[sub.id];
-          if (!approval) {
-            allApproved = false;
-            allCopied = false;
-            break;
-          }
-          const block = copyBlockReason(sub.suggestedSig, draftSig, exclusions, approval, false, policyRevision);
-          if (block) {
-            allApproved = false;
-            allCopied = false;
-            break;
-          }
-          if (!order.subOrderCopied?.[sub.id] || order.subOrderCopied[sub.id] !== approval) {
-            allCopied = false;
-          }
-        }
-        if (!allApproved) return 'Needs review';
-        return allCopied ? 'Copied' : 'Reviewed';
+  const orderStatusMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const order of orders) {
+      if (order.cancelled) {
+        map.set(order.id, 'Cancelled');
+        continue;
       }
-    } catch {
-      // fallback to single order logic
-    }
+      try {
+        const clinical = translateClinicalSig({
+          id: order.id,
+          pon: order.pon,
+          drugName: order.drug,
+          rawProse: order.directions,
+          defaultSigTemplate: order.defaultSig,
+          sourceFormat: 'manual_text',
+        });
+        if (clinical.subOrders.length > 1) {
+          let allApproved = true;
+          let allCopied = true;
+          for (const sub of clinical.subOrders) {
+            const draftSig = order.subOrderDrafts?.[sub.id] ?? sub.suggestedSig;
+            const approval = order.subOrderApprovals?.[sub.id];
+            if (!approval) {
+              allApproved = false;
+              allCopied = false;
+              break;
+            }
+            const block = copyBlockReason(sub.suggestedSig, draftSig, exclusions, approval, false, policyRevision);
+            if (block) {
+              allApproved = false;
+              allCopied = false;
+              break;
+            }
+            if (!order.subOrderCopied?.[sub.id] || order.subOrderCopied[sub.id] !== approval) {
+              allCopied = false;
+            }
+          }
+          if (!allApproved) {
+            map.set(order.id, 'Needs review');
+          } else {
+            map.set(order.id, allCopied ? 'Copied' : 'Reviewed');
+          }
+          continue;
+        }
+      } catch {
+        // fallback to single order logic
+      }
 
-    const stamp = reviewStamp(sourceStamp(order), order.draft, exclusions, policyRevision);
-    if (copyBlockReason(sourceStamp(order), order.draft, exclusions, order.approved, false, policyRevision)) return 'Needs review';
-    return order.copied === stamp ? 'Copied' : 'Reviewed';
-  }
+      const stamp = reviewStamp(sourceStamp(order), order.draft, exclusions, policyRevision);
+      if (copyBlockReason(sourceStamp(order), order.draft, exclusions, order.approved, false, policyRevision)) {
+        map.set(order.id, 'Needs review');
+      } else {
+        map.set(order.id, order.copied === stamp ? 'Copied' : 'Reviewed');
+      }
+    }
+    return map;
+  }, [orders, exclusions, policyRevision]);
+
+  const status = (order: QueueOrder) => orderStatusMap.get(order.id) ?? 'Needs review';
 
   return <div className="p-4 md:p-6 space-y-5 max-w-[1500px] mx-auto">
     <div className="flex flex-wrap justify-between items-start gap-3">
@@ -205,7 +221,13 @@ export function OrderQueueView() {
             <button className={reviewButtonClass} disabled={selected.cancelled || reviseId === selected.id} onClick={() => {
               setReviseId(selected.id);
               setForm({ facility: selected.facility, patientRef: selected.patientRef, pon: selected.pon, drug: selected.drug, directions: selected.directions, defaultSig: selected.defaultSig });
-              updateSelected(order => ({ ...order, approved: undefined, copied: undefined }));
+              updateSelected(order => ({
+                ...order,
+                approved: undefined,
+                copied: undefined,
+                subOrderApprovals: undefined,
+                subOrderCopied: undefined
+              }));
               traceLogger.info('ui', 'OrderQueueView', 'Technician started source revision', { id: selected.id, pon: selected.pon }, undefined, getOrderTraceId(selected));
             }}>Revise source</button>
             <button className={reviewButtonClass} disabled={selected.cancelled} onClick={() => {

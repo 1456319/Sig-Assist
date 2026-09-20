@@ -272,8 +272,8 @@ export class TraceLogger {
       const actualDest = result && 'destination' in result && result.destination ? result.destination : destKey;
 
       this.lastFlushedSeqByDest[actualDest] = maxSeqInBatch;
-      if (actualDest !== destKey) {
-        this.lastFlushedSeqByDest[destKey] = maxSeqInBatch;
+      if (destKey === 'storage') {
+        this.lastFlushedSeqByDest['storage'] = maxSeqInBatch;
       }
       this.lastFlushedIndex = this.events.length;
 

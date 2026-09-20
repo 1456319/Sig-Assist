@@ -93,7 +93,7 @@ export function parseInboundOrder(rawInput: string): InboundOrder {
         const drugField = parts[1].trim();
         drugName = drugField.includes('^') ? (drugField.split('^')[1] || drugField.split('^')[0]).trim() : drugField;
       }
-      rawProse = parts[6]?.trim() || parts[7]?.trim() || parts.slice(2).find(f => f.trim().length > 0)?.trim() || '';
+      rawProse = parts[6]?.trim() || parts[7]?.trim() || parts[24]?.trim() || '';
     }
 
     if (!rawProse) {
@@ -124,14 +124,16 @@ export function parseInboundOrder(rawInput: string): InboundOrder {
   let drugName = 'UNKNOWN DRUG';
   let rawProse = '';
   let defaultSigTemplate: string | undefined;
+  let hasUserEntry = false;
   const remainingLines: string[] = [];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const userEntryMatch = line.match(/^USER ENTRY:\s*(.+)$/i);
-    const defaultSigMatch = line.match(/^DEFAULT SIG(?:\s*\(OPTIONAL FIELD\))?:\s*(.+)$/i);
+    const userEntryMatch = line.match(/^USER ENTRY:\s*(.*)$/i);
+    const defaultSigMatch = line.match(/^DEFAULT SIG(?:\s*\(OPTIONAL FIELD\))?:\s*(.*)$/i);
 
     if (userEntryMatch) {
+      hasUserEntry = true;
       rawProse = userEntryMatch[1].trim();
     } else if (defaultSigMatch) {
       defaultSigTemplate = defaultSigMatch[1].trim();
@@ -142,7 +144,7 @@ export function parseInboundOrder(rawInput: string): InboundOrder {
     }
   }
 
-  if (!rawProse) {
+  if (!hasUserEntry && !rawProse) {
     if (remainingLines.length > 0) {
       rawProse = remainingLines.join(' ').trim();
     } else if (lines.length === 1) {
