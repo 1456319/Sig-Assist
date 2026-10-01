@@ -1,6 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
-pushd "%~dp0" >nul
+set "sig_assist_dir=%~dp0"
+pushd "%sig_assist_dir%" >nul
 if errorlevel 1 goto missing_directory
 echo Sig-Assist Windows Production Preview Launcher
 
@@ -45,7 +46,7 @@ exit /b 0
 :prebuilt
 if not exist "windows-demo\Start-Sig-Assist.bat" goto missing_node
 echo [INFO] Using the bundled prebuilt demo. Node.js is not required.
-call "windows-demo\Start-Sig-Assist.bat" %*
+call "%sig_assist_dir%windows-demo\Start-Sig-Assist.bat" %*
 set "sig_assist_exit=%errorlevel%"
 popd
 exit /b %sig_assist_exit%

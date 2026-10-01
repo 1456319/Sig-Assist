@@ -1,10 +1,11 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
-pushd "%~dp0" >nul
+set "sig_assist_dir=%~dp0"
+pushd "%sig_assist_dir%" >nul
 if errorlevel 1 goto missing_directory
 title Sig-Assist Demo
 echo Starting Sig-Assist. Keep this window open during the demo.
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0serve.ps1" %*
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%sig_assist_dir%serve.ps1" %*
 set "sig_assist_exit=%errorlevel%"
 popd
 if not "%sig_assist_exit%"=="0" (
