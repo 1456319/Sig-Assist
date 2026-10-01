@@ -8,7 +8,7 @@ The existing **Start-Sig-Assist.cmd** package remains supported by `npm run demo
 
 The prebuilt package uses Windows PowerShell 5.1 and the default browser.
 It needs no Node.js installation, npm setup, administrator access, database
-configuration or connection to Iguana. Open `http://localhost:4173/` in Edge or
+configuration or connection to Iguana. Open `http://127.0.0.1:4173/` in Edge or
 Chrome if the browser does not open automatically. If that port is already in
 use, close the previous demo console before starting again.
 

@@ -15,7 +15,7 @@ try {
     throw "Cannot open localhost port $Port. Close any other Sig-Assist preview and try again. $($_.Exception.Message)"
 }
 try {
-    $url = "http://localhost:$Port/"
+    $url = "http://127.0.0.1:$Port/"
     Write-Host "Sig-Assist is ready: $url"
     Write-Host 'Keep this window open during the demo. Close it to stop the app.'
     Write-Host 'No Iguana connection is made. Click Load demo queue to begin.'
@@ -64,7 +64,7 @@ try {
             $stream.Flush()
         } catch {
             # Browsers may close an idle preconnection; continue accepting requests.
-            Write-Verbose "Request ended: $($_.Exception.Message)"
+            Write-Warning "Request ended: $($_.Exception.Message)"
         } finally {
             $client.Dispose()
         }

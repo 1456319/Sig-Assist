@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const url = 'http://localhost:4189/';
+const url = 'http://127.0.0.1:4189/';
 let server;
 let browser;
 try {
@@ -23,7 +23,7 @@ try {
   } else {
     const html = await readFile(path.join(root, 'windows-demo/index.html'));
     server = createServer((request, response) => { response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); response.end(html); });
-    await new Promise(resolve => server.listen(4189, 'localhost', resolve));
+    await new Promise(resolve => server.listen(4189, '127.0.0.1', resolve));
   }
   browser = await chromium.launch({ channel: process.platform === 'win32' ? 'msedge' : 'chrome', headless: true });
   const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] });

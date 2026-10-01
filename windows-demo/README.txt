@@ -2,7 +2,7 @@ SIG-ASSIST WINDOWS DEMO
 
 1. Extract ALL files from Sig-Assist-Windows-Demo.zip to a local folder.
 2. Double-click Start-Sig-Assist.bat. Keep the console window open.
-3. Edge or Chrome opens http://localhost:4173. If it does not, open that address.
+3. Edge or Chrome opens http://127.0.0.1:4173. If it does not, open that address.
 4. Click Load demo queue. Select DEMO-001; compare original directions and SIG.
 5. Edit the final SIG, check the review box, and click Copy reviewed SIG.
 6. Select DEMO-002 for morning/bedtime split cards, DEMO-003 for a taper,
