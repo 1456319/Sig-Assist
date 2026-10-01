@@ -8,7 +8,7 @@ function translate(drugName: string, rawProse: string, defaultSigTemplate?: stri
 
 export const expectedBatch2 = [
   '1G OS PRN FOR EYE COMFORT PER OPTOMETRIST',
-  'AP 2GM TPCL TO NECK, UP TO LEFT EAR QID FOR NECK PAIN',
+  'AP 2GM TPCL TO NECK, UP TO LT EAR QID FOR NECK PAIN',
   '2T (1000MG) PO Q8H PRN FPAIN 3GM',
   '1T PO QDDAY2467 FOR LOW THYROID HORMONE',
   '1T PO QD FBCP',
@@ -38,7 +38,7 @@ describe('six new reported mistranslations, 2026-10-01 batch 2', () => {
   });
 
   it.each([['left', 'OS'], ['right', 'OD'], ['both', 'OU'], ['each', 'OU']])('keeps explicit %s eye laterality', (eye, route) => {
-    expect(translate('UNKNOWN DRUG', `Instill 2 drops in ${eye} eye daily for dry eyes`).primarySig).toBe(`2G ${route} QD FOR DRY EYES`);
+    expect(translate('UNKNOWN DRUG', `Instill 2 drops in ${eye} eye daily for dry eyes`).primarySig).toBe(`2G ${route} QD FDE`);
   });
 
   it.each(['Instill 1 drop daily', 'Instill 1-2 drops in left eye daily', 'Instill 0 drops in right eye daily', 'Instill 1 drop in left eye and right ear daily'])('retains ambiguous drop directions for manual translation: %s', prose => {
@@ -54,7 +54,7 @@ describe('six new reported mistranslations, 2026-10-01 batch 2', () => {
 
   it('preserves specified diclofenac quantity and every site', () => {
     expect(translate('DICLOFENAC GEL 1%', 'Apply 3 grams to neck and left shoulder topically four times a day for neck pain').primarySig)
-      .toBe('AP 3GM TPCL TO NECK AND LEFT SHOULDER QID FOR NECK PAIN');
+      .toBe('AP 3GM TPCL TO NECK AND LT SHOULDER QID FOR NECK PAIN');
   });
 
   it('does not apply the diclofenac 1% dose default to a different strength', () => {
@@ -71,7 +71,7 @@ describe('six new reported mistranslations, 2026-10-01 batch 2', () => {
   it.each([
     ['pain', 'FPAIN'], ['neck pain', 'FOR NECK PAIN'], ['hip pain', 'FOR HIP PAIN'],
     ['severe pain rated 7-10', 'FOR SEVERE PAIN RATED 7-10'],
-    ['pain and inflammation', 'FOR PAIN AND INFLAMMATION'],
+    ['pain and inflammation', 'FPAIN AND FOR INFLAMMATION'],
     ['constipation due to opioids', 'FOR CONSTIPATION DUE TO OPIOIDS'],
     ['blood clot prevention', 'FBCP'],
   ])('only abbreviates the complete matching indication: %s', (indication, token) => {

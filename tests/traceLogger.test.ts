@@ -114,7 +114,7 @@ describe('traceLogger', () => {
 
     const result = translateClinicalSig(inbound);
 
-    expect(result.primarySig).toBe('2T PO QAM AND 1T PO QHS PRN FOR SEVERE PAIN X7D 3GM');
+    expect(result.primarySig).toBe('2T PO QAM AND 1T PO QHS PRN FSP X7D 3GM');
     expect(result.traceId).toBe(inbound.traceId);
 
     const events = traceLogger.getEvents();

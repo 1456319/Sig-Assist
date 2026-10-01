@@ -19,6 +19,11 @@ function assembleSig(
   const freqRes = resolveFrequencyAndSchedule(clauses.primary, preparationTemplate);
   const allAbnormalities = [...doseRes.abnormalities, ...freqRes.abnormalities];
 
+  if (/\b(?:PANTOPRAZOLE|PROTONIX)\b/i.test(drugName) && /\bDISSOLVE\b/i.test(preparationTemplate || '')) {
+    allAbnormalities.push({ id: 'pantoprazole_preparation_wording', tier: 'potential_error', title: 'Pantoprazole Preparation Requires Review',
+      message: 'The provided template says DISSOLVE. Product labeling states that the granules do not dissolve; verify the preparation wording with the pharmacist.', trigger: preparationTemplate });
+  }
+
   if (!defaultTemplate?.trim() && doseRes.preparationTemplate) {
     allAbnormalities.push({ id: 'peg_packet_preparation', tier: 'applied_correction', title: 'PEG Packet Preparation Added',
       message: 'Preparation instructions were added from the PEG 17 g packet template. Verify the product and Framework Preview Sig before copying.',
@@ -32,6 +37,18 @@ function assembleSig(
 
   const finish = (sig: string) => {
     if (clauses.supplemental) {
+      const repeat = clauses.supplemental.toUpperCase().trim();
+      const simpleEyeRepeat = /^(?:APPLY|INSTILL)\s+(?:\d+|ONE|TWO)\s+DROPS?\s+(?:(?:EVERY MORNING|IN THE MORNING|DAILY)\s+(?:IN|TO)\s+(?:THE\s+)?(?:LEFT|RIGHT|BOTH|EACH)\s+EYES?|(?:IN|TO)\s+(?:THE\s+)?(?:LEFT|RIGHT|BOTH|EACH)\s+EYES?\s+(?:EVERY MORNING|IN THE MORNING|DAILY))[.;]?$/;
+      if (simpleEyeRepeat.test(repeat)) {
+        const repeatDose = calculateDoseAndVolume(drugName, repeat);
+        const repeatFrequency = resolveFrequencyAndSchedule(repeat);
+        if (repeatDose.doseToken === doseRes.doseToken && repeatDose.routeToken === doseRes.routeToken
+            && repeatFrequency.frequencyToken === freqRes.frequencyToken && !freqRes.prnToken && !freqRes.durationToken && !freqRes.holdToken) {
+          allAbnormalities.push({ id: 'duplicate_eye_direction', tier: 'applied_correction', title: 'Duplicate Direction Removed',
+            message: 'An identical repeated eye dose, route and schedule was omitted. The original directions remain available for review.', trigger: clauses.supplemental });
+          return sig;
+        }
+      }
       allAbnormalities.push({ id: 'retained_supplemental_instructions', tier: 'uncorrected_gap',
         title: 'Additional Instructions Require Review',
         message: 'Additional instructions were retained verbatim after the translated tokens. Verify every clause and Framework Preview Sig before copying.',
@@ -114,7 +131,7 @@ function cleanFirstClause(sig: string, isTitration: boolean): string {
       .replace(/\s+(?:SBP100|HR60SBP100|\(H\b[^)]+\)|\(HOLD\b[^)]+\)|HOLD\b.*)$/i, '')
       .trim();
     if (!isTitration) {
-      cleaned = cleaned.replace(/\s+(?:X\d+D|FOR\s+\d+\s+DAYS?)$/i, '').trim();
+      cleaned = cleaned.replace(/\s+(?:X\d+(?:D|WK|W|M|H)|FOR\s+\d+\s+(?:DAYS?|WEEKS?|MONTHS?|HOURS?))$/i, '').trim();
     }
   }
   return cleaned;

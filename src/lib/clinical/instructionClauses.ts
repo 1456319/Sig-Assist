@@ -1,6 +1,6 @@
 /** Separate later actions and limits so their PRN/frequency words do not change the primary dose. */
 export function splitSupplementalDirections(rawProse: string): { primary: string; supplemental?: string } {
-  const actions = /\b(?:MAY\s+(?:GIVE|TAKE|ADMINISTER|USE|APPLY)|(?:DO\s+NOT|NOT\s+TO)\s+EXCEED|(?:MAXIMUM|MAX)\s+(?:OF\s+)?(?=\d)|APPLY\b|WORK\s+(?:IT\s+)?IN\b|ALLOW\s+(?:IT\s+)?TO\s+SIT\b|LEAVE\s+(?:IT\s+)?(?:ON|IN)\b|RINSE\b|CAN\s+SHAMPOO\b)/gi;
+  const actions = /\b(?:MAY\s+(?:GIVE|TAKE|ADMINISTER|USE|APPLY)|(?:DO\s+NOT|NOT\s+TO)\s+EXCEED|(?:MAXIMUM|MAX)\s+(?:OF\s+)?(?=\d)|APPLY\b|WORK\s+(?:IT\s+)?IN\b|ALLOW\s+(?:IT\s+)?TO\s+SIT\b|LEAVE\s+(?:IT\s+)?(?:ON|IN)\b|RINSE\b|CAN\s+SHAMPOO\b|FOLLOW\s+(?:THE\s+)?(?:TAR|MAR)\b|DRINK\s+WITH\b)/gi;
   for (const match of rawProse.matchAll(actions)) {
     if (match.index === undefined || match.index === 0 || !rawProse.slice(0, match.index).trim()) continue;
     return {

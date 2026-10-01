@@ -136,10 +136,10 @@ describe('clinicalEngine TESTS.txt validation', () => {
   it('preserves freeform trailing indication across synthesized Paxit titration sub-orders and in primarySig', () => {
     const raw = `PREDNISONE TAB 10MG\nUSER ENTRY: Take 2 tablets daily x14 days then 1 tablet daily for neuropathy`;
     const res = translateClinicalSig(parseInboundOrder(raw));
-    expect(res.primarySig).toBe('2T (20MG) PO QD X14D THEN 1T PO QD FOR NEUROPATHY');
+    expect(res.primarySig).toBe('2T (20MG) PO QD X14D THEN 1T PO QD FNEU');
     expect(res.subOrders.length).toBe(2);
-    expect(res.subOrders[0].suggestedSig).toBe('2T (20MG) PO QD X14D FOR NEUROPATHY');
-    expect(res.subOrders[1].suggestedSig).toBe('1T PO QD FOR NEUROPATHY');
+    expect(res.subOrders[0].suggestedSig).toBe('2T (20MG) PO QD X14D FNEU');
+    expect(res.subOrders[1].suggestedSig).toBe('1T PO QD FNEU');
   });
 
   it('does not split controlled substances even with differing daily doses or titration', () => {
@@ -147,8 +147,8 @@ describe('clinicalEngine TESTS.txt validation', () => {
     const res = translateClinicalSig(parseInboundOrder(raw));
     expect(res.subOrders.length).toBe(1);
     expect(res.subOrders[0].label).toBe('Order 1 of 1');
-    expect(res.primarySig).toBe('2T PO QAM AND 1T PO QHS PRN FOR SEVERE PAIN 3GM');
-    expect(res.subOrders[0].suggestedSig).toBe('2T PO QAM AND 1T PO QHS PRN FOR SEVERE PAIN 3GM');
+    expect(res.primarySig).toBe('2T PO QAM AND 1T PO QHS PRN FSP 3GM');
+    expect(res.subOrders[0].suggestedSig).toBe('2T PO QAM AND 1T PO QHS PRN FSP 3GM');
     expect(res.abnormalities.some(a => a.id.startsWith('controlled_substance_single_order'))).toBe(true);
   });
 
@@ -157,8 +157,8 @@ describe('clinicalEngine TESTS.txt validation', () => {
     const res = translateClinicalSig(parseInboundOrder(raw));
     expect(res.subOrders.length).toBe(1);
     expect(res.subOrders[0].label).toBe('Order 1 of 1');
-    expect(res.primarySig).toBe('2T PO QAM AND 1T PO QHS PRN FOR SEVERE PAIN X7D 3GM');
-    expect(res.subOrders[0].suggestedSig).toBe('2T PO QAM AND 1T PO QHS PRN FOR SEVERE PAIN X7D 3GM');
+    expect(res.primarySig).toBe('2T PO QAM AND 1T PO QHS PRN FSP X7D 3GM');
+    expect(res.subOrders[0].suggestedSig).toBe('2T PO QAM AND 1T PO QHS PRN FSP X7D 3GM');
   });
 
   it('preserves acute duration across Paxit split sub-orders and unified primarySig', () => {

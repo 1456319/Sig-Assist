@@ -9,9 +9,10 @@ function translate(drugName: string, rawProse: string) {
 }
 
 describe('reported mistranslations, 2026-10-01', () => {
-  it.each(cases.reports.slice(0, 2))('preserves nebulizer administration for $id', report => {
+  it.each(cases.reports.slice(0, 2))('retains unknown nebulizer vial size for manual review: $id', report => {
     const result = translate(report.drugName, report.rawProse);
-    expect(result.primarySig).toBe('ADM 3ML NEB Q6H PRN FSOBW');
+    expect(result.primarySig).toBe(report.rawProse.toUpperCase());
+    expect(result.abnormalities.some(a => a.title === 'Unverified Nebulizer Vial Quantity')).toBe(true);
     expect(result.primarySig).not.toMatch(/\bPO\b/);
   });
 
@@ -34,7 +35,7 @@ describe('reported mistranslations, 2026-10-01', () => {
     const parsed = parseInboundOrder(cases.reports[0].rawProse);
     expect(parsed.drugName).toBe('UNKNOWN DRUG');
     expect(parsed.rawProse).toBe(cases.reports[0].rawProse);
-    expect(translateClinicalSig(parsed).primarySig).toBe('ADM 3ML NEB Q6H PRN FSOBW');
+    expect(translateClinicalSig(parsed).primarySig).toBe(cases.reports[0].rawProse.toUpperCase());
   });
 
   it.each([

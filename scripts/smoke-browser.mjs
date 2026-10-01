@@ -106,45 +106,45 @@ try {
   assert.equal(bundle.reports[1].context.subOrders.length, 2);
   assert.equal(bundle.reports[1].technicianSig.split('\n').length, 2);
   // Replay the exported real-world cases through the shipped Workbench UI.
-  const reported = JSON.parse(await readFile(path.join(root, 'tests/fixtures/reported-discrepancies-2026-10-01.json'), 'utf8'));
-  const expected = [
-    'ADM 3ML NEB Q6H PRN FSOBW',
-    'ADM 3ML NEB Q6H PRN FSOBW',
-    'AP TPCL TO SCALP QDDAY6 (DURING EVENING SHIFT) FOR SEBORRHEA CAPITIS. APPLY TO SCALP AND WORK IN AND ALLOW TO SIT FOR 5 MINUTES AND THEN RINSE. CAN SHAMPOO/CONDITION AS NORMAL AFTERWARDS',
-    '1T PO TID X7D FOR HIP PAIN 3GME. MAY GIVE PRN DOSE WITH SCHEDULED DOSE FOR TOTAL OF 1000 MG, DO NOT EXCEED MORE THAN 3000 MG OF TYLENOL IN 24 HR PERIOD',
-  ];
-  const batch2 = JSON.parse(await readFile(path.join(root, 'tests/fixtures/reported-discrepancies-2026-10-01-batch2.json'), 'utf8'));
-  const batch2Expected = [
-    '1G OS PRN FOR EYE COMFORT PER OPTOMETRIST',
-    'AP 2GM TPCL TO NECK, UP TO LEFT EAR QID FOR NECK PAIN',
-    '2T (1000MG) PO Q8H PRN FPAIN 3GM',
-    '1T PO QDDAY2467 FOR LOW THYROID HORMONE',
-    '1T PO QD FBCP',
-    'MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO QD FCON',
-  ];
+  const reported = JSON.parse(await readFile(path.join(root, 'tests/fixtures/reported-discrepancies-2026-10-01-batch3.json'), 'utf8'));
+  const replayExpected = JSON.parse(await readFile(path.join(root, 'tests/fixtures/reported-discrepancies-2026-10-01-batch3-expected.json'), 'utf8'));
   await page.getByRole('button', { name: 'Workbench Live SIG Parser' }).click();
   await page.getByText(/codes loaded/).waitFor();
   const directions = page.getByPlaceholder(/Enter free text SIG/);
-  const replayCases = [...reported.reports, ...batch2.reports];
-  const replayExpected = [...expected, ...batch2Expected];
-  for (const [index, report] of replayCases.entries()) {
-    await directions.fill('');
-    await page.getByPlaceholder('e.g. Lisinopril 10mg').fill(index < 2 ? '' : report.drugName);
+  const drug = page.getByPlaceholder('e.g. Lisinopril 10mg');
+  const template = page.getByPlaceholder('e.g. Take 1 tablet daily');
+  const notices = {
+    0: 'Unverified Nebulizer Vial Quantity', 4: 'Missing Frequency',
+    5: 'Diclofenac Site/Dose Requires Verification', 9: 'PEG Packet Preparation Added',
+    10: 'Duplicate Direction Removed', 15: 'Pantoprazole Preparation Requires Review',
+    20: 'Nebulizer Vial Quantity Calculated', 22: 'Insulin Unit Typo Normalized',
+  };
+  assert.equal(reported.reports.length, replayExpected.length);
+  for (const [index, report] of reported.reports.entries()) {
+    await page.getByRole('button', { name: 'Clear all fields', exact: true }).click();
+    await drug.fill(index < 2 ? '' : report.drugName);
+    await template.fill(report.context?.defaultSigTemplate || '');
     await directions.fill(report.rawProse);
     await page.waitForFunction(value => [...document.querySelectorAll('textarea')].some(field => field.value === value), replayExpected[index]);
     assert.equal(await page.getByLabel('Final SIG · editable, uppercase').inputValue(), replayExpected[index]);
-    if (index === 4) await page.getByText(/\[Missing Frequency\]/).waitFor();
-    if (index === 5) await page.getByText(/\[Diclofenac Site\/Dose Requires Verification\]/).waitFor();
-    if (index === 9) await page.getByText(/\[PEG Packet Preparation Added\]/).waitFor();
+    if (notices[index]) await page.getByText(`[${notices[index]}]`, { exact: false }).waitFor();
     const reviewedCopy = page.getByRole('button', { name: 'Copy reviewed SIG', exact: true });
     assert.equal(await reviewedCopy.isDisabled(), true);
     await page.getByRole('checkbox').check();
     await reviewedCopy.click();
     assert.equal(await page.evaluate(() => navigator.clipboard.readText()), replayExpected[index]);
   }
+  // Clear source, profile, template, editable draft and approval together;
+  // saved reports remain in the separate archive.
+  await template.fill('GIVE 1 PACKET PO');
+  await page.getByRole('button', { name: 'Clear all fields', exact: true }).click();
+  for (const field of [drug, template, directions]) assert.equal(await field.inputValue(), '');
+  assert.equal(await page.getByLabel('Final SIG · editable, uppercase').count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Copy reviewed SIG', exact: true }).count(), 0);
+  await page.getByText('2 saved discrepancy reports', { exact: true }).waitFor();
   assert.deepEqual(externalRequests, []);
   assert.deepEqual(errors, []);
-  console.log(`PASS (${fileMode ? 'direct file, no server' : 'HTTP'}): offline UI, clipboard, review/revision/cancellation gating, saved queue and case export, all ten reported cases replayed through Workbench and actual clipboard with missing-frequency/dose/preparation notices, zero external requests or browser errors.`);
+  console.log(`PASS (${fileMode ? 'direct file, no server' : 'HTTP'}): offline UI, clipboard, review/revision/cancellation gating, saved queue and case export, all 24 reported cases replayed through Workbench and actual clipboard with review notices, Clear all fields preserves the saved archive, zero external requests or browser errors.`);
 } finally {
   if (browser) await browser.close();
   if (server) {

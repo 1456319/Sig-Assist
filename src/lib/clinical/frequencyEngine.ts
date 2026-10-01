@@ -3,6 +3,8 @@ import { traceLogger } from '../diagnostics/traceLogger';
 import { splitSupplementalDirections } from './instructionClauses';
 import { extractIndicationToken, administrationScheduleProse } from './indicationEngine';
 import { resolveWeekdaySchedule } from './weekdaySchedule';
+import { resolveDuration } from './durationEngine';
+import { SIG_CODE_REFERENCE } from './sigCodeReference';
 
 export interface FrequencyScheduleResult {
   readonly frequencyToken: string;
@@ -18,7 +20,7 @@ export interface FrequencyScheduleResult {
 }
 
 function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?: string): FrequencyScheduleResult {
-  const upper = splitSupplementalDirections(rawProse).primary.toUpperCase()
+  let upper = splitSupplementalDirections(rawProse).primary.toUpperCase()
     .replace(/\b(?:VIA|USING|WITH)\s+(?:A\s+)?NEBULI[ZS]ER\b/g, '').trim();
   const abnormalities: AbnormalityFinding[] = [];
 
@@ -38,6 +40,11 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
 
   // Sliding scale insulin check
   if (upper.includes('SLIDING SCALE')) {
+    if (/\b\d+\s+UNIS\b/.test(upper)) {
+      upper = upper.replace(/\bUNIS\b/g, 'UNITS');
+      abnormalities.push({ id: 'insulin_unit_typo', tier: 'applied_correction', title: 'Insulin Unit Typo Normalized',
+        message: 'UNIS was interpreted as UNITS on the numeric insulin scale. Verify the original electronic hardcopy before copying.', trigger: 'Numeric insulin scale specifies UNIS' });
+    }
     const isAcHs = /\b(BEDTIME|HS|ACHS)\b/i.test(upper);
     const prefix = isAcHs ? 'CBS ACHS SS' : 'CBS AC SS';
 
@@ -53,6 +60,8 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     }
 
     const segments: Array<{ sortKey: number; text: string }> = [];
+    const translatedMarkers = new Set<number>();
+    let unrecognizedNotification = false;
 
     // Hypoglycemic protocol / low MD call
     const lowMatch = upper.match(/(?:<|LESS THAN)\s*(\d+)[^;,\n]*(?:HYPOGLYCEMIC PROTOCOL|NOTIFY MD|CALL MD)/i);
@@ -63,13 +72,14 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     }
 
     // Bracket matches: 181 - 200 = 1 unit or 200 - 300 = 5ml
-    const bracketRegex = /(\d+)\s*-\s*(\d+)\s*=\s*(\d+)\s*(?:UNIT|UNITS|U|ML)/gi;
+    const bracketRegex = /(\d+)\s*-\s*(\d+)\s*=\s*(\d+)\s*(?:UNITS?|U|ML)\b/gi;
     let bMatch: RegExpExecArray | null;
     while ((bMatch = bracketRegex.exec(upper)) !== null) {
       const low = parseInt(bMatch[1], 10);
       const high = parseInt(bMatch[2], 10);
       const units = parseInt(bMatch[3], 10);
       segments.push({ sortKey: low, text: `${low}-${high}=${units}U` });
+      translatedMarkers.add(bMatch.index);
     }
 
     // High threshold: > 350 = 5 units or Greater than 500 notify MD
@@ -78,14 +88,38 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
       const val = parseInt(highActionMatch[1], 10);
       segments.push({ sortKey: val + 1000, text: `>${val}=CALL MD` });
     } else {
-      const highUnitMatch = upper.match(/(?:>|GREATER THAN)\s*(\d+)\s*=\s*(\d+)\s*(?:UNIT|UNITS|U)/i);
+      const highUnitMatch = upper.match(/(?:>|GREATER THAN)\s*(\d+)\s*=\s*(\d+)\s*(?:UNITS?|U)\b/i);
       if (highUnitMatch) {
         const val = parseInt(highUnitMatch[1], 10);
         const units = parseInt(highUnitMatch[2], 10);
         segments.push({ sortKey: val + 1000, text: `>${val}=${units}U` });
+        translatedMarkers.add(highUnitMatch.index!);
       }
     }
 
+    // Inclusive plus thresholds retain both dose and notification recipient.
+    for (const match of upper.matchAll(/\b(\d+)\s*\+\s*=\s*(\d+)\s*(?:UNITS?|U)\b/g)) {
+      const tail = upper.slice(match.index! + match[0].length).split(/[;,]/)[0];
+      const notify = tail.match(/\b(?:NOTIFY|CALL)\s+(MD|NP\s*\/\s*PA|PA\s*\/\s*NP|NP|PA|PROVIDER|PRESCRIBER|PHYSICIAN)\b/);
+      if (/\b(?:NOTIFY|CALL)\b/.test(tail) && !notify) unrecognizedNotification = true;
+      const action = notify ? `&CALL ${notify[1].replace(/\s*\/\s*/g, '/')}` : '';
+      segments.push({ sortKey: Number(match[1]) + 1000, text: `${match[1]}+=${match[2]}U${action}` });
+      translatedMarkers.add(match.index!);
+    }
+    if (highActionMatch && /(?:>|GREATER THAN)\s*\d+\s*=/.test(highActionMatch[0])) {
+      const dose = highActionMatch[0].match(/(?:>|GREATER THAN)\s*(\d+)\s*=\s*(\d+)\s*(?:UNITS?|U)\b/);
+      if (dose) {
+        const high = segments.find(s => s.text === `>${dose[1]}=CALL MD`);
+        if (high) high.text = `>${dose[1]}=${dose[2]}U&CALL MD`;
+        translatedMarkers.add(highActionMatch.index!);
+      }
+    }
+    const markers = [...upper.matchAll(/\b\d+\s*-\s*\d+\s*=|\b\d+\s*\+\s*=|(?:>|GREATER THAN)\s*\d+\s*=/g)];
+    if (!segments.length || unrecognizedNotification || markers.some(m => !translatedMarkers.has(m.index!))) {
+      abnormalities.push({ id: 'incomplete_sliding_scale', tier: 'uncorrected_gap', title: 'Incomplete Sliding Scale',
+        message: 'At least one scale band or notification could not be translated. Original directions were retained; no partial scale was proposed.', trigger: rawProse });
+      return { frequencyToken: '', abnormalities, requiresManualTranslation: true };
+    }
     segments.sort((a, b) => a.sortKey - b.sortKey);
     const slidingScaleString = `${prefix} ${segments.map(s => s.text).join(';')}`;
 
@@ -128,28 +162,10 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     stopToken = 'THEN STOP';
   }
 
-  // Duration
-  let durationToken: string | undefined;
-  const decimalDurMatch = upper.match(/\b(?:FOR|X)\s*(\d+\.\d+|\d+\s*[-/]\s*\d+)\s*(?:DAYS?|D\b)/i) || upper.match(/(?<!\bEVERY\s+)(?<!\bPER\s+)\b(\d+\.\d+|\d+\s*[-/]\s*\d+)\s*(?:DAYS?|D\b)/i);
-  if (decimalDurMatch) {
-    abnormalities.push({
-      id: `abn_duration_non_integer_${Date.now()}`,
-      tier: 'potential_error',
-      title: 'Non-integer Day Supply',
-      message: `Prescribed duration '${decimalDurMatch[0]}' contains a non-integer day supply. Day supplies must be whole numbers.`,
-      trigger: decimalDurMatch[0]
-    });
-  } else {
-    const forDurMatch = upper.match(/(?:\bFOR\s*|\bX\s*)(\d+)\s*(?:DAYS?|D\b)/i);
-    if (forDurMatch) {
-      durationToken = `X${forDurMatch[1]}D`;
-    } else {
-      const standaloneDurMatch = upper.match(/(?<![\d./])(\d+)(?!\s*[\d./])\s*(?:DAYS|DAY)\b/i);
-      if (standaloneDurMatch && !upper.match(/EVERY\s+(\d+\s*)?(?:DAYS|DAY)/i) && !upper.includes('PER DAY')) {
-        durationToken = `X${standaloneDurMatch[1]}D`;
-      }
-    }
-  }
+  const duration = resolveDuration(upper);
+  const durationToken = duration.token;
+  abnormalities.push(...duration.abnormalities);
+  if (duration.unsupported) return { frequencyToken: '', abnormalities, requiresManualTranslation: true };
 
   // PRN
   const prnToken = upper.includes('AS NEEDED') || /\bPRN\b/i.test(upper) ? 'PRN' : undefined;
@@ -190,14 +206,22 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
   } else if (/\bEVERY\s+(\d+)\s*HOURS?\b/i.test(scheduleProse) || /\bQ(\d+)H\b/i.test(scheduleProse)) {
     const qhMatch = scheduleProse.match(/\bEVERY\s+(\d+)\s*HOURS?\b/i) || scheduleProse.match(/\bQ(\d+)H\b/i);
     frequencyToken = `Q${qhMatch![1]}H`;
-  } else if (scheduleProse.includes('FOUR TIMES A DAY') || /\bQID\b/i.test(scheduleProse)) {
+  } else if (/\b(?:FOUR|4) TIMES (?:A|PER|EACH) DAY\b|\bQID\b/.test(scheduleProse)) {
     frequencyToken = 'QID';
-  } else if (scheduleProse.includes('THREE TIMES A DAY') || /\bTID\b/i.test(scheduleProse)) {
+  } else if (/\b(?:THREE|3) TIMES (?:A|PER|EACH) DAY\b|\bTID\b/.test(scheduleProse)) {
     frequencyToken = 'TID';
-  } else if (scheduleProse.includes('TWO TIMES A DAY') || scheduleProse.includes('TWICE DAILY') || /\bBID\b/i.test(scheduleProse)) {
+  } else if (/\b(?:TWO|2) TIMES (?:A|PER|EACH) DAY\b|\bTWICE DAILY\b|\bBID\b/.test(scheduleProse)) {
     frequencyToken = 'BID';
+  } else if (/\b(?:ONE TIME ONLY|ONCE ONLY|X1)\b/.test(scheduleProse)) {
+    frequencyToken = /\bONLY\b/.test(scheduleProse) ? 'X1 ONLY' : 'X1';
   } else if (/\b(?:DAILY|EVERY\s+DAY|ONCE\s+(?:A\s+)?DAY|ONE\s+TIME\s+A\s+DAY|QD)\b/.test(scheduleProse)) {
     frequencyToken = 'QD';
+  }
+
+  if (/\bBEFORE MEALS\b/.test(scheduleProse)) {
+    const mealCodes: Record<string, string> = { QD: 'QDAC', BID: 'BIDAC', TID: 'TIDAC', QID: 'QIDAC' };
+    if (mealCodes[frequencyToken] && SIG_CODE_REFERENCE[mealCodes[frequencyToken]]) frequencyToken = mealCodes[frequencyToken];
+    else if (frequencyToken) frequencyToken += ' BEFORE MEALS';
   }
 
   const unsupportedInterval = !frequencyToken && /\b(?:EVERY|EACH\s+(?:DAY|HOUR|WEEK|MORNING|EVENING|NIGHT)|TIMES\s+(?:A|PER))\b/.test(scheduleProse);
@@ -211,7 +235,7 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
   let blendedTemplate: string | undefined;
   if (defaultTemplate) {
     let base = defaultTemplate.trim();
-    const scheduledPreparation = base.match(/^(MIX\b[\s\S]*\b(?:GIVE|TAKE)\s+PO)\s+(QD|BID|TID|QID|Q\d+H|QAM|QPM|QHS|(?:QD|QAM|QPM)DAY[1-7]+)\s*$/i);
+    const scheduledPreparation = base.match(/^((?:MIX|DISSOLVE)\b[\s\S]*\b(?:GIVE|TAKE)(?:\s+PO)?)\s+(QD|BID|TID|QID|Q\d+H|QAM|QPM|QHS|(?:QD|QAM|QPM)DAY[1-7]+)\s*$/i);
     if (scheduledPreparation) {
       base = scheduledPreparation[1];
       if (scheduledPreparation[2].toUpperCase() !== frequencyToken) {
@@ -221,7 +245,7 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
       }
     }
     const ind = indicationToken ? ` ${indicationToken}` : '';
-    if (base.toUpperCase().endsWith('PO')) {
+    if (/\b(?:PO|GIVE|TAKE)$/.test(base.toUpperCase())) {
       const scheduleParts = [frequencyToken];
       if (prnToken) scheduleParts.push(prnToken, indicationToken || '', durationToken || '');
       else scheduleParts.push(durationToken || '', indicationToken || '');

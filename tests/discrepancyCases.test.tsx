@@ -5,6 +5,7 @@ import { ReviewSession } from '../src/components/ReviewSession';
 import { OrderQueueView } from '../src/components/OrderQueueView';
 import { DiscrepancyPanel } from '../src/components/DiscrepancyPanel';
 import { DiscrepancyArchive } from '../src/components/DiscrepancyArchive';
+import { WorkbenchView } from '../src/components/WorkbenchView';
 import { getCitrixStorageAdapter, _resetCitrixStorageAdapterForTesting } from '../src/lib/citrixStorage';
 import { exportDiscrepancyCases } from '../src/lib/discrepancyCases';
 
@@ -88,4 +89,26 @@ it('rejects an empty report, permits notes-only cases and includes older reports
   expect(bundle.caseCount).toBe(2);
   expect(bundle.reports[0].technicianSig).toBe('');
   expect(bundle.reports[1]).toEqual(oldReport);
+});
+
+it('clears every Workbench entry and draft while retaining the saved discrepancy archive', async () => {
+  render(<ReviewSession><WorkbenchView /></ReviewSession>);
+  await screen.findByText('0 saved discrepancy reports');
+  const drug = screen.getByPlaceholderText('e.g. Lisinopril 10mg');
+  const template = screen.getByPlaceholderText('e.g. Take 1 tablet daily');
+  const directions = screen.getByPlaceholderText(/Enter free text SIG/);
+  fireEvent.change(drug, { target: { value: 'PANTOPRAZOLE PWD PACKET 40MG' } });
+  fireEvent.change(template, { target: { value: 'GIVE 1 PACKET PO' } });
+  fireEvent.change(directions, { target: { value: 'Give 40 mg by mouth twice daily for GERD' } });
+  await screen.findByLabelText('Final SIG · editable, uppercase');
+  fireEvent.click(screen.getByRole('button', { name: /Flag Discrepancy/ }));
+  fireEvent.change(screen.getByLabelText('Notes / Rationale:'), { target: { value: 'Synthetic clear-fields regression.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save Discrepancy Report' }));
+  await screen.findByText('1 saved discrepancy reports');
+  const before = await exportDiscrepancyCases();
+  fireEvent.click(screen.getByRole('button', { name: 'Clear all fields' }));
+  for (const field of [drug, template, directions]) expect((field as HTMLInputElement).value).toBe('');
+  expect(screen.queryByLabelText('Final SIG · editable, uppercase')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Copy reviewed SIG' })).toBeNull();
+  expect((await exportDiscrepancyCases()).reports).toEqual(before.reports);
 });

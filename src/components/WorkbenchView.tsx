@@ -265,6 +265,9 @@ export function WorkbenchView() {
 
   const handleClear = () => {
     setRawInput('');
+    setDrugName('');
+    setDefaultSig('');
+    setLatestDiagnostic(null);
   };
 
   return (
@@ -317,7 +320,7 @@ export function WorkbenchView() {
             onClick={handleClear}
             className="text-[11px] text-muted-foreground hover:text-foreground px-2 py-0.5 rounded hover:bg-muted transition-colors"
           >
-            Clear
+            Clear all fields
           </button>
         </div>
       </div>
