@@ -5,48 +5,99 @@ import { Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { useReviewSession } from '../hooks/use-review-session';
 import { copyBlockReason, reviewStamp } from '../lib/reviewPolicy';
+import { traceLogger } from '../lib/diagnostics/traceLogger';
 
 export interface MultiOrderCardsProps {
   primarySig?: string;
   subOrders: SubOrderResult[];
-  onCopySubOrder?: (subOrder: SubOrderResult, draftSig: string) => void;
+  unavailable?: boolean;
+  traceId?: string;
+  initialDrafts?: Record<string, string>;
+  initialApprovals?: Record<string, string>;
+  onDraftChange?: (subOrderId: string, draftSig: string) => void;
+  onApprovalChange?: (subOrderId: string, approvedStamp: string | undefined) => void;
+  onCopySubOrder?: (subOrder: SubOrderResult, draftSig: string, stamp?: string) => void;
 }
 
 export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
   primarySig,
   subOrders,
+  unavailable = false,
+  traceId,
+  initialDrafts,
+  initialApprovals,
+  onDraftChange,
+  onApprovalChange,
   onCopySubOrder,
 }) => {
   const [drafts, setDrafts] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
     subOrders.forEach((o) => {
-      initial[o.id] = o.suggestedSig;
+      initial[o.id] = initialDrafts?.[o.id] ?? o.suggestedSig;
     });
     return initial;
   });
 
-  const [reviewedMap, setReviewedMap] = useState<Record<string, boolean>>({});
+  const [approvals, setApprovals] = useState<Record<string, string>>(() => {
+    return initialApprovals ? { ...initialApprovals } : {};
+  });
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const { exclusions, policyRevision } = useReviewSession();
 
+  React.useEffect(() => {
+    if (unavailable) {
+      setApprovals({});
+      setCopiedId(null);
+    }
+  }, [unavailable]);
+
   const handleDraftChange = (id: string, value: string) => {
-    setDrafts((prev) => ({ ...prev, [id]: value.toUpperCase() }));
-    setReviewedMap((prev) => ({ ...prev, [id]: false }));
+    if (unavailable) return;
+    const upperVal = value.toUpperCase();
+    traceLogger.debug('ui', 'MultiOrderCards', 'Technician edited draft Sig', { subOrderId: id, length: value.length }, undefined, traceId);
+    setDrafts((prev) => ({ ...prev, [id]: upperVal }));
+    setApprovals((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    onDraftChange?.(id, upperVal);
+    onApprovalChange?.(id, undefined);
   };
 
   const handleReviewToggle = (id: string, checked: boolean) => {
-    setReviewedMap((prev) => ({ ...prev, [id]: checked }));
+    if (unavailable) return;
+    traceLogger.info('ui', 'MultiOrderCards', 'Technician updated review checkbox', { subOrderId: id, reviewed: checked }, undefined, traceId);
+    const subOrder = subOrders.find((s) => s.id === id);
+    const draftSig = drafts[id] ?? subOrder?.suggestedSig ?? '';
+    if (checked && subOrder && draftSig.trim()) {
+      const stamp = reviewStamp(subOrder.suggestedSig, draftSig, exclusions, policyRevision);
+      setApprovals((prev) => ({ ...prev, [id]: stamp }));
+      onApprovalChange?.(id, stamp);
+    } else {
+      setApprovals((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      onApprovalChange?.(id, undefined);
+    }
   };
 
   const handleCopy = async (subOrder: SubOrderResult) => {
-    const draftSig = drafts[subOrder.id] ?? subOrder.suggestedSig;
-    if (!reviewedMap[subOrder.id] || !draftSig.trim()) return;
+    if (unavailable) {
+      toast.error('This order is cancelled, its source is changing, or its message profile is unverified.');
+      return;
+    }
 
-    const isReviewed = !!reviewedMap[subOrder.id];
-    const approved = isReviewed ? reviewStamp(subOrder.suggestedSig, draftSig, exclusions, policyRevision) : undefined;
-    const blockReason = copyBlockReason(subOrder.suggestedSig, draftSig, exclusions, approved, false, policyRevision);
+    const draftSig = drafts[subOrder.id] ?? subOrder.suggestedSig;
+    const approvedStamp = approvals[subOrder.id];
+    if (!approvedStamp || !draftSig.trim()) return;
+
+    const blockReason = copyBlockReason(subOrder.suggestedSig, draftSig, exclusions, approvedStamp, unavailable, policyRevision);
     if (blockReason) {
+      traceLogger.warn('ui', 'MultiOrderCards', 'Clipboard copy blocked by review policy', { subOrderId: subOrder.id, blockReason }, undefined, traceId);
       toast.error(blockReason);
       return;
     }
@@ -54,18 +105,26 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
     try {
       if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(draftSig);
+        traceLogger.info('ui', 'MultiOrderCards', 'Copied sub-order Sig to clipboard', {
+          subOrderId: subOrder.id,
+          label: subOrder.label,
+          draftSig
+        }, undefined, traceId);
         toast.success(`Copied ${subOrder.label} SIG to clipboard`);
         setCopiedId(subOrder.id);
         if (onCopySubOrder) {
-          onCopySubOrder(subOrder, draftSig);
+          onCopySubOrder(subOrder, draftSig, approvedStamp);
         }
         setTimeout(() => {
           setCopiedId(null);
         }, 2000);
       } else {
+        traceLogger.warn('ui', 'MultiOrderCards', 'Clipboard API unavailable or denied', { subOrderId: subOrder.id }, undefined, traceId);
         toast.error('Clipboard access denied or unavailable. Please copy manually.');
       }
-    } catch {
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      traceLogger.error('ui', 'MultiOrderCards', 'Clipboard copy failed', { subOrderId: subOrder.id }, { name: 'ClipboardError', message: errMsg }, traceId);
       toast.error('Clipboard copy failed. Please copy manually.');
     }
   };
@@ -78,11 +137,14 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
             <span className="text-xs font-bold text-primary uppercase tracking-wider">
               Unified Prescription Regimen (Primary Clinical Record)
             </span>
-            <span className="text-[11px] text-muted-foreground">Framework single-line summary</span>
           </div>
-          <div className="font-mono text-sm font-bold text-foreground bg-background/90 rounded px-3 py-2 border border-border break-words">
-            {primarySig}
-          </div>
+          <p className="font-mono text-sm font-semibold text-foreground break-words tracking-tight">{primarySig}</p>
+        </div>
+      )}
+
+      {unavailable && (
+        <div data-testid="multi-order-unavailable-banner" className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive font-medium">
+          This order is cancelled or its directions are currently being revised. Review and clipboard copy actions are disabled until saved.
         </div>
       )}
 
@@ -95,10 +157,10 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
 
       {subOrders.map((subOrder) => {
         const draftSig = drafts[subOrder.id] ?? subOrder.suggestedSig;
-        const isReviewed = !!reviewedMap[subOrder.id];
+        const approved = approvals[subOrder.id];
+        const blockReason = copyBlockReason(subOrder.suggestedSig, draftSig, exclusions, approved, unavailable, policyRevision);
+        const isReviewed = Boolean(approved && !blockReason);
         const isCopied = copiedId === subOrder.id;
-        const approved = isReviewed ? reviewStamp(subOrder.suggestedSig, draftSig, exclusions, policyRevision) : undefined;
-        const blockReason = copyBlockReason(subOrder.suggestedSig, draftSig, exclusions, approved, false, policyRevision);
 
         return (
           <div
@@ -110,7 +172,7 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
               <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
                 {subOrder.label}
               </span>
-              {isReviewed && (
+              {isReviewed && !unavailable && (
                 <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
                   <Check className="h-3.5 w-3.5" /> Reviewed
                 </span>
@@ -131,7 +193,8 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
               <textarea
                 id={`draft-sig-${subOrder.id}`}
                 rows={2}
-                className="w-full rounded-md border border-border bg-background p-2 font-mono text-sm uppercase focus:outline-none focus:ring-2 focus:ring-primary"
+                disabled={unavailable}
+                className="w-full rounded-md border border-border bg-background p-2 font-mono text-sm uppercase focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 value={draftSig}
                 onChange={(e) => handleDraftChange(subOrder.id, e.target.value)}
               />
@@ -141,13 +204,14 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
               <input
                 type="checkbox"
                 id={`review-check-${subOrder.id}`}
-                checked={isReviewed}
+                checked={isReviewed && !unavailable}
+                disabled={unavailable}
                 onChange={(e) => handleReviewToggle(subOrder.id, e.target.checked)}
-                className="rounded border-border"
+                className="rounded border-border disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <label
                 htmlFor={`review-check-${subOrder.id}`}
-                className="text-xs font-medium text-foreground cursor-pointer select-none"
+                className={`text-xs font-medium select-none ${unavailable ? 'text-muted-foreground cursor-not-allowed' : 'text-foreground cursor-pointer'}`}
               >
                 Reviewed and approved for FrameworkLTC
               </label>
@@ -159,7 +223,7 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
               )}
               <button
                 type="button"
-                disabled={!isReviewed || !draftSig.trim() || !!blockReason}
+                disabled={unavailable || !isReviewed || !draftSig.trim() || !!blockReason}
                 onClick={() => handleCopy(subOrder)}
                 className="inline-flex items-center gap-1.5 rounded-md border border-border bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
               >

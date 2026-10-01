@@ -69,5 +69,59 @@ describe('frequencyEngine', () => {
     expect(res.frequencyToken).toBe('CBS AC SS');
     expect(res.slidingScaleString).toMatch(/^CBS AC SS /);
   });
+
+  it('resolves Q8H and EVERY 8 HOURS to Q8H frequency token', () => {
+    const res1 = resolveFrequencyAndSchedule('Give 1 tablet by mouth every 8 hours for pain');
+    expect(res1.frequencyToken).toBe('Q8H');
+
+    const res2 = resolveFrequencyAndSchedule('Take 1 capsule PO Q8H');
+    expect(res2.frequencyToken).toBe('Q8H');
+  });
+
+  it('resolves generic EVERY N HOURS pattern', () => {
+    const res = resolveFrequencyAndSchedule('Take 1 tablet every 5 hours as needed');
+    expect(res.frequencyToken).toBe('Q5H');
+  });
+
+  it('flags non-integer day supplies with potential_error and does not match trailing digits as days', () => {
+    const res = resolveFrequencyAndSchedule('Give 1 tablet by mouth daily for 1.5 days');
+    expect(res.durationToken).toBeUndefined();
+    expect(res.abnormalities.some(a => a.tier === 'potential_error' && a.title === 'Non-integer Day Supply')).toBe(true);
+  });
+
+  it('extracts SBP hold parameters and flags applied_correction abnormality', () => {
+    const res = resolveFrequencyAndSchedule('Give 1 tablet by mouth one time a day for HTN HOLD IF SBP < 100');
+    expect(res.holdToken).toBe('SBP100');
+    expect(res.abnormalities.some(a => a.tier === 'applied_correction' && a.title === 'Hold Directive Detected')).toBe(true);
+  });
+
+  it('extracts THEN STOP directives to stopToken', () => {
+    const res = resolveFrequencyAndSchedule('Take 1 tablet daily for 5 days then stop');
+    expect(res.durationToken).toBe('X5D');
+    expect(res.stopToken).toBe('THEN STOP');
+  });
+
+  it('flags empty directions with potential_error abnormality and empty token', () => {
+    const res = resolveFrequencyAndSchedule('   ');
+    expect(res.frequencyToken).toBe('');
+    expect(res.abnormalities.some(a => a.tier === 'potential_error')).toBe(true);
+  });
+
+  it('does not append stopToken for negative or non-termination stop phrases like "do not stop abruptly"', () => {
+    const res1 = resolveFrequencyAndSchedule('Take 1 tablet daily. Do not stop abruptly.');
+    expect(res1.stopToken).toBeUndefined();
+
+    const res2 = resolveFrequencyAndSchedule('Take 1 tablet daily to help stop smoking.');
+    expect(res2.stopToken).toBeUndefined();
+
+    const res3 = resolveFrequencyAndSchedule('Take 1 tablet daily for pain. Stop if nausea occurs.');
+    expect(res3.stopToken).toBeUndefined();
+  });
+
+  it('strips trailing HOLD directives from unmapped indications', () => {
+    const res = resolveFrequencyAndSchedule('Take 1 tablet daily for tremors hold if SBP less than 100');
+    expect(res.indicationToken).toBe('FOR TREMORS');
+    expect(res.holdToken).toBe('SBP100');
+  });
 });
 

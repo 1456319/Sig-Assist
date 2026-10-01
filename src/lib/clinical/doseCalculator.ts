@@ -1,4 +1,5 @@
 import { AbnormalityFinding } from './types';
+import { traceLogger } from '../diagnostics/traceLogger';
 
 export interface DoseCalculationResult {
   readonly doseToken: string;
@@ -8,10 +9,47 @@ export interface DoseCalculationResult {
   readonly apapLimitToken?: string;
 }
 
-export function calculateDoseAndVolume(drugName: string, rawProse: string): DoseCalculationResult {
+const WORD_TO_NUM: Record<string, number> = {
+  ONE: 1,
+  TWO: 2,
+  THREE: 3,
+  FOUR: 4,
+  FIVE: 5,
+  SIX: 6,
+  SEVEN: 7,
+  EIGHT: 8,
+  NINE: 9,
+  TEN: 10,
+};
+
+function parseCountToken(token: string): number {
+  const upper = token.trim().toUpperCase();
+  if (WORD_TO_NUM[upper] !== undefined) {
+    return WORD_TO_NUM[upper];
+  }
+  return parseInt(upper, 10);
+}
+
+function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): DoseCalculationResult {
   const upperDrug = drugName.toUpperCase();
   const upperProse = rawProse.toUpperCase();
   const abnormalities: AbnormalityFinding[] = [];
+
+  if (!rawProse.trim()) {
+    abnormalities.push({
+      id: `abn_dose_empty_${Date.now()}`,
+      tier: 'potential_error',
+      title: 'Missing Directions',
+      message: 'Original directions are empty or missing. Dosing calculation cannot proceed.',
+      trigger: 'Empty directions'
+    });
+    return {
+      doseToken: '',
+      routeToken: '',
+      abnormalities,
+      isApap: false
+    };
+  }
 
   const isApap = upperDrug.includes('APAP') || upperDrug.includes('ACETAMINOPHEN') || upperProse.includes('ACETAMINOPHEN');
   let apapLimitToken: string | undefined;
@@ -228,14 +266,48 @@ export function calculateDoseAndVolume(drugName: string, rawProse: string): Dose
       const whole = parseInt(fractionMatch[2], 10);
       const num = parseInt(fractionMatch[3], 10);
       const den = parseInt(fractionMatch[4], 10);
-      label = `${whole}-${num}/${den}`;
-      multiplier = den > 0 ? whole + num / den : 0;
+      if (den === 0) {
+        abnormalities.push({
+          id: `abn_fraction_zero_den_${Date.now()}`,
+          tier: 'potential_error',
+          title: 'Invalid Fraction Denominator',
+          message: `Dose expression '${fractionMatch[0]}' contains a zero denominator, resulting in an undefined dose quantity.`,
+          trigger: fractionMatch[0]
+        });
+        return {
+          doseToken: '',
+          routeToken: 'PO',
+          abnormalities,
+          isApap,
+          apapLimitToken
+        };
+      } else {
+        multiplier = whole + num / den;
+        label = `${whole}-${num}/${den}`;
+      }
     } else if (fractionMatch[5]) {
       // Fraction e.g. 1/2, 3/4
       const num = parseInt(fractionMatch[5], 10);
       const den = parseInt(fractionMatch[6], 10);
       label = `${num}/${den}`;
-      multiplier = den > 0 ? num / den : 0;
+      if (den === 0) {
+        abnormalities.push({
+          id: `abn_fraction_zero_den_${Date.now()}`,
+          tier: 'potential_error',
+          title: 'Invalid Fraction Denominator',
+          message: `Dose expression '${fractionMatch[0]}' contains a zero denominator, resulting in an undefined dose quantity.`,
+          trigger: fractionMatch[0]
+        });
+        return {
+          doseToken: '',
+          routeToken: 'PO',
+          abnormalities,
+          isApap,
+          apapLimitToken
+        };
+      } else {
+        multiplier = num / den;
+      }
     }
     const targetDoseStr = getTargetDose(multiplier);
     return {
@@ -263,9 +335,43 @@ export function calculateDoseAndVolume(drugName: string, rawProse: string): Dose
     };
   }
 
-  // 3. Whole integers (with boundary to prevent matching decimal or fraction suffixes)
-  const countMatch = upperProse.match(/(?<![\d./])(\d+)(?!\s*[\d./])\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)\b/);
-  const count = countMatch ? parseInt(countMatch[1], 10) : 1;
+  // 3. Whole integers and number words
+  // Pattern A: Explicit tablet/capsule keywords
+  const explicitCountMatch = upperProse.match(
+    /(?<![\d./])(\d+|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN)(?!\s*[\d./])\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)\b/
+  );
+
+  // Pattern B: Preceded by action verb (e.g. TAKE 2 BY MOUTH, GIVE 2 PO, ADM 2)
+  const verbCountMatch = !explicitCountMatch
+    ? upperProse.match(
+        /\b(?:TAKE|GIVE|ADM(?:INISTER)?|INGEST)\s+(\d+|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN)\b(?!\s*[\d./])(?!\s*(?:MG|MCG|GM|G\b|ML|MILLILITER|L\b|OZ|HOUR|HR|DAY|D\b|WEEK|WK|MONTH|MIN|MINUTES?)\b)/
+      )
+    : null;
+
+  // Pattern C: Followed by oral route indicators (e.g. 2 PO, 2 BY MOUTH)
+  const routeCountMatch = (!explicitCountMatch && !verbCountMatch)
+    ? upperProse.match(
+        /(?<![\d./])(\d+|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN)\s*(?:PO|BY\s+MOUTH|ORALLY)\b/
+      )
+    : null;
+
+  const countRaw = explicitCountMatch?.[1] || verbCountMatch?.[1] || routeCountMatch?.[1];
+  let count = 1;
+
+  if (countRaw) {
+    count = parseCountToken(countRaw);
+  } else {
+    // If directions omit any quantity and any standard word
+    if (!/\b(?:TABLETS?|TABS?|CAPSULES?|CAPS?|1|ONE)\b/.test(upperProse)) {
+      abnormalities.push({
+        id: `abn_dose_unspecified_${Date.now()}`,
+        tier: 'potential_error',
+        title: 'Unspecified Dose Quantity',
+        message: 'Original directions omit a dosage count. Defaulted to 1 tablet/capsule for safety review.',
+        trigger: rawProse.trim(),
+      });
+    }
+  }
 
   if (count > 1) {
     const targetDoseStr = getTargetDose(count);
@@ -274,7 +380,7 @@ export function calculateDoseAndVolume(drugName: string, rawProse: string): Dose
       routeToken: 'PO',
       abnormalities,
       isApap,
-      apapLimitToken
+      apapLimitToken,
     };
   }
 
@@ -283,6 +389,20 @@ export function calculateDoseAndVolume(drugName: string, rawProse: string): Dose
     routeToken: 'PO',
     abnormalities,
     isApap,
-    apapLimitToken
+    apapLimitToken,
   };
 }
+
+export function calculateDoseAndVolume(drugName: string, rawProse: string): DoseCalculationResult {
+  const result = calculateDoseAndVolumeInternal(drugName, rawProse);
+  traceLogger.debug('clinical', 'doseCalculator', 'Calculated dose and route tokens', {
+    drugName,
+    doseToken: result.doseToken,
+    routeToken: result.routeToken,
+    isApap: result.isApap,
+    apapLimitToken: result.apapLimitToken,
+    abnormalitiesCount: result.abnormalities.length
+  });
+  return result;
+}
+

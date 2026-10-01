@@ -1,4 +1,5 @@
 import { InboundOrder } from './types';
+import { traceLogger } from '../diagnostics/traceLogger';
 
 function unescapeXml(text: string): string {
   return text.replace(/&(amp|lt|gt|quot|apos);/g, (_, entity) => {
@@ -32,11 +33,16 @@ function extractXmlTag(xml: string, tagName: string): string | undefined {
   const match = xml.match(regex);
   return match ? normalizeCharacters(unescapeXml(match[1].trim())) : undefined;
 }
-
 export function parseInboundOrder(rawInput: string): InboundOrder {
   const normalized = normalizeCharacters(rawInput);
   const trimmed = normalized.trim();
   const id = `order_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const traceId = traceLogger.generateTraceId('ORD');
+
+  traceLogger.debug('intake', 'inboundParser', 'Beginning order intake parsing', {
+    rawLength: rawInput.length,
+    isXmlCandidate: trimmed.startsWith('<') && trimmed.includes('</')
+  }, traceId);
 
   if (trimmed.startsWith('<') && trimmed.includes('</')) {
     const pon = extractXmlTag(trimmed, 'PrescriberOrderNumber') ||
@@ -49,38 +55,122 @@ export function parseInboundOrder(rawInput: string): InboundOrder {
     const indication = extractXmlTag(trimmed, 'IndicationClarifyingFreeText') ||
                        extractXmlTag(trimmed, 'Indication');
 
+    traceLogger.info('intake', 'inboundParser', 'Parsed NCPDP XML inbound payload', {
+      pon,
+      drugName,
+      hasIndication: Boolean(indication),
+      rawProseLength: rawProse.length
+    }, undefined, traceId);
+
     return {
       id,
       pon,
       drugName,
       rawProse,
       indication,
-      sourceFormat: 'ncpdp_xml'
+      sourceFormat: 'ncpdp_xml',
+      traceId
     };
   }
 
-  const lines = trimmed.split('\n').map(l => l.trim()).filter(Boolean);
+  const isHl7Candidate = trimmed.startsWith('MSH|') || /^MSH\|/m.test(trimmed);
+  if (isHl7Candidate) {
+    const hl7Lines = trimmed.split(/\r\n|\r|\n/).map(l => l.trim()).filter(Boolean);
+    let pon = 'UNKNOWN_PON';
+    let drugName = 'UNKNOWN DRUG';
+    let rawProse = '';
+
+    const orcLine = hl7Lines.find(l => l.startsWith('ORC|'));
+    if (orcLine) {
+      const parts = orcLine.split('|');
+      pon = parts[2]?.trim() || parts[3]?.trim() || 'UNKNOWN_PON';
+    }
+
+    const rxoLine = hl7Lines.find(l => l.startsWith('RXO|'));
+    if (rxoLine) {
+      const parts = rxoLine.split('|');
+      if (parts[1]) {
+        const drugField = parts[1].trim();
+        drugName = drugField.includes('^') ? (drugField.split('^')[1] || drugField.split('^')[0]).trim() : drugField;
+      }
+      rawProse = parts[6]?.trim() || parts[7]?.trim() || parts[24]?.trim() || '';
+    }
+
+    if (!rawProse) {
+      const rxeLine = hl7Lines.find(l => l.startsWith('RXE|'));
+      if (rxeLine) {
+        const parts = rxeLine.split('|');
+        rawProse = parts[7]?.trim() || '';
+      }
+    }
+
+    traceLogger.info('intake', 'inboundParser', 'Parsed HL7 inbound payload', {
+      pon,
+      drugName,
+      rawProseLength: rawProse.length
+    }, undefined, traceId);
+
+    return {
+      id,
+      pon,
+      drugName,
+      rawProse,
+      sourceFormat: 'hl7',
+      traceId
+    };
+  }
+
+  const lines = trimmed.split(/\r\n|\r|\n/).map(l => l.trim()).filter(Boolean);
   let drugName = 'UNKNOWN DRUG';
   let rawProse = '';
   let defaultSigTemplate: string | undefined;
+  let hasUserEntry = false;
+  const remainingLines: string[] = [];
+
+  const isDirectionProse = (text: string): boolean => {
+    const upper = text.trim().toUpperCase();
+    return /^(?:TAKE|GIVE|INJECT|INHALE|APPLY|INSTILL|USE|INSERT|PLACE|CHEW|SWALLOW|DISSOLVE|ADM|ADMINISTER)\b/i.test(upper) ||
+           /^(?:HALF|\d+(?:\.\d+)?|\d+\/\d+)\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?|PACKETS?|PILLS?|DROPS?|PUFFS?|PATCHES?|UNITS?|APPLICATIONS?)\b/i.test(upper);
+  };
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const userEntryMatch = line.match(/^USER ENTRY:\s*(.+)$/i);
-    const defaultSigMatch = line.match(/^DEFAULT SIG(?:\s*\(OPTIONAL FIELD\))?:\s*(.+)$/i);
+    const userEntryMatch = line.match(/^USER ENTRY:\s*(.*)$/i);
+    const defaultSigMatch = line.match(/^DEFAULT SIG(?:\s*\(OPTIONAL FIELD\))?:\s*(.*)$/i);
 
     if (userEntryMatch) {
+      hasUserEntry = true;
       rawProse = userEntryMatch[1].trim();
     } else if (defaultSigMatch) {
       defaultSigTemplate = defaultSigMatch[1].trim();
     } else if (i === 0) {
-      drugName = line.replace(/^\d+\)\s*/, '').trim();
+      const cleaned = line.replace(/^\d+\)\s*/, '').trim();
+      if (isDirectionProse(cleaned)) {
+        remainingLines.push(cleaned);
+      } else {
+        drugName = cleaned;
+      }
+    } else {
+      remainingLines.push(line);
     }
   }
 
-  if (!rawProse && lines.length > 0) {
-    rawProse = lines[lines.length - 1];
+  if (!hasUserEntry && !rawProse) {
+    if (remainingLines.length > 0) {
+      rawProse = remainingLines.join(' ').trim();
+    } else if (lines.length === 1) {
+      rawProse = lines[0].trim();
+    }
+  } else if (remainingLines.length > 0) {
+    rawProse = `${rawProse} ${remainingLines.join(' ')}`.trim();
   }
+
+  traceLogger.info('intake', 'inboundParser', 'Parsed manual text order', {
+    drugName,
+    rawProse,
+    hasDefaultTemplate: Boolean(defaultSigTemplate),
+    lineCount: lines.length
+  }, undefined, traceId);
 
   return {
     id,
@@ -88,6 +178,7 @@ export function parseInboundOrder(rawInput: string): InboundOrder {
     drugName,
     rawProse,
     defaultSigTemplate,
-    sourceFormat: 'manual_text'
+    sourceFormat: 'manual_text',
+    traceId
   };
 }

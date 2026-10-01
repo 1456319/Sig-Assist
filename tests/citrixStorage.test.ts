@@ -59,15 +59,34 @@ function createMockDirectoryHandle() {
   return mockDirHandle;
 }
 
+function setMockShowDirectoryPicker(fn: unknown) {
+  if (typeof window !== 'undefined') {
+    Object.defineProperty(window, 'showDirectoryPicker', {
+      value: fn,
+      writable: true,
+      configurable: true,
+    });
+  }
+  Object.defineProperty(globalThis, 'showDirectoryPicker', {
+    value: fn,
+    writable: true,
+    configurable: true,
+  });
+}
+
 describe('citrixStorage', () => {
   beforeEach(() => {
     _resetCitrixStorageAdapterForTesting();
-    localStorage.clear();
-    vi.restoreAllMocks();
-    delete (globalThis as unknown as { showDirectoryPicker?: unknown }).showDirectoryPicker;
-    if ('window' in globalThis && globalThis.window) {
-      delete (globalThis.window as unknown as { showDirectoryPicker?: unknown }).showDirectoryPicker;
+    try {
+      localStorage.clear();
+    } catch {
+      // safe fallback
     }
+    vi.restoreAllMocks();
+    if (typeof window !== 'undefined') {
+      delete (window as unknown as { showDirectoryPicker?: unknown }).showDirectoryPicker;
+    }
+    delete (globalThis as unknown as { showDirectoryPicker?: unknown }).showDirectoryPicker;
   });
 
   it('initializes with fallback browser_cache mode when File System API is unavailable in Node/test', () => {
@@ -147,9 +166,7 @@ describe('citrixStorage', () => {
 
   it('returns false if showDirectoryPicker throws an error (e.g. user cancelled prompt)', async () => {
     const adapter = getCitrixStorageAdapter();
-    (globalThis as unknown as { window?: { showDirectoryPicker: unknown } }).window = {
-      showDirectoryPicker: vi.fn().mockRejectedValue(new Error('The user aborted a request.')),
-    };
+    setMockShowDirectoryPicker(vi.fn().mockRejectedValue(new Error('The user aborted a request.')));
 
     const connected = await adapter.connectDirectory();
     expect(connected).toBe(false);
@@ -159,9 +176,7 @@ describe('citrixStorage', () => {
 
   it('dispatches to FileSystemDirectoryHandle when connected, reading and writing JSON files', async () => {
     const mockDirHandle = createMockDirectoryHandle();
-    (globalThis as unknown as { window?: { showDirectoryPicker: unknown } }).window = {
-      showDirectoryPicker: vi.fn().mockResolvedValue(mockDirHandle),
-    };
+    setMockShowDirectoryPicker(vi.fn().mockResolvedValue(mockDirHandle));
 
     const adapter = getCitrixStorageAdapter();
     const connected = await adapter.connectDirectory();
@@ -235,9 +250,7 @@ describe('citrixStorage', () => {
       getFileHandle: vi.fn().mockRejectedValue(new Error('Permission denied')),
     };
 
-    (globalThis as unknown as { window?: { showDirectoryPicker: unknown } }).window = {
-      showDirectoryPicker: vi.fn().mockResolvedValue(failingDirHandle),
-    };
+    setMockShowDirectoryPicker(vi.fn().mockResolvedValue(failingDirHandle));
 
     const adapter = getCitrixStorageAdapter();
     await adapter.connectDirectory();
@@ -267,14 +280,27 @@ describe('citrixStorage', () => {
     expect(loadedOrders).toEqual(testOrders);
   });
 
-  it('guards against localStorage quota errors gracefully without throwing', async () => {
+  it('rejects with StorageWriteError when localStorage quota is exceeded and no file system is connected', async () => {
     const adapter = getCitrixStorageAdapter();
-    vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+    const mockQuotaError = () => {
       throw new Error('QuotaExceededError');
-    });
+    };
+    if (typeof Storage !== 'undefined' && Storage.prototype) {
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(mockQuotaError);
+    }
+    if (typeof window !== 'undefined' && window.localStorage) {
+      vi.spyOn(window.localStorage, 'setItem').mockImplementation(mockQuotaError);
+    }
+    if (typeof localStorage !== 'undefined') {
+      try {
+        vi.spyOn(localStorage, 'setItem').mockImplementation(mockQuotaError);
+      } catch {
+        // non-configurable
+      }
+    }
 
-    await expect(adapter.writeQueue([])).resolves.toBeUndefined();
-    await expect(adapter.writePreferences(DEFAULT_PREFERENCES)).resolves.toBeUndefined();
+    await expect(adapter.writeQueue([])).rejects.toThrow(/StorageWriteError/);
+    await expect(adapter.writePreferences(DEFAULT_PREFERENCES)).rejects.toThrow(/StorageWriteError/);
   });
 
   it('resets singleton instance cleanly with _resetCitrixStorageAdapterForTesting', () => {
@@ -286,4 +312,325 @@ describe('citrixStorage', () => {
     expect('testMarker' in adapter2).toBe(false);
     expect(adapter1).not.toBe(adapter2);
   });
+
+  it('appends trace events to JSONL file on connected directory share', async () => {
+    const mockDir = createMockDirectoryHandle();
+    setMockShowDirectoryPicker(vi.fn().mockResolvedValue(mockDir));
+
+    const adapter = getCitrixStorageAdapter();
+    await adapter.connectDirectory();
+    expect(adapter.isConnected()).toBe(true);
+
+    const event1 = {
+      id: 'trc_1',
+      traceId: 'ORD_101',
+      timestamp: new Date().toISOString(),
+      layer: 'clinical' as const,
+      level: 'INFO' as const,
+      component: 'doseCalculator',
+      message: 'Computed dose token 1T',
+    };
+    const event2 = {
+      id: 'trc_2',
+      traceId: 'ORD_101',
+      timestamp: new Date().toISOString(),
+      layer: 'packaging' as const,
+      level: 'WARN' as const,
+      component: 'paxitEngine',
+      message: 'Differential split detected',
+    };
+
+    await adapter.appendTraceLogs([event1]);
+    await adapter.appendTraceLogs([event2]);
+
+    const logs = await adapter.readTraceLogs();
+    expect(logs.length).toBe(2);
+    expect(logs[0].id).toBe('trc_1');
+    expect(logs[1].id).toBe('trc_2');
+
+    const rawFile = mockDir.files.get('sig-assist-trace.jsonl');
+    expect(rawFile).toBeDefined();
+    const lines = rawFile!.trim().split('\n');
+    expect(lines.length).toBe(2);
+    expect(JSON.parse(lines[0]).component).toBe('doseCalculator');
+    expect(JSON.parse(lines[1]).component).toBe('paxitEngine');
+  });
+
+  it('falls back to localStorage for trace logs when directory is not connected', async () => {
+    const adapter = getCitrixStorageAdapter();
+    expect(adapter.isConnected()).toBe(false);
+
+    const event = {
+      id: 'trc_local_1',
+      traceId: 'ORD_LOCAL',
+      timestamp: new Date().toISOString(),
+      layer: 'ui' as const,
+      level: 'DEBUG' as const,
+      component: 'TraceDrawer',
+      message: 'Drawer opened',
+    };
+
+    await adapter.appendTraceLogs([event]);
+    const logs = await adapter.readTraceLogs();
+    expect(logs.length).toBe(1);
+    expect(logs[0].message).toBe('Drawer opened');
+  });
+
+  it('reports destination and record count on successful appendTraceLogs', async () => {
+    const adapter = getCitrixStorageAdapter();
+    const event = {
+      id: 'trc_dest_test',
+      traceId: 'ORD_DEST',
+      timestamp: new Date().toISOString(),
+      layer: 'ui' as const,
+      level: 'INFO' as const,
+      component: 'TraceDrawer',
+      message: 'Test destination reporting',
+    };
+
+    const res = await adapter.appendTraceLogs([event]);
+    expect(res.destination).toBe('browser_cache');
+    expect(res.recordsSaved).toBe(1);
+  });
+
+  it('rejects appendTraceLogs when file system fails and localStorage is unwritable', async () => {
+    const adapter = getCitrixStorageAdapter();
+    const mockQuotaError = () => {
+      throw new Error('QuotaExceededError');
+    };
+    if (typeof Storage !== 'undefined' && Storage.prototype) {
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(mockQuotaError);
+    }
+    if (typeof window !== 'undefined' && window.localStorage) {
+      vi.spyOn(window.localStorage, 'setItem').mockImplementation(mockQuotaError);
+    }
+    if (typeof localStorage !== 'undefined') {
+      try {
+        vi.spyOn(localStorage, 'setItem').mockImplementation(mockQuotaError);
+      } catch {
+        // non-configurable
+      }
+    }
+
+    const event = {
+      id: 'trc_fail_test',
+      traceId: 'ORD_FAIL',
+      timestamp: new Date().toISOString(),
+      layer: 'storage' as const,
+      level: 'ERROR' as const,
+      component: 'citrixStorage',
+      message: 'Failed to write due to quota',
+    };
+
+    await expect(adapter.appendTraceLogs([event])).rejects.toThrow('quota exceeded or storage unavailable');
+  });
+
+  it('serializes concurrent appendDiscrepancy calls preserving all records without clobbering', async () => {
+    const adapter = getCitrixStorageAdapter();
+    const report1: DiscrepancyReport = {
+      id: 'd1',
+      timestamp: new Date().toISOString(),
+      pon: 'P1',
+      drugName: 'DRUG 1',
+      rawProse: 'prose 1',
+      generatedSig: 'sig 1',
+      technicianSig: 'tech 1',
+      notes: 'note 1',
+      flaggedForRph: false,
+    };
+    const report2: DiscrepancyReport = {
+      id: 'd2',
+      timestamp: new Date().toISOString(),
+      pon: 'P2',
+      drugName: 'DRUG 2',
+      rawProse: 'prose 2',
+      generatedSig: 'sig 2',
+      technicianSig: 'tech 2',
+      notes: 'note 2',
+      flaggedForRph: false,
+    };
+    const report3: DiscrepancyReport = {
+      id: 'd3',
+      timestamp: new Date().toISOString(),
+      pon: 'P3',
+      drugName: 'DRUG 3',
+      rawProse: 'prose 3',
+      generatedSig: 'sig 3',
+      technicianSig: 'tech 3',
+      notes: 'note 3',
+      flaggedForRph: false,
+    };
+
+    // Execute concurrently
+    await Promise.all([
+      adapter.appendDiscrepancy(report1, { immediate: true }),
+      adapter.appendDiscrepancy(report2, { immediate: true }),
+      adapter.appendDiscrepancy(report3, { immediate: true }),
+    ]);
+
+    const all = await adapter.readDiscrepancies();
+    expect(all.length).toBe(3);
+    const ids = all.map((r) => r.id);
+    expect(ids).toContain('d1');
+    expect(ids).toContain('d2');
+    expect(ids).toContain('d3');
+  });
+
+  it('bypasses stale file on disk when file write fails and falls back to localStorage', async () => {
+    const mockDir = createMockDirectoryHandle();
+    // Seed the mock disk with an old order
+    const staleOrder: StoredQueueOrder = {
+      id: 'stale_order',
+      pon: 'PON_STALE',
+      drugName: 'STALE DRUG',
+      rawProse: 'old prose',
+      suggestedSig: 'old sig',
+      draftSig: 'old sig',
+      isReviewed: false,
+      status: 'pending',
+    };
+    mockDir.files.set('queue.json', JSON.stringify([staleOrder]));
+
+    setMockShowDirectoryPicker(vi.fn().mockResolvedValue(mockDir));
+
+    const adapter = getCitrixStorageAdapter();
+    await adapter.connectDirectory();
+
+    // Verify initial read retrieves the file from disk
+    const initialRead = await adapter.readQueue();
+    expect(initialRead).toEqual([staleOrder]);
+
+    // Now make getFileHandle for writing fail (e.g. permission denied or disk error)
+    const originalGetFileHandle = mockDir.getFileHandle;
+    mockDir.getFileHandle = vi.fn().mockImplementation(async (name: string, options?: { create?: boolean }) => {
+      if (options?.create) {
+        throw new Error('EACCES: Disk write error');
+      }
+      return originalGetFileHandle(name, options);
+    });
+
+    const updatedOrder: StoredQueueOrder = {
+      id: 'updated_order',
+      pon: 'PON_NEW',
+      drugName: 'NEW DRUG',
+      rawProse: 'new prose',
+      suggestedSig: 'new sig',
+      draftSig: 'new sig',
+      isReviewed: true,
+      status: 'completed',
+    };
+
+    // writeQueue fails to write to disk, falls back to localStorage, and sets fallbackActive['queue.json'] = true
+    await adapter.writeQueue([updatedOrder], { immediate: true });
+
+    // readQueue must return the updated order from localStorage, NOT the stale file from disk
+    const readAfterFailure = await adapter.readQueue();
+    expect(readAfterFailure).toEqual([updatedOrder]);
+  });
+
+  it('bypasses pending debounce queue when bypassPending option is true', async () => {
+    const mockDir = createMockDirectoryHandle();
+    const diskOrder: StoredQueueOrder = {
+      id: 'disk_order',
+      pon: 'PON_DISK',
+      drugName: 'DISK DRUG',
+      rawProse: 'disk prose',
+      suggestedSig: 'disk sig',
+      isReviewed: false,
+      status: 'pending',
+    };
+    mockDir.files.set('queue.json', JSON.stringify([diskOrder]));
+    setMockShowDirectoryPicker(vi.fn().mockResolvedValue(mockDir));
+
+    const adapter = getCitrixStorageAdapter();
+    await adapter.connectDirectory();
+
+    const pendingLocalOrder: StoredQueueOrder = {
+      id: 'pending_order',
+      pon: 'PON_PENDING',
+      drugName: 'PENDING DRUG',
+      rawProse: 'pending prose',
+      suggestedSig: 'pending sig',
+      isReviewed: true,
+      status: 'completed',
+    };
+
+    // Stage a debounced write
+    adapter.writeQueue([pendingLocalOrder], { debounceMs: 5000 });
+
+    // Normal readQueue returns in-memory pending order
+    const normalRead = await adapter.readQueue();
+    expect(normalRead).toEqual([pendingLocalOrder]);
+
+    // readQueue({ bypassPending: true }) returns the order currently on disk
+    const bypassedRead = await adapter.readQueue({ bypassPending: true });
+    expect(bypassedRead).toEqual([diskOrder]);
+
+    // Clean up
+    await adapter.flushPendingWrites();
+  });
+
+  it('flushes pending writes and generates unique destinationId on directory switch', async () => {
+    const mockDir1 = createMockDirectoryHandle();
+    setMockShowDirectoryPicker(vi.fn().mockResolvedValue(mockDir1));
+
+    const adapter = getCitrixStorageAdapter();
+    await adapter.connectDirectory();
+    const destId1 = adapter.getDestinationId();
+    expect(destId1).toMatch(/^dir_/);
+
+    const pendingOrder: StoredQueueOrder = {
+      id: 'pending_switch',
+      pon: 'PON_SWITCH',
+      drugName: 'SWITCH DRUG',
+      rawProse: 'switch prose',
+      suggestedSig: 'switch sig',
+      isReviewed: true,
+      status: 'completed',
+    };
+
+    // Queue debounced write
+    adapter.writeQueue([pendingOrder], { debounceMs: 5000 });
+
+    // Switch to directory 2
+    const mockDir2 = createMockDirectoryHandle();
+    setMockShowDirectoryPicker(vi.fn().mockResolvedValue(mockDir2));
+
+    await adapter.connectDirectory();
+    const destId2 = adapter.getDestinationId();
+    expect(destId2).toMatch(/^dir_/);
+    expect(destId2).not.toBe(destId1);
+
+    // mockDir1 must have received the flushed write before switching!
+    expect(mockDir1.files.has('queue.json')).toBe(true);
+    expect(JSON.parse(mockDir1.files.get('queue.json')!)).toEqual([pendingOrder]);
+  });
+
+  it('requests mode readwrite when calling showDirectoryPicker', async () => {
+    const mockDir = createMockDirectoryHandle();
+    const pickerSpy = vi.fn().mockResolvedValue(mockDir);
+    setMockShowDirectoryPicker(pickerSpy);
+
+    const adapter = getCitrixStorageAdapter();
+    await adapter.connectDirectory();
+    expect(pickerSpy).toHaveBeenCalledWith({ mode: 'readwrite' });
+  });
+
+  it('resiliently reads valid JSONL lines even if one line is corrupted', async () => {
+    const mockDir = createMockDirectoryHandle();
+    const validEvent1 = { id: 'evt_1', timestamp: Date.now(), layer: 'ui', component: 'test', message: 'First' };
+    const validEvent2 = { id: 'evt_2', timestamp: Date.now() + 1, layer: 'ui', component: 'test', message: 'Second' };
+    const corruptedContent = `${JSON.stringify(validEvent1)}\n{CORRUPTED_JSON_LINE\n${JSON.stringify(validEvent2)}\n`;
+    mockDir.files.set('sig-assist-trace.jsonl', corruptedContent);
+
+    setMockShowDirectoryPicker(vi.fn().mockResolvedValue(mockDir));
+    const adapter = getCitrixStorageAdapter();
+    await adapter.connectDirectory();
+
+    const logs = await adapter.readTraceLogs();
+    expect(logs.length).toBe(2);
+    expect(logs[0].id).toBe('evt_1');
+    expect(logs[1].id).toBe('evt_2');
+  });
 });
+

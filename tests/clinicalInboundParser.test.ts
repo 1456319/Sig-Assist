@@ -75,5 +75,55 @@ DEFAULT SIG (OPTIONAL FIELD): MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO`;
     const parsed = parseInboundOrder(raw);
     expect(parsed.rawProse).toBe("Give 1 tablet by mouth daily - at bedtime 'for cholesterol'");
   });
+
+  it('correctly extracts PON, drug name, and directions from HL7 message', () => {
+    const hl7 = [
+      'MSH|^~\\&|DEMO|DEMO-FACILITY|DEMO-RECEIVER||20260918120000||RDE^O11^RDE_O11|DEMO-MSG|T|2.5',
+      'ORC|NW|DEMO-ORDER',
+      'RXO|DEMO^EXAMPLE MEDICATION|||||Take 1 tablet by mouth twice daily'
+    ].join('\n');
+    const parsed = parseInboundOrder(hl7);
+    expect(parsed.pon).toBe('DEMO-ORDER');
+    expect(parsed.drugName).toBe('EXAMPLE MEDICATION');
+    expect(parsed.rawProse).toBe('Take 1 tablet by mouth twice daily');
+    expect(parsed.sourceFormat).toBe('hl7');
+  });
+
+  it('correctly parses HL7 messages delimited by CR (\\r) carriage returns', () => {
+    const hl7 = [
+      'MSH|^~\\&|DEMO|DEMO-FACILITY|DEMO-RECEIVER||20260918120000||RDE^O11^RDE_O11|DEMO-MSG|T|2.5',
+      'ORC|NW|DEMO-CR-ORDER',
+      'RXO|DEMO^CR MEDICATION|||||Take 1 tablet by mouth twice daily'
+    ].join('\r');
+    const parsed = parseInboundOrder(hl7);
+    expect(parsed.pon).toBe('DEMO-CR-ORDER');
+    expect(parsed.drugName).toBe('CR MEDICATION');
+    expect(parsed.rawProse).toBe('Take 1 tablet by mouth twice daily');
+    expect(parsed.sourceFormat).toBe('hl7');
+  });
+
+  it('does not misclassify single-line direction prose as drug name', () => {
+    const raw = 'Take 1 tablet by mouth daily';
+    const parsed = parseInboundOrder(raw);
+    expect(parsed.drugName).toBe('UNKNOWN DRUG');
+    expect(parsed.rawProse).toBe('Take 1 tablet by mouth daily');
+    expect(parsed.sourceFormat).toBe('manual_text');
+  });
+
+  it('correctly classifies medication names beginning with digits (e.g. 5-FU CREAM 5%) as drug name', () => {
+    const raw = '5-FU CREAM 5%\nApply to affected area twice daily';
+    const parsed = parseInboundOrder(raw);
+    expect(parsed.drugName).toBe('5-FU CREAM 5%');
+    expect(parsed.rawProse).toBe('Apply to affected area twice daily');
+    expect(parsed.sourceFormat).toBe('manual_text');
+  });
+
+  it('correctly identifies direction prose even with a numbered prefix e.g. "1) Take 1 tablet by mouth daily"', () => {
+    const raw = '1) Take 1 tablet by mouth daily';
+    const parsed = parseInboundOrder(raw);
+    expect(parsed.drugName).toBe('UNKNOWN DRUG');
+    expect(parsed.rawProse).toBe('Take 1 tablet by mouth daily');
+    expect(parsed.sourceFormat).toBe('manual_text');
+  });
 });
 

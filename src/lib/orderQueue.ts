@@ -17,6 +17,9 @@ export interface QueueOrder extends OrderSource {
   approved?: string;
   copied?: string;
   cancelled: boolean;
+  subOrderDrafts?: Record<string, string>;
+  subOrderApprovals?: Record<string, string>;
+  subOrderCopied?: Record<string, string>;
 }
 
 export function orderKey(source: OrderSource): string {

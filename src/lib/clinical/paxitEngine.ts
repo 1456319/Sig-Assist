@@ -1,3 +1,5 @@
+import { traceLogger } from '../diagnostics/traceLogger';
+
 export interface PaxitPackagingEvaluation {
   readonly isPaxitSolid: boolean;
   readonly isControlled: boolean;
@@ -101,7 +103,7 @@ export function isControlledSubstance(drugName: string): boolean {
   return CONTROLLED_SUBSTANCE_PATTERNS.some((pattern) => pattern.test(drugName));
 }
 
-export function evaluatePaxitPackaging(drugName: string, rawProse: string): PaxitPackagingEvaluation {
+function evaluatePaxitPackagingInternal(drugName: string, rawProse: string): PaxitPackagingEvaluation {
   const upperDrug = drugName.toUpperCase();
   const upperProse = rawProse.toUpperCase();
 
@@ -128,24 +130,60 @@ export function evaluatePaxitPackaging(drugName: string, rawProse: string): Paxi
 
   const unitLabel = (upperDrug.includes('CAP') || upperProse.includes('CAP')) ? 'capsule' : 'tablet';
 
-  // Extract trailing clinical context (indication or PRN clause) to preserve across split sub-orders
-  const trailingContextMatch = rawProse.match(/\b((?:AS NEEDED\s+FOR|PRN\s+FOR|AS NEEDED|PRN|FOR)\s+(?!\d+\s*(?:DAYS?|D\b))[\s\S]+)$/i);
+  // Extract trailing clinical context (indication, PRN clause, or hold directives) to preserve across split sub-orders
+  const trailingContextMatch = rawProse.match(/\b((?:AS NEEDED\s+FOR|PRN\s+FOR|AS NEEDED|PRN|HOLD\s+(?:IF|FOR|WHEN)|FOR)\s+(?!\d+\s*(?:DAYS?|D\b))[\s\S]+)$/i);
   const contextSuffix = trailingContextMatch ? ` ${trailingContextMatch[1].trim()}` : '';
 
   // Extract acute duration clause (e.g. for 7 days / x14d) to preserve across split sub-orders
   const durationMatch = rawProse.match(/\b(?:FOR|X)\s*(\d+)\s*(?:DAYS?|D\b)/i);
   const durationSuffix = durationMatch ? ` for ${durationMatch[1]} days` : '';
 
+  function parseCountValue(raw: string): number {
+    const upper = raw.trim().toUpperCase();
+    if (upper === 'HALF') return 0.5;
+    if (upper.includes('/')) {
+      const parts = upper.split(/[- ]+/);
+      if (parts.length === 2) {
+        const [num, den] = parts[1].split('/').map(Number);
+        return Number(parts[0]) + (den ? num / den : 0);
+      }
+      const [num, den] = upper.split('/').map(Number);
+      return den ? num / den : 0;
+    }
+    return parseFloat(raw) || 0;
+  }
+
+  function normalizeFrequencyProse(rawFreq?: string): string {
+    if (!rawFreq) return 'daily';
+    const u = rawFreq.toUpperCase();
+    if (u.includes('TWICE') || /\bBID\b/.test(u)) return 'twice daily';
+    if (u.includes('THREE') || /\bTID\b/.test(u)) return 'three times a day';
+    if (u.includes('FOUR') || /\bQID\b/.test(u)) return 'four times a day';
+    if (u.includes('12 HOUR') || /\bQ12H\b/.test(u)) return 'every 12 hours';
+    if (u.includes('8 HOUR') || /\bQ8H\b/.test(u)) return 'every 8 hours';
+    if (u.includes('6 HOUR') || /\bQ6H\b/.test(u)) return 'every 6 hours';
+    if (u.includes('4 HOUR') || /\bQ4H\b/.test(u)) return 'every 4 hours';
+    if (u.includes('MORNING') || /\bQAM\b/.test(u)) return 'every morning';
+    if (u.includes('BEDTIME') || /\bQHS\b/.test(u)) return 'at bedtime';
+    return 'daily';
+  }
+
   let hasDifferentialDosing = false;
   let splitParts: Array<{ prose: string; label: string }> = [];
 
-  // Differing morning and bedtime doses (using non-greedy wildcard and \bAND\b word boundary)
-  const diffDoseMatch = upperProse.match(/(\d+)\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?.*?\b(?:MORNING|QAM|AM)\b.*?\bAND\b\s*(\d+)\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?\s*(?:AT\s*NIGHT|AT\s*BEDTIME|BEDTIME|QHS|HS|EVENING|PM)\b/i);
+  const countPattern = '(?:HALF|\\d+\\s*[- ]\\s*\\d+/\\d+|\\d+/\\d+|\\d+(?:\\.\\d+)?)';
+
+  // Differing morning and bedtime doses (supporting decimals and fractions)
+  const diffDoseRegex = new RegExp(
+    `(${countPattern})\\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?.*?\\b(?:MORNING|QAM|AM)\\b.*?\\bAND\\b\\s*(${countPattern})\\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?\\s*(?:AT\\s*NIGHT|AT\\s*BEDTIME|BEDTIME|QHS|HS|EVENING|PM)\\b`,
+    'i'
+  );
+  const diffDoseMatch = upperProse.match(diffDoseRegex);
   if (diffDoseMatch) {
-    const count1 = diffDoseMatch[1];
-    const count2 = diffDoseMatch[2];
-    // Only flag differential dosing if counts differ
-    if (count1 !== count2) {
+    const count1 = diffDoseMatch[1].trim();
+    const count2 = diffDoseMatch[2].trim();
+    // Only flag differential dosing if counts differ numerically
+    if (parseCountValue(count1) !== parseCountValue(count2)) {
       hasDifferentialDosing = true;
       splitParts = [
         { prose: `Take ${count1} ${unitLabel} by mouth every morning${durationSuffix}${contextSuffix}`, label: 'Order 1 of 2' },
@@ -154,21 +192,30 @@ export function evaluatePaxitPackaging(drugName: string, rawProse: string): Paxi
     }
   }
 
-  // Titration / step-down (supporting frequency keywords before duration and phase 2 durations)
+  // Titration / step-down (supporting decimals, secondary frequency, phase 2 duration, and stop directives)
   if (!hasDifferentialDosing) {
-    const titrationMatch = upperProse.match(
-      /(\d+)\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)\s*(?:(?:BY\s*MOUTH|PO)\s*)?(?:\s*(?:DAILY|QD|EVERY\s*DAY|ONCE\s*A\s*DAY))?\s*(?:X|FOR)\s*(\d+)\s*DAYS?\s*THEN\s*(?:TAKE\s*)?(\d+)\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?(?:\s*(?:BY\s*MOUTH|PO)\s*)?(?:\s*(?:DAILY|QD|EVERY\s*DAY|ONCE\s*A\s*DAY))?(?:\s*(?:X|FOR)\s*(\d+)\s*DAYS?)?/i
+    const titrationRegex = new RegExp(
+      `(${countPattern})\\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?\\s*(?:(?:BY\\s*MOUTH|PO)\\s*)?(?:\\s*(\\bDAILY\\b|\\bQD\\b|\\bEVERY\\s*DAY\\b|\\bONCE\\s*(?:A\\s*)?DAY\\b|\\bTWICE\\s*(?:A\\s*)?DAY\\b|\\bTWICE\\s*DAILY\\b|\\bBID\\b|\\bTHREE\\s*TIMES\\s*(?:A\\s*)?DAY\\b|\\bTID\\b|\\bFOUR\\s*TIMES\\s*(?:A\\s*)?DAY\\b|\\bQID\\b|\\bEVERY\\s*12\\s*HOURS?\\b|\\bQ12H\\b|\\bEVERY\\s*8\\s*HOURS?\\b|\\bQ8H\\b|\\bEVERY\\s*6\\s*HOURS?\\b|\\bQ6H\\b|\\bEVERY\\s*4\\s*HOURS?\\b|\\bQ4H\\b|\\bEVERY\\s*MORNING\\b|\\bIN\\s*THE\\s*MORNING\\b|\\bQAM\\b|\\bAT\\s*BEDTIME\\b|\\bBEDTIME\\b|\\bQHS\\b))?\\s*(?:X|FOR)\\s*(\\d+)\\s*DAYS?\\s*THEN\\s*(?:TAKE\\s*)?(${countPattern})\\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?\\s*(?:(?:BY\\s*MOUTH|PO)\\s*)?(?:\\s*(\\bDAILY\\b|\\bQD\\b|\\bEVERY\\s*DAY\\b|\\bONCE\\s*(?:A\\s*)?DAY\\b|\\bTWICE\\s*(?:A\\s*)?DAY\\b|\\bTWICE\\s*DAILY\\b|\\bBID\\b|\\bTHREE\\s*TIMES\\s*(?:A\\s*)?DAY\\b|\\bTID\\b|\\bFOUR\\s*TIMES\\s*(?:A\\s*)?DAY\\b|\\bQID\\b|\\bEVERY\\s*12\\s*HOURS?\\b|\\bQ12H\\b|\\bEVERY\\s*8\\s*HOURS?\\b|\\bQ8H\\b|\\bEVERY\\s*6\\s*HOURS?\\b|\\bQ6H\\b|\\bEVERY\\s*4\\s*HOURS?\\b|\\bQ4H\\b|\\bEVERY\\s*MORNING\\b|\\bIN\\s*THE\\s*MORNING\\b|\\bQAM\\b|\\bAT\\s*BEDTIME\\b|\\bBEDTIME\\b|\\bQHS\\b))?(?:\\s*(?:X|FOR)\\s*(\\d+)\\s*DAYS?)?(?:\\s*THEN\\s*(?:STOP|DISCONTINUE))?`,
+      'i'
     );
+    const titrationMatch = upperProse.match(titrationRegex);
     if (titrationMatch) {
       hasDifferentialDosing = true;
-      const count1 = titrationMatch[1];
-      const days1 = titrationMatch[2];
-      const count2 = titrationMatch[3];
-      const days2 = titrationMatch[4];
-      const days2Suffix = days2 ? ` for ${days2} days` : '';
+      const count1 = titrationMatch[1].trim();
+      const rawFreq1 = titrationMatch[2];
+      const days1 = titrationMatch[3].trim();
+      const count2 = titrationMatch[4].trim();
+      const rawFreq2 = titrationMatch[5];
+      const days2 = titrationMatch[6];
+
+      const phase1Freq = normalizeFrequencyProse(rawFreq1);
+      const phase2Freq = normalizeFrequencyProse(rawFreq2);
+
+      const days2Suffix = days2 ? ` for ${days2.trim()} days` : '';
+      const stopSuffix = /\bTHEN\s*(?:STOP|DISCONTINUE)\b/i.test(upperProse) ? ' then stop' : '';
       splitParts = [
-        { prose: `Take ${count1} ${unitLabel} by mouth daily for ${days1} days${contextSuffix}`, label: 'Order 1 of 2' },
-        { prose: `Take ${count2} ${unitLabel} by mouth daily${days2Suffix}${contextSuffix}`, label: 'Order 2 of 2' }
+        { prose: `Take ${count1} ${unitLabel} by mouth ${phase1Freq} for ${days1} days${contextSuffix}`, label: 'Order 1 of 2' },
+        { prose: `Take ${count2} ${unitLabel} by mouth ${phase2Freq}${days2Suffix}${stopSuffix}${contextSuffix}`, label: 'Order 2 of 2' }
       ];
     }
   }
@@ -192,3 +239,17 @@ export function evaluatePaxitPackaging(drugName: string, rawProse: string): Paxi
     splitDirectives: hasDifferentialDosing ? splitParts.map(p => p.prose) : []
   };
 }
+
+export function evaluatePaxitPackaging(drugName: string, rawProse: string): PaxitPackagingEvaluation {
+  const result = evaluatePaxitPackagingInternal(drugName, rawProse);
+  traceLogger.debug('packaging', 'paxitEngine', 'Evaluated packaging constraints', {
+    drugName,
+    isControlled: result.isControlled,
+    isPaxitSolid: result.isPaxitSolid,
+    requiresSplit: result.requiresSplit,
+    splitPartsCount: result.splitParts.length,
+    hasPackagingNotice: Boolean(result.packagingNotice)
+  });
+  return result;
+}
+

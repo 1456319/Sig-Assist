@@ -5,7 +5,8 @@ export interface InboundOrder {
   readonly rawProse: string;
   readonly defaultSigTemplate?: string;
   readonly indication?: string;
-  readonly sourceFormat: 'ncpdp_xml' | 'manual_text';
+  readonly sourceFormat: 'ncpdp_xml' | 'manual_text' | 'hl7';
+  readonly traceId?: string;
 }
 
 export type AbnormalityTier = 'uncorrected_gap' | 'applied_correction' | 'potential_error';
@@ -30,6 +31,7 @@ export interface ClinicalSigResult {
   readonly primarySig: string;
   readonly subOrders: SubOrderResult[];
   readonly abnormalities: AbnormalityFinding[];
+  readonly traceId?: string;
 }
 
 export interface DiscrepancyReport {

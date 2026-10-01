@@ -1,4 +1,5 @@
 import { AbnormalityFinding } from './types';
+import { traceLogger } from '../diagnostics/traceLogger';
 
 export interface FrequencyScheduleResult {
   readonly frequencyToken: string;
@@ -6,6 +7,7 @@ export interface FrequencyScheduleResult {
   readonly prnToken?: string;
   readonly indicationToken?: string;
   readonly holdToken?: string;
+  readonly stopToken?: string;
   readonly slidingScaleString?: string;
   readonly blendedTemplate?: string;
   readonly abnormalities: AbnormalityFinding[];
@@ -44,9 +46,23 @@ export const COMPILED_INDICATION_REGEXES: readonly CompiledIndicationRegex[] = S
   token: INDICATION_MAP[key],
 }));
 
-export function resolveFrequencyAndSchedule(rawProse: string, defaultTemplate?: string): FrequencyScheduleResult {
+function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?: string): FrequencyScheduleResult {
   const upper = rawProse.toUpperCase();
   const abnormalities: AbnormalityFinding[] = [];
+
+  if (!upper.trim()) {
+    abnormalities.push({
+      id: `abn_freq_empty_${Date.now()}`,
+      tier: 'potential_error',
+      title: 'Missing Frequency',
+      message: 'Original directions are empty or missing frequency directives.',
+      trigger: 'Empty directions'
+    });
+    return {
+      frequencyToken: '',
+      abnormalities
+    };
+  }
 
   // Sliding scale insulin check
   if (upper.includes('SLIDING SCALE')) {
@@ -112,19 +128,54 @@ export function resolveFrequencyAndSchedule(rawProse: string, defaultTemplate?: 
   let holdToken: string | undefined;
   if (upper.includes('HOLD FOR SBP LESS THAN 100 OR HEART RATE LESS THAN 60')) {
     holdToken = 'HR60SBP100';
+  } else if (/HOLD\s+(?:IF|FOR)\s+SBP\s*(?:<|LESS\s+THAN)\s*100/i.test(upper)) {
+    holdToken = 'SBP100';
   } else if (upper.includes('HOLD IF MORE THAN 2 BOWEL MOVEMENT')) {
     holdToken = '(H >2 BOWEL MOVEMENTS DAILY)';
+  } else {
+    const genericHoldMatch = upper.match(/\b(HOLD\s+(?:IF|FOR|WHEN)\s+[^;,\n.]+)/i);
+    if (genericHoldMatch) {
+      holdToken = `(${genericHoldMatch[1].trim()})`;
+    }
+  }
+
+  if (holdToken) {
+    abnormalities.push({
+      id: `abn_hold_${Date.now()}`,
+      tier: 'applied_correction',
+      title: 'Hold Directive Detected',
+      message: 'The generated Sig CONTAINS A CLINICAL HOLD PARAMETER.',
+      correction: `Preserved hold parameter directive: ${holdToken}`,
+      trigger: 'Prescriber specified clinical hold condition'
+    });
+  }
+
+  // Stop directives
+  let stopToken: string | undefined;
+  if (/\bTHEN\s+(?:STOP|DISCONTINUE)\b/i.test(upper)) {
+    stopToken = 'THEN STOP';
   }
 
   // Duration
   let durationToken: string | undefined;
-  const forDurMatch = upper.match(/FOR\s+(\d+)\s*(?:DAYS|DAY)\b/i);
-  if (forDurMatch) {
-    durationToken = `X${forDurMatch[1]}D`;
+  const decimalDurMatch = upper.match(/\b(?:FOR|X)\s*(\d+\.\d+|\d+\s*[-/]\s*\d+)\s*(?:DAYS?|D\b)/i) || upper.match(/(?<!\bEVERY\s+)(?<!\bPER\s+)\b(\d+\.\d+|\d+\s*[-/]\s*\d+)\s*(?:DAYS?|D\b)/i);
+  if (decimalDurMatch) {
+    abnormalities.push({
+      id: `abn_duration_non_integer_${Date.now()}`,
+      tier: 'potential_error',
+      title: 'Non-integer Day Supply',
+      message: `Prescribed duration '${decimalDurMatch[0]}' contains a non-integer day supply. Day supplies must be whole numbers.`,
+      trigger: decimalDurMatch[0]
+    });
   } else {
-    const standaloneDurMatch = upper.match(/\b(\d+)\s*(?:DAYS|DAY)\b/i);
-    if (standaloneDurMatch && !upper.match(/EVERY\s+(\d+\s*)?(?:DAYS|DAY)/i) && !upper.includes('PER DAY')) {
-      durationToken = `X${standaloneDurMatch[1]}D`;
+    const forDurMatch = upper.match(/(?:\bFOR\s*|\bX\s*)(\d+)\s*(?:DAYS?|D\b)/i);
+    if (forDurMatch) {
+      durationToken = `X${forDurMatch[1]}D`;
+    } else {
+      const standaloneDurMatch = upper.match(/(?<![\d./])(\d+)(?!\s*[\d./])\s*(?:DAYS|DAY)\b/i);
+      if (standaloneDurMatch && !upper.match(/EVERY\s+(\d+\s*)?(?:DAYS|DAY)/i) && !upper.includes('PER DAY')) {
+        durationToken = `X${standaloneDurMatch[1]}D`;
+      }
     }
   }
 
@@ -140,10 +191,10 @@ export function resolveFrequencyAndSchedule(rawProse: string, defaultTemplate?: 
     }
   }
   if (!indicationToken) {
-    const forMatch = upper.match(/\bFOR\s+(?!\d+\s*DAYS?)([A-Z0-9/\-\s]+)$/i);
+    const forMatch = upper.match(/\bFOR\s+(?!\d+\s*DAYS?)(?!HOLD)([A-Z0-9/\-\s]+)$/i);
     if (forMatch) {
-      const rawInd = forMatch[1].trim();
-      if (!rawInd.includes('DAY') && !rawInd.includes('HOUR')) {
+      const rawInd = forMatch[1].replace(/\bHOLD\b.*$/i, '').trim();
+      if (rawInd && !rawInd.includes('DAY') && !rawInd.includes('HOUR') && !rawInd.startsWith('HOLD')) {
         indicationToken = `FOR ${rawInd}`;
       }
     }
@@ -165,10 +216,15 @@ export function resolveFrequencyAndSchedule(rawProse: string, defaultTemplate?: 
     frequencyToken = 'QAM';
   } else if (upper.includes('EVERY 12 HOURS') || /\bQ12H\b/i.test(upper)) {
     frequencyToken = 'Q12H';
+  } else if (upper.includes('EVERY 8 HOURS') || /\bQ8H\b/i.test(upper)) {
+    frequencyToken = 'Q8H';
   } else if (upper.includes('EVERY 6 HOURS') || /\bQ6H\b/i.test(upper)) {
     frequencyToken = 'Q6H';
   } else if (upper.includes('EVERY 4 HOURS') || /\bQ4H\b/i.test(upper)) {
     frequencyToken = 'Q4H';
+  } else if (/\bEVERY\s+(\d+)\s*HOURS?\b/i.test(upper) || /\bQ(\d+)H\b/i.test(upper)) {
+    const qhMatch = upper.match(/\bEVERY\s+(\d+)\s*HOURS?\b/i) || upper.match(/\bQ(\d+)H\b/i);
+    frequencyToken = `Q${qhMatch![1]}H`;
   } else if (upper.includes('FOUR TIMES A DAY') || /\bQID\b/i.test(upper)) {
     frequencyToken = 'QID';
   } else if (upper.includes('THREE TIMES A DAY') || /\bTID\b/i.test(upper)) {
@@ -195,7 +251,24 @@ export function resolveFrequencyAndSchedule(rawProse: string, defaultTemplate?: 
     prnToken,
     indicationToken,
     holdToken,
+    stopToken,
     blendedTemplate,
     abnormalities
   };
 }
+
+export function resolveFrequencyAndSchedule(rawProse: string, defaultTemplate?: string): FrequencyScheduleResult {
+  const result = resolveFrequencyAndScheduleInternal(rawProse, defaultTemplate);
+  traceLogger.debug('clinical', 'frequencyEngine', 'Resolved frequency and schedule tokens', {
+    frequencyToken: result.frequencyToken,
+    durationToken: result.durationToken,
+    prnToken: result.prnToken,
+    indicationToken: result.indicationToken,
+    holdToken: result.holdToken,
+    stopToken: result.stopToken,
+    blendedTemplate: result.blendedTemplate,
+    abnormalitiesCount: result.abnormalities.length
+  });
+  return result;
+}
+

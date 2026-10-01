@@ -2,7 +2,13 @@
 
 ## Try the local review MVP
 
-Run `npm ci` and `npm run dev` with Node.js 22.12+. No Supabase configuration
+### On Windows
+1. **Quick Launch (Development):** Double-click `start-windows.bat` (checks Node.js, installs dependencies, opens browser to `http://localhost:5173`).
+2. **Quick Launch (Production Preview):** Double-click `preview-windows.bat` (builds production package and serves on `http://localhost:4173`).
+3. **Recommended Browser:** Google Chrome or Microsoft Edge (natively supports the File System Access API for local/Citrix directory folder persistence).
+
+### On Linux / macOS
+Run `npm install` and `npm run dev` with Node.js 18+. No external database configuration
 is required for the local **Order Queue**. Choose **Fill synthetic example**,
 add the order, review/correct the uppercase SIG, acknowledge review and copy.
 

@@ -199,33 +199,55 @@ export function WorkbenchView() {
 
   const effectiveResult = useMemo(() => {
     if (!result) return null;
-    if (clinicalResult?.primarySig) {
+    if (clinicalResult && (clinicalResult.primarySig || clinicalResult.abnormalities.length > 0)) {
+      const clinicalSteps: TraceStep[] = [
+        {
+          step: 1,
+          label: 'Inbound Clinical Intake',
+          input: rawInput,
+          output: `Drug: ${clinicalInbound?.drugName || 'UNKNOWN'} | Directions: ${clinicalInbound?.rawProse || ''}`,
+          warnings: [],
+          rulesApplied: ['clinical-inbound-parser']
+        },
+        {
+          step: 2,
+          label: 'Clinical Regimen Translation',
+          input: clinicalInbound?.rawProse || '',
+          output: clinicalResult.primarySig,
+          warnings: clinicalResult.abnormalities.map(a => `${a.title}: ${a.message}`),
+          rulesApplied: ['clinical-translation-engine']
+        }
+      ];
       return {
         ...result,
         finalSig: clinicalResult.primarySig,
+        steps: clinicalSteps,
+        hasHighRisk: clinicalResult.abnormalities.some(a => a.tier === 'potential_error'),
+        hasUnresolved: clinicalResult.abnormalities.some(a => a.tier === 'uncorrected_gap')
       };
     }
     return result;
-  }, [result, clinicalResult]);
+  }, [result, clinicalResult, rawInput, clinicalInbound]);
 
   const source = JSON.stringify([rawInput, inputMode, drugName, defaultSig, effectiveResult]);
 
   useEffect(() => {
-    if (!result?.sigEngineOrder || (!result.hasHighRisk && !result.hasUnresolved)) return;
-    const key = `${result.rawInput}\n${result.finalSig}`;
+    const target = effectiveResult || result;
+    if (!target?.sigEngineOrder || (!target.hasHighRisk && !target.hasUnresolved)) return;
+    const key = `${target.rawInput}\n${target.finalSig}`;
     if (diagnosticKeysRef.current.has(key)) return;
     diagnosticKeysRef.current.add(key);
     const event = createTranslationDiagnostic(
-      result.hasHighRisk ? 'blocked' : 'unaccepted-output',
+      target.hasHighRisk ? 'blocked' : 'unaccepted-output',
       'manual',
-      result.rawInput,
-      result.sigEngineOrder.drug,
-      result.finalSig,
-      result.sigEngineOrder,
+      target.rawInput,
+      target.sigEngineOrder.drug,
+      target.finalSig,
+      target.sigEngineOrder,
     );
     diagnosticSinkRef.current.record(event);
     setLatestDiagnostic(event);
-  }, [result]);
+  }, [effectiveResult, result]);
 
   const openDiagnosticIssue = useCallback(() => {
     if (!latestDiagnostic) return;
@@ -361,16 +383,16 @@ export function WorkbenchView() {
 
           <div className="flex-1 p-4 space-y-4 overflow-auto scrollbar-thin">
             {/* Step trace */}
-            {result && (
+            {(effectiveResult || result) && (
               <div className="space-y-2">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
                   Execution Trace
                 </p>
-                {result.steps.map((step) => (
+                {(effectiveResult || result)!.steps.map((step) => (
                   <TraceStepCard
                     key={step.step}
                     step={step}
-                    defaultOpen={step.step === result.steps.length}
+                    defaultOpen={step.step === (effectiveResult || result)!.steps.length}
                   />
                 ))}
               </div>
@@ -391,6 +413,8 @@ export function WorkbenchView() {
                   key={clinicalInbound?.id || `${drugName}:${rawInput}`}
                   primarySig={clinicalResult.primarySig}
                   subOrders={clinicalResult.subOrders}
+                  unavailable={result?.inputMode === 'hl7' && Boolean(result?.hl7Extraction?.warning)}
+                  traceId={clinicalInbound?.traceId || clinicalResult?.traceId}
                 />
               ) : effectiveResult ? (
                 <WorkbenchReview key={`${inputMode}:${rawInput}:${effectiveResult.finalSig}`} result={effectiveResult} source={source} />

@@ -1,0 +1,379 @@
+import { describe, expect, it, beforeEach } from 'vitest';
+import {
+  traceLogger,
+  TraceLogger,
+  type TraceEvent,
+} from '../src/lib/diagnostics/traceLogger';
+import { parseInboundOrder } from '../src/lib/clinical/inboundParser';
+import { translateClinicalSig } from '../src/lib/clinical/clinicalEngine';
+
+describe('traceLogger', () => {
+  beforeEach(() => {
+    traceLogger.clear();
+  });
+
+  it('records trace events with timestamp, layer, level, and details', () => {
+    const traceId = traceLogger.startTrace('TEST_ORD_1');
+    traceLogger.info('clinical', 'doseCalculator', 'Calculated tablet dose', {
+      drug: 'PROTONIX 40MG',
+      doseToken: '1T',
+      multiplier: 1,
+    }, undefined, traceId);
+
+    const events = traceLogger.getEvents();
+    expect(events.length).toBe(1);
+    expect(events[0].traceId).toBe(traceId);
+    expect(events[0].layer).toBe('clinical');
+    expect(events[0].level).toBe('INFO');
+    expect(events[0].component).toBe('doseCalculator');
+    expect(events[0].message).toBe('Calculated tablet dose');
+    expect(events[0].details?.drug).toBe('PROTONIX 40MG');
+    expect(events[0].timestamp).toBeDefined();
+  });
+
+  it('enforces ring buffer max limit without memory leak', () => {
+    const customLogger = traceLogger.createScoped('SCOPE_1', 5);
+    for (let i = 0; i < 10; i++) {
+      customLogger.debug('intake', 'test', `Message ${i}`);
+    }
+    const events = customLogger.getEvents();
+    expect(events.length).toBe(5);
+    expect(events[0].message).toBe('Message 5');
+    expect(events[4].message).toBe('Message 9');
+  });
+
+  it('filters events by layer, level, and search keyword', () => {
+    const traceId1 = traceLogger.startTrace('PON_100');
+    const traceId2 = traceLogger.startTrace('PON_200');
+
+    traceLogger.info('intake', 'inboundParser', 'Extracted HL7 message', { pon: 'PON_100' }, undefined, traceId1);
+    traceLogger.warn('packaging', 'paxitEngine', 'Split required for oral solid', { drug: 'GABAPENTIN' }, undefined, traceId1);
+    traceLogger.error('storage', 'citrixStorage', 'Disk share unreachable', undefined, { name: 'Error', message: 'EACCES' }, traceId2);
+
+    expect(traceLogger.getEvents({ layer: 'intake' }).length).toBe(1);
+    expect(traceLogger.getEvents({ level: 'WARN' }).length).toBe(1);
+    expect(traceLogger.getEvents({ level: 'ERROR' }).length).toBe(1);
+    expect(traceLogger.getEvents({ traceId: traceId1 }).length).toBe(2);
+    expect(traceLogger.getEvents({ search: 'gabapentin' }).length).toBe(1);
+    expect(traceLogger.getEvents({ search: 'unreachable' }).length).toBe(1);
+  });
+
+  it('exports structured JSON and JSONL bundles', () => {
+    traceLogger.info('clinical', 'doseCalculator', 'Step 1');
+    traceLogger.warn('packaging', 'paxitEngine', 'Step 2');
+
+    const jsonExport = traceLogger.exportJson();
+    const parsedJson = JSON.parse(jsonExport);
+    expect(Array.isArray(parsedJson)).toBe(true);
+    expect(parsedJson.length).toBe(2);
+
+    const jsonlExport = traceLogger.exportJsonl();
+    const lines = jsonlExport.trim().split('\n');
+    expect(lines.length).toBe(2);
+    expect(JSON.parse(lines[0]).message).toBe('Step 1');
+    expect(JSON.parse(lines[1]).message).toBe('Step 2');
+  });
+
+  it('notifies subscribers on new log entries', () => {
+    const received: TraceEvent[] = [];
+    const unsubscribe = traceLogger.subscribe((evt) => {
+      received.push(evt);
+    });
+
+    traceLogger.info('ui', 'MultiOrderCards', 'User copied card');
+    expect(received.length).toBe(1);
+    expect(received[0].message).toBe('User copied card');
+
+    unsubscribe();
+    traceLogger.info('ui', 'MultiOrderCards', 'Another copy');
+    expect(received.length).toBe(1);
+  });
+
+  it('instruments full clinical translation and emits multi-layer trace logs with matching traceId', () => {
+    const raw = `OXYCODONE-APAP 5-325\nUSER ENTRY: Take 2 tablets by mouth in the morning and 1 tablet at night before bedtime for 7 days as needed for severe pain`;
+    const inbound = parseInboundOrder(raw);
+    expect(inbound.traceId).toBeDefined();
+
+    const result = translateClinicalSig(inbound);
+
+    expect(result.primarySig).toBe('2T PO QAM AND 1T PO QHS PRN FPAIN X7D 3GM');
+    expect(result.traceId).toBe(inbound.traceId);
+
+    const events = traceLogger.getEvents();
+    expect(events.length).toBeGreaterThan(0);
+
+    const layers = new Set(events.map((e) => e.layer));
+    expect(layers.has('intake') && layers.has('clinical') && layers.has('packaging')).toBe(true);
+
+    const clinicalAndPackagingEvents = events.filter((e) => e.layer === 'clinical' || e.layer === 'packaging');
+    expect(clinicalAndPackagingEvents.length).toBeGreaterThan(0);
+    expect(clinicalAndPackagingEvents.every((e) => e.traceId === inbound.traceId)).toBe(true);
+  });
+
+  it('flush cursor tracks flushed events and avoids duplicate emits on repeated flush', async () => {
+    const flushedBatches: TraceEvent[][] = [];
+    traceLogger.setOnFlushHook(async (batch) => {
+      flushedBatches.push(batch);
+    });
+
+    traceLogger.info('clinical', 'doseCalculator', 'Event 1');
+    traceLogger.info('clinical', 'doseCalculator', 'Event 2');
+
+    await traceLogger.flush();
+    expect(flushedBatches.length).toBe(1);
+    expect(flushedBatches[0].length).toBe(2);
+
+    // Repeated flush without new events should NOT emit anything
+    await traceLogger.flush();
+    expect(flushedBatches.length).toBe(1);
+
+    // After logging a 3rd event, flush only emits the 3rd event
+    traceLogger.info('clinical', 'doseCalculator', 'Event 3');
+    await traceLogger.flush();
+    expect(flushedBatches.length).toBe(2);
+    expect(flushedBatches[1].length).toBe(1);
+    expect(flushedBatches[1][0].message).toBe('Event 3');
+  });
+
+  it('retains unacknowledged batches for retry if onFlushHook fails, advancing cursor only on success', async () => {
+    let shouldFail = true;
+    const flushedBatches: TraceEvent[][] = [];
+
+    traceLogger.setOnFlushHook(async (batch) => {
+      if (shouldFail) {
+        throw new Error('Network timeout during Citrix share flush');
+      }
+      flushedBatches.push(batch);
+      return { destination: 'file_system', recordsSaved: batch.length };
+    });
+
+    traceLogger.info('clinical', 'doseCalculator', 'Event A');
+    traceLogger.info('clinical', 'doseCalculator', 'Event B');
+
+    // First flush fails
+    await expect(traceLogger.flush()).rejects.toThrow('Network timeout during Citrix share flush');
+    expect(flushedBatches.length).toBe(0);
+
+    // After failure, unacknowledged records must be retried on next flush
+    shouldFail = false;
+    const res = await traceLogger.flush();
+    expect(res.flushedCount).toBe(2);
+    expect(res.destination).toBe('file_system');
+    expect(flushedBatches.length).toBe(1);
+    expect(flushedBatches[0].map(e => e.message)).toEqual(['Event A', 'Event B']);
+
+    // Subsequent flush does not re-emit
+    const emptyRes = await traceLogger.flush();
+    expect(emptyRes.flushedCount).toBe(0);
+  });
+
+  it('hydrates persisted trace history, deduplicating IDs and surfacing in exports without re-flushing', async () => {
+    const persisted: TraceEvent[] = [
+      {
+        id: 'persisted_1',
+        traceId: 'HIST_1',
+        timestamp: new Date().toISOString(),
+        layer: 'intake',
+        level: 'INFO',
+        component: 'inboundParser',
+        message: 'Persisted past session message',
+      },
+    ];
+
+    const added = traceLogger.hydratePersistedEvents(persisted);
+    expect(added).toBe(1);
+
+    // Duplicate hydration ignores existing event
+    const duplicateAdded = traceLogger.hydratePersistedEvents(persisted);
+    expect(duplicateAdded).toBe(0);
+
+    // Surfaced in exports
+    expect(traceLogger.exportJsonl()).toContain('Persisted past session message');
+
+    // Flush hook does not re-emit already persisted events
+    const flushedBatches: TraceEvent[][] = [];
+    traceLogger.setOnFlushHook(async (batch) => {
+      flushedBatches.push(batch);
+    });
+
+    await traceLogger.flush();
+    expect(flushedBatches.length).toBe(0);
+  });
+
+  it('isolates trace IDs between intake parsing and subsequent queue/clinical translations', () => {
+    const initialTrace = traceLogger.getActiveTraceId();
+    expect(initialTrace).toBe('GLOBAL');
+
+    // 1. Parsing inbound order generates unique traceId without contaminating global activeTraceId
+    const inbound = parseInboundOrder('WARFARIN 5MG\nUSER ENTRY: Take 1 tablet daily');
+    expect(inbound.traceId).toBeDefined();
+    expect(inbound.traceId).toMatch(/^ORD_/);
+    expect(traceLogger.getActiveTraceId()).toBe('GLOBAL');
+
+    // 2. Queue translation with order-specific traceId executes cleanly with that traceId
+    const queueOrderResult = translateClinicalSig({
+      id: 'queue_order_99',
+      pon: 'PON_99',
+      drugName: 'LISINOPRIL 10MG',
+      rawProse: 'Take 1 tablet by mouth daily',
+      sourceFormat: 'manual_text',
+      traceId: 'ORD_queue_order_99_R1',
+    });
+    expect(queueOrderResult.traceId).toBe('ORD_queue_order_99_R1');
+    expect(traceLogger.getActiveTraceId()).toBe('GLOBAL');
+
+    // 3. Translation without explicit traceId generates its own TRC_ prefix and does not inherit prior intake
+    const fallbackResult = translateClinicalSig({
+      id: 'order_fallback',
+      pon: 'PON_FB',
+      drugName: 'METFORMIN 500MG',
+      rawProse: 'Take 1 tablet twice daily',
+      sourceFormat: 'manual_text',
+    });
+    expect(fallbackResult.traceId).toBe('TRC_order_fallback');
+    expect(fallbackResult.traceId).not.toBe(inbound.traceId);
+    expect(traceLogger.getActiveTraceId()).toBe('GLOBAL');
+  });
+
+  it('preserves unflushed event cursor when hydrating history into a capacity-constrained logger', async () => {
+    // Instantiate a logger with maxCapacity = 5
+    const smallLogger = new TraceLogger(5);
+    let flushedEvents: TraceEvent[] = [];
+    smallLogger.setOnFlushHook(async (batch) => {
+      flushedEvents.push(...batch);
+    });
+
+    smallLogger.info('ui', 'test', 'e1');
+    smallLogger.info('ui', 'test', 'e2');
+
+    // Flush first 2 events
+    const firstRes = await smallLogger.flush();
+    expect(firstRes.flushedCount).toBe(2);
+    flushedEvents = [];
+
+    // Log 2 more events that remain unflushed
+    smallLogger.info('ui', 'test', 'e3_unflushed');
+    smallLogger.info('ui', 'test', 'e4_unflushed');
+
+    // Hydrate 3 persisted events. Combined = 3 (fresh) + 4 (in-memory) = 7 > 5.
+    // 2 fresh events are dropped, 1 fresh retained, all 4 in-memory retained.
+    const persisted: TraceEvent[] = [
+      { id: 'p1', traceId: 'T1', timestamp: new Date().toISOString(), layer: 'intake', level: 'INFO', component: 'c', message: 'p1' },
+      { id: 'p2', traceId: 'T2', timestamp: new Date().toISOString(), layer: 'intake', level: 'INFO', component: 'c', message: 'p2' },
+      { id: 'p3', traceId: 'T3', timestamp: new Date().toISOString(), layer: 'intake', level: 'INFO', component: 'c', message: 'p3' },
+    ];
+
+    smallLogger.hydratePersistedEvents(persisted);
+
+    const res = await smallLogger.flush();
+    // Must flush exactly the 2 unflushed in-memory events (e3_unflushed, e4_unflushed)
+    expect(res.flushedCount).toBe(2);
+    expect(flushedEvents.map((e) => e.message)).toEqual(['e3_unflushed', 'e4_unflushed']);
+  });
+
+  it('serializes concurrent flush calls without duplicate emissions and safely handles buffer shifts', async () => {
+    const logger = new TraceLogger(3); // Small capacity to force buffer shifts
+    const flushedBatches: TraceEvent[][] = [];
+
+    logger.setOnFlushHook(async (batch) => {
+      // Simulate asynchronous flush latency
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      flushedBatches.push([...batch]);
+      return { destination: 'file_system', recordsSaved: batch.length };
+    });
+
+    // Log 2 events
+    logger.info('clinical', 'test', 'm1');
+    logger.info('clinical', 'test', 'm2');
+
+    // Trigger two concurrent flush calls
+    const [res1, res2] = await Promise.all([
+      logger.flush('file_system'),
+      logger.flush('file_system'),
+    ]);
+
+    // One should flush the 2 events, the second should see 0 unflushed
+    expect(res1.flushedCount + res2.flushedCount).toBe(2);
+    expect(flushedBatches.length).toBe(1);
+    expect(flushedBatches[0].map((e) => e.message)).toEqual(['m1', 'm2']);
+
+    // Now log 3 more events (causing buffer shifts since maxCapacity is 3)
+    logger.info('clinical', 'test', 'm3');
+    logger.info('clinical', 'test', 'm4');
+    logger.info('clinical', 'test', 'm5');
+
+    // Flush again: sequence-based tracking should flush all 3 new events
+    const res3 = await logger.flush('file_system');
+    expect(res3.flushedCount).toBe(3);
+    expect(flushedBatches.length).toBe(2);
+    expect(flushedBatches[1].map((e) => e.message)).toEqual(['m3', 'm4', 'm5']);
+  });
+
+  it('does not advance file_system watermark when hook reports fallback to browser_cache', async () => {
+    const logger = new TraceLogger(10);
+    logger.setOnFlushHook(async (batch) => {
+      // Simulate file_system failure falling back to browser_cache
+      return { destination: 'browser_cache', recordsSaved: batch.length };
+    });
+
+    logger.info('clinical', 'doseCalculator', 'Event to flush');
+
+    // Flush with targetDestination = 'file_system'
+    const res = await logger.flush('file_system');
+    expect(res.destination).toBe('browser_cache');
+    expect(res.flushedCount).toBe(1);
+
+    // Pending count for browser_cache must be 0, but for file_system must still be 1!
+    expect(logger.getPendingFlushCount('browser_cache')).toBe(0);
+    expect(logger.getPendingFlushCount('file_system')).toBe(1);
+  });
+
+  it('re-aligns sequence numbers on hydration and tracks destinationId across shares', async () => {
+    const logger = new TraceLogger(20);
+    const persisted: TraceEvent[] = [
+      { id: 'p1', seq: 100, traceId: 'T1', timestamp: new Date().toISOString(), layer: 'intake', level: 'INFO', component: 'c', message: 'p1' },
+      { id: 'p2', seq: 105, traceId: 'T2', timestamp: new Date().toISOString(), layer: 'intake', level: 'INFO', component: 'c', message: 'p2' },
+    ];
+
+    logger.hydratePersistedEvents(persisted, 'dir_shareA_123');
+
+    // Newly logged event must have seq > 105
+    const newEvt = logger.info('clinical', 'doseCalculator', 'post_hydration_event');
+    expect(newEvt.seq).toBeGreaterThan(105);
+
+    // Flushed batches to share B (a new share) should include the new event
+    const flushedToShareB: TraceEvent[] = [];
+    logger.setOnFlushHook(async (batch) => {
+      flushedToShareB.push(...batch);
+      return { destination: 'file_system', destinationId: 'dir_shareB_456', recordsSaved: batch.length };
+    });
+
+    const res = await logger.flush('dir_shareB_456');
+    expect(res.flushedCount).toBeGreaterThan(0);
+    expect(flushedToShareB.some((e) => e.message === 'post_hydration_event')).toBe(true);
+  });
+
+  it('hydrating from browser_cache does not burn file_system share watermark, ensuring all events flush to new share', async () => {
+    const logger = new TraceLogger(20);
+    const persisted: TraceEvent[] = [
+      { id: 'bc1', seq: 10, traceId: 'T1', timestamp: new Date().toISOString(), layer: 'intake', level: 'INFO', component: 'c', message: 'bc1' },
+      { id: 'bc2', seq: 15, traceId: 'T2', timestamp: new Date().toISOString(), layer: 'intake', level: 'INFO', component: 'c', message: 'bc2' },
+    ];
+
+    // Hydrate from browser_cache (e.g. offline cache)
+    logger.hydratePersistedEvents(persisted, 'browser_cache');
+
+    // Flushed to a newly connected directory share
+    const flushedToShare: TraceEvent[] = [];
+    logger.setOnFlushHook(async (batch) => {
+      flushedToShare.push(...batch);
+      return { destination: 'file_system', destinationId: 'dir_shareNew_999', recordsSaved: batch.length };
+    });
+
+    // Calling flush with new directory destination flushes ALL hydrated events to disk
+    const res = await logger.flush('dir_shareNew_999');
+    expect(res.flushedCount).toBe(2);
+    expect(flushedToShare.length).toBe(2);
+    expect(flushedToShare.map(e => e.id)).toEqual(['bc1', 'bc2']);
+  });
+});

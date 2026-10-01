@@ -206,4 +206,139 @@ describe('clinicalEngine TESTS.txt validation', () => {
     expect(res.subOrders[0].suggestedSig).toBe('2T (600MG) PO QAM FPAIN');
     expect(res.subOrders[1].suggestedSig).toBe('1T PO QHS FPAIN');
   });
+
+  it('preserves decimal quantities during Paxit regimen splitting', () => {
+    const order = {
+      id: 'test_decimal_split',
+      pon: 'PON_DEC_1',
+      drugName: 'PREDNISONE TAB 10MG',
+      rawProse: 'Take 2.5 tablets in the morning and 1 tablet at bedtime',
+      sourceFormat: 'manual_text' as const
+    };
+    const res = translateClinicalSig(order);
+    expect(res.subOrders.length).toBe(2);
+    expect(res.subOrders[0].suggestedSig).toBe('2.5T (25MG) PO QAM');
+    expect(res.subOrders[1].suggestedSig).toBe('1T PO QHS');
+  });
+
+  it('preserves secondary phase frequency and duration during titration synthesis', () => {
+    const order = {
+      id: 'test_titration_bid',
+      pon: 'PON_TITR_1',
+      drugName: 'PREDNISONE TAB 10MG',
+      rawProse: 'Take 2 tablets daily for 5 days then take 1 tablet twice daily for 4 days',
+      sourceFormat: 'manual_text' as const
+    };
+    const res = translateClinicalSig(order);
+    expect(res.subOrders.length).toBe(2);
+    expect(res.subOrders[0].suggestedSig).toBe('2T (20MG) PO QD X5D');
+    expect(res.subOrders[1].suggestedSig).toBe('1T PO BID X4D');
+    expect(res.primarySig).toBe('2T (20MG) PO QD X5D THEN 1T PO BID X4D');
+  });
+
+  it('preserves fraction quantities and triggers differential split orders without collapsing into BIDAMHS', () => {
+    const order = {
+      id: 'test_fraction_split_34',
+      pon: 'PON_FRAC_34',
+      drugName: 'PREDNISONE TAB 10MG',
+      rawProse: 'Take 3/4 tablet in the morning and 1 tablet at bedtime',
+      sourceFormat: 'manual_text' as const
+    };
+    const res = translateClinicalSig(order);
+    expect(res.subOrders.length).toBe(2);
+    expect(res.subOrders[0].suggestedSig).toBe('3/4T (7.5MG) PO QAM');
+    expect(res.subOrders[1].suggestedSig).toBe('1T PO QHS');
+    expect(res.primarySig).toBe('3/4T (7.5MG) PO QAM AND 1T PO QHS');
+  });
+
+  it('correctly splits differential dosing with space-separated mixed number (e.g. 1 1/2 tablets in morning and 1 at bedtime)', () => {
+    const order = {
+      id: 'test_space_mixed_diff',
+      pon: 'PON_SPACE_MIX_DIFF',
+      drugName: 'PREDNISONE TAB 10MG',
+      rawProse: 'Take 1 1/2 tablets in morning and 1 tablet at bedtime',
+      sourceFormat: 'manual_text' as const
+    };
+    const res = translateClinicalSig(order);
+    expect(res.subOrders.length).toBe(2);
+    expect(res.subOrders[0].suggestedSig).toBe('1-1/2T (15MG) PO QAM');
+    expect(res.subOrders[1].suggestedSig).toBe('1T PO QHS');
+    expect(res.primarySig).toBe('1-1/2T (15MG) PO QAM AND 1T PO QHS');
+  });
+
+  it('correctly parses space-separated mixed number in titration step-down (e.g. 1 1/2 tablets daily for 5 days then 1 tablet daily for 5 days)', () => {
+    const order = {
+      id: 'test_space_mixed_titr',
+      pon: 'PON_SPACE_MIX_TITR',
+      drugName: 'PREDNISONE TAB 10MG',
+      rawProse: 'Take 1 1/2 tablets daily for 5 days then 1 tablet daily for 5 days',
+      sourceFormat: 'manual_text' as const
+    };
+    const res = translateClinicalSig(order);
+    expect(res.subOrders.length).toBe(2);
+    expect(res.subOrders[0].suggestedSig).toBe('1-1/2T (15MG) PO QD X5D');
+    expect(res.subOrders[1].suggestedSig).toBe('1T PO QD X5D');
+    expect(res.primarySig).toBe('1-1/2T (15MG) PO QD X5D THEN 1T PO QD X5D');
+  });
+
+  it('treats equal mixed-number doses with spaces around hyphens as a single unified regimen without false split', () => {
+    const order = {
+      id: 'test_mixed_equal_spaces',
+      pon: 'PON_MIX_EQ',
+      drugName: 'PREDNISONE TAB 10MG',
+      rawProse: 'Take 1 - 1/2 tablet in the morning and 1 - 1/2 tablet at bedtime',
+      sourceFormat: 'manual_text' as const
+    };
+    const res = translateClinicalSig(order);
+    // Since 1.5 AM and 1.5 PM are identical doses, it must NOT split into Paxit sub-orders (single Order 1 of 1)
+    expect(res.subOrders.length).toBe(1);
+    expect(res.subOrders[0].label).toBe('Order 1 of 1');
+    expect(res.subOrders[0].suggestedSig).toContain('1-1/2T');
+    expect(res.subOrders[0].suggestedSig).toContain('BIDAMHS');
+  });
+
+  it('preserves first-phase frequency and THEN STOP in titration step-down', () => {
+    const order = {
+      id: 'test_titration_bid_to_qd_stop',
+      pon: 'PON_TITR_STOP',
+      drugName: 'PREDNISONE TAB 10MG',
+      rawProse: 'Take 1 tablet twice daily for 5 days then 1 tablet daily for 5 days then stop',
+      sourceFormat: 'manual_text' as const
+    };
+    const res = translateClinicalSig(order);
+    expect(res.subOrders.length).toBe(2);
+    expect(res.subOrders[0].suggestedSig).toBe('1T PO BID X5D');
+    expect(res.subOrders[1].suggestedSig).toBe('1T PO QD X5D THEN STOP');
+    expect(res.primarySig).toBe('1T PO BID X5D THEN 1T PO QD X5D THEN STOP');
+  });
+
+  it('flags empty directions with potential_error and does not invent 1T PO QD', () => {
+    const order = {
+      id: 'test_empty_dir',
+      pon: 'PON_EMPTY',
+      drugName: 'LISINOPRIL TAB 10MG',
+      rawProse: '   ',
+      sourceFormat: 'manual_text' as const
+    };
+    const res = translateClinicalSig(order);
+    expect(res.primarySig).toBe('');
+    expect(res.abnormalities.some(a => a.tier === 'potential_error')).toBe(true);
+  });
+
+  it('preserves clinical hold directives across Paxit split regimens and unified primarySig', () => {
+    const order = {
+      id: 'test_paxit_hold_sbp',
+      pon: 'PON_HOLD_SBP',
+      drugName: 'METOPROLOL TARTRATE TAB 25MG',
+      rawProse: 'Take 2 tablets in the morning and 1 tablet at bedtime HOLD IF SBP < 100',
+      sourceFormat: 'manual_text' as const
+    };
+    const res = translateClinicalSig(order);
+    expect(res.subOrders.length).toBe(2);
+    expect(res.subOrders[0].suggestedSig).toBe('2T (50MG) PO QAM SBP100');
+    expect(res.subOrders[1].suggestedSig).toBe('1T PO QHS SBP100');
+    expect(res.primarySig).toBe('2T (50MG) PO QAM AND 1T PO QHS SBP100');
+    expect(res.abnormalities.some(a => a.title.includes('Hold Directive') || a.title.includes('Paxit Multi-Order Split'))).toBe(true);
+  });
 });
+
