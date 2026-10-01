@@ -7,6 +7,7 @@ permissions:
 jobs:
   verify:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
@@ -21,9 +22,14 @@ jobs:
       - run: npm test
       - run: npm run typecheck
       - run: npm run build:demo
-      - run: python scripts/package-demo.py
+      - run: python scripts/package-demo.py --check
       - name: Verify committed portable build matches source
-        run: git diff --exit-code -- windows-demo/index.html windows-demo/Sig-Assist-Windows-Demo.zip
+        run: git diff --exit-code -- windows-demo/index.html
+      - name: Package and test existing Windows launcher
+        if: runner.os == 'Windows'
+        run: node scripts/package-windows.mjs
+      - if: runner.os == 'Windows'
+        run: npm run demo:test
       - name: Smoke test Windows PowerShell launcher
         if: runner.os == 'Windows'
         shell: powershell

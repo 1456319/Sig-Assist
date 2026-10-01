@@ -10,6 +10,10 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+windows-demo/app/
+windows-demo/Start-Sig-Assist.cmd
+windows-demo/serve.ps1
+windows-demo/README.md
 *.local
 .env
 *.tsbuildinfo

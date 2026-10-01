@@ -10,7 +10,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "demo:package": "npm run build && node scripts/package-windows.mjs",
+    "demo:test": "node scripts/test-windows-demo.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
