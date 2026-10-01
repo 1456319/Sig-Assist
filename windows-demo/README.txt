@@ -9,7 +9,15 @@ SIG-ASSIST BROWSER DEMO
 5. Select DEMO-002 for morning/bedtime split cards, DEMO-003 for a taper,
    DEMO-004 for PRN directions, and DEMO-005 for multiline hold parameters.
 6. Use Revise source or Cancel order to demonstrate copy invalidation.
-7. Open Trace Logs to inspect translation steps and export diagnostics.
+7. For a wrong translation, open Flag Discrepancy, verify the corrected SIG,
+   add notes, and Save Discrepancy Report. Confirm the saved count increases.
+8. Export discrepancy cases after each session to keep a portable JSON file.
+   Reports stay local; they are not sent to GitHub or a developer automatically.
+9. Open Trace Logs to inspect translation steps and export runtime diagnostics.
+
+Case files contain exact original directions, PON, corrections and notes.
+Use de-identified examples and remove patient identifiers before sharing.
+Saving a case does not approve an order or change the translation rules.
 
 No PowerShell, Node.js, npm, server, installation or administrator access is
 required. The prebuilt page runs entirely in Edge/Chrome without internet access.

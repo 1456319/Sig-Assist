@@ -4,6 +4,7 @@ import { fetchAllSigEntries, deleteSigEntry, fetchAllSigEntries as fetchAll } fr
 import { fetchAllTechRules, deleteTechRule } from '../lib/techRulesService';
 import { getCitrixStorageAdapter } from '../lib/citrixStorage';
 import { toast } from 'sonner';
+import { DiscrepancyArchive } from './DiscrepancyArchive';
 
 function StatCard({ icon: Icon, label, value, color }: {
   icon: React.ElementType;
@@ -213,6 +214,7 @@ export function SettingsView() {
       </section>
 
       {/* Export */}
+      <DiscrepancyArchive />
       <section>
         <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground mb-4">
           Data Export

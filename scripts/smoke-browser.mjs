@@ -44,6 +44,12 @@ try {
   const copy = page.getByRole('button', { name: 'Copy reviewed SIG', exact: true });
   assert.equal(await copy.isDisabled(), true);
   await draft.fill('1t po bid x7d with food');
+  await page.getByRole('button', { name: /Flag Discrepancy/ }).click();
+  assert.equal(await page.getByLabel('Technician Preferred / Corrected SIG:').inputValue(), '1T PO BID X7D WITH FOOD');
+  await page.getByLabel('Notes / Rationale:').fill('Synthetic example: compare edited draft with original output.');
+  await page.getByRole('button', { name: 'Save Discrepancy Report', exact: true }).click();
+  await page.getByText('1 saved discrepancy reports', { exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Close Feedback', exact: true }).click();
   await page.getByRole('checkbox').check();
   await copy.click();
   if (fileMode) {
@@ -59,6 +65,11 @@ try {
   const split = page.getByLabel('Draft SIG (Order 1 of 2)');
   assert.match(await split.inputValue(), /^2T/);
   await split.fill('2T PO QAM WITH FOOD');
+  await page.getByRole('button', { name: /Flag Discrepancy/ }).click();
+  await page.getByLabel('Notes / Rationale:').fill('Synthetic split correction case.');
+  await page.getByRole('button', { name: 'Save Discrepancy Report', exact: true }).click();
+  await page.getByText('2 saved discrepancy reports', { exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Close Feedback', exact: true }).click();
   await page.getByRole('checkbox').first().check();
   const splitCopy = page.getByRole('button', { name: 'Copy Reviewed SIG (Order 1 of 2)', exact: true });
   await splitCopy.click();
@@ -81,8 +92,21 @@ try {
   await page.getByRole('button').filter({ has: page.getByText('DEMO-002', { exact: true }) }).click();
   assert.equal(await split.inputValue(), '2T PO QAM WITH FOOD');
   assert.equal(await splitCopy.isDisabled(), true);
+  await page.getByText('2 saved discrepancy reports', { exact: true }).waitFor();
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export discrepancy cases', exact: true }).click();
+  const download = await downloadPromise;
+  const bundle = JSON.parse(await readFile(await download.path(), 'utf8'));
+  assert.equal(bundle.caseCount, 2);
+  assert.equal(bundle.redacted, false);
+  assert.equal(bundle.reports[0].generatedSig, '1T PO BID X7D');
+  assert.equal(bundle.reports[0].technicianSig, '1T PO BID X7D WITH FOOD');
+  assert.match(bundle.reports[0].buildId, /^[a-f0-9]{64}$/);
+  assert.equal(bundle.reports[1].context.subOrders[0].draftSig, '2T PO QAM WITH FOOD');
+  assert.equal(bundle.reports[1].context.subOrders.length, 2);
+  assert.equal(bundle.reports[1].technicianSig.split('\n').length, 2);
   assert.deepEqual(errors, []);
-  console.log(`PASS (${fileMode ? 'direct file, no server' : 'HTTP'}): prebuilt offline UI, real clipboard, review/revision/cancellation gating, split edits and queue saved across reload, trace drawer, zero external requests or browser errors.`);
+  console.log(`PASS (${fileMode ? 'direct file, no server' : 'HTTP'}): offline UI, clipboard, review/revision/cancellation gating, split edits, saved queue and discrepancy cases across reload, actual case-file download, trace drawer, zero external requests or browser errors.`);
 } finally {
   if (browser) await browser.close();
   if (server) {

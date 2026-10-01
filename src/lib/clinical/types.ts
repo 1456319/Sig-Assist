@@ -44,6 +44,17 @@ export interface DiscrepancyReport {
   readonly technicianSig: string;
   readonly notes: string;
   readonly flaggedForRph: boolean;
+  readonly buildId?: string;
+  readonly context?: {
+    readonly source: 'queue' | 'workbench';
+    readonly traceId?: string;
+    readonly defaultSigTemplate?: string;
+    readonly revision?: number;
+    readonly policyRevision?: number;
+    readonly exclusions?: SigExclusionPreference[];
+    readonly abnormalities?: readonly AbnormalityFinding[];
+    readonly subOrders?: readonly { id: string; label: string; suggestedSig: string; draftSig?: string }[];
+  };
 }
 
 export interface SigExclusionPreference {

@@ -16,6 +16,7 @@ import type { TranslationDiagnostic } from '../lib/translationDiagnostics';
 import { AbnormalityBanner } from './AbnormalityBanner';
 import { MultiOrderCards } from './MultiOrderCards';
 import { DiscrepancyPanel } from './DiscrepancyPanel';
+import { DiscrepancyArchive } from './DiscrepancyArchive';
 import { translateClinicalSig } from '../lib/clinical/clinicalEngine';
 import { parseInboundOrder } from '../lib/clinical/inboundParser';
 import type { ClinicalSigResult, InboundOrder } from '../lib/clinical/types';
@@ -423,14 +424,20 @@ export function WorkbenchView() {
               )}
 
               <DiscrepancyPanel
+                key={`report:${inputMode}:${drugName}:${defaultSig}:${rawInput}`}
                 pon={clinicalInbound?.pon || 'MANUAL_ENTRY'}
                 drugName={drugName || clinicalInbound?.drugName || 'UNKNOWN DRUG'}
                 rawProse={clinicalInbound?.rawProse || rawInput}
                 generatedSig={clinicalResult?.primarySig || result?.finalSig || ''}
+                context={{ source: 'workbench', traceId: clinicalResult?.traceId,
+                  defaultSigTemplate: clinicalInbound?.defaultSigTemplate,
+                  abnormalities: clinicalResult?.abnormalities,
+                  subOrders: clinicalResult?.subOrders.map(sub => ({ id: sub.id, label: sub.label, suggestedSig: sub.suggestedSig })) }}
                 onDiscrepancySaved={() => {
                   toast.success('Discrepancy report recorded');
                 }}
               />
+              <DiscrepancyArchive />
             </div>
           </div>
         </div>

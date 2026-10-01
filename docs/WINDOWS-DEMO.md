@@ -49,6 +49,43 @@ automatic Framework matching/insertion and site-specific SIG validation remain
 unfinished. Use synthetic examples for this demo. All generated SIGs require
 technician review; this package does not establish clinical accuracy.
 
+## Collect mistranslations during an evaluation
+
+Use the app alongside the normal order-entry process. Manually enter approved,
+de-identified directions and medication/strength in **Workbench**, or add an
+order in **Order Queue** with anonymous references. Automatic live Iguana intake
+and Framework insertion are not implemented; the app does not replace routine
+technician/pharmacist checks.
+
+1. Compare the suggested SIG and split cards against the original directions.
+2. Open **Flag Discrepancy or Uncaught Error / Preference Lead**. In the Queue,
+   your current draft is offered as the correction; for a split regimen, put
+   each corrected card on its own line. Verify that text before saving.
+3. Enter the corrected SIG and explain the missed clause, incorrect translation,
+   or preferred code in **Notes / Rationale**. Notes alone are allowed when the
+   expected answer is not yet established. Click **Save Discrepancy Report**.
+4. Confirm that the saved report count increases. **Export discrepancy cases**
+   downloads every saved case from the current storage destination as JSON.
+   This control is also available in Workbench and Settings.
+5. Export after each session, before changing folders, replacing the HTML at a
+   different path, or clearing browser data. Keep the exported files; reports
+   are local and are not uploaded automatically.
+
+Each new report contains the original directions, drug, generated SIG, technician
+correction, notes, timestamp, source build fingerprint, default template,
+abnormalities, and generated split-card context when available. Queue reports
+also include edited split-card drafts and review preference context. Older
+reports are included in exports even when they lack the new metadata.
+The count and success message appear only after storage accepts the write.
+Clearing the order queue does not clear discrepancy reports. Browser storage
+can be cleared by policy or by the user; the exported JSON is the portable record.
+
+Case exports preserve exact directions and PON and are **not anonymized**.
+Remove patient identifiers from directions and notes before sharing a case file.
+A saved correction is a proposed expected answer for investigation; saving it
+neither approves an order nor updates translation rules. Reviewed examples can
+later become regression tests to check each parser fix.
+
 ## Build the same package from source
 
 With Node.js 22.12+ installed, run `npm ci`, then `npm run build:demo` and

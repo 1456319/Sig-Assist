@@ -12,6 +12,8 @@ import { AbnormalityBanner } from './AbnormalityBanner';
 import { MultiOrderCards } from './MultiOrderCards';
 import { traceLogger } from '../lib/diagnostics/traceLogger';
 import { addDemoOrders, DEMO_ORDERS } from '../lib/demoOrders';
+import { DiscrepancyPanel } from './DiscrepancyPanel';
+import { DiscrepancyArchive } from './DiscrepancyArchive';
 
 const emptySource: OrderSource = { facility: '', patientRef: '', pon: '', drug: '', directions: '' };
 const sample: OrderSource = { facility: 'DEMO-FACILITY', patientRef: 'DEMO-RESIDENT', pon: 'DEMO-PON-001', drug: 'Example medication 10 mg tablet', directions: 'Take 1 tablet by mouth twice daily for 7 days.' };
@@ -176,6 +178,7 @@ export function OrderQueueView() {
       </div>
       <p className="text-xs text-muted-foreground">Prototype suggestions require human review. Live Iguana intake and automatic Framework matching are pending.</p>
     </section>
+    <DiscrepancyArchive />
     <details className="rounded-lg border border-border bg-card p-4" open>
       <summary className="cursor-pointer font-medium">{reviseId ? 'Revise original directions' : 'Add an order'}</summary>
       <form onSubmit={submit} className="mt-4 space-y-3">
@@ -303,6 +306,18 @@ export function OrderQueueView() {
               onApprove={approved => updateSelected(order => ({ ...order, approved, copied: undefined }))}
               onCopied={stamp => updateSelected(order => order.approved === stamp && reviewStamp(sourceStamp(order), order.draft, exclusions, policyRevision) === stamp ? { ...order, copied: stamp } : order)} />
           )}
+          <DiscrepancyPanel key={`report:${selected.id}:${selected.revision}`}
+            pon={selected.pon} drugName={selected.drug} rawProse={selected.directions}
+            generatedSig={clinicalResult?.primarySig || parsed?.sig || ''}
+            currentDraft={clinicalResult && clinicalResult.subOrders.length > 1
+              ? clinicalResult.subOrders.map(sub => `${sub.label}: ${selected.subOrderDrafts?.[sub.id] ?? sub.suggestedSig}`).join('\n')
+              : selected.draft}
+            context={{ source: 'queue', traceId: getOrderTraceId(selected), revision: selected.revision,
+              defaultSigTemplate: selected.defaultSig, policyRevision, exclusions,
+              abnormalities: clinicalResult?.abnormalities,
+              subOrders: clinicalResult?.subOrders.map(sub => ({ id: sub.id, label: sub.label,
+                suggestedSig: sub.suggestedSig, draftSig: selected.subOrderDrafts?.[sub.id] ?? sub.suggestedSig })) }}
+            onDiscrepancySaved={() => toast.success('Discrepancy report recorded')} />
           {selected.previousSources.length > 0 && <details><summary className="cursor-pointer text-sm">Previous source revisions ({selected.previousSources.length})</summary>
             {selected.previousSources.map((source, index) => <div key={index} className="border-t border-border mt-2 pt-2 text-sm"><p>Revision {index + 1} · {source.drug}</p><p className="whitespace-pre-wrap">{source.directions}</p></div>)}
           </details>}

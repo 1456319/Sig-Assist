@@ -1,13 +1,17 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useId } from 'react';
 import { getCitrixStorageAdapter } from '../lib/citrixStorage';
 import { MessageSquarePlus } from 'lucide-react';
 import { toast } from 'sonner';
+import type { DiscrepancyReport } from '../lib/clinical/types';
+import { DISCREPANCY_SAVED_EVENT } from '../lib/discrepancyCases';
 
 export interface DiscrepancyPanelProps {
   pon: string;
   drugName: string;
   rawProse: string;
   generatedSig: string;
+  currentDraft?: string;
+  context?: DiscrepancyReport['context'];
   onDiscrepancySaved: () => void;
   isOpen?: boolean;
   onToggleOpen?: () => void;
@@ -18,6 +22,8 @@ export const DiscrepancyPanel: React.FC<DiscrepancyPanelProps> = ({
   drugName,
   rawProse,
   generatedSig,
+  currentDraft,
+  context,
   onDiscrepancySaved,
   isOpen: controlledIsOpen,
   onToggleOpen,
@@ -30,9 +36,11 @@ export const DiscrepancyPanel: React.FC<DiscrepancyPanelProps> = ({
   const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const fieldId = useId();
 
   const toggleOpen = () => {
+    if (!isOpen && !techSig && currentDraft !== undefined) setTechSig(currentDraft.toUpperCase());
     if (onToggleOpen) {
       onToggleOpen();
     } else {
@@ -59,12 +67,16 @@ export const DiscrepancyPanel: React.FC<DiscrepancyPanelProps> = ({
 
 
   const handleSave = async () => {
-    if (isSaving) return;
+    if (isSaving || isSaved) return;
+    if (!techSig.trim() && !notes.trim()) {
+      toast.error('Enter a corrected SIG or notes describing the problem.');
+      return;
+    }
     setIsSaving(true);
     try {
       const adapter = getCitrixStorageAdapter();
       await adapter.appendDiscrepancy({
-        id: `disc_${Date.now()}`,
+        id: `disc_${crypto.randomUUID()}`,
         timestamp: new Date().toISOString(),
         pon,
         drugName,
@@ -73,7 +85,10 @@ export const DiscrepancyPanel: React.FC<DiscrepancyPanelProps> = ({
         technicianSig: techSig.trim().toUpperCase(),
         notes,
         flaggedForRph: false,
-      });
+        buildId: __SIG_ASSIST_BUILD__,
+        context,
+      }, { immediate: true });
+      window.dispatchEvent(new Event(DISCREPANCY_SAVED_EVENT));
       setIsSaved(true);
       setTechSig('');
       setNotes('');
@@ -113,21 +128,23 @@ export const DiscrepancyPanel: React.FC<DiscrepancyPanelProps> = ({
       {isOpen && (
         <div className="mt-3 space-y-2 rounded border bg-slate-50 p-3 text-xs dark:bg-slate-900">
           <div>
-            <label className="block font-semibold">
+            <label htmlFor={`${fieldId}-sig`} className="block font-semibold">
               Technician Preferred / Corrected SIG:
             </label>
-            <input
+            <textarea
+              id={`${fieldId}-sig`}
               ref={inputRef}
-              type="text"
               value={techSig}
               onChange={(e) => setTechSig(e.target.value.toUpperCase())}
               placeholder="e.g. COU PO QHS"
+              rows={3}
               className="mt-1 w-full rounded border px-2 py-1 uppercase bg-background"
             />
           </div>
           <div>
-            <label className="block font-semibold">Notes / Rationale:</label>
+            <label htmlFor={`${fieldId}-notes`} className="block font-semibold">Notes / Rationale:</label>
             <textarea
+              id={`${fieldId}-notes`}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Describe missed nuance or clinical rule lead..."
@@ -137,12 +154,12 @@ export const DiscrepancyPanel: React.FC<DiscrepancyPanelProps> = ({
           </div>
           <button
             type="button"
-            disabled={isSaving}
+            disabled={isSaving || isSaved}
             onClick={handleSave}
             className="rounded bg-blue-600 px-3 py-1 font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSaved
-              ? 'Saved to Citrix Storage!'
+              ? 'Discrepancy saved locally'
               : isSaving
                 ? 'Saving...'
                 : 'Save Discrepancy Report'}
