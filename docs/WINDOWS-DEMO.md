@@ -6,6 +6,11 @@ Leave the console window open while presenting. The same download is available
 from successful [MVP checks runs](https://github.com/1456319/Sig-Assist/actions/workflows/checks.yml).
 The existing **Start-Sig-Assist.cmd** package remains supported by `npm run demo:package`.
 
+If you downloaded the repository ZIP, open **windows-demo** and run
+**Start-Sig-Assist.bat**. The root `start-windows.bat` and `preview-windows.bat`
+also use this bundled demo automatically when Node.js/npm is unavailable.
+All launchers support UNC paths such as Citrix redirected Documents folders.
+
 The prebuilt package uses Windows PowerShell 5.1 and the default browser.
 It needs no Node.js installation, npm setup, administrator access, database
 configuration or connection to Iguana. Open `http://127.0.0.1:4173/` in Edge or

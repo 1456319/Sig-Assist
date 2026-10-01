@@ -7,7 +7,7 @@
 2. Click **Load demo queue**. Review DEMO-001, edit its uppercase SIG, acknowledge review, then copy. DEMO-002 demonstrates split cards; DEMO-003 a taper; DEMO-004 PRN; DEMO-005 multiline hold parameters. **Revise source**, **Cancel order**, exclusions, and **Trace Logs** demonstrate the review and diagnostics workflow.
 3. **Development:** Node.js 22.12+ is required. `start-windows.bat` installs locked dependencies and launches Vite. `preview-windows.bat` builds and serves the production version. Edge/Chrome supports optional folder persistence in Settings.
 
-If you downloaded the repository ZIP instead, launch `windows-demo/Start-Sig-Assist.bat` directly. Windows PowerShell 5.1 is included in Windows 10/11. If local scripts are blocked by your organization, use its approved browser/deployment method.
+If you downloaded the repository ZIP instead, launch `windows-demo/Start-Sig-Assist.bat` directly. The root `start-windows.bat` and `preview-windows.bat` automatically use that bundled demo when Node.js/npm is unavailable. All launchers support Citrix/network UNC folders. Windows PowerShell 5.1 is included in Windows 10/11. If local scripts are blocked by your organization, use its approved browser/deployment method.
 
 ### On Linux / macOS
 Run `npm ci` and `npm run dev` with Node.js 22.12+. No external database configuration
