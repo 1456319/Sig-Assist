@@ -1,0 +1,4 @@
+windows-demo/index.html -text linguist-generated=true whitespace=-blank-at-eol
+windows-demo/*.zip -text -diff linguist-generated=true
+*.bat text eol=crlf
+*.ps1 text eol=crlf

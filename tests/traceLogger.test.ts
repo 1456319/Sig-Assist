@@ -8,6 +8,24 @@ import { parseInboundOrder } from '../src/lib/clinical/inboundParser';
 import { translateClinicalSig } from '../src/lib/clinical/clinicalEngine';
 
 describe('traceLogger', () => {
+  it('flushes current-session events created before history hydration and migrates legacy IDs', async () => {
+    const logger = new TraceLogger(20);
+    const early = logger.info('ui', 'demo', 'new event before opening trace drawer');
+    const history: TraceEvent[] = [
+      { id: 'old-seq', seq: 100, traceId: 'OLD', timestamp: '2026-09-19T00:00:00Z', layer: 'ui', level: 'INFO', component: 'demo', message: 'old event' },
+      { id: 'legacy-no-seq', traceId: 'OLD', timestamp: '2026-09-19T00:00:00Z', layer: 'ui', level: 'INFO', component: 'demo', message: 'legacy event' },
+    ];
+    logger.hydratePersistedEvents(history, 'browser_cache');
+    const batches: TraceEvent[][] = [];
+    logger.setOnFlushHook(async batch => { batches.push(batch); });
+    expect(logger.getPendingFlushCount('browser_cache')).toBe(1);
+    await logger.flush('browser_cache');
+    expect(batches[0].map(event => event.id)).toEqual([early.id]);
+    expect((await logger.flush('browser_cache')).flushedCount).toBe(0);
+    await logger.flush('directory-A');
+    expect(new Set(batches[1].map(event => event.id))).toEqual(new Set([...history.map(event => event.id), early.id]));
+    expect(logger.getPendingFlushCount('directory-B')).toBe(3);
+  });
   beforeEach(() => {
     traceLogger.clear();
   });

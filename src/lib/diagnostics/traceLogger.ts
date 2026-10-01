@@ -44,9 +44,8 @@ export class TraceLogger {
   private readonly subscribers = new Set<(event: TraceEvent) => void>();
   private activeTraceId: string | null = null;
   private onFlushHook?: (events: TraceEvent[]) => Promise<{ destination: 'file_system' | 'browser_cache' | string; recordsSaved: number } | void>;
-  private lastFlushedIndex = 0;
   private nextSeq = 1;
-  private lastFlushedSeqByDest: Record<string, number> = {};
+  private acknowledgedByDestination = new Map<string, Set<string>>();
   private activeFlushChain: Promise<TraceFlushResult> = Promise.resolve({ flushedCount: 0, destination: 'storage' });
 
   constructor(maxCapacity = 1000) {
@@ -82,27 +81,29 @@ export class TraceLogger {
     if (!persisted || persisted.length === 0) return 0;
     const existingIds = new Set(this.events.map((e) => e.id));
     const fresh = persisted.filter((e) => !existingIds.has(e.id));
-    if (fresh.length === 0) return 0;
 
     const maxPersistedSeq = persisted.reduce((max, e) => Math.max(max, e.seq ?? 0), 0);
     this.nextSeq = Math.max(this.nextSeq, maxPersistedSeq + 1);
 
-    const destKey = destination || 'storage';
-    this.lastFlushedSeqByDest[destKey] = Math.max(this.lastFlushedSeqByDest[destKey] ?? 0, maxPersistedSeq);
-    this.lastFlushedSeqByDest['storage'] = Math.max(this.lastFlushedSeqByDest['storage'] ?? 0, maxPersistedSeq);
-    if (!destination || destination === 'browser_cache' || destination === 'storage') {
-      this.lastFlushedSeqByDest['browser_cache'] = Math.max(this.lastFlushedSeqByDest['browser_cache'] ?? 0, maxPersistedSeq);
-    }
-
-    const combined = [...fresh, ...this.events];
-    const dropped = Math.max(0, combined.length - this.maxCapacity);
-    const retainedFresh = Math.max(0, fresh.length - dropped);
-    const droppedFromEvents = Math.max(0, dropped - fresh.length);
-    const adjustedFlushedIndex = Math.max(0, this.lastFlushedIndex - droppedFromEvents);
-
-    this.events = combined.slice(-this.maxCapacity);
-    this.lastFlushedIndex = Math.min(this.events.length, retainedFresh + adjustedFlushedIndex);
+    // A sequence from a previous session can overlap newly created events.
+    // Only these actual IDs were read from this destination and acknowledged.
+    this.acknowledge(destination || 'storage', persisted);
+    this.events = [...fresh, ...this.events].slice(-this.maxCapacity);
+    this.pruneAcknowledgements();
     return fresh.length;
+  }
+
+  private acknowledge(destination: string, events: TraceEvent[]): void {
+    const ids = this.acknowledgedByDestination.get(destination) || new Set<string>();
+    events.forEach(event => ids.add(event.id));
+    this.acknowledgedByDestination.set(destination, ids);
+  }
+
+  private pruneAcknowledgements(): void {
+    const retainedIds = new Set(this.events.map(event => event.id));
+    for (const ids of this.acknowledgedByDestination.values()) {
+      for (const id of ids) if (!retainedIds.has(id)) ids.delete(id);
+    }
   }
 
   public log(
@@ -130,9 +131,7 @@ export class TraceLogger {
     this.events.push(event);
     if (this.events.length > this.maxCapacity) {
       this.events.shift();
-      if (this.lastFlushedIndex > 0) {
-        this.lastFlushedIndex--;
-      }
+      this.pruneAcknowledgements();
     }
 
     // Console output for development / devtools inspection
@@ -239,15 +238,14 @@ export class TraceLogger {
 
   public clear(): void {
     this.events = [];
-    this.lastFlushedIndex = 0;
-    this.lastFlushedSeqByDest = {};
+    this.acknowledgedByDestination.clear();
     this.activeTraceId = null;
   }
 
   public getPendingFlushCount(destination?: string): number {
     const destKey = destination || 'storage';
-    const lastSeq = this.lastFlushedSeqByDest[destKey] ?? this.lastFlushedSeqByDest['storage'] ?? 0;
-    return this.events.filter((e) => (e.seq ?? 0) > lastSeq).length;
+    const ids = this.acknowledgedByDestination.get(destKey);
+    return this.events.filter(event => !ids?.has(event.id)).length;
   }
 
   public subscribe(subscriber: (event: TraceEvent) => void): () => void {
@@ -271,23 +269,22 @@ export class TraceLogger {
         return { flushedCount: 0, destination: targetDestination || 'storage' };
       }
       const destKey = targetDestination || 'storage';
-      const lastSeq = this.lastFlushedSeqByDest[destKey] ?? 0;
-      const unflushed = this.events.filter((e) => (e.seq ?? 0) > lastSeq);
+      const ids = this.acknowledgedByDestination.get(destKey);
+      const unflushed = this.events.filter(event => !ids?.has(event.id));
       if (unflushed.length === 0) {
         return { flushedCount: 0, destination: destKey };
       }
 
-      const maxSeqInBatch = Math.max(...unflushed.map((e) => e.seq ?? 0));
       const result = await this.onFlushHook(unflushed);
       const actualDest = result && 'destination' in result && result.destination ? result.destination : destKey;
       const destId = result && typeof result === 'object' && 'destinationId' in result && result.destinationId ? (result.destinationId as string) : actualDest;
 
-      this.lastFlushedSeqByDest[actualDest] = maxSeqInBatch;
-      this.lastFlushedSeqByDest[destId] = maxSeqInBatch;
+      this.acknowledge(destId, unflushed);
+      if (actualDest === 'browser_cache' || destId === actualDest) this.acknowledge(actualDest, unflushed);
       if (destKey === 'storage') {
-        this.lastFlushedSeqByDest['storage'] = maxSeqInBatch;
+        this.acknowledge('storage', unflushed);
       }
-      this.lastFlushedIndex = this.events.length;
+      this.pruneAcknowledgements();
 
       return {
         flushedCount: unflushed.length,
@@ -302,10 +299,9 @@ export class TraceLogger {
 
   public resetFlushCursor(destination?: string): void {
     if (destination) {
-      this.lastFlushedSeqByDest[destination] = 0;
+      this.acknowledgedByDestination.delete(destination);
     } else {
-      this.lastFlushedSeqByDest = {};
-      this.lastFlushedIndex = 0;
+      this.acknowledgedByDestination.clear();
     }
   }
 

@@ -3,19 +3,23 @@
 ## Try the local review MVP
 
 ### On Windows
-1. **Quick Launch (Development):** Double-click `start-windows.bat` (checks Node.js, installs dependencies, opens browser to `http://localhost:5173`).
-2. **Quick Launch (Production Preview):** Double-click `preview-windows.bat` (builds production package and serves on `http://localhost:4173`).
-3. **Recommended Browser:** Google Chrome or Microsoft Edge (natively supports the File System Access API for local/Citrix directory folder persistence).
+1. **Tonight's demo:** Download [Sig-Assist-Windows-Demo.zip](https://github.com/1456319/Sig-Assist/raw/refs/heads/main/windows-demo/Sig-Assist-Windows-Demo.zip), extract all files, then double-click **Start-Sig-Assist.bat**. Edge/Chrome opens `http://localhost:4173`. Keep the console open. This prebuilt version requires no Node.js, dependency installation, internet connection, or admin rights.
+2. Click **Load demo queue**. Review DEMO-001, edit its uppercase SIG, acknowledge review, then copy. DEMO-002 demonstrates split cards; DEMO-003 a taper; DEMO-004 PRN; DEMO-005 multiline hold parameters. **Revise source**, **Cancel order**, exclusions, and **Trace Logs** demonstrate the review and diagnostics workflow.
+3. **Development:** Node.js 22+ is required. `start-windows.bat` installs locked dependencies and launches Vite. `preview-windows.bat` builds and serves the production version. Edge/Chrome supports optional folder persistence in Settings.
+
+If you downloaded the repository ZIP instead, launch `windows-demo/Start-Sig-Assist.bat` directly. Windows PowerShell 5.1 is included in Windows 10/11. If local scripts are blocked by your organization, use its approved browser/deployment method.
 
 ### On Linux / macOS
-Run `npm install` and `npm run dev` with Node.js 18+. No external database configuration
-is required for the local **Order Queue**. Choose **Fill synthetic example**,
+Run `npm ci` and `npm run dev` with Node.js 22+. No external database configuration
+is required for the local **Order Queue**. Choose **Load demo queue**,
 add the order, review/correct the uppercase SIG, acknowledge review and copy.
 
-Orders and reversible exclusions stay in memory for the current tab. This
+Orders and reversible exclusions persist in this browser or the selected folder. Use **Clear orders** to remove orders and **Undo** to remove exclusions. This
 prototype uses manual PON matching; live Iguana ingestion and clinical parser
 validation remain outstanding. See [the MVP implementation and handoff notes](docs/MVP-REVIEW-QUEUE.md)
 for workflow details, corrected-HAR findings, limitations and next steps.
+
+This is a functional demonstration and manual review prototype. Live Iguana intake, automatic Framework matching, site dictionary qualification and actual Citrix clipboard/Framework verification remain outstanding. Iguana is never modified. Rebuild the portable page with `npm run build:demo` and the download with `python scripts/package-demo.py`; CI checks the committed build against source and runs the launcher and Edge workflow on Windows.
 
 Long-Term Care Facilities and Assisted Living Facilities depend on closed-door pharmacies.. These pharmacies are dedicated only to the needs needs of these facilities 24-hours a day, and so must meet these needs totally and successfully meet them every single day. Typically, the process is thus:
 

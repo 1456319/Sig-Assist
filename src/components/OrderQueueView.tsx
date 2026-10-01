@@ -11,6 +11,7 @@ import { getCachedClinicalSig, translateClinicalSig } from '../lib/clinical/clin
 import { AbnormalityBanner } from './AbnormalityBanner';
 import { MultiOrderCards } from './MultiOrderCards';
 import { traceLogger } from '../lib/diagnostics/traceLogger';
+import { addDemoOrders, DEMO_ORDERS } from '../lib/demoOrders';
 
 const emptySource: OrderSource = { facility: '', patientRef: '', pon: '', drug: '', directions: '' };
 const sample: OrderSource = { facility: 'DEMO-FACILITY', patientRef: 'DEMO-RESIDENT', pon: 'DEMO-PON-001', drug: 'Example medication 10 mg tablet', directions: 'Take 1 tablet by mouth twice daily for 7 days.' };
@@ -105,6 +106,7 @@ export function OrderQueueView() {
           rawProse: order.directions,
           defaultSigTemplate: order.defaultSig,
           sourceFormat: 'manual_text',
+          traceId: getOrderTraceId(order),
         });
         if (clinical.subOrders.length > 1) {
           let allApproved = true;
@@ -155,13 +157,25 @@ export function OrderQueueView() {
       <div>
         <h2 className="text-xl font-semibold">Order review queue</h2>
         <p className="text-sm text-muted-foreground mt-1">Manual PON matching · local session · Iguana is not connected</p>
-        <p className="text-xs text-muted-foreground mt-1">Orders stay in memory until you clear or reload this tab. They are not uploaded.</p>
+        <p className="text-xs text-muted-foreground mt-1">Orders and preferences are saved in this browser, or in your selected folder. Use Clear orders to remove the queue.</p>
       </div>
       <button className={reviewButtonClass} disabled={!orders.length} onClick={() => {
         if (!window.confirm('Clear all orders and review history from this tab?')) return;
         setOrders([]); setSelectedId(undefined); setReviseId(undefined); setForm(emptySource);
       }}>Clear orders</button>
     </div>
+    <section className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-2" aria-label="Demo workflow">
+      <div className="flex flex-wrap justify-between items-center gap-3">
+        <div><h3 className="font-semibold text-sm">Try the demonstration</h3><p className="text-sm text-muted-foreground">Five synthetic orders: scheduled dosing, morning/bedtime split, taper, PRN, and hold parameters.</p></div>
+        <button className={`${reviewButtonClass} bg-primary text-primary-foreground`} onClick={() => {
+          setOrders(current => addDemoOrders(current));
+          setSelectedId(orderKey(DEMO_ORDERS[0]));
+          setReviseId(undefined); setForm(emptySource); setQuery('');
+          toast.success('Demo queue loaded. Select an order, compare directions, edit, review and copy.');
+        }}>Load demo queue</button>
+      </div>
+      <p className="text-xs text-muted-foreground">Prototype suggestions require human review. Live Iguana intake and automatic Framework matching are pending.</p>
+    </section>
     <details className="rounded-lg border border-border bg-card p-4" open>
       <summary className="cursor-pointer font-medium">{reviseId ? 'Revise original directions' : 'Add an order'}</summary>
       <form onSubmit={submit} className="mt-4 space-y-3">

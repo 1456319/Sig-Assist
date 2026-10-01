@@ -250,12 +250,13 @@ export function translateClinicalSig(inbound: InboundOrder, preferences?: Techni
 const clinicalSigCache = new Map<string, ClinicalSigResult>();
 
 export function getCachedClinicalSig(inbound: InboundOrder, preferences?: TechnicianPreferences): ClinicalSigResult {
-  const key = `${inbound.id}::${inbound.drugName}::${inbound.rawProse}::${inbound.defaultSigTemplate || ''}::${preferences?.version || 0}`;
+  const key = JSON.stringify([inbound, preferences]);
   const cached = clinicalSigCache.get(key);
   if (cached) {
     return cached;
   }
   const result = translateClinicalSig(inbound, preferences);
+  if (clinicalSigCache.size >= 500) clinicalSigCache.delete(clinicalSigCache.keys().next().value!);
   clinicalSigCache.set(key, result);
   return result;
 }
@@ -263,4 +264,3 @@ export function getCachedClinicalSig(inbound: InboundOrder, preferences?: Techni
 export function clearClinicalSigCache(): void {
   clinicalSigCache.clear();
 }
-

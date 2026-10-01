@@ -81,7 +81,7 @@ export function SigReviewPanel({ source, suggestion, draft, approved, unavailabl
     {reason && <p className="text-xs text-muted-foreground" role="status">{reason}</p>}
     <details className="rounded-lg border border-border p-3">
       <summary className="cursor-pointer text-sm font-medium">Session exclusions ({exclusions.length})</summary>
-      <p className="text-xs text-muted-foreground my-2">Temporary preferences for this tab, shared by the queue and workbench. No substitutions are made. Reload clears them.</p>
+      <p className="text-xs text-muted-foreground my-2">Preferences are shared by the queue and workbench and saved in this browser or your selected folder. Use Undo to remove an exclusion.</p>
       <div className="flex gap-2">
         <input aria-label="SIG code to exclude" value={code} onChange={event => setCode(event.target.value.toUpperCase())} className={reviewInputClass} placeholder="Code, e.g. QD" />
         <button className={reviewButtonClass} disabled={!code.trim() || /\s/.test(code.trim())} onClick={() => exclude({ kind: 'code', value: code })}>Exclude code</button>

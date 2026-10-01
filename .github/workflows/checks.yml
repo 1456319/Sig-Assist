@@ -6,7 +6,10 @@ permissions:
   contents: read
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,4 +20,20 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run typecheck
-      - run: npm run build
+      - run: npm run build:demo
+      - run: python scripts/package-demo.py
+      - name: Verify committed portable build matches source
+        run: git diff --exit-code -- windows-demo/index.html windows-demo/Sig-Assist-Windows-Demo.zip
+      - name: Smoke test Windows PowerShell launcher
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: ./scripts/smoke-windows.ps1
+      - name: Verify actual Windows Edge demo workflow and clipboard
+        if: runner.os == 'Windows'
+        run: node scripts/smoke-browser.mjs
+      - name: Upload portable Windows demo
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sig-Assist-Windows-Demo
+          path: windows-demo/Sig-Assist-Windows-Demo.zip

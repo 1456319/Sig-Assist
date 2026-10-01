@@ -1,42 +1,23 @@
 @echo off
-setlocal enabledelayedexpansion
-
-echo ========================================================
-echo   Sig-Assist Clinical Normalization Workbench
-echo   Windows Production Preview Launcher
-echo ========================================================
-echo.
-
-where node >nul 2>nul
-if %errorlevel% neq 0 (
-    echo [ERROR] Node.js was not found in your system PATH.
-    echo Please install Node.js (v18 or v20+ LTS) from:
-    echo   https://nodejs.org/
-    echo.
-    pause
-    exit /b 1
-)
-
+setlocal
 cd /d "%~dp0"
-
-if not exist "node_modules\" (
-    echo [INFO] Installing npm dependencies...
-    call npm install
-    if %errorlevel% neq 0 (
-        echo [ERROR] npm install encountered an error.
-        pause
-        exit /b %errorlevel%
-    )
-)
-
-echo [INFO] Building production bundle for preview...
+where node >nul 2>nul
+if errorlevel 1 goto missing_node
+node -e "if (Number(process.versions.node.split('.')[0]) < 22) process.exit(1)"
+if errorlevel 1 goto missing_node
+call npm ci --no-audit --no-fund
+if errorlevel 1 goto failed
 call npm run build
-if %errorlevel% neq 0 (
-    echo [ERROR] Build failed.
-    pause
-    exit /b %errorlevel%
-)
-
-echo [INFO] Starting Sig-Assist production preview on http://localhost:4173 ...
-start "" "http://localhost:4173"
-call npm run preview
+if errorlevel 1 goto failed
+call npm run preview -- --host localhost --port 4173 --strictPort --open
+if errorlevel 1 goto failed
+exit /b 0
+:missing_node
+echo Node.js 22 or newer is required for development.
+echo For the prebuilt demo, run windows-demo\Start-Sig-Assist.bat instead.
+pause
+exit /b 1
+:failed
+echo Sig-Assist setup, build or startup failed. See the message above.
+pause
+exit /b 1
