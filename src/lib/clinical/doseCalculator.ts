@@ -1,5 +1,6 @@
 import { AbnormalityFinding } from './types';
 import { traceLogger } from '../diagnostics/traceLogger';
+import { splitSupplementalDirections } from './instructionClauses';
 
 export interface DoseCalculationResult {
   readonly doseToken: string;
@@ -7,6 +8,8 @@ export interface DoseCalculationResult {
   readonly abnormalities: AbnormalityFinding[];
   readonly isApap: boolean;
   readonly apapLimitToken?: string;
+  readonly siteToken?: string;
+  readonly requiresManualTranslation?: boolean;
 }
 
 const WORD_TO_NUM: Record<string, number> = {
@@ -32,7 +35,8 @@ function parseCountToken(token: string): number {
 
 function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): DoseCalculationResult {
   const upperDrug = drugName.toUpperCase();
-  const upperProse = rawProse.toUpperCase();
+  const fullProse = rawProse.toUpperCase();
+  const upperProse = splitSupplementalDirections(rawProse).primary.toUpperCase();
   const abnormalities: AbnormalityFinding[] = [];
 
   if (!rawProse.trim()) {
@@ -51,14 +55,32 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
     };
   }
 
-  const isApap = upperDrug.includes('APAP') || upperDrug.includes('ACETAMINOPHEN') || upperProse.includes('ACETAMINOPHEN');
+  const isApap = /\b(?:APAP|ACETAMINOPHEN|TYLENOL)\b/.test(`${upperDrug} ${fullProse}`);
   let apapLimitToken: string | undefined;
   if (isApap) {
-    if (upperProse.includes('DO NOT EXCEED 3G') || upperProse.includes('MAX 3G') || upperProse.includes('NOT TO EXCEED 3')) {
-      apapLimitToken = '3GME';
-    } else {
-      apapLimitToken = '3GM';
-    }
+    const explicitLimit = fullProse.match(/\b(?:DO\s+NOT\s+EXCEED|NOT\s+TO\s+EXCEED|MAX(?:IMUM)?(?:\s+(?:DAILY\s+)?DOSE)?(?:\s+OF)?)\s*(?:MORE\s+THAN\s*)?(\d[\d,]*(?:\.\d+)?)\s*(MG|GMS?|GRAMS?|G)\b/);
+    if (explicitLimit) {
+      const amount = Number(explicitLimit[1].replace(/,/g, ''));
+      const milligrams = explicitLimit[2] === 'MG' ? amount : amount * 1000;
+      // 3GME is a daily APAP limit; never substitute it for another amount/time period.
+      if (milligrams === 3000 && /\b(?:PER\s+DAY|DAILY|(?:IN|PER)\s+(?:A\s+)?24\s*(?:HOURS?|HRS?|HR|H)\b)/.test(fullProse.slice(explicitLimit.index))) apapLimitToken = '3GME';
+    } else apapLimitToken = '3GM';
+  }
+
+  const manualResult = (title: string): DoseCalculationResult => ({
+    doseToken: '', routeToken: '', isApap, apapLimitToken, requiresManualTranslation: true,
+    abnormalities: [...abnormalities, { id: `abn_manual_${Date.now()}`, tier: 'uncorrected_gap', title,
+      message: 'Dose or formulation could not be translated without assumptions. Original directions are retained for manual translation.', trigger: rawProse.trim() }],
+  });
+
+  // A measured liquid is not necessarily oral. Resolve explicit inhalation first.
+  const nebulizer = /\b(?:NEB|NEBULI[ZS]ER|NEBULI[ZS]E)\b/.test(upperProse);
+  const inhaledVolume = /\bINHAL(?:E|ATION|ED)\b/.test(upperProse) && /\b\d+(?:\.\d+)?\s*(?:ML|MILLILITERS?)\b/.test(upperProse);
+  if (nebulizer || inhaledVolume) {
+    if (/\b(?:DO\s+NOT|NOT\s+TO|AVOID|WITHOUT)\b[^.;]{0,35}\b(?:NEB|NEBULI[ZS]ER|NEBULI[ZS]E)\b/.test(upperProse)) return manualResult('Unverified Nebulizer Route');
+    const volume = upperProse.match(/\b(\d+(?:\.\d+)?)\s*(?:ML|MILLILITERS?)\b/);
+    if (!volume) return manualResult('Missing Inhalation Volume');
+    return { doseToken: `ADM ${Number(volume[1])}ML`, routeToken: nebulizer ? 'NEB' : 'INH', abnormalities, isApap, apapLimitToken };
   }
 
   // Diclofenac Gel 1% special rules
@@ -94,6 +116,21 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
       isApap,
       apapLimitToken
     };
+  }
+
+  // Generic topical products keep application/site and never fall through to oral tablets.
+  const isTopical = /\b(?:TOPICAL(?:LY)?|TPCL)\b/.test(upperProse) || /\b(?:SHAMPOO|CREAM|OINTMENT|OINT|LOTION|GEL)\b/.test(upperDrug);
+  if (isTopical) {
+    if (/\b(?:BY\s+MOUTH|PO|ORALLY)\b/.test(upperProse)) return manualResult('Conflicting Topical Route');
+    const amount = upperProse.match(/\b(?:APPLY|AP)\s+(\d+(?:\.\d+)?)\s*(?:GMS?|GRAMS?|G)\b/);
+    const site = upperProse.match(/\bTO\s+(?:THE\s+)?([\s\S]+?)(?=\s+(?:TOPICALLY|TPCL|EVERY|EACH|DAILY|TWICE|THREE|FOUR|BID|TID|QID|QD|FOR|AS\s+NEEDED)\b|[.;]|$)/);
+    return { doseToken: amount ? `AP ${amount[1]}GM` : 'AP', routeToken: 'TPCL',
+      siteToken: site ? `TO ${site[1].trim()}` : undefined, abnormalities, isApap, apapLimitToken };
+  }
+
+  // Unsupported explicit non-oral instructions must be retained, not forced into the oral fallback.
+  if (/\b(?:INSTILL|INSERT|APPLY|DROPS?|OPHTHALMIC|OTIC|NASAL|RECTAL(?:LY)?|VAGINAL(?:LY)?|SUPPOSITORY)\b/.test(`${upperDrug} ${upperProse}`)) {
+    return manualResult('Unsupported Non-oral Formulation');
   }
 
   // Morphine Concentrate 20mg/ml bracketed rule
@@ -197,6 +234,7 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
 
   if (isLiquid) {
     const mlMatch = upperProse.match(/\b(\d+(?:\.\d+)?)\s*(?:ML|MILLILITER)\b/);
+    if (!mlMatch || !/\b(?:BY\s+MOUTH|PO|ORALLY|ORAL)\b/.test(upperProse)) return manualResult('Unspecified Liquid Dose or Route');
     const vol = mlMatch ? parseFloat(mlMatch[1]) : 0;
     const strengthMatch = upperDrug.match(/(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))?\s*(MG|GM|MCG)\s*\/\s*(\d+(?:\.\d+)?)\s*ML/);
 
@@ -356,22 +394,9 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
     : null;
 
   const countRaw = explicitCountMatch?.[1] || verbCountMatch?.[1] || routeCountMatch?.[1];
-  let count = 1;
-
-  if (countRaw) {
-    count = parseCountToken(countRaw);
-  } else {
-    // If directions omit any quantity and any standard word
-    if (!/\b(?:TABLETS?|TABS?|CAPSULES?|CAPS?|1|ONE)\b/.test(upperProse)) {
-      abnormalities.push({
-        id: `abn_dose_unspecified_${Date.now()}`,
-        tier: 'potential_error',
-        title: 'Unspecified Dose Quantity',
-        message: 'Original directions omit a dosage count. Defaulted to 1 tablet/capsule for safety review.',
-        trigger: rawProse.trim(),
-      });
-    }
-  }
+  if (!countRaw) return manualResult('Unspecified Dose Quantity');
+  const count = parseCountToken(countRaw);
+  if (count <= 0) return manualResult('Invalid Dose Quantity');
 
   if (count > 1) {
     const targetDoseStr = getTargetDose(count);
@@ -405,4 +430,3 @@ export function calculateDoseAndVolume(drugName: string, rawProse: string): Dose
   });
   return result;
 }
-

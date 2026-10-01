@@ -1,5 +1,6 @@
 import { AbnormalityFinding } from './types';
 import { traceLogger } from '../diagnostics/traceLogger';
+import { splitSupplementalDirections } from './instructionClauses';
 
 export interface FrequencyScheduleResult {
   readonly frequencyToken: string;
@@ -29,7 +30,9 @@ export const INDICATION_MAP: Record<string, string> = {
   PAIN: 'FPAIN',
   'MUSCLE PAIN': 'FOR MUSCLE PAIN',
   'SMOKING CESSATION': 'FOR SMOKING CESSATION',
-  'BOWEL REGIMEN': 'FOR BOWEL REGIMEN'
+  'BOWEL REGIMEN': 'FOR BOWEL REGIMEN',
+  'SHORTNESS OF BREATH OR WHEEZING': 'FSOBW',
+  'SOB OR WHEEZING': 'FSOBW'
 };
 
 export const SORTED_INDICATION_KEYS = Object.keys(INDICATION_MAP).sort((a, b) => b.length - a.length);
@@ -47,7 +50,8 @@ export const COMPILED_INDICATION_REGEXES: readonly CompiledIndicationRegex[] = S
 }));
 
 function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?: string): FrequencyScheduleResult {
-  const upper = rawProse.toUpperCase();
+  const upper = splitSupplementalDirections(rawProse).primary.toUpperCase()
+    .replace(/\b(?:VIA|USING|WITH)\s+(?:A\s+)?NEBULI[ZS]ER\b/g, '').trim();
   const abnormalities: AbnormalityFinding[] = [];
 
   if (!upper.trim()) {
@@ -191,7 +195,7 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     }
   }
   if (!indicationToken) {
-    const forMatch = upper.match(/\bFOR\s+(?!\d+\s*DAYS?)(?!HOLD)([A-Z0-9/\-\s]+)$/i);
+    const forMatch = upper.match(/\bFOR\s+(?!\d+\s*DAYS?)(?!HOLD)([\s\S]+)$/i);
     if (forMatch) {
       const rawInd = forMatch[1].replace(/\bHOLD\b.*$/i, '').trim();
       if (rawInd && !rawInd.includes('DAY') && !rawInd.includes('HOUR') && !rawInd.startsWith('HOLD')) {
@@ -201,9 +205,16 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
   }
 
   // Frequency tokens
-  let frequencyToken = 'QD';
-  if (upper.includes('EVERY SUN') || upper.includes('EVERY SUNDAY')) {
-    frequencyToken = upper.includes('EVENING') || /\bQPM\b/i.test(upper) ? 'QPMDAY7' : 'QDAY7';
+  let frequencyToken = '';
+  const weekday = upper.match(/\b(?:EVERY|ON)\s+(MON(?:DAY)?|TUE(?:S(?:DAY)?)?|WED(?:NESDAY)?|THU(?:RS(?:DAY)?)?|FRI(?:DAY)?|SAT(?:URDAY)?|SUN(?:DAY)?)\b/);
+  const shift = upper.match(/\b(?:EVERY|EACH)\s+(DAY|EVENING|NIGHT)\s+SHIFT\b/);
+  if (weekday) {
+    const dayNumbers: Record<string, number> = { MON: 1, TUE: 2, WED: 3, THU: 4, FRI: 5, SAT: 6, SUN: 7 };
+    const day = dayNumbers[weekday[1].slice(0, 3)];
+    const period = /\b(?:EVENING|QPM)\b/.test(upper) ? 'QPM' : /\b(?:MORNING|QAM)\b/.test(upper) ? 'QAM' : 'QD';
+    frequencyToken = shift ? `QDDAY${day} (DURING ${shift[1]} SHIFT)` : `${period}DAY${day}`;
+  } else if (shift) {
+    frequencyToken = `QD (DURING ${shift[1]} SHIFT)`;
   } else if (upper.includes('EVERY MORNING AND AT BEDTIME') || (/\b(?:EVERY\s+)?MORNING\b.*?\bAND\b.*?\bBEDTIME\b/i.test(upper))) {
     frequencyToken = 'BIDAMHS';
   } else if (upper.includes('BEFORE BREAKFAST')) {
@@ -231,6 +242,13 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     frequencyToken = 'TID';
   } else if (upper.includes('TWO TIMES A DAY') || upper.includes('TWICE DAILY') || /\bBID\b/i.test(upper)) {
     frequencyToken = 'BID';
+  } else if (/\b(?:DAILY|EVERY\s+DAY|ONCE\s+(?:A\s+)?DAY|ONE\s+TIME\s+A\s+DAY|QD)\b/.test(upper)) {
+    frequencyToken = 'QD';
+  }
+
+  if (!frequencyToken && !defaultTemplate) {
+    abnormalities.push({ id: `abn_freq_unrecognized_${Date.now()}`, tier: 'uncorrected_gap',
+      title: 'Unrecognized Frequency', message: 'No daily schedule was assumed. Original directions are retained for manual translation.', trigger: rawProse });
   }
 
   // Default template reconstitution blending
@@ -271,4 +289,3 @@ export function resolveFrequencyAndSchedule(rawProse: string, defaultTemplate?: 
   });
   return result;
 }
-

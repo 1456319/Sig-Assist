@@ -130,7 +130,7 @@ export function parseInboundOrder(rawInput: string): InboundOrder {
   const isDirectionProse = (text: string): boolean => {
     const upper = text.trim().toUpperCase();
     return /^(?:TAKE|GIVE|INJECT|INHALE|APPLY|INSTILL|USE|INSERT|PLACE|CHEW|SWALLOW|DISSOLVE|ADM|ADMINISTER)\b/i.test(upper) ||
-           /^(?:HALF|\d+(?:\.\d+)?|\d+\/\d+)\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?|PACKETS?|PILLS?|DROPS?|PUFFS?|PATCHES?|UNITS?|APPLICATIONS?)\b/i.test(upper);
+           /^(?:HALF|\d+(?:\.\d+)?|\d+\/\d+)\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?|PACKETS?|PILLS?|DROPS?|PUFFS?|PATCHES?|UNITS?|APPLICATIONS?|ML|MILLILITERS?|MG|MCG|GM|GRAMS?)\b/i.test(upper);
   };
 
   for (let i = 0; i < lines.length; i++) {

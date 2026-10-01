@@ -151,8 +151,8 @@ describe('doseCalculator', () => {
 
   it('flags unspecified dose quantity when prose omits any dosage count', () => {
     const res = calculateDoseAndVolume('PREDNISONE TAB 10MG', 'By mouth daily');
-    expect(res.doseToken).toBe('1T');
-    expect(res.abnormalities.some(a => a.tier === 'potential_error' && a.title === 'Unspecified Dose Quantity')).toBe(true);
+    expect(res.doseToken).toBe('');
+    expect(res.requiresManualTranslation).toBe(true);
+    expect(res.abnormalities.some(a => a.tier === 'uncorrected_gap' && a.title === 'Unspecified Dose Quantity')).toBe(true);
   });
 });
-

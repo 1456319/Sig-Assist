@@ -105,8 +105,32 @@ try {
   assert.equal(bundle.reports[1].context.subOrders[0].draftSig, '2T PO QAM WITH FOOD');
   assert.equal(bundle.reports[1].context.subOrders.length, 2);
   assert.equal(bundle.reports[1].technicianSig.split('\n').length, 2);
+  // Replay the exported real-world cases through the shipped Workbench UI.
+  const reported = JSON.parse(await readFile(path.join(root, 'tests/fixtures/reported-discrepancies-2026-10-01.json'), 'utf8'));
+  const expected = [
+    'ADM 3ML NEB Q6H PRN FSOBW',
+    'ADM 3ML NEB Q6H PRN FSOBW',
+    'AP TPCL TO SCALP QDDAY6 (DURING EVENING SHIFT) FOR SEBORRHEA CAPITIS (L21.0). APPLY TO SCALP AND WORK IN AND ALLOW TO SIT FOR 5 MINUTES AND THEN RINSE. CAN SHAMPOO/CONDITION AS NORMAL AFTERWARDS',
+    '1T PO TID X7D FPAIN 3GME. MAY GIVE PRN DOSE WITH SCHEDULED DOSE FOR TOTAL OF 1000 MG, DO NOT EXCEED MORE THAN 3000 MG OF TYLENOL IN 24 HR PERIOD',
+  ];
+  await page.getByRole('button', { name: 'Workbench Live SIG Parser' }).click();
+  await page.getByText(/codes loaded/).waitFor();
+  const directions = page.getByPlaceholder(/Enter free text SIG/);
+  for (const [index, report] of reported.reports.entries()) {
+    await directions.fill('');
+    await page.getByPlaceholder('e.g. Lisinopril 10mg').fill(index < 2 ? '' : report.drugName);
+    await directions.fill(report.rawProse);
+    await page.waitForFunction(value => [...document.querySelectorAll('textarea')].some(field => field.value === value), expected[index]);
+    assert.equal(await page.getByLabel('Final SIG · editable, uppercase').inputValue(), expected[index]);
+    const reviewedCopy = page.getByRole('button', { name: 'Copy reviewed SIG', exact: true });
+    assert.equal(await reviewedCopy.isDisabled(), true);
+    await page.getByRole('checkbox').check();
+    await reviewedCopy.click();
+    assert.equal(await page.evaluate(() => navigator.clipboard.readText()), expected[index]);
+  }
+  assert.deepEqual(externalRequests, []);
   assert.deepEqual(errors, []);
-  console.log(`PASS (${fileMode ? 'direct file, no server' : 'HTTP'}): offline UI, clipboard, review/revision/cancellation gating, split edits, saved queue and discrepancy cases across reload, actual case-file download, trace drawer, zero external requests or browser errors.`);
+  console.log(`PASS (${fileMode ? 'direct file, no server' : 'HTTP'}): offline UI, clipboard, review/revision/cancellation gating, saved queue and case export, all four reported mistranslations replayed through Workbench and actual clipboard, zero external requests or browser errors.`);
 } finally {
   if (browser) await browser.close();
   if (server) {

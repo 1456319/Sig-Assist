@@ -3,6 +3,7 @@ import { calculateDoseAndVolume } from './doseCalculator';
 import { resolveFrequencyAndSchedule, INDICATION_MAP, SORTED_INDICATION_KEYS } from './frequencyEngine';
 import { evaluatePaxitPackaging } from './paxitEngine';
 import { traceLogger } from '../diagnostics/traceLogger';
+import { splitSupplementalDirections, uppercaseDirections } from './instructionClauses';
 
 function resolveIndicationToken(fallbackIndication?: string): string | undefined {
   if (!fallbackIndication) return undefined;
@@ -25,9 +26,25 @@ function assembleSig(
   preferences?: TechnicianPreferences,
   fallbackIndication?: string
 ): { sig: string; abnormalities: AbnormalityFinding[] } {
+  const clauses = splitSupplementalDirections(rawProse);
   const doseRes = calculateDoseAndVolume(drugName, rawProse);
-  const freqRes = resolveFrequencyAndSchedule(rawProse, defaultTemplate);
+  const freqRes = resolveFrequencyAndSchedule(clauses.primary, defaultTemplate);
   const allAbnormalities = [...doseRes.abnormalities, ...freqRes.abnormalities];
+
+  if (!freqRes.slidingScaleString && (doseRes.requiresManualTranslation || !doseRes.doseToken || (!freqRes.frequencyToken && !freqRes.blendedTemplate))) {
+    return { sig: uppercaseDirections(rawProse), abnormalities: allAbnormalities };
+  }
+
+  const finish = (sig: string) => {
+    if (clauses.supplemental) {
+      allAbnormalities.push({ id: 'retained_supplemental_instructions', tier: 'uncorrected_gap',
+        title: 'Additional Instructions Require Review',
+        message: 'Additional instructions were retained verbatim after the translated tokens. Verify every clause and Framework Preview Sig before copying.',
+        trigger: clauses.supplemental });
+      return `${sig.replace(/[.;]+$/, '')}. ${uppercaseDirections(clauses.supplemental)}`;
+    }
+    return sig;
+  };
 
   // Resolve indication token: prefer inline indication from prose, fallback to inbound.indication from NCPDP XML
   const indicationToken = freqRes.indicationToken || resolveIndicationToken(fallbackIndication);
@@ -45,7 +62,7 @@ function assembleSig(
   }
 
   if (freqRes.slidingScaleString) {
-    return { sig: freqRes.slidingScaleString, abnormalities: allAbnormalities };
+    return { sig: finish(freqRes.slidingScaleString), abnormalities: allAbnormalities };
   }
 
   if (freqRes.blendedTemplate) {
@@ -53,7 +70,7 @@ function assembleSig(
     if (indicationToken && !freqRes.indicationToken) {
       blended = `${blended} ${indicationToken}`;
     }
-    return { sig: blended, abnormalities: allAbnormalities };
+    return { sig: finish(blended), abnormalities: allAbnormalities };
   }
 
   const parts: string[] = [];
@@ -61,6 +78,7 @@ function assembleSig(
   if (doseRes.routeToken && !effectiveDoseToken.includes('TRANSDERMALLY') && !effectiveDoseToken.includes('TPCL')) {
     parts.push(doseRes.routeToken);
   }
+  if (doseRes.siteToken) parts.push(doseRes.siteToken);
 
   parts.push(freqRes.frequencyToken);
 
@@ -86,7 +104,7 @@ function assembleSig(
   }
 
   const cleanSig = parts.join(' ').replace(/\s+/g, ' ').trim().toUpperCase();
-  return { sig: cleanSig, abnormalities: allAbnormalities };
+  return { sig: finish(cleanSig), abnormalities: allAbnormalities };
 }
 
 function cleanFirstClause(sig: string, isTitration: boolean): string {

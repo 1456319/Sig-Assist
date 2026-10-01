@@ -109,14 +109,9 @@ function evaluatePaxitPackagingInternal(drugName: string, rawProse: string): Pax
 
   const isControlled = isControlledSubstance(upperDrug);
   const isOralSolid =
-    upperDrug.includes('TAB') ||
-    upperDrug.includes('CAP') ||
-    upperDrug.includes('TABLET') ||
-    upperDrug.includes('CAPSULE') ||
-    upperProse.includes('TAB') ||
-    upperProse.includes('CAP') ||
+    /\b(?:TABLETS?|TABS?|CAPSULES?|CAPS?)\b/.test(`${upperDrug} ${upperProse}`) ||
     isControlled;
-  const isExcluded = upperDrug.includes('GEL') || upperDrug.includes('SYR') || upperDrug.includes('INJ') || upperDrug.includes('SOLN');
+  const isExcluded = /\b(?:GEL|CREAM|OINTMENT|SHAMPOO|LOTION|PATCH|SYR|INJ|SOLN)\b/.test(upperDrug) || /\b(?:TOPICALLY|TPCL|NEBULI[ZS]ER)\b/.test(upperProse);
 
   if (!isOralSolid || isExcluded) {
     return {
@@ -128,7 +123,7 @@ function evaluatePaxitPackagingInternal(drugName: string, rawProse: string): Pax
     };
   }
 
-  const unitLabel = (upperDrug.includes('CAP') || upperProse.includes('CAP')) ? 'capsule' : 'tablet';
+  const unitLabel = /\b(?:CAPSULES?|CAPS?)\b/.test(`${upperDrug} ${upperProse}`) ? 'capsule' : 'tablet';
 
   // Extract trailing clinical context (indication, PRN clause, or hold directives) to preserve across split sub-orders
   const trailingContextMatch = rawProse.match(/\b((?:AS NEEDED\s+FOR|PRN\s+FOR|AS NEEDED|PRN|HOLD\s+(?:IF|FOR|WHEN)|FOR)\s+(?!\d+\s*(?:DAYS?|D\b))[\s\S]+)$/i);
@@ -252,4 +247,3 @@ export function evaluatePaxitPackaging(drugName: string, rawProse: string): Paxi
   });
   return result;
 }
-
