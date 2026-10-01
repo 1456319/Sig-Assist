@@ -6,7 +6,11 @@ permissions:
   contents: read
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,3 +22,13 @@ jobs:
       - run: npm test
       - run: npm run typecheck
       - run: npm run build
+      - if: runner.os == 'Windows'
+        run: node scripts/package-windows.mjs
+      - if: runner.os == 'Windows'
+        run: npm run demo:test
+      - if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sig-Assist-Windows-Demo
+          path: windows-demo/
+          if-no-files-found: error

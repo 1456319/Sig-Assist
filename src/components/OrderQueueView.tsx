@@ -154,11 +154,11 @@ export function OrderQueueView() {
     <div className="flex flex-wrap justify-between items-start gap-3">
       <div>
         <h2 className="text-xl font-semibold">Order review queue</h2>
-        <p className="text-sm text-muted-foreground mt-1">Manual PON matching · local session · Iguana is not connected</p>
-        <p className="text-xs text-muted-foreground mt-1">Orders stay in memory until you clear or reload this tab. They are not uploaded.</p>
+        <p className="text-sm text-muted-foreground mt-1">Manual PON matching · local storage · Iguana is not connected</p>
+        <p className="text-xs text-muted-foreground mt-1">Orders are saved in browser cache or your connected folder and restored after reload. Clear orders removes the saved queue.</p>
       </div>
       <button className={reviewButtonClass} disabled={!orders.length} onClick={() => {
-        if (!window.confirm('Clear all orders and review history from this tab?')) return;
+        if (!window.confirm('Clear all orders and review history from this tab and its saved queue?')) return;
         setOrders([]); setSelectedId(undefined); setReviseId(undefined); setForm(emptySource);
       }}>Clear orders</button>
     </div>

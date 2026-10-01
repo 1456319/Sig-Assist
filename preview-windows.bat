@@ -1,42 +1,44 @@
 @echo off
-setlocal enabledelayedexpansion
-
-echo ========================================================
-echo   Sig-Assist Clinical Normalization Workbench
-echo   Windows Production Preview Launcher
-echo ========================================================
-echo.
+setlocal
+cd /d "%~dp0"
+echo Sig-Assist Windows Production Preview Launcher
 
 where node >nul 2>nul
-if %errorlevel% neq 0 (
-    echo [ERROR] Node.js was not found in your system PATH.
-    echo Please install Node.js (v18 or v20+ LTS) from:
-    echo   https://nodejs.org/
-    echo.
+if errorlevel 1 goto missing_node
+node -e "const [major,minor]=process.versions.node.split('.').map(Number); process.exit(major>22 || major===22 && minor>=12 ? 0 : 1)"
+if errorlevel 1 goto missing_node
+where npm >nul 2>nul
+if errorlevel 1 goto missing_node
+
+if not exist "node_modules\.package-lock.json" (
+    echo [INFO] Installing locked dependencies...
+    call npm ci
+    if errorlevel 1 (
+        echo [ERROR] Dependency installation failed.
+        pause
+        exit /b 1
+    )
+)
+
+echo [INFO] Building production bundle...
+call npm run build
+if errorlevel 1 (
+    echo [ERROR] Build failed.
     pause
     exit /b 1
 )
 
-cd /d "%~dp0"
-
-if not exist "node_modules\" (
-    echo [INFO] Installing npm dependencies...
-    call npm install
-    if %errorlevel% neq 0 (
-        echo [ERROR] npm install encountered an error.
-        pause
-        exit /b %errorlevel%
-    )
-)
-
-echo [INFO] Building production bundle for preview...
-call npm run build
-if %errorlevel% neq 0 (
-    echo [ERROR] Build failed.
+echo [INFO] Opening http://127.0.0.1:4173/ when the server is ready...
+call npm run preview -- --host 127.0.0.1 --port 4173 --strictPort --open
+if errorlevel 1 (
+    echo [ERROR] Server could not start. Close any previous demo console.
     pause
-    exit /b %errorlevel%
+    exit /b 1
 )
+exit /b 0
 
-echo [INFO] Starting Sig-Assist production preview on http://localhost:4173 ...
-start "" "http://localhost:4173"
-call npm run preview
+:missing_node
+echo [ERROR] Install Node.js 22.12+ with npm, then reopen this launcher.
+echo For the prebuilt demo without Node.js, see docs\WINDOWS-DEMO.md.
+pause
+exit /b 1

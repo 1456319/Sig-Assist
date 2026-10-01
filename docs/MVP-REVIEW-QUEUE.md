@@ -1,5 +1,10 @@
 # Local review MVP — September 18, 2026
 
+**Historical handoff:** PRs #13/#14 subsequently added the clinical engine,
+browser/folder persistence and diagnostic traces. The memory-only statements
+below describe the original September 18 implementation. For the current build
+and Windows launch instructions, see [WINDOWS-DEMO.md](WINDOWS-DEMO.md).
+
 This change implements the **manual PON → review → clipboard** portion of the
 handoff. It is a local prototype for evaluation with synthetic/de-identified
 examples, not a validated clinical system or live Iguana integration.

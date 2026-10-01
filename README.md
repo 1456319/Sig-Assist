@@ -2,20 +2,29 @@
 
 ## Try the local review MVP
 
-### On Windows
-1. **Quick Launch (Development):** Double-click `start-windows.bat` (checks Node.js, installs dependencies, opens browser to `http://localhost:5173`).
-2. **Quick Launch (Production Preview):** Double-click `preview-windows.bat` (builds production package and serves on `http://localhost:4173`).
-3. **Recommended Browser:** Google Chrome or Microsoft Edge (natively supports the File System Access API for local/Citrix directory folder persistence).
+### On Windows (prebuilt demo)
 
-### On Linux / macOS
-Run `npm install` and `npm run dev` with Node.js 18+. No external database configuration
-is required for the local **Order Queue**. Choose **Fill synthetic example**,
-add the order, review/correct the uppercase SIG, acknowledge review and copy.
+Download **Sig-Assist-Windows-Demo** from the latest successful
+[MVP checks run on main](https://github.com/1456319/Sig-Assist/actions/workflows/checks.yml),
+extract the entire ZIP, then double-click **Start-Sig-Assist.cmd**.
+No Node.js installation or administrator access is needed. Use Chrome or Edge.
+See [the Windows demo walkthrough](docs/WINDOWS-DEMO.md) for presentation steps.
 
-Orders and reversible exclusions stay in memory for the current tab. This
-prototype uses manual PON matching; live Iguana ingestion and clinical parser
-validation remain outstanding. See [the MVP implementation and handoff notes](docs/MVP-REVIEW-QUEUE.md)
-for workflow details, corrected-HAR findings, limitations and next steps.
+### From source (Windows / Linux / macOS)
+
+Use Node.js **22.12+**, run `npm ci`, then `npm run dev`.
+On Windows, `start-windows.bat` runs development mode and
+`preview-windows.bat` builds and opens the production preview.
+No external database configuration is needed for the local **Order Queue**.
+Choose **Fill synthetic example**, add the order, review/correct the uppercase
+SIG, acknowledge review and copy. Queue records and exclusions are saved in
+browser cache, or in a chosen writable folder from **Settings**, and survive reload.
+
+The current queue uses manual PON matching. Live Iguana ingestion, automatic
+Framework interaction and clinical parser validation remain outstanding.
+[The Windows demo notes](docs/WINDOWS-DEMO.md) describe current behavior;
+[the original September 18 handoff](docs/MVP-REVIEW-QUEUE.md) records the earlier
+implementation and integration findings.
 
 Long-Term Care Facilities and Assisted Living Facilities depend on closed-door pharmacies.. These pharmacies are dedicated only to the needs needs of these facilities 24-hours a day, and so must meet these needs totally and successfully meet them every single day. Typically, the process is thus:
 
