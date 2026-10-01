@@ -1,6 +1,8 @@
 import { AbnormalityFinding } from './types';
 import { traceLogger } from '../diagnostics/traceLogger';
 import { splitSupplementalDirections } from './instructionClauses';
+import { extractIndicationToken, administrationScheduleProse } from './indicationEngine';
+import { resolveWeekdaySchedule } from './weekdaySchedule';
 
 export interface FrequencyScheduleResult {
   readonly frequencyToken: string;
@@ -12,42 +14,8 @@ export interface FrequencyScheduleResult {
   readonly slidingScaleString?: string;
   readonly blendedTemplate?: string;
   readonly abnormalities: AbnormalityFinding[];
+  readonly requiresManualTranslation?: boolean;
 }
-
-export const INDICATION_MAP: Record<string, string> = {
-  GERD: 'FGERD',
-  SUPPLEMENT: 'FSU',
-  DM: 'FDM',
-  DM2: 'FDM2',
-  'TYPE 2 DIABETES': 'FDM2',
-  BPH: 'FBPH',
-  HYPOTHYROIDISM: 'FHYT',
-  'GI PROPHYLAXIS': 'FGIP',
-  COUGH: 'FCOU',
-  HTN: 'FHTN',
-  CONSTIPATION: 'FCON',
-  'DVT PREVENTION': 'FDVTP',
-  PAIN: 'FPAIN',
-  'MUSCLE PAIN': 'FOR MUSCLE PAIN',
-  'SMOKING CESSATION': 'FOR SMOKING CESSATION',
-  'BOWEL REGIMEN': 'FOR BOWEL REGIMEN',
-  'SHORTNESS OF BREATH OR WHEEZING': 'FSOBW',
-  'SOB OR WHEEZING': 'FSOBW'
-};
-
-export const SORTED_INDICATION_KEYS = Object.keys(INDICATION_MAP).sort((a, b) => b.length - a.length);
-
-export interface CompiledIndicationRegex {
-  readonly key: string;
-  readonly regex: RegExp;
-  readonly token: string;
-}
-
-export const COMPILED_INDICATION_REGEXES: readonly CompiledIndicationRegex[] = SORTED_INDICATION_KEYS.map((key) => ({
-  key,
-  regex: new RegExp(`\\b${key}\\b`, 'i'),
-  token: INDICATION_MAP[key],
-}));
 
 function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?: string): FrequencyScheduleResult {
   const upper = splitSupplementalDirections(rawProse).primary.toUpperCase()
@@ -186,78 +154,79 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
   // PRN
   const prnToken = upper.includes('AS NEEDED') || /\bPRN\b/i.test(upper) ? 'PRN' : undefined;
 
-  // Indication
-  let indicationToken: string | undefined;
-  for (const item of COMPILED_INDICATION_REGEXES) {
-    if (item.regex.test(upper)) {
-      indicationToken = item.token;
-      break;
-    }
-  }
-  if (!indicationToken) {
-    const forMatch = upper.match(/\bFOR\s+(?!\d+\s*DAYS?)(?!HOLD)([\s\S]+)$/i);
-    if (forMatch) {
-      const rawInd = forMatch[1].replace(/\bHOLD\b.*$/i, '').trim();
-      if (rawInd && !rawInd.includes('DAY') && !rawInd.includes('HOUR') && !rawInd.startsWith('HOLD')) {
-        indicationToken = `FOR ${rawInd}`;
-      }
-    }
-  }
+  const indicationToken = extractIndicationToken(upper);
+  const scheduleProse = administrationScheduleProse(upper);
 
   // Frequency tokens
   let frequencyToken = '';
-  const weekday = upper.match(/\b(?:EVERY|ON)\s+(MON(?:DAY)?|TUE(?:S(?:DAY)?)?|WED(?:NESDAY)?|THU(?:RS(?:DAY)?)?|FRI(?:DAY)?|SAT(?:URDAY)?|SUN(?:DAY)?)\b/);
-  const shift = upper.match(/\b(?:EVERY|EACH)\s+(DAY|EVENING|NIGHT)\s+SHIFT\b/);
-  if (weekday) {
-    const dayNumbers: Record<string, number> = { MON: 1, TUE: 2, WED: 3, THU: 4, FRI: 5, SAT: 6, SUN: 7 };
-    const day = dayNumbers[weekday[1].slice(0, 3)];
-    const period = /\b(?:EVENING|QPM)\b/.test(upper) ? 'QPM' : /\b(?:MORNING|QAM)\b/.test(upper) ? 'QAM' : 'QD';
-    frequencyToken = shift ? `QDDAY${day} (DURING ${shift[1]} SHIFT)` : `${period}DAY${day}`;
+  const weekday = resolveWeekdaySchedule(scheduleProse);
+  const shift = scheduleProse.match(/\b(?:EVERY|EACH)\s+(DAY|EVENING|NIGHT)\s+SHIFT\b/);
+  if (weekday.unsupported) {
+    abnormalities.push({ id: 'unsupported_weekday_schedule', tier: 'uncorrected_gap', title: 'Weekday Schedule Requires Review',
+      message: 'The complete weekday schedule could not be translated. Original directions were retained; no day or qualifier was discarded.', trigger: rawProse });
+    return { frequencyToken: '', abnormalities, requiresManualTranslation: true };
+  } else if (weekday.token) {
+    frequencyToken = weekday.token;
   } else if (shift) {
     frequencyToken = `QD (DURING ${shift[1]} SHIFT)`;
-  } else if (upper.includes('EVERY MORNING AND AT BEDTIME') || (/\b(?:EVERY\s+)?MORNING\b.*?\bAND\b.*?\bBEDTIME\b/i.test(upper))) {
+  } else if (scheduleProse.includes('EVERY MORNING AND AT BEDTIME') || (/\b(?:EVERY\s+)?MORNING\b.*?\bAND\b.*?\bBEDTIME\b/i.test(scheduleProse))) {
     frequencyToken = 'BIDAMHS';
-  } else if (upper.includes('BEFORE BREAKFAST')) {
+  } else if (scheduleProse.includes('BEFORE BREAKFAST')) {
     frequencyToken = 'QDA/B';
-  } else if (upper.includes('AFTER DINNER')) {
-    frequencyToken = upper.includes('IN THE EVENING') ? 'QDP/D IN THE EVENING' : 'QDP/D';
-  } else if (upper.includes('AT BEDTIME') || /\bBEDTIME\b/i.test(upper) || /\bQHS\b/i.test(upper)) {
+  } else if (scheduleProse.includes('AFTER DINNER')) {
+    frequencyToken = scheduleProse.includes('IN THE EVENING') ? 'QDP/D IN THE EVENING' : 'QDP/D';
+  } else if (scheduleProse.includes('AT BEDTIME') || /\bBEDTIME\b/i.test(scheduleProse) || /\bQHS\b/i.test(scheduleProse)) {
     frequencyToken = 'QHS';
-  } else if (upper.includes('EVERY MORNING') || upper.includes('IN THE MORNING') || /\bQAM\b/i.test(upper)) {
+  } else if (scheduleProse.includes('EVERY MORNING') || scheduleProse.includes('IN THE MORNING') || /\bQAM\b/i.test(scheduleProse)) {
     frequencyToken = 'QAM';
-  } else if (upper.includes('EVERY 12 HOURS') || /\bQ12H\b/i.test(upper)) {
+  } else if (scheduleProse.includes('EVERY 12 HOURS') || /\bQ12H\b/i.test(scheduleProse)) {
     frequencyToken = 'Q12H';
-  } else if (upper.includes('EVERY 8 HOURS') || /\bQ8H\b/i.test(upper)) {
+  } else if (scheduleProse.includes('EVERY 8 HOURS') || /\bQ8H\b/i.test(scheduleProse)) {
     frequencyToken = 'Q8H';
-  } else if (upper.includes('EVERY 6 HOURS') || /\bQ6H\b/i.test(upper)) {
+  } else if (scheduleProse.includes('EVERY 6 HOURS') || /\bQ6H\b/i.test(scheduleProse)) {
     frequencyToken = 'Q6H';
-  } else if (upper.includes('EVERY 4 HOURS') || /\bQ4H\b/i.test(upper)) {
+  } else if (scheduleProse.includes('EVERY 4 HOURS') || /\bQ4H\b/i.test(scheduleProse)) {
     frequencyToken = 'Q4H';
-  } else if (/\bEVERY\s+(\d+)\s*HOURS?\b/i.test(upper) || /\bQ(\d+)H\b/i.test(upper)) {
-    const qhMatch = upper.match(/\bEVERY\s+(\d+)\s*HOURS?\b/i) || upper.match(/\bQ(\d+)H\b/i);
+  } else if (/\bEVERY\s+(\d+)\s*HOURS?\b/i.test(scheduleProse) || /\bQ(\d+)H\b/i.test(scheduleProse)) {
+    const qhMatch = scheduleProse.match(/\bEVERY\s+(\d+)\s*HOURS?\b/i) || scheduleProse.match(/\bQ(\d+)H\b/i);
     frequencyToken = `Q${qhMatch![1]}H`;
-  } else if (upper.includes('FOUR TIMES A DAY') || /\bQID\b/i.test(upper)) {
+  } else if (scheduleProse.includes('FOUR TIMES A DAY') || /\bQID\b/i.test(scheduleProse)) {
     frequencyToken = 'QID';
-  } else if (upper.includes('THREE TIMES A DAY') || /\bTID\b/i.test(upper)) {
+  } else if (scheduleProse.includes('THREE TIMES A DAY') || /\bTID\b/i.test(scheduleProse)) {
     frequencyToken = 'TID';
-  } else if (upper.includes('TWO TIMES A DAY') || upper.includes('TWICE DAILY') || /\bBID\b/i.test(upper)) {
+  } else if (scheduleProse.includes('TWO TIMES A DAY') || scheduleProse.includes('TWICE DAILY') || /\bBID\b/i.test(scheduleProse)) {
     frequencyToken = 'BID';
-  } else if (/\b(?:DAILY|EVERY\s+DAY|ONCE\s+(?:A\s+)?DAY|ONE\s+TIME\s+A\s+DAY|QD)\b/.test(upper)) {
+  } else if (/\b(?:DAILY|EVERY\s+DAY|ONCE\s+(?:A\s+)?DAY|ONE\s+TIME\s+A\s+DAY|QD)\b/.test(scheduleProse)) {
     frequencyToken = 'QD';
   }
 
-  if (!frequencyToken && !defaultTemplate) {
+  const unsupportedInterval = !frequencyToken && /\b(?:EVERY|EACH\s+(?:DAY|HOUR|WEEK|MORNING|EVENING|NIGHT)|TIMES\s+(?:A|PER))\b/.test(scheduleProse);
+  if (!frequencyToken) {
     abnormalities.push({ id: `abn_freq_unrecognized_${Date.now()}`, tier: 'uncorrected_gap',
-      title: 'Unrecognized Frequency', message: 'No daily schedule was assumed. Original directions are retained for manual translation.', trigger: rawProse });
+      title: unsupportedInterval ? 'Unrecognized Frequency' : 'Missing Frequency',
+      message: unsupportedInterval ? 'The supplied interval could not be translated. Original directions were retained for manual translation.' : 'No dosing interval was supplied. No QD or other scheduled frequency was added. Verify the frequency or PRN interval before copying.', trigger: rawProse });
   }
 
   // Default template reconstitution blending
   let blendedTemplate: string | undefined;
   if (defaultTemplate) {
-    const base = defaultTemplate.trim();
+    let base = defaultTemplate.trim();
+    const scheduledPreparation = base.match(/^(MIX\b[\s\S]*\b(?:GIVE|TAKE)\s+PO)\s+(QD|BID|TID|QID|Q\d+H|QAM|QPM|QHS|(?:QD|QAM|QPM)DAY[1-7]+)\s*$/i);
+    if (scheduledPreparation) {
+      base = scheduledPreparation[1];
+      if (scheduledPreparation[2].toUpperCase() !== frequencyToken) {
+        abnormalities.push({ id: 'preparation_schedule_updated', tier: 'applied_correction', title: 'Preparation Schedule Updated',
+          message: 'The preparation template schedule was replaced with the source schedule. Verify the final instructions before copying.',
+          correction: `${scheduledPreparation[2].toUpperCase()} → ${frequencyToken || 'no scheduled frequency supplied'}`, trigger: rawProse });
+      }
+    }
     const ind = indicationToken ? ` ${indicationToken}` : '';
     if (base.toUpperCase().endsWith('PO')) {
-      blendedTemplate = `${base} ${frequencyToken}${ind}`;
+      const scheduleParts = [frequencyToken];
+      if (prnToken) scheduleParts.push(prnToken, indicationToken || '', durationToken || '');
+      else scheduleParts.push(durationToken || '', indicationToken || '');
+      scheduleParts.push(holdToken || '', stopToken || '');
+      blendedTemplate = `${base} ${scheduleParts.filter(Boolean).join(' ')}`.trim();
     } else {
       blendedTemplate = `${base}${ind}`;
     }
@@ -271,7 +240,8 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     holdToken,
     stopToken,
     blendedTemplate,
-    abnormalities
+    abnormalities,
+    requiresManualTranslation: unsupportedInterval
   };
 }
 

@@ -147,8 +147,8 @@ describe('clinicalEngine TESTS.txt validation', () => {
     const res = translateClinicalSig(parseInboundOrder(raw));
     expect(res.subOrders.length).toBe(1);
     expect(res.subOrders[0].label).toBe('Order 1 of 1');
-    expect(res.primarySig).toBe('2T PO QAM AND 1T PO QHS PRN FPAIN 3GM');
-    expect(res.subOrders[0].suggestedSig).toBe('2T PO QAM AND 1T PO QHS PRN FPAIN 3GM');
+    expect(res.primarySig).toBe('2T PO QAM AND 1T PO QHS PRN FOR SEVERE PAIN 3GM');
+    expect(res.subOrders[0].suggestedSig).toBe('2T PO QAM AND 1T PO QHS PRN FOR SEVERE PAIN 3GM');
     expect(res.abnormalities.some(a => a.id.startsWith('controlled_substance_single_order'))).toBe(true);
   });
 
@@ -157,8 +157,8 @@ describe('clinicalEngine TESTS.txt validation', () => {
     const res = translateClinicalSig(parseInboundOrder(raw));
     expect(res.subOrders.length).toBe(1);
     expect(res.subOrders[0].label).toBe('Order 1 of 1');
-    expect(res.primarySig).toBe('2T PO QAM AND 1T PO QHS PRN FPAIN X7D 3GM');
-    expect(res.subOrders[0].suggestedSig).toBe('2T PO QAM AND 1T PO QHS PRN FPAIN X7D 3GM');
+    expect(res.primarySig).toBe('2T PO QAM AND 1T PO QHS PRN FOR SEVERE PAIN X7D 3GM');
+    expect(res.subOrders[0].suggestedSig).toBe('2T PO QAM AND 1T PO QHS PRN FOR SEVERE PAIN X7D 3GM');
   });
 
   it('preserves acute duration across Paxit split sub-orders and unified primarySig', () => {

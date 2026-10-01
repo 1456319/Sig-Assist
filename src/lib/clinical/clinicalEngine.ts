@@ -1,23 +1,10 @@
 import { InboundOrder, ClinicalSigResult, SubOrderResult, AbnormalityFinding, TechnicianPreferences } from './types';
 import { calculateDoseAndVolume } from './doseCalculator';
-import { resolveFrequencyAndSchedule, INDICATION_MAP, SORTED_INDICATION_KEYS } from './frequencyEngine';
+import { resolveFrequencyAndSchedule } from './frequencyEngine';
+import { resolveIndicationToken } from './indicationEngine';
 import { evaluatePaxitPackaging } from './paxitEngine';
 import { traceLogger } from '../diagnostics/traceLogger';
 import { splitSupplementalDirections, uppercaseDirections } from './instructionClauses';
-
-function resolveIndicationToken(fallbackIndication?: string): string | undefined {
-  if (!fallbackIndication) return undefined;
-  const upper = fallbackIndication.trim().toUpperCase();
-  for (const key of SORTED_INDICATION_KEYS) {
-    if (new RegExp(`\\b${key}\\b`, 'i').test(upper)) {
-      return INDICATION_MAP[key];
-    }
-  }
-  if (upper.startsWith('FOR ') || upper.startsWith('F')) {
-    return upper;
-  }
-  return `F${upper}`;
-}
 
 function assembleSig(
   drugName: string,
@@ -28,10 +15,18 @@ function assembleSig(
 ): { sig: string; abnormalities: AbnormalityFinding[] } {
   const clauses = splitSupplementalDirections(rawProse);
   const doseRes = calculateDoseAndVolume(drugName, rawProse);
-  const freqRes = resolveFrequencyAndSchedule(clauses.primary, defaultTemplate);
+  const preparationTemplate = defaultTemplate?.trim() || doseRes.preparationTemplate;
+  const freqRes = resolveFrequencyAndSchedule(clauses.primary, preparationTemplate);
   const allAbnormalities = [...doseRes.abnormalities, ...freqRes.abnormalities];
 
-  if (!freqRes.slidingScaleString && (doseRes.requiresManualTranslation || !doseRes.doseToken || (!freqRes.frequencyToken && !freqRes.blendedTemplate))) {
+  if (!defaultTemplate?.trim() && doseRes.preparationTemplate) {
+    allAbnormalities.push({ id: 'peg_packet_preparation', tier: 'applied_correction', title: 'PEG Packet Preparation Added',
+      message: 'Preparation instructions were added from the PEG 17 g packet template. Verify the product and Framework Preview Sig before copying.',
+      correction: doseRes.preparationTemplate,
+      trigger: 'Recognized one-packet PEG 17 g oral dose; no source mixing instructions. Institutional 8 oz water template; PEG 3350 packet labeling permits 4–8 oz beverage.' });
+  }
+
+  if (!freqRes.slidingScaleString && (doseRes.requiresManualTranslation || freqRes.requiresManualTranslation || !doseRes.doseToken || (!freqRes.frequencyToken && !freqRes.blendedTemplate && !freqRes.prnToken))) {
     return { sig: uppercaseDirections(rawProse), abnormalities: allAbnormalities };
   }
 

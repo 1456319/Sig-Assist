@@ -18,14 +18,14 @@ describe('reported mistranslations, 2026-10-01', () => {
   it('keeps the topical site, Saturday evening shift, diagnosis and every shampoo handling instruction', () => {
     const report = cases.reports[2];
     const result = translate(report.drugName, report.rawProse);
-    expect(result.primarySig).toBe('AP TPCL TO SCALP QDDAY6 (DURING EVENING SHIFT) FOR SEBORRHEA CAPITIS (L21.0). APPLY TO SCALP AND WORK IN AND ALLOW TO SIT FOR 5 MINUTES AND THEN RINSE. CAN SHAMPOO/CONDITION AS NORMAL AFTERWARDS');
+    expect(result.primarySig).toBe('AP TPCL TO SCALP QDDAY6 (DURING EVENING SHIFT) FOR SEBORRHEA CAPITIS. APPLY TO SCALP AND WORK IN AND ALLOW TO SIT FOR 5 MINUTES AND THEN RINSE. CAN SHAMPOO/CONDITION AS NORMAL AFTERWARDS');
     expect(result.primarySig).not.toMatch(/\b(?:1T|PO|QDDAY7)\b/);
   });
 
   it('keeps scheduled TID separate from supplemental PRN dosing and preserves both dose limits', () => {
     const report = cases.reports[3];
     const result = translate(report.drugName, report.rawProse);
-    expect(result.primarySig).toBe('1T PO TID X7D FPAIN 3GME. MAY GIVE PRN DOSE WITH SCHEDULED DOSE FOR TOTAL OF 1000 MG, DO NOT EXCEED MORE THAN 3000 MG OF TYLENOL IN 24 HR PERIOD');
+    expect(result.primarySig).toBe('1T PO TID X7D FOR HIP PAIN 3GME. MAY GIVE PRN DOSE WITH SCHEDULED DOSE FOR TOTAL OF 1000 MG, DO NOT EXCEED MORE THAN 3000 MG OF TYLENOL IN 24 HR PERIOD');
     expect(result.primarySig).not.toContain('TID PRN');
     expect(result.abnormalities.some(a => a.title === 'Additional Instructions Require Review')).toBe(true);
   });

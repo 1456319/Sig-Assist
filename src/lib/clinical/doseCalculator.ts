@@ -10,6 +10,7 @@ export interface DoseCalculationResult {
   readonly apapLimitToken?: string;
   readonly siteToken?: string;
   readonly requiresManualTranslation?: boolean;
+  readonly preparationTemplate?: string;
 }
 
 const WORD_TO_NUM: Record<string, number> = {
@@ -83,49 +84,54 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
     return { doseToken: `ADM ${Number(volume[1])}ML`, routeToken: nebulizer ? 'NEB' : 'INH', abnormalities, isApap, apapLimitToken };
   }
 
-  // Diclofenac Gel 1% special rules
-  if (upperDrug.includes('DICLOFENAC') && (upperDrug.includes('GEL') || upperDrug.includes('1%'))) {
-    const isLower = upperProse.includes('LEG') || upperProse.includes('KNEE') || upperProse.includes('ANKLE') || upperProse.includes('FOOT') || upperProse.includes('FEET');
-    const isUpper = upperProse.includes('SHOULDER') || upperProse.includes('ARM') || upperProse.includes('HAND') || upperProse.includes('WRIST') || upperProse.includes('LOWER BACK') || upperProse.includes('BACK');
+  // Eye drops require an explicit eye destination. Never infer an oral solid,
+  // eye laterality, quantity range, or schedule from an unknown product name.
+  if (/\b(?:DROPS?|GTT)\b/.test(upperProse)) {
+    const count = upperProse.match(/(?<![\d./-])(\d+|ONE|TWO)\s*(?:DROPS?|GTT)\b/);
+    const eye = upperProse.match(/\b(LEFT|RIGHT|BOTH|EACH)\s+EYES?\b|\b(OS|OD|OU)\b/);
+    const conflictingRoute = /\b(?:EARS?|NOSE|NASAL|BY\s+MOUTH|ORALLY|PO)\b/.test(upperProse);
+    const ambiguous = /\b\d+\s*(?:-|TO|\/|OR)\s*\d+\s*DROPS?\b|\b(?:DO\s+NOT|NOT\s+IN|EXCEPT)\b/.test(upperProse)
+      || [...upperProse.matchAll(/\b(?:LEFT|RIGHT|BOTH|EACH)\s+EYES?\b|\b(?:OS|OD|OU)\b/g)].length > 1;
+    if (!count || !eye || conflictingRoute || ambiguous || parseCountToken(count[1]) <= 0) return manualResult('Unverified Eye Drop Dose or Site');
+    const quantity = parseCountToken(count[1]);
+    const routes: Record<string, string> = { LEFT: 'OS', RIGHT: 'OD', BOTH: 'OU', EACH: 'OU' };
+    return { doseToken: quantity <= 2 ? `${quantity}G` : `INSTILL ${quantity} DROPS`,
+      routeToken: eye[2] || routes[eye[1]], abnormalities, isApap, apapLimitToken };
+  }
 
-    if (isLower && !isUpper) {
-      return {
-        doseToken: 'AP4GM',
-        routeToken: 'TPCL',
-        abnormalities,
-        isApap,
-        apapLimitToken
-      };
+  const topicalAmount = upperProse.match(/\b(?:APPLY|AP)\s+(\d+(?:\.\d+)?)\s*(?:GMS?|GRAMS?|G)\b/);
+  const topicalSite = upperProse.match(/\bTO\s+(?:THE\s+)?([\s\S]+?)(?=\s+(?:TOPICALLY|TPCL|EVERY|EACH|DAILY|TWICE|THREE|FOUR|BID|TID|QID|QD|FOR|AS\s+NEEDED)\b|[.;]|$)/);
+  const siteToken = topicalSite ? `TO ${topicalSite[1].trim()}` : undefined;
+
+  // Existing institutional diclofenac 1% defaults remain visible as additions.
+  // Explicit quantities always win; preserve the complete anatomical site.
+  if (/\bDICLOFENAC\b/.test(upperDrug) && /\bGEL\b/.test(upperDrug) && /(?<![\d.])\b1\s*%/.test(upperDrug)) {
+    if (/\b(?:BY\s+MOUTH|PO|ORALLY)\b/.test(upperProse)) return manualResult('Conflicting Topical Route');
+    const site = siteToken || upperProse;
+    const isLower = /\b(?:LEGS?|KNEES?|ANKLES?|FOOT|FEET)\b/.test(site);
+    const isUpper = /\b(?:SHOULDERS?|ARMS?|HANDS?|WRISTS?|ELBOWS?|BACK)\b/.test(site);
+    const inferredDose = isLower && !isUpper ? 'AP4GM' : 'AP 2GM';
+    if (!topicalAmount) {
+      abnormalities.push({ id: `abn_diclo_${Date.now()}`, tier: 'applied_correction', title: 'Diclofenac Dose Default Applied',
+        message: 'The generated Sig CONTAINS A CORRECTION. Verify the added quantity before copying.',
+        correction: `Added institutional dose default: ${inferredDose}`,
+        trigger: siteToken || 'Unspecified anatomical site for topical application' });
     }
-
-    if (!isLower && !isUpper) {
-      abnormalities.push({
-        id: `abn_diclo_${Date.now()}`,
-        tier: 'applied_correction',
-        title: 'Diclofenac Dose Default Applied',
-        message: 'The generated Sig CONTAINS A CORRECTION.',
-        correction: 'Sig was generated with Qty/Dose = 2GM',
-        trigger: 'Unspecified anatomical site for topical application'
-      });
+    if (!siteToken || /\b(?:NECK|EARS?|BACK|SHOULDERS?|LEGS?|ARMS?)\b/.test(site)
+      || (!isLower && !isUpper) || (isLower && isUpper)) {
+      abnormalities.push({ id: 'diclofenac_unverified_site', tier: 'potential_error', title: 'Diclofenac Site/Dose Requires Verification',
+        message: 'The application site is outside a single verified diclofenac dose category. Have the pharmacist verify the site and quantity; no labeled neck/ear dose was inferred.',
+        trigger: siteToken || 'Missing application site' });
     }
-
-    return {
-      doseToken: 'AP 2GM',
-      routeToken: 'TPCL',
-      abnormalities,
-      isApap,
-      apapLimitToken
-    };
+    return { doseToken: topicalAmount ? `AP ${topicalAmount[1]}GM` : inferredDose, routeToken: 'TPCL', siteToken, abnormalities, isApap, apapLimitToken };
   }
 
   // Generic topical products keep application/site and never fall through to oral tablets.
   const isTopical = /\b(?:TOPICAL(?:LY)?|TPCL)\b/.test(upperProse) || /\b(?:SHAMPOO|CREAM|OINTMENT|OINT|LOTION|GEL)\b/.test(upperDrug);
   if (isTopical) {
     if (/\b(?:BY\s+MOUTH|PO|ORALLY)\b/.test(upperProse)) return manualResult('Conflicting Topical Route');
-    const amount = upperProse.match(/\b(?:APPLY|AP)\s+(\d+(?:\.\d+)?)\s*(?:GMS?|GRAMS?|G)\b/);
-    const site = upperProse.match(/\bTO\s+(?:THE\s+)?([\s\S]+?)(?=\s+(?:TOPICALLY|TPCL|EVERY|EACH|DAILY|TWICE|THREE|FOUR|BID|TID|QID|QD|FOR|AS\s+NEEDED)\b|[.;]|$)/);
-    return { doseToken: amount ? `AP ${amount[1]}GM` : 'AP', routeToken: 'TPCL',
-      siteToken: site ? `TO ${site[1].trim()}` : undefined, abnormalities, isApap, apapLimitToken };
+    return { doseToken: topicalAmount ? `AP ${topicalAmount[1]}GM` : 'AP', routeToken: 'TPCL',
+      siteToken, abnormalities, isApap, apapLimitToken };
   }
 
   // Unsupported explicit non-oral instructions must be retained, not forced into the oral fallback.
@@ -223,6 +229,21 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
     };
   }
 
+  // Powder packets precede liquid detection so mixing volumes cannot become
+  // an oral liquid dose. Explicit preparation remains intact for manual review.
+  if (/\b(?:PACKETS?|PKT)\b/.test(`${upperDrug} ${upperProse}`)) {
+    if (/\b(?:MIX(?:ED|ING)?|DISSOLV(?:E|ED|ING)|RECONSTITUT(?:E|ED|ION)|STIR(?:RED)?|WATER|JUICE|BEVERAGE|OZ|OUNCES?|ML|MILLILITERS?)\b/.test(fullProse)) return manualResult('Explicit Packet Preparation Requires Review');
+    const countMatch = upperProse.match(/(?<![\d./-])(\d+|ONE|TWO|THREE)\s*(?:PACKETS?|PKT)\b/);
+    if (!countMatch || /\b\d+\s*(?:-|TO|\/)\s*\d+\s*PACKETS?\b/.test(upperProse) || !/\b(?:ORALLY|BY\s+MOUTH|PO)\b/.test(upperProse)) return manualResult('Unspecified Packet Dose or Route');
+    const count = parseCountToken(countMatch[1]);
+    if (count <= 0) return manualResult('Invalid Packet Dose');
+    const isPeg17g = /\b(?:POLYETH\s+GLYC|POLYETHYLENE\s+GLYCOL|MIRALAX)\b/.test(upperDrug)
+      && /\b17(?:\.0+)?\s*(?:GM|GRAMS?|G)\b/.test(upperDrug)
+      && !/\b(?:ELECTROLYTES?|SODIUM|POTASSIUM|SULFATE|CHLORIDE|ASCORBIC|WITH|AND)\b|[-+/]/.test(upperDrug);
+    return { doseToken: `${count}PKT`, routeToken: 'PO', abnormalities, isApap, apapLimitToken,
+      preparationTemplate: isPeg17g && count === 1 ? 'MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO' : undefined };
+  }
+
   // Oral liquid / syrup / elixir / solution / suspension
   const isLiquid = upperDrug.includes('SYR') ||
     upperDrug.includes('SOLN') ||
@@ -253,19 +274,6 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
 
     return {
       doseToken,
-      routeToken: 'PO',
-      abnormalities,
-      isApap,
-      apapLimitToken
-    };
-  }
-
-  // Powder packets (Miralax, Polyethylene glycol)
-  if (upperDrug.includes('PACKET') || upperDrug.includes('PKT') || upperProse.includes('PACKET')) {
-    const countMatch = upperProse.match(/(\d+)\s*PACKET/);
-    const count = countMatch ? countMatch[1] : '1';
-    return {
-      doseToken: `${count}PKT`,
       routeToken: 'PO',
       abnormalities,
       isApap,
