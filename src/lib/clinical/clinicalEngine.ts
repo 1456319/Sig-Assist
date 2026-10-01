@@ -98,6 +98,7 @@ function cleanFirstClause(sig: string, isTitration: boolean): string {
       .replace(/\s+(?:3GME?|3GM)$/i, '')
       .replace(/\s+(?:F[A-Z0-9]+|FOR\s+[\s\S]+)$/i, '')
       .replace(/\s+PRN\b.*$/i, '')
+      .replace(/\s+(?:SBP100|HR60SBP100|\(H\b[^)]+\)|\(HOLD\b[^)]+\)|HOLD\b.*)$/i, '')
       .trim();
     if (!isTitration) {
       cleaned = cleaned.replace(/\s+(?:X\d+D|FOR\s+\d+\s+DAYS?)$/i, '').trim();
@@ -245,3 +246,21 @@ export function translateClinicalSig(inbound: InboundOrder, preferences?: Techni
     traceLogger.setActiveTraceId(prevTraceId === 'GLOBAL' ? null : prevTraceId);
   }
 }
+
+const clinicalSigCache = new Map<string, ClinicalSigResult>();
+
+export function getCachedClinicalSig(inbound: InboundOrder, preferences?: TechnicianPreferences): ClinicalSigResult {
+  const key = `${inbound.id}::${inbound.drugName}::${inbound.rawProse}::${inbound.defaultSigTemplate || ''}::${preferences?.version || 0}`;
+  const cached = clinicalSigCache.get(key);
+  if (cached) {
+    return cached;
+  }
+  const result = translateClinicalSig(inbound, preferences);
+  clinicalSigCache.set(key, result);
+  return result;
+}
+
+export function clearClinicalSigCache(): void {
+  clinicalSigCache.clear();
+}
+

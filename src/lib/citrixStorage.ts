@@ -140,7 +140,7 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
     }
     try {
       await this.flushPendingWrites();
-      const newHandle = await win.showDirectoryPicker();
+      const newHandle = await win.showDirectoryPicker({ mode: 'readwrite' });
       this.dirHandle = newHandle;
       this.destinationId = `dir_${newHandle.name || 'share'}_${Math.random().toString(36).substring(2, 10)}`;
       this.fallbackActive = {};
@@ -547,7 +547,15 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
         const file = await fileHandle.getFile();
         const text = await file.text();
         const lines = text.trim().split('\n').filter(Boolean);
-        return lines.map((line) => JSON.parse(line) as TraceEvent);
+        const events: TraceEvent[] = [];
+        for (const line of lines) {
+          try {
+            events.push(JSON.parse(line) as TraceEvent);
+          } catch {
+            // Skip individual malformed line without dropping the rest of the trace file
+          }
+        }
+        return events;
       } catch {
         // Fallback to localStorage on file system error
       }

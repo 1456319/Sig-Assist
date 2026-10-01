@@ -29,14 +29,12 @@ if not exist "node_modules\" (
     )
 )
 
-if not exist "dist\index.html" (
-    echo [INFO] Building production bundle...
-    call npm run build
-    if %errorlevel% neq 0 (
-        echo [ERROR] Build failed.
-        pause
-        exit /b %errorlevel%
-    )
+echo [INFO] Building production bundle for preview...
+call npm run build
+if %errorlevel% neq 0 (
+    echo [ERROR] Build failed.
+    pause
+    exit /b %errorlevel%
 )
 
 echo [INFO] Starting Sig-Assist production preview on http://localhost:4173 ...

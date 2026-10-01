@@ -9,6 +9,27 @@ export interface DoseCalculationResult {
   readonly apapLimitToken?: string;
 }
 
+const WORD_TO_NUM: Record<string, number> = {
+  ONE: 1,
+  TWO: 2,
+  THREE: 3,
+  FOUR: 4,
+  FIVE: 5,
+  SIX: 6,
+  SEVEN: 7,
+  EIGHT: 8,
+  NINE: 9,
+  TEN: 10,
+};
+
+function parseCountToken(token: string): number {
+  const upper = token.trim().toUpperCase();
+  if (WORD_TO_NUM[upper] !== undefined) {
+    return WORD_TO_NUM[upper];
+  }
+  return parseInt(upper, 10);
+}
+
 function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): DoseCalculationResult {
   const upperDrug = drugName.toUpperCase();
   const upperProse = rawProse.toUpperCase();
@@ -314,9 +335,43 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
     };
   }
 
-  // 3. Whole integers (with boundary to prevent matching decimal or fraction suffixes)
-  const countMatch = upperProse.match(/(?<![\d./])(\d+)(?!\s*[\d./])\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)\b/);
-  const count = countMatch ? parseInt(countMatch[1], 10) : 1;
+  // 3. Whole integers and number words
+  // Pattern A: Explicit tablet/capsule keywords
+  const explicitCountMatch = upperProse.match(
+    /(?<![\d./])(\d+|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN)(?!\s*[\d./])\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)\b/
+  );
+
+  // Pattern B: Preceded by action verb (e.g. TAKE 2 BY MOUTH, GIVE 2 PO, ADM 2)
+  const verbCountMatch = !explicitCountMatch
+    ? upperProse.match(
+        /\b(?:TAKE|GIVE|ADM(?:INISTER)?|INGEST)\s+(\d+|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN)\b(?!\s*[\d./])(?!\s*(?:MG|MCG|GM|G\b|ML|MILLILITER|L\b|OZ|HOUR|HR|DAY|D\b|WEEK|WK|MONTH|MIN|MINUTES?)\b)/
+      )
+    : null;
+
+  // Pattern C: Followed by oral route indicators (e.g. 2 PO, 2 BY MOUTH)
+  const routeCountMatch = (!explicitCountMatch && !verbCountMatch)
+    ? upperProse.match(
+        /(?<![\d./])(\d+|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN)\s*(?:PO|BY\s+MOUTH|ORALLY)\b/
+      )
+    : null;
+
+  const countRaw = explicitCountMatch?.[1] || verbCountMatch?.[1] || routeCountMatch?.[1];
+  let count = 1;
+
+  if (countRaw) {
+    count = parseCountToken(countRaw);
+  } else {
+    // If directions omit any quantity and any standard word
+    if (!/\b(?:TABLETS?|TABS?|CAPSULES?|CAPS?|1|ONE)\b/.test(upperProse)) {
+      abnormalities.push({
+        id: `abn_dose_unspecified_${Date.now()}`,
+        tier: 'potential_error',
+        title: 'Unspecified Dose Quantity',
+        message: 'Original directions omit a dosage count. Defaulted to 1 tablet/capsule for safety review.',
+        trigger: rawProse.trim(),
+      });
+    }
+  }
 
   if (count > 1) {
     const targetDoseStr = getTargetDose(count);
@@ -325,7 +380,7 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
       routeToken: 'PO',
       abnormalities,
       isApap,
-      apapLimitToken
+      apapLimitToken,
     };
   }
 
@@ -334,7 +389,7 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
     routeToken: 'PO',
     abnormalities,
     isApap,
-    apapLimitToken
+    apapLimitToken,
   };
 }
 

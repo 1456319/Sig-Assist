@@ -84,7 +84,7 @@ export class TraceLogger {
     const fresh = persisted.filter((e) => !existingIds.has(e.id));
     if (fresh.length === 0) return 0;
 
-    const maxPersistedSeq = Math.max(0, ...persisted.map((e) => e.seq ?? 0));
+    const maxPersistedSeq = persisted.reduce((max, e) => Math.max(max, e.seq ?? 0), 0);
     this.nextSeq = Math.max(this.nextSeq, maxPersistedSeq + 1);
 
     const destKey = destination || 'storage';

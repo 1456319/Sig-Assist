@@ -7,7 +7,7 @@ import { useReviewSession } from '../hooks/use-review-session';
 import { SigReviewPanel, reviewButtonClass, reviewInputClass } from './SigReviewPanel';
 import { parseInboundOrder } from '../lib/clinical/inboundParser';
 import { HL7_SAMPLE } from '../lib/clinical/fixtures';
-import { translateClinicalSig } from '../lib/clinical/clinicalEngine';
+import { getCachedClinicalSig, translateClinicalSig } from '../lib/clinical/clinicalEngine';
 import { AbnormalityBanner } from './AbnormalityBanner';
 import { MultiOrderCards } from './MultiOrderCards';
 import { traceLogger } from '../lib/diagnostics/traceLogger';
@@ -33,7 +33,7 @@ export function OrderQueueView() {
   const clinicalResult = useMemo(() => {
     if (!selected) return undefined;
     const traceId = getOrderTraceId(selected);
-    return translateClinicalSig({
+    return getCachedClinicalSig({
       id: selected.id,
       pon: selected.pon,
       drugName: selected.drug,
@@ -98,7 +98,7 @@ export function OrderQueueView() {
         continue;
       }
       try {
-        const clinical = translateClinicalSig({
+        const clinical = getCachedClinicalSig({
           id: order.id,
           pon: order.pon,
           drugName: order.drug,

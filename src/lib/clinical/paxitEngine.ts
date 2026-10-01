@@ -130,8 +130,8 @@ function evaluatePaxitPackagingInternal(drugName: string, rawProse: string): Pax
 
   const unitLabel = (upperDrug.includes('CAP') || upperProse.includes('CAP')) ? 'capsule' : 'tablet';
 
-  // Extract trailing clinical context (indication or PRN clause) to preserve across split sub-orders
-  const trailingContextMatch = rawProse.match(/\b((?:AS NEEDED\s+FOR|PRN\s+FOR|AS NEEDED|PRN|FOR)\s+(?!\d+\s*(?:DAYS?|D\b))[\s\S]+)$/i);
+  // Extract trailing clinical context (indication, PRN clause, or hold directives) to preserve across split sub-orders
+  const trailingContextMatch = rawProse.match(/\b((?:AS NEEDED\s+FOR|PRN\s+FOR|AS NEEDED|PRN|HOLD\s+(?:IF|FOR|WHEN)|FOR)\s+(?!\d+\s*(?:DAYS?|D\b))[\s\S]+)$/i);
   const contextSuffix = trailingContextMatch ? ` ${trailingContextMatch[1].trim()}` : '';
 
   // Extract acute duration clause (e.g. for 7 days / x14d) to preserve across split sub-orders

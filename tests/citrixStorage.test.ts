@@ -605,5 +605,32 @@ describe('citrixStorage', () => {
     expect(mockDir1.files.has('queue.json')).toBe(true);
     expect(JSON.parse(mockDir1.files.get('queue.json')!)).toEqual([pendingOrder]);
   });
+
+  it('requests mode readwrite when calling showDirectoryPicker', async () => {
+    const mockDir = createMockDirectoryHandle();
+    const pickerSpy = vi.fn().mockResolvedValue(mockDir);
+    setMockShowDirectoryPicker(pickerSpy);
+
+    const adapter = getCitrixStorageAdapter();
+    await adapter.connectDirectory();
+    expect(pickerSpy).toHaveBeenCalledWith({ mode: 'readwrite' });
+  });
+
+  it('resiliently reads valid JSONL lines even if one line is corrupted', async () => {
+    const mockDir = createMockDirectoryHandle();
+    const validEvent1 = { id: 'evt_1', timestamp: Date.now(), layer: 'ui', component: 'test', message: 'First' };
+    const validEvent2 = { id: 'evt_2', timestamp: Date.now() + 1, layer: 'ui', component: 'test', message: 'Second' };
+    const corruptedContent = `${JSON.stringify(validEvent1)}\n{CORRUPTED_JSON_LINE\n${JSON.stringify(validEvent2)}\n`;
+    mockDir.files.set('sig-assist-trace.jsonl', corruptedContent);
+
+    setMockShowDirectoryPicker(vi.fn().mockResolvedValue(mockDir));
+    const adapter = getCitrixStorageAdapter();
+    await adapter.connectDirectory();
+
+    const logs = await adapter.readTraceLogs();
+    expect(logs.length).toBe(2);
+    expect(logs[0].id).toBe('evt_1');
+    expect(logs[1].id).toBe('evt_2');
+  });
 });
 

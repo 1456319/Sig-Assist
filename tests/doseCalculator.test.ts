@@ -129,4 +129,30 @@ describe('doseCalculator', () => {
     expect(res.doseToken).toBe('');
     expect(res.abnormalities.some(a => a.tier === 'potential_error' && a.title === 'Missing Directions')).toBe(true);
   });
+
+  it('correctly calculates dose when unit noun is omitted in directions', () => {
+    const res = calculateDoseAndVolume('FUROSEMIDE TAB 20MG', 'Take 2 by mouth daily');
+    expect(res.doseToken).toBe('2T (40MG)');
+    expect(res.routeToken).toBe('PO');
+
+    const poRes = calculateDoseAndVolume('METOPROLOL TARTRATE 25MG', 'Give 2 PO QD');
+    expect(poRes.doseToken).toBe('2T (50MG)');
+    expect(poRes.routeToken).toBe('PO');
+  });
+
+  it('correctly calculates dose with word numbers like TWO', () => {
+    const res = calculateDoseAndVolume('PREDNISONE TAB 10MG', 'Take two tablets by mouth daily');
+    expect(res.doseToken).toBe('2T (20MG)');
+    expect(res.routeToken).toBe('PO');
+
+    const wordNoNoun = calculateDoseAndVolume('PREDNISONE TAB 10MG', 'Take two by mouth daily');
+    expect(wordNoNoun.doseToken).toBe('2T (20MG)');
+  });
+
+  it('flags unspecified dose quantity when prose omits any dosage count', () => {
+    const res = calculateDoseAndVolume('PREDNISONE TAB 10MG', 'By mouth daily');
+    expect(res.doseToken).toBe('1T');
+    expect(res.abnormalities.some(a => a.tier === 'potential_error' && a.title === 'Unspecified Dose Quantity')).toBe(true);
+  });
 });
+

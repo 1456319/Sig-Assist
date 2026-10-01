@@ -3,7 +3,7 @@ import type { QueueOrder } from '../lib/orderQueue';
 import type { SigExclusion } from '../lib/reviewPolicy';
 import { ReviewContext } from '../hooks/use-review-session';
 import { getCitrixStorageAdapter, StoredQueueOrder } from '../lib/citrixStorage';
-import { translateClinicalSig } from '../lib/clinical/clinicalEngine';
+import { getCachedClinicalSig } from '../lib/clinical/clinicalEngine';
 import { toast } from 'sonner';
 
 export function ReviewSession({ children }: { children: ReactNode }) {
@@ -155,7 +155,7 @@ export function ReviewSession({ children }: { children: ReactNode }) {
       let isCompleted = Boolean(o.copied);
 
       try {
-        const clinical = translateClinicalSig({
+        const clinical = getCachedClinicalSig({
           id: o.id,
           pon: o.pon,
           drugName: o.drug,

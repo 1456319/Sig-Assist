@@ -324,4 +324,21 @@ describe('clinicalEngine TESTS.txt validation', () => {
     expect(res.primarySig).toBe('');
     expect(res.abnormalities.some(a => a.tier === 'potential_error')).toBe(true);
   });
+
+  it('preserves clinical hold directives across Paxit split regimens and unified primarySig', () => {
+    const order = {
+      id: 'test_paxit_hold_sbp',
+      pon: 'PON_HOLD_SBP',
+      drugName: 'METOPROLOL TARTRATE TAB 25MG',
+      rawProse: 'Take 2 tablets in the morning and 1 tablet at bedtime HOLD IF SBP < 100',
+      sourceFormat: 'manual_text' as const
+    };
+    const res = translateClinicalSig(order);
+    expect(res.subOrders.length).toBe(2);
+    expect(res.subOrders[0].suggestedSig).toBe('2T (50MG) PO QAM SBP100');
+    expect(res.subOrders[1].suggestedSig).toBe('1T PO QHS SBP100');
+    expect(res.primarySig).toBe('2T (50MG) PO QAM AND 1T PO QHS SBP100');
+    expect(res.abnormalities.some(a => a.title.includes('Hold Directive') || a.title.includes('Paxit Multi-Order Split'))).toBe(true);
+  });
 });
+
