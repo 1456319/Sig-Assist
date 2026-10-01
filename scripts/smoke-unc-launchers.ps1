@@ -7,7 +7,7 @@ $demo = Join-Path $source 'windows-demo'
 $legacy = Join-Path $testRoot 'legacy folder !'
 $shareCreated = $false
 
-function Test-Launcher([string]$Launcher, [string]$ExpectedPage) {
+function Test-HttpLauncher([string]$Launcher, [string]$ExpectedPage) {
     $reservation = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
     $reservation.Start()
     $port = $reservation.LocalEndpoint.Port
@@ -55,6 +55,33 @@ function Test-Launcher([string]$Launcher, [string]$ExpectedPage) {
     }
 }
 
+function Test-BrowserLauncher([string]$Launcher) {
+    $info = [System.Diagnostics.ProcessStartInfo]::new()
+    $info.FileName = $env:ComSpec
+    $info.Arguments = "/d /s /c `"`"$Launcher`" --check`""
+    $info.WorkingDirectory = $env:SystemRoot
+    $info.UseShellExecute = $false
+    $info.RedirectStandardOutput = $true
+    $info.RedirectStandardError = $true
+    # No Node/npm or PowerShell executable is available to these launchers.
+    $info.EnvironmentVariables['PATH'] = "$env:SystemRoot\System32"
+    $process = [System.Diagnostics.Process]::Start($info)
+    try {
+        $stdout = $process.StandardOutput.ReadToEndAsync()
+        $stderr = $process.StandardError.ReadToEndAsync()
+        if (-not $process.WaitForExit(10000)) { $process.Kill(); throw 'Browser launcher did not exit.' }
+        $out = $stdout.Result
+        $err = $stderr.Result
+        if ($process.ExitCode -ne 0 -or $err -or $out -notmatch 'Prebuilt page found:') {
+            throw "Browser launcher failed: $out $err"
+        }
+        if ($out -match '\[ERROR\]|UNC paths are not supported|CMD does not support UNC paths') {
+            throw "Browser launcher reports a startup error: $out"
+        }
+        Write-Host "PASS: browser launcher finds the page on a UNC share without Node/npm/PowerShell: $Launcher"
+    } finally { $process.Dispose() }
+}
+
 try {
     New-Item -ItemType Directory -Path $demo, (Join-Path $legacy 'app') -Force | Out-Null
     Copy-Item (Join-Path $root 'start-windows.bat'), (Join-Path $root 'preview-windows.bat') $source
@@ -66,15 +93,17 @@ try {
     if ((Get-Service LanmanServer).Status -ne 'Running') { Start-Service LanmanServer }
     New-SmbShare -Name $shareName -Path $testRoot -FullAccess "$env:USERDOMAIN\$env:USERNAME" | Out-Null
     $shareCreated = $true
-    $unc = "\\localhost\$shareName"
-    $page = Join-Path $demo 'index.html'
-    Test-Launcher "$unc\source folder !\windows-demo\Start-Sig-Assist.bat" $page
-    Test-Launcher "$unc\source folder !\start-windows.bat" $page
-    Test-Launcher "$unc\source folder !\preview-windows.bat" $page
-    Test-Launcher "$unc\legacy folder !\Start-Sig-Assist.cmd" (Join-Path $legacy 'app/index.html')
+    $unc = "\\$env:COMPUTERNAME\$shareName"
+    Test-BrowserLauncher "$unc\source folder !\windows-demo\Start-Sig-Assist.bat"
+    Test-BrowserLauncher "$unc\source folder !\start-windows.bat"
+    Test-BrowserLauncher "$unc\source folder !\preview-windows.bat"
+    Test-HttpLauncher "$unc\legacy folder !\Start-Sig-Assist.cmd" (Join-Path $legacy 'app/index.html')
+    # Exercise the full Edge workflow at the UNC file URL while the share exists.
+    & node (Join-Path $root 'scripts/smoke-browser.mjs') --file "$unc\source folder !\windows-demo\index.html"
+    if ($LASTEXITCODE -ne 0) { throw 'Direct UNC file browser workflow failed.' }
 } finally {
     if ($shareCreated) {
-        Get-SmbMapping -ErrorAction SilentlyContinue | Where-Object { $_.RemotePath -like "\\localhost\$shareName*" } | Remove-SmbMapping -Force -ErrorAction SilentlyContinue
+        Get-SmbMapping -ErrorAction SilentlyContinue | Where-Object { $_.RemotePath -like "\\$env:COMPUTERNAME\$shareName*" } | Remove-SmbMapping -Force -ErrorAction SilentlyContinue
         Remove-SmbShare -Name $shareName -Force -Confirm:$false
     }
     if (Test-Path $testRoot) { Remove-Item $testRoot -Recurse -Force }

@@ -3,7 +3,7 @@
 ## Try the local review MVP
 
 ### On Windows
-1. **Tonight's demo:** Download [Sig-Assist-Windows-Demo.zip](https://github.com/1456319/Sig-Assist/raw/refs/heads/main/windows-demo/Sig-Assist-Windows-Demo.zip), extract all files, then double-click **Start-Sig-Assist.bat**. Edge/Chrome opens `http://127.0.0.1:4173`. Keep the console open. This prebuilt version requires no Node.js, dependency installation, internet connection, or admin rights.
+1. **Tonight's demo:** Download [Sig-Assist-Windows-Demo.zip](https://github.com/1456319/Sig-Assist/raw/refs/heads/main/windows-demo/Sig-Assist-Windows-Demo.zip), extract all files, then double-click **Start-Sig-Assist.bat**. The launcher opens the prebuilt `index.html` in your browser, then exits. You can also open `index.html` directly in Edge/Chrome. This prebuilt version requires no PowerShell, Node.js, dependency installation, local server, internet connection, or admin rights.
 2. Click **Load demo queue**. Review DEMO-001, edit its uppercase SIG, acknowledge review, then copy. DEMO-002 demonstrates split cards; DEMO-003 a taper; DEMO-004 PRN; DEMO-005 multiline hold parameters. **Revise source**, **Cancel order**, exclusions, and **Trace Logs** demonstrate the review and diagnostics workflow.
 3. **Development:** Node.js 22.12+ is required. `start-windows.bat` installs locked dependencies and launches Vite. `preview-windows.bat` builds and serves the production version. Edge/Chrome supports optional folder persistence in Settings.
 

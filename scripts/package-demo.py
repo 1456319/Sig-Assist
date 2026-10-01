@@ -4,7 +4,7 @@ from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 import sys
 
 demo = Path(__file__).resolve().parent.parent / "windows-demo"
-files = ["Start-Sig-Assist.bat", "Serve-Demo.ps1", "README.txt", "index.html"]
+files = ["Start-Sig-Assist.bat", "README.txt", "index.html"]
 contents = {}
 for name in files:
     data = (demo / name).read_bytes().replace(b"\r\n", b"\n")

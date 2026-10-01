@@ -2,7 +2,9 @@
 
 Download [Sig-Assist-Windows-Demo.zip](https://github.com/1456319/Sig-Assist/raw/refs/heads/main/windows-demo/Sig-Assist-Windows-Demo.zip).
 Extract the entire ZIP to a folder, then double-click **Start-Sig-Assist.bat**.
-Leave the console window open while presenting. The same download is available
+The launcher opens the standalone **index.html** in your default browser and
+exits. You can also open **index.html** directly in Edge or Chrome. The same
+download is available
 from successful [MVP checks runs](https://github.com/1456319/Sig-Assist/actions/workflows/checks.yml).
 The existing **Start-Sig-Assist.cmd** package remains supported by `npm run demo:package`.
 
@@ -11,11 +13,14 @@ If you downloaded the repository ZIP, open **windows-demo** and run
 also use this bundled demo automatically when Node.js/npm is unavailable.
 All launchers support UNC paths such as Citrix redirected Documents folders.
 
-The prebuilt package uses Windows PowerShell 5.1 and the default browser.
-It needs no Node.js installation, npm setup, administrator access, database
-configuration or connection to Iguana. Open `http://127.0.0.1:4173/` in Edge or
-Chrome if the browser does not open automatically. If that port is already in
-use, close the previous demo console before starting again.
+The default demo opens as a local HTML file. It needs no PowerShell, Node.js,
+npm setup, administrator access, database configuration, server port or
+connection to Iguana. If the launcher is blocked or no browser opens, right-click
+**index.html**, choose **Open with**, then **Microsoft Edge** or **Google Chrome**.
+This route uses the ordinary browser; it does not change endpoint protection.
+
+The older localhost server remains available in the repository for environments
+where it is approved. Its PowerShell files are omitted from the default ZIP.
 
 ## Five-minute walkthrough
 
@@ -32,8 +37,10 @@ use, close the previous demo console before starting again.
 5. Open **Trace Logs**, filter by clinical layer and export a diagnostic bundle.
    **Settings** also lets Edge/Chrome choose a writable local/Citrix folder.
 
-The queue and exclusions are saved in this browser's local cache and restored
-after reload. If a directory is connected, writes go to that chosen folder;
+The queue and exclusions are saved in this browser's local cache when permitted
+and restored after reload. Keep the HTML at the same path; moving it or switching
+from localhost uses a different browser storage location. If a directory is
+connected, writes go to that chosen folder;
 reconnect the folder after restarting. **Clear orders** clears the saved queue.
 Clipboard content is managed separately by Windows.
 

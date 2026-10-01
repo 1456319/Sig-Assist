@@ -4,15 +4,18 @@ import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { setTimeout as delay } from 'node:timers/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const url = 'http://127.0.0.1:4189/';
+const fileArgument = process.argv.indexOf('--file');
+const fileMode = fileArgument !== -1;
+const pagePath = fileMode && process.argv[fileArgument + 1] ? process.argv[fileArgument + 1] : path.join(root, 'windows-demo/index.html');
+const url = fileMode ? pathToFileURL(pagePath).href : 'http://127.0.0.1:4189/';
 let server;
 let browser;
 try {
-  if (process.platform === 'win32') {
+  if (!fileMode && process.platform === 'win32') {
     server = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(root, 'windows-demo/Serve-Demo.ps1'), '-Port', '4189', '-NoBrowser'], { stdio: 'inherit' });
     for (let attempt = 0; attempt < 50; attempt++) {
       try { if ((await fetch(`${url}__health`)).ok) break; } catch { /* waiting for server start */ }
@@ -20,13 +23,13 @@ try {
       if (attempt === 49) throw new Error('Windows launcher did not become ready.');
       await delay(100);
     }
-  } else {
+  } else if (!fileMode) {
     const html = await readFile(path.join(root, 'windows-demo/index.html'));
     server = createServer((request, response) => { response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); response.end(html); });
     await new Promise(resolve => server.listen(4189, '127.0.0.1', resolve));
   }
   browser = await chromium.launch({ channel: process.platform === 'win32' ? 'msedge' : 'chrome', headless: true });
-  const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] });
+  const context = await browser.newContext(fileMode ? {} : { permissions: ['clipboard-read', 'clipboard-write'] });
   const page = await context.newPage();
   const errors = [];
   const externalRequests = [];
@@ -43,6 +46,11 @@ try {
   await draft.fill('1t po bid x7d with food');
   await page.getByRole('checkbox').check();
   await copy.click();
+  if (fileMode) {
+    // Require the user-click write to succeed before granting read access to verify it.
+    await page.getByText('Reviewed SIG copied. Match the PON and preview it in Framework.', { exact: true }).waitFor();
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  }
   assert.equal(await page.evaluate(() => navigator.clipboard.readText()), '1T PO BID X7D WITH FOOD');
   await page.getByRole('button', { name: 'Revise source', exact: true }).click();
   assert.equal(await copy.isDisabled(), true);
@@ -74,7 +82,7 @@ try {
   assert.equal(await split.inputValue(), '2T PO QAM WITH FOOD');
   assert.equal(await splitCopy.isDisabled(), true);
   assert.deepEqual(errors, []);
-  console.log('PASS: prebuilt offline UI, real clipboard, review/revision/cancellation gating, split edits and queue saved across reload, trace drawer, zero external requests or browser errors.');
+  console.log(`PASS (${fileMode ? 'direct file, no server' : 'HTTP'}): prebuilt offline UI, real clipboard, review/revision/cancellation gating, split edits and queue saved across reload, trace drawer, zero external requests or browser errors.`);
 } finally {
   if (browser) await browser.close();
   if (server) {
