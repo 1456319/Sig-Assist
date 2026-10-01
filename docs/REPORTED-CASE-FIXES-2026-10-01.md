@@ -36,5 +36,7 @@ contents, in addition to the existing Queue/case-export workflow.
 
 These changes support supervised evaluation. They do not verify prescriber
 intent, site-specific macro expansion or clinical accuracy. Existing saved
-drafts and reports are not rewritten automatically; re-enter the original
+drafts and reports are not rewritten automatically. Review approvals are tied
+to the build fingerprint, so an upgrade requires fresh review before copying
+while preserving the technician's draft edits. Re-enter the original
 directions in the updated Workbench to evaluate the new translation.

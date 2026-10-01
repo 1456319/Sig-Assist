@@ -20,10 +20,10 @@ export function excludedMatches(text: string, exclusions: SigExclusion[]): SigEx
   });
 }
 
-// Approval is tied to the complete source context, current draft and preferences.
+// Approval is tied to the source context, draft, preferences and shipped build.
 // Changing any of them invalidates approval, even if the rendered SIG is unchanged.
 export function reviewStamp(source: string, draft: string, exclusions: SigExclusion[], policyRevision = 0): string {
-  return JSON.stringify([source, finalSig(draft), exclusions, policyRevision]);
+  return JSON.stringify([source, finalSig(draft), exclusions, policyRevision, __SIG_ASSIST_BUILD__]);
 }
 
 export function copyBlockReason(source: string, draft: string, exclusions: SigExclusion[], approved?: string, unavailable = false, policyRevision = 0): string | undefined {

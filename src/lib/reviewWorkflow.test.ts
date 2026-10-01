@@ -68,6 +68,15 @@ describe('shared clipboard policy', () => {
     expect(copyBlockReason(identity, order.draft, [], approved, false, 2)).toBeDefined();
   });
 
+  it('requires fresh review for legacy approvals and approvals from an older build', () => {
+    const legacyApproval = JSON.stringify([identity, order.draft, [], 0]);
+    expect(copyBlockReason(identity, order.draft, [], legacyApproval)).toBeDefined();
+    const previousBuild = JSON.parse(reviewStamp(identity, order.draft, []));
+    previousBuild[4] = 'previous-build';
+    expect(copyBlockReason(identity, order.draft, [], JSON.stringify(previousBuild))).toBeDefined();
+    expect(copyBlockReason(identity, order.draft, [], reviewStamp(identity, order.draft, []))).toBeUndefined();
+  });
+
   it('matches whole codes including punctuation without matching longer codes', () => {
     expect(excludedMatches('1T PO (qd);', exclusions)).toHaveLength(1);
     expect(excludedMatches('1T PO QDAY7', exclusions)).toHaveLength(0);
