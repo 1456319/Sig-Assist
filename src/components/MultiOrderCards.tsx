@@ -3,13 +3,17 @@ import { SubOrderResult } from '../lib/clinical/types';
 import { AbnormalityBanner } from './AbnormalityBanner';
 import { Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import { useReviewSession } from '../hooks/use-review-session';
+import { copyBlockReason, reviewStamp } from '../lib/reviewPolicy';
 
 export interface MultiOrderCardsProps {
+  primarySig?: string;
   subOrders: SubOrderResult[];
   onCopySubOrder?: (subOrder: SubOrderResult, draftSig: string) => void;
 }
 
 export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
+  primarySig,
   subOrders,
   onCopySubOrder,
 }) => {
@@ -24,8 +28,11 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
   const [reviewedMap, setReviewedMap] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  const { exclusions, policyRevision } = useReviewSession();
+
   const handleDraftChange = (id: string, value: string) => {
     setDrafts((prev) => ({ ...prev, [id]: value.toUpperCase() }));
+    setReviewedMap((prev) => ({ ...prev, [id]: false }));
   };
 
   const handleReviewToggle = (id: string, checked: boolean) => {
@@ -36,31 +43,53 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
     const draftSig = drafts[subOrder.id] ?? subOrder.suggestedSig;
     if (!reviewedMap[subOrder.id] || !draftSig.trim()) return;
 
-    if (onCopySubOrder) {
-      onCopySubOrder(subOrder, draftSig);
+    const isReviewed = !!reviewedMap[subOrder.id];
+    const approved = isReviewed ? reviewStamp(subOrder.suggestedSig, draftSig, exclusions, policyRevision) : undefined;
+    const blockReason = copyBlockReason(subOrder.suggestedSig, draftSig, exclusions, approved, false, policyRevision);
+    if (blockReason) {
+      toast.error(blockReason);
+      return;
     }
 
     try {
       if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(draftSig);
         toast.success(`Copied ${subOrder.label} SIG to clipboard`);
+        setCopiedId(subOrder.id);
+        if (onCopySubOrder) {
+          onCopySubOrder(subOrder, draftSig);
+        }
+        setTimeout(() => {
+          setCopiedId(null);
+        }, 2000);
+      } else {
+        toast.error('Clipboard access denied or unavailable. Please copy manually.');
       }
     } catch {
-      // clipboard fallback
+      toast.error('Clipboard copy failed. Please copy manually.');
     }
-
-    setCopiedId(subOrder.id);
-    setTimeout(() => {
-      setCopiedId(null);
-    }, 2000);
   };
 
   return (
     <div className="space-y-4">
-      <div className="rounded-md border border-blue-200 bg-blue-50/50 p-3 text-xs text-blue-900 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
-        <span className="font-semibold">Packaging Compatibility Notice (Paxit Multi-Dose Strip):</span>
+      {primarySig && (
+        <div data-testid="unified-primary-sig-card" className="rounded-lg border border-primary/30 bg-primary/5 p-3.5 space-y-1.5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-primary uppercase tracking-wider">
+              Unified Prescription Regimen (Primary Clinical Record)
+            </span>
+            <span className="text-[11px] text-muted-foreground">Framework single-line summary</span>
+          </div>
+          <div className="font-mono text-sm font-bold text-foreground bg-background/90 rounded px-3 py-2 border border-border break-words">
+            {primarySig}
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-md border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+        <span className="font-semibold">Paxit Multi-Order Requirement:</span>
         <p className="mt-0.5 text-slate-600 dark:text-slate-400">
-          The unified prescription order is preserved above. If your pharmacy dispenses via automated Paxit multi-dose pouches, review and enter these linked drafts as separate dispense lines in FrameworkLTC.
+          Paxit oral solids cannot have split SIGs on a single order. This medication must be entered into FrameworkLTC as separate orders (Order 1 of 2, Order 2 of 2) for automated pouch packaging. Review and copy each order card individually.
         </p>
       </div>
 
@@ -68,6 +97,8 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
         const draftSig = drafts[subOrder.id] ?? subOrder.suggestedSig;
         const isReviewed = !!reviewedMap[subOrder.id];
         const isCopied = copiedId === subOrder.id;
+        const approved = isReviewed ? reviewStamp(subOrder.suggestedSig, draftSig, exclusions, policyRevision) : undefined;
+        const blockReason = copyBlockReason(subOrder.suggestedSig, draftSig, exclusions, approved, false, policyRevision);
 
         return (
           <div
@@ -123,9 +154,12 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
             </div>
 
             <div>
+              {blockReason && (
+                <p className="text-xs text-destructive mb-2">{blockReason}</p>
+              )}
               <button
                 type="button"
-                disabled={!isReviewed || !draftSig.trim()}
+                disabled={!isReviewed || !draftSig.trim() || !!blockReason}
                 onClick={() => handleCopy(subOrder)}
                 className="inline-flex items-center gap-1.5 rounded-md border border-border bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
               >

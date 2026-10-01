@@ -122,13 +122,13 @@ export function calculateDoseAndVolume(drugName: string, rawProse: string): Dose
       if (mgMatch) mg = parseFloat(mgMatch[1]);
     }
 
-    const volStr = vol > 0 ? (Number.isInteger(vol) ? `${vol}ML` : `${vol.toFixed(1)}ML`) : (mlMatch ? `${mlMatch[1]}ML` : '');
-    const mgStr = mg > 0 ? (Number.isInteger(mg) ? `${mg}MG` : `${mg.toFixed(1)}MG`) : '';
+    const volStr = vol > 0 ? (Number.isInteger(vol) ? `${vol}ML` : `${parseFloat(vol.toFixed(3))}ML`) : (mlMatch ? `${mlMatch[1]}ML` : '');
+    const mgStr = mg > 0 ? (Number.isInteger(mg) ? `${mg}MG` : `${parseFloat(mg.toFixed(3))}MG`) : '';
     const doseToken = volStr && mgStr ? `INJ ${volStr} (${mgStr})` : (volStr ? `INJ ${volStr}` : `INJ ${mgStr}`);
 
     return {
       doseToken,
-      routeToken: upperProse.includes('INTRAMUSCULAR') || upperProse.includes('IM') ? 'IM' : 'SQ',
+      routeToken: /\b(?:INTRAMUSCULAR|IM)\b/i.test(upperProse) ? 'IM' : 'SQ',
       abnormalities,
       isApap,
       apapLimitToken
@@ -171,7 +171,7 @@ export function calculateDoseAndVolume(drugName: string, rawProse: string): Dose
       const unit = strengthMatch[3];
       const concMl = parseFloat(strengthMatch[4] || '1');
       const calculatedDose = (vol * concVal) / concMl;
-      const roundedDose = Number.isInteger(calculatedDose) ? calculatedDose.toString() : calculatedDose.toFixed(1);
+      const roundedDose = Number.isInteger(calculatedDose) ? calculatedDose.toString() : parseFloat(calculatedDose.toFixed(3)).toString();
       doseToken = `ADM ${vol}ML (${roundedDose}${unit})`;
     }
 
@@ -201,18 +201,45 @@ export function calculateDoseAndVolume(drugName: string, rawProse: string): Dose
   const isCapsule = upperDrug.includes('CAP') || upperProse.includes('CAPSULE');
   const unitChar = isCapsule ? 'C' : 'T';
 
-  const halfMatch = upperProse.match(/(?:0\.5|1\/2|HALF)\s*(?:TABLET|TAB|CAPSULE|CAP)/);
-  if (halfMatch) {
-    const strengthMatch = upperDrug.match(/(\d+(?:\.\d+)?)\s*(MG|MCG|GM)/);
-    let targetDoseStr = '';
+  const strengthMatch = upperDrug.match(/(\d+(?:\.\d+)?)\s*(MG|MCG|GM)/);
+  const getTargetDose = (multiplier: number): string => {
+    if (multiplier <= 0) return '';
     if (strengthMatch && !upperDrug.includes('/') && !upperDrug.includes('-')) {
-      const fullVal = parseFloat(strengthMatch[1]);
+      const singleVal = parseFloat(strengthMatch[1]);
       const unit = strengthMatch[2];
-      const halfVal = fullVal / 2;
-      targetDoseStr = ` (${halfVal}${unit})`;
+      const totalVal = singleVal * multiplier;
+      const roundedTotal = Number.isInteger(totalVal) ? totalVal.toString() : parseFloat(totalVal.toFixed(3)).toString();
+      return ` (${roundedTotal}${unit})`;
     }
+    return '';
+  };
+
+  // 1. Fractions & mixed numbers (e.g. 1/2, 3/4, 1/4, 1 1/2, HALF)
+  const fractionMatch = upperProse.match(/\b(?:(HALF)|(\d+)\s*[- ]\s*(\d+)\/(\d+)|(\d+)\/(\d+))\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)\b/);
+  if (fractionMatch) {
+    let multiplier = 0.5;
+    let label = '1/2';
+    if (fractionMatch[1]) {
+      // HALF
+      multiplier = 0.5;
+      label = '1/2';
+    } else if (fractionMatch[2]) {
+      // Mixed number e.g. 1 1/2
+      const whole = parseInt(fractionMatch[2], 10);
+      const num = parseInt(fractionMatch[3], 10);
+      const den = parseInt(fractionMatch[4], 10);
+      label = `${whole}-${num}/${den}`;
+      multiplier = den > 0 ? whole + num / den : 0;
+    } else if (fractionMatch[5]) {
+      // Fraction e.g. 1/2, 3/4
+      const num = parseInt(fractionMatch[5], 10);
+      const den = parseInt(fractionMatch[6], 10);
+      label = `${num}/${den}`;
+      multiplier = den > 0 ? num / den : 0;
+    }
+    const targetDoseStr = getTargetDose(multiplier);
     return {
-      doseToken: `1/2${unitChar}${targetDoseStr}`,
+      doseToken: `${label}${unitChar}${targetDoseStr}`,
       routeToken: 'PO',
       abnormalities,
       isApap,
@@ -220,19 +247,28 @@ export function calculateDoseAndVolume(drugName: string, rawProse: string): Dose
     };
   }
 
-  const countMatch = upperProse.match(/(\d+)\s*(?:TABLET|TAB|CAPSULE|CAP)/);
+  // 2. Decimals (e.g. 1.5, 0.5, 2.5)
+  const decimalMatch = upperProse.match(/\b(\d+\.\d+)\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)\b/);
+  if (decimalMatch) {
+    const decVal = parseFloat(decimalMatch[1]);
+    const multiplier = decVal;
+    const label = decVal === 0.5 ? '1/2' : decVal.toString();
+    const targetDoseStr = getTargetDose(multiplier);
+    return {
+      doseToken: `${label}${unitChar}${targetDoseStr}`,
+      routeToken: 'PO',
+      abnormalities,
+      isApap,
+      apapLimitToken
+    };
+  }
+
+  // 3. Whole integers (with boundary to prevent matching decimal or fraction suffixes)
+  const countMatch = upperProse.match(/(?<![\d./])(\d+)(?!\s*[\d./])\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)\b/);
   const count = countMatch ? parseInt(countMatch[1], 10) : 1;
 
   if (count > 1) {
-    const strengthMatch = upperDrug.match(/(\d+(?:\.\d+)?)\s*(MG|MCG|GM)/);
-    let targetDoseStr = '';
-    if (strengthMatch && !upperDrug.includes('/') && !upperDrug.includes('-')) {
-      const singleVal = parseFloat(strengthMatch[1]);
-      const unit = strengthMatch[2];
-      const totalVal = singleVal * count;
-      const roundedTotal = Number.isInteger(totalVal) ? totalVal.toString() : totalVal.toFixed(1);
-      targetDoseStr = ` (${roundedTotal}${unit})`;
-    }
+    const targetDoseStr = getTargetDose(count);
     return {
       doseToken: `${count}${unitChar}${targetDoseStr}`,
       routeToken: 'PO',

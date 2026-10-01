@@ -140,7 +140,7 @@ export function resolveFrequencyAndSchedule(rawProse: string, defaultTemplate?: 
     }
   }
   if (!indicationToken) {
-    const forMatch = upper.match(/\bFOR\s+(?!\d+\s*DAYS?)([A-Z0-9\/\-\s]+)$/i);
+    const forMatch = upper.match(/\bFOR\s+(?!\d+\s*DAYS?)([A-Z0-9/\-\s]+)$/i);
     if (forMatch) {
       const rawInd = forMatch[1].trim();
       if (!rawInd.includes('DAY') && !rawInd.includes('HOUR')) {

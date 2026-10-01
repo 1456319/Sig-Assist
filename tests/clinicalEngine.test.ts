@@ -101,7 +101,7 @@ describe('clinicalEngine TESTS.txt validation', () => {
     expect(res.subOrders[0].suggestedSig).toContain('2T (600MG) PO QAM');
     expect(res.subOrders[1].label).toBe('Order 2 of 2');
     expect(res.subOrders[1].suggestedSig).toContain('1T PO QHS');
-    expect(res.abnormalities.some(a => a.title.includes('Paxit Packaging'))).toBe(true);
+    expect(res.abnormalities.some(a => a.id.startsWith('paxit_split_req'))).toBe(true);
   });
 
   it('does not split Paxit orders when morning and bedtime doses are identical, consolidating into BIDAMHS', () => {
@@ -121,7 +121,7 @@ describe('clinicalEngine TESTS.txt validation', () => {
     expect(res.subOrders[0].suggestedSig).toBe('2T (20MG) PO QD X14D');
     expect(res.subOrders[1].label).toBe('Order 2 of 2');
     expect(res.subOrders[1].suggestedSig).toBe('1T PO QD');
-    expect(res.abnormalities.some(a => a.title.includes('Paxit Packaging'))).toBe(true);
+    expect(res.abnormalities.some(a => a.id.startsWith('paxit_split_req'))).toBe(true);
   });
 
   it('preserves trailing indication across synthesized Paxit split sub-orders and in primarySig', () => {
@@ -140,6 +140,43 @@ describe('clinicalEngine TESTS.txt validation', () => {
     expect(res.subOrders.length).toBe(2);
     expect(res.subOrders[0].suggestedSig).toBe('2T (20MG) PO QD X14D FOR NEUROPATHY');
     expect(res.subOrders[1].suggestedSig).toBe('1T PO QD FOR NEUROPATHY');
+  });
+
+  it('does not split controlled substances even with differing daily doses or titration', () => {
+    const raw = `OXYCODONE-APAP 5-325\nUSER ENTRY: Take 2 tablets by mouth in the morning and 1 tablet at night before bedtime as needed for severe pain`;
+    const res = translateClinicalSig(parseInboundOrder(raw));
+    expect(res.subOrders.length).toBe(1);
+    expect(res.subOrders[0].label).toBe('Order 1 of 1');
+    expect(res.primarySig).toBe('2T PO QAM AND 1T PO QHS PRN FPAIN 3GM');
+    expect(res.subOrders[0].suggestedSig).toBe('2T PO QAM AND 1T PO QHS PRN FPAIN 3GM');
+    expect(res.abnormalities.some(a => a.id.startsWith('controlled_substance_single_order'))).toBe(true);
+  });
+
+  it('preserves acute duration on controlled substance compound single orders', () => {
+    const raw = `OXYCODONE-APAP 5-325\nUSER ENTRY: Take 2 tablets by mouth in the morning and 1 tablet at night before bedtime for 7 days as needed for severe pain`;
+    const res = translateClinicalSig(parseInboundOrder(raw));
+    expect(res.subOrders.length).toBe(1);
+    expect(res.subOrders[0].label).toBe('Order 1 of 1');
+    expect(res.primarySig).toBe('2T PO QAM AND 1T PO QHS PRN FPAIN X7D 3GM');
+    expect(res.subOrders[0].suggestedSig).toBe('2T PO QAM AND 1T PO QHS PRN FPAIN X7D 3GM');
+  });
+
+  it('preserves acute duration across Paxit split sub-orders and unified primarySig', () => {
+    const raw = `GABAPENTIN TAB 300MG\nUSER ENTRY: Take 2 tablets by mouth in the morning and 1 tablet at night before bedtime for 7 days`;
+    const res = translateClinicalSig(parseInboundOrder(raw));
+    expect(res.subOrders.length).toBe(2);
+    expect(res.subOrders[0].suggestedSig).toBe('2T (600MG) PO QAM X7D');
+    expect(res.subOrders[1].suggestedSig).toBe('1T PO QHS X7D');
+    expect(res.primarySig).toBe('2T (600MG) PO QAM AND 1T PO QHS X7D');
+  });
+
+  it('preserves secondary phase duration in titration step-down', () => {
+    const raw = `PREDNISONE TAB 10MG\nUSER ENTRY: Take 2 tablets daily x14 days then 1 tablet daily for 7 days`;
+    const res = translateClinicalSig(parseInboundOrder(raw));
+    expect(res.subOrders.length).toBe(2);
+    expect(res.subOrders[0].suggestedSig).toBe('2T (20MG) PO QD X14D');
+    expect(res.subOrders[1].suggestedSig).toBe('1T PO QD X7D');
+    expect(res.primarySig).toBe('2T (20MG) PO QD X14D THEN 1T PO QD X7D');
   });
 
   it('utilizes inbound.indication as fallback when prose lacks inline indication', () => {

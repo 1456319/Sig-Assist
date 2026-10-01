@@ -87,4 +87,39 @@ describe('doseCalculator', () => {
     expect(suspRes.doseToken).toBe('ADM 5ML (250MG)');
     expect(suspRes.routeToken).toBe('PO');
   });
+
+  it('correctly calculates decimal doses without matching decimal suffix as integer', () => {
+    const res = calculateDoseAndVolume('PREDNISONE TAB 10MG', 'Take 1.5 tablets by mouth daily');
+    expect(res.doseToken).toBe('1.5T (15MG)');
+    expect(res.routeToken).toBe('PO');
+  });
+
+  it('correctly calculates fraction doses like 3/4 tablet without matching denominator', () => {
+    const res = calculateDoseAndVolume('PREDNISONE TAB 10MG', 'Take 3/4 tablet by mouth daily');
+    expect(res.doseToken).toBe('3/4T (7.5MG)');
+    expect(res.routeToken).toBe('PO');
+  });
+
+  it('does not confuse one time a day with intramuscular route', () => {
+    const res = calculateDoseAndVolume('EXAMPLE INJ 10MG/1ML', 'Inject 1 ml subcutaneously one time a day');
+    expect(res.doseToken).toBe('INJ 1ML (10MG)');
+    expect(res.routeToken).toBe('SQ');
+  });
+
+  it('preserves narrow therapeutic precision without rounding 0.25mg to 0.3mg', () => {
+    const res = calculateDoseAndVolume('DIGOXIN TAB 0.125MG', 'Take 2 tablets by mouth daily');
+    expect(res.doseToken).toBe('2T (0.25MG)');
+    expect(res.routeToken).toBe('PO');
+  });
+
+  it('preserves injectable volume precision without rounding 0.25ml to 0.3ml', () => {
+    const res = calculateDoseAndVolume('FENTANYL INJ 50MCG/ML', 'Inject 0.25 ml subcutaneously every 4 hours PRN');
+    expect(res.doseToken).toBe('INJ 0.25ML');
+    expect(res.routeToken).toBe('SQ');
+  });
+
+  it('safely handles zero denominator fraction gracefully', () => {
+    const res = calculateDoseAndVolume('PREDNISONE TAB 10MG', 'Take 1/0 tablet by mouth daily');
+    expect(res.doseToken).toBe('1/0T');
+  });
 });
