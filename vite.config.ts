@@ -20,11 +20,16 @@ function hashSources(directory: string) {
   }
 }
 hashSources(path.join(__dirname, 'src'));
+buildHash.update(readFileSync(path.join(__dirname, 'index.html'), 'utf8').replace(/\r\n/g, '\n'));
 buildHash.update(readFileSync(path.join(__dirname, 'package-lock.json'), 'utf8').replace(/\r\n/g, '\n'));
+const buildId = buildHash.digest('hex');
 
 export default defineConfig({
-  define: { __SIG_ASSIST_BUILD__: JSON.stringify(buildHash.digest('hex')) },
-  plugins: [react()],
+  define: { __SIG_ASSIST_BUILD__: JSON.stringify(buildId) },
+  plugins: [react(), {
+    name: 'startup-build-fingerprint',
+    transformIndexHtml: () => [{ tag: 'meta', attrs: { name: 'sig-assist-build', content: buildId }, injectTo: 'head-prepend' }],
+  }],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

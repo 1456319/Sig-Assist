@@ -2,14 +2,30 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 // Runtime script deliberately uses no package dependencies.
 // @ts-expect-error JavaScript bridge is tested in its native Node runtime.
-import { createBridge, makeQuery } from '../scripts/iguana-bridge.mjs';
+import { createBridge, makeQuery, startBridge } from '../scripts/iguana-bridge.mjs';
 
 const servers: Server[] = [];
+const folders: string[] = [];
 const config = { serverUrl: '', username: 'demo', password: 'test-secret', authMode: 'parameters', channel: 'MessageBroker', after: '2026/10/02 00:00:00', before: '', filter: 'DEMO-PON', limit: 20 };
 async function listen(server: Server) { servers.push(server); await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve)); return `http://127.0.0.1:${(server.address() as AddressInfo).port}`; }
-afterEach(async () => { await Promise.all(servers.splice(0).map(server => new Promise(resolve => { server.closeAllConnections(); server.close(resolve); }))); });
+afterEach(async () => {
+  await Promise.all(servers.splice(0).map(server => new Promise(resolve => { server.closeAllConnections(); server.close(resolve); })));
+  await Promise.all(folders.splice(0).map(folder => rm(folder, { recursive: true, force: true })));
+});
+async function pageFile(html: string) {
+  const folder = await mkdtemp(path.join(tmpdir(), 'sig-bridge-')); folders.push(folder);
+  const htmlPath = path.join(folder, 'index.html'); await writeFile(htmlPath, html); return htmlPath;
+}
+const portableHtml = '<!DOCTYPE html><html><body><div id="root"></div><script type="module">document.getElementById("root").textContent="READY";</script></body></html>';
+async function start(options: Record<string, unknown> = {}) {
+  const result = await startBridge({ port: 0, onNotice: () => {}, ...options });
+  if (result.server) servers.push(result.server); return result;
+}
 
 describe('local read-only bridge', () => {
   it('serves health and sends only GET api_query requests, including Info logs', async () => {
@@ -40,5 +56,61 @@ describe('local read-only bridge', () => {
     expect(() => makeQuery({ ...config, serverUrl: 'http://example.invalid', limit: 5001 })).toThrow('1–5000');
     const result = makeQuery({ ...config, serverUrl: 'http://example.invalid', authMode: 'basic' });
     expect(result.url.searchParams.has('password')).toBe(false); expect(result.headers.Authorization).toMatch(/^Basic /);
+  });
+  it('serves a valid portable page at root and index.html with a matching page fingerprint', async () => {
+    const htmlPath = await pageFile(portableHtml);
+    const result = await start({ htmlPath });
+    expect(result.port).toBeGreaterThan(0);
+    for (const pathname of ['/', '/index.html']) expect(await (await fetch(new URL(pathname, result.url))).text()).toBe(portableHtml);
+    const health = await (await fetch(new URL('/connector/health', result.url))).json();
+    expect(health).toMatchObject({ service: 'sig-assist-iguana-connector', protocolVersion: 1, startup: { requestedPort: 0, actualPort: result.port }, page: { ok: true, path: htmlPath } });
+    expect(health.page.sha256).toMatch(/^[a-f0-9]{64}$/);
+  });
+  it('reuses the same bridge without starting another process or changing the origin', async () => {
+    const htmlPath = await pageFile(portableHtml);
+    const first = await start({ htmlPath });
+    const second = await start({ htmlPath, port: first.port });
+    expect(second).toMatchObject({ reused: true, server: null, url: first.url });
+    expect((await fetch(first.url)).status).toBe(200);
+  });
+  it('opens a new port when another listener occupies the requested one and leaves it running', async () => {
+    const occupied = await listen(createServer((_request, response) => { response.end('Unrelated application'); }));
+    const port = Number(new URL(occupied).port);
+    const result = await start({ htmlPath: await pageFile(portableHtml), port });
+    expect(result.port).not.toBe(port); expect(result.reused).toBe(false);
+    expect(await (await fetch(occupied)).text()).toBe('Unrelated application');
+    expect(await (await fetch(result.url)).text()).toContain('Saved browser cases belong to their original address');
+    const health = await (await fetch(new URL('/connector/diagnostics', result.url))).json();
+    expect(health.startup).toMatchObject({ requestedPort: port, actualPort: result.port, fallbackFrom: port });
+    expect((await start({ htmlPath: health.page.path, port })).url).toBe(result.url);
+  });
+  it('does not reuse an outdated bridge even when its page fingerprint matches', async () => {
+    const htmlPath = await pageFile(portableHtml);
+    const current = await start({ htmlPath });
+    const health = await (await fetch(new URL('/connector/health', current.url))).json();
+    const stale = await listen(createServer((_request, response) => { response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify({ ...health, bridgeBuildId: 'old-build' })); }));
+    const result = await start({ htmlPath, port: Number(new URL(stale).port) });
+    expect(result.reused).toBe(false); expect(result.url).not.toBe(`${stale}/`);
+  });
+  it('does not reuse the current bridge script when it serves an older page', async () => {
+    const older = await start({ htmlPath: await pageFile(portableHtml.replace('READY', 'OLDER BUILD')) });
+    const updated = await start({ htmlPath: await pageFile(portableHtml), port: older.port });
+    expect(updated.reused).toBe(false); expect(updated.port).not.toBe(older.port);
+    expect(await (await fetch(older.url)).text()).toContain('OLDER BUILD');
+  });
+  it('shows an actionable HTML error instead of serving a source shell or missing page', async () => {
+    for (const html of ['<div id="root"></div><script type="module" src="/src/main.tsx"></script>', '<div id="root"></div><script type="module" src="/assets/app.js"></script>']) {
+      const result = await start({ htmlPath: await pageFile(html) });
+      const response = await fetch(result.url); expect(response.status).toBe(500);
+      expect(response.headers.get('content-type')).toContain('text/html');
+      expect(await response.text()).toContain('not the standalone build');
+      expect((await (await fetch(new URL('/connector/health', result.url))).json()).page.ok).toBe(false);
+    }
+    const result = await start({ htmlPath: path.join(tmpdir(), 'sig-assist-nonexistent-file.html') });
+    const response = await fetch(result.url); expect(response.status).toBe(500);
+    expect(await response.text()).toContain('Extract the entire Windows Demo ZIP');
+  });
+  it('rejects invalid configured ports clearly', async () => {
+    for (const port of [-1, 65536, 4190.5, NaN]) await expect(start({ port })).rejects.toThrow('SIG_ASSIST_CONNECTOR_PORT');
   });
 });

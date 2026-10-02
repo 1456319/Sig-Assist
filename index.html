@@ -6,7 +6,79 @@
     <title>Sig-Assist · Order Review</title>
   </head>
   <body>
+    <section id="sig-assist-startup" role="status" style="position:fixed;inset:0;overflow:auto;z-index:10000;background:#f7f8fb;color:#202630;padding:48px;font:16px system-ui">
+      <div style="max-width:760px;margin:auto">
+        <h1 id="sig-assist-startup-title">Starting Sig-Assist…</h1>
+        <p id="sig-assist-startup-message">If this message stays visible, the application did not finish loading. Keep this page open so its startup diagnostics can be saved.</p>
+        <button id="sig-assist-startup-export" type="button">Save startup diagnostics</button>
+        <button id="sig-assist-startup-retry" type="button">Reload page</button>
+        <pre id="sig-assist-startup-detail" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre>
+        <noscript>JavaScript is disabled. Open the extracted index.html in Edge or Chrome with JavaScript enabled.</noscript>
+      </div>
+    </section>
     <div id="root"></div>
+    <script>
+      // This runs before the application bundle and survives failed imports/rendering.
+      (function () {
+        var panel = document.getElementById('sig-assist-startup');
+        var title = document.getElementById('sig-assist-startup-title');
+        var message = document.getElementById('sig-assist-startup-message');
+        var detail = document.getElementById('sig-assist-startup-detail');
+        var pageUrl = new URL(location.href);
+        pageUrl.username = ''; pageUrl.password = ''; pageUrl.search = ''; pageUrl.hash = '';
+        var build = document.querySelector('meta[name="sig-assist-build"]');
+        var report = { format: 'sig-assist-startup-diagnostics', schemaVersion: 1, buildId: build ? build.content : null, startedAt: new Date().toISOString(), pageUrl: pageUrl.href, userAgent: navigator.userAgent, status: 'loading', errors: [] };
+        function failed(kind, error, extra) {
+          var entry = Object.assign({ time: new Date().toISOString(), kind: kind, message: String(error && error.message || error || 'Unknown startup failure'), stack: error && error.stack || null }, extra || {});
+          report.errors.push(entry); report.errors = report.errors.slice(-30);
+          report.status = 'failed'; panel.hidden = false;
+          title.textContent = 'Sig-Assist could not finish loading';
+          message.textContent = 'Save startup diagnostics and send the JSON with your error report. Reloading does not clear saved orders or discrepancy cases.';
+          detail.textContent = entry.message + (entry.stack ? '\n' + entry.stack : '');
+        }
+        window.addEventListener('error', function (event) {
+          if (event.target && event.target !== window) {
+            if (['SCRIPT', 'LINK'].includes(event.target.tagName)) failed('resource', 'An application script or stylesheet could not load.', { resource: event.target.src || event.target.href });
+          } else failed('javascript', event.error || event.message, { filename: event.filename, line: event.lineno, column: event.colno });
+        }, true);
+        window.addEventListener('unhandledrejection', function (event) { failed('unhandledrejection', event.reason); });
+        var timer = setTimeout(function () {
+          if (report.status === 'loading') failed('startup-timeout', 'The application did not report ready within 10 seconds. Its script may have been blocked or failed to run.');
+        }, 10000);
+        window.sigAssistStartup = {
+          ready: function (buildId) {
+            clearTimeout(timer); report.buildId = buildId; report.readyAt = new Date().toISOString();
+            if (report.status === 'loading') { report.status = 'ready'; panel.hidden = true; }
+          },
+          failed: failed,
+          report: function () { return JSON.parse(JSON.stringify(report)); }
+        };
+        document.getElementById('sig-assist-startup-retry').addEventListener('click', function () { location.reload(); });
+        document.getElementById('sig-assist-startup-export').addEventListener('click', async function () {
+          report.exportedAt = new Date().toISOString();
+          try { report.browserStorage = { available: true, keyCount: localStorage.length }; }
+          catch (error) { report.browserStorage = { available: false, error: String(error.message) }; }
+          var metadata = document.getElementById('sig-assist-connector-startup');
+          if (metadata) report.connectorStartup = JSON.parse(metadata.textContent);
+          if (location.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(location.hostname)) {
+            try {
+              var controller = new AbortController(); var timeout = setTimeout(function () { controller.abort(); }, 2000);
+              try {
+                var response = await fetch('/connector/diagnostics', { signal: controller.signal });
+                if (response.ok) report.connector = await response.json(); else report.connectorError = 'HTTP ' + response.status;
+              } finally { clearTimeout(timeout); }
+            } catch (error) { report.connectorError = String(error.message); }
+          }
+          var url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' }));
+          var link = document.createElement('a'); link.href = url; link.download = 'sig-assist-startup-' + report.exportedAt.replace(/[:.]/g, '-') + '.json';
+          document.body.appendChild(link); link.click(); link.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        });
+        document.addEventListener('DOMContentLoaded', function () {
+          var dismiss = document.getElementById('sig-assist-dismiss-port-notice');
+          if (dismiss) dismiss.addEventListener('click', function () { document.getElementById('sig-assist-port-notice').remove(); });
+        });
+      }());
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

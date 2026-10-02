@@ -23,6 +23,7 @@ try {
   page.on('pageerror', error => errors.push(error.message));
   page.on('dialog', dialog => dialog.accept());
   await page.goto(pathToFileURL(path.join(root, 'windows-demo/index.html')).href);
+  await page.locator('#sig-assist-startup').waitFor({ state: 'hidden' });
   await page.getByLabel('Import Iguana capture').setInputFiles({ name: 'synthetic.har', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(fourLogHar())) });
   await page.getByText(/Capture imported: 4 logs · 1 added · 1 duplicates · 0 need investigation/).waitFor();
   assert.equal(await page.locator('section[aria-label="Orders"] li').count(), 1);
@@ -68,6 +69,7 @@ try {
   const live = await browser.newContext(); const livePage = await live.newPage();
   livePage.on('pageerror', error => errors.push(error.message));
   await livePage.goto(bridge);
+  await livePage.locator('#sig-assist-startup').waitFor({ state: 'hidden' });
   await livePage.getByText('Live connection settings', { exact: true }).click();
   await livePage.getByLabel('Iguana base URL', { exact: true }).fill(upstream);
   await livePage.getByLabel('Username', { exact: true }).fill('demo');
@@ -90,7 +92,38 @@ try {
   await livePage.getByText('Paused: log query limit reached. Narrow the time window or increase the limit.', { exact: true }).waitFor();
   const beforeWait = requestCount; await livePage.waitForTimeout(100); assert.equal(requestCount, beforeWait);
   assert.deepEqual(errors, []);
+  // The independent panel must work when the compiled app never mounts. A HAR
+  // captured after navigation cannot supply these missing startup exceptions.
+  const portableHtml = await readFile(path.join(root, 'windows-demo/index.html'), 'utf8');
+  const moduleTag = /<script\b[^>]*type="module"[^>]*>[\s\S]*?<\/script>/;
+  assert.match(portableHtml, moduleTag);
+  const brokenHtml = portableHtml.replace(moduleTag, '<script type="module">throw new Error("Synthetic app module failure");</script>');
+  const failedContext = await browser.newContext();
+  const failedPage = await failedContext.newPage();
+  await failedPage.route('**/startup-failure/', route => route.fulfill({ contentType: 'text/html', body: brokenHtml }));
+  await failedPage.goto(`${bridge}/startup-failure/`);
+  await failedPage.getByRole('heading', { name: 'Sig-Assist could not finish loading', exact: true }).waitFor();
+  const startupDownloadPromise = failedPage.waitForEvent('download');
+  await failedPage.getByRole('button', { name: 'Save startup diagnostics', exact: true }).click();
+  const startupDownload = await startupDownloadPromise;
+  const startupDiagnostic = JSON.parse(await readFile(await startupDownload.path(), 'utf8'));
+  assert.equal(startupDiagnostic.format, 'sig-assist-startup-diagnostics');
+  assert.match(startupDiagnostic.buildId, /^[a-f0-9]{64}$/);
+  assert.ok(startupDiagnostic.errors.some(error => error.message.includes('Synthetic app module failure')));
+  assert.equal(startupDiagnostic.connector.service, 'sig-assist-iguana-connector');
+  assert.equal(startupDiagnostic.connector.page.ok, true);
+  assert.equal('queue' in startupDiagnostic, false);
+  // A script blocked without an error event must also leave a usable panel.
+  const blockedPage = await failedContext.newPage();
+  await blockedPage.clock.install();
+  await blockedPage.route('**/startup-blocked/', route => route.fulfill({ contentType: 'text/html', body: portableHtml.replace(moduleTag, '') }));
+  await blockedPage.goto(`${bridge}/startup-blocked/`);
+  await blockedPage.clock.runFor(10001);
+  await blockedPage.getByRole('heading', { name: 'Sig-Assist could not finish loading', exact: true }).waitFor();
+  assert.ok((await blockedPage.evaluate(() => window.sigAssistStartup.report())).errors.some(error => error.kind === 'startup-timeout'));
+  await failedContext.close();
   console.log('Iguana browser checks passed: portable import, idempotence, review preservation, persistence, diagnostic export, live bridge fetch, cursor overlap and query-limit pause.');
+  console.log('Startup browser checks passed: normal panel dismissal, failed-module diagnostic download with build/bridge identity, and blocked-module timeout.');
 } finally {
   await browser?.close();
   await Promise.all(servers.map(server => new Promise(resolve => { server.closeAllConnections(); server.close(resolve); })));
