@@ -75,7 +75,7 @@ if not exist "%SIG_BRIDGE%" goto missing_bridge
 set "SIG_EXIT=%ERRORLEVEL%"
 popd
 echo.
-echo Connector stopped. See any error above.
+echo Connector command finished. See the address or error above.
 pause
 exit /b %SIG_EXIT%
 

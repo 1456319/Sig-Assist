@@ -18,8 +18,12 @@ resubmit/dequeue messages, change channels, or insert anything into Framework.
    `%LOCALAPPDATA%\Sig-Assist\runtime\node-v22.23.3-win-<architecture>\node.exe`.
    This needs no administrator access, MSI installer, npm, PowerShell or
    permanent PATH change. The first download needs internet access; later
-   launches reuse the cache. Use the localhost page it opens
-   (`http://127.0.0.1:4190/`) and keep its console window open. From a source
+   launches reuse the cache. Use the exact localhost address printed/opened by
+   the launcher (normally `http://127.0.0.1:4190/`) and keep its console window
+   open. A second launch reopens an existing connector only when its bridge and
+   portable page fingerprints both match. If another service or an older build
+   occupies that port, the launcher selects an available port without stopping
+   the existing process. From a source
    checkout, run `npm run build:demo`, then `npm run connector` with Node installed.
 4. Expand **Live connection settings**. Enter the base URL/port of Iguana's
    **web management interface**, rather than the separate e-prescribing listener.
@@ -44,6 +48,30 @@ port. The standalone file and localhost page use different browser storage
 origins. Export saved discrepancy cases from the old page before switching;
 its queue/case archive is not automatically transferred. Existing folder storage
 in Settings remains available.
+
+If the connector reports a busy port and opens a different address, a notice
+explains that browser-saved cases remain at the original address. Close your
+earlier Sig-Assist connector console with Ctrl+C, then relaunch to return to the
+original port. Do not close an unrelated application just to free a port.
+
+### Blank page / startup troubleshooting
+
+The page displays a startup panel until React mounts. A JavaScript, module,
+rendering or startup timeout failure keeps that panel visible with **Save startup
+diagnostics** and **Reload page**. The JSON includes the page address, source
+build fingerprint, browser, errors/stacks, storage availability and local bridge
+profile when available. It does not export saved order/case contents. Reloading
+does not clear stored cases. If browser policy blocks even the diagnostic script,
+the static startup message remains visible; capture that screen and address.
+
+The bridge checks that `index.html` is the standalone build before serving it.
+A source checkout shell, separate-asset build or missing file gets an explanatory
+HTML error rather than an empty application root. **Open startup diagnostics**
+on that error page, or `http://127.0.0.1:<active-port>/connector/diagnostics`,
+shows the runtime, bridge fingerprint, checked file/path, page fingerprint and
+selected port. The console prints the same initial page profile. Extract the
+complete ZIP into one folder; replacing only the BAT does not update the page
+or bridge.
 
 ### User runtime setup troubleshooting
 

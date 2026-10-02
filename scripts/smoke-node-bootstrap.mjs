@@ -1,6 +1,7 @@
 // CI harness only. The user launcher itself requires no Node, npm or PowerShell.
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:net';
+import { createServer as createHttpServer } from 'node:http';
 import { mkdtemp, mkdir, readFile, writeFile, cp, rm, stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
@@ -26,6 +27,7 @@ env.PATH = path.join(process.env.SystemRoot, 'System32');
 env.PROCESSOR_ARCHITECTURE = 'AMD64';
 delete env.PROCESSOR_ARCHITEW6432;
 let live;
+let occupied;
 function run(file, args, environment = env) {
   const child = spawn(process.env.ComSpec, ['/d', '/s', '/c', `""${file}" ${args}"`], {
     cwd: process.env.SystemRoot, env: environment, windowsVerbatimArguments: true, stdio: ['pipe', 'pipe', 'pipe'],
@@ -102,8 +104,36 @@ try {
   assert.equal(healthy, true, live.output());
   assert.equal(await (await fetch(`http://127.0.0.1:${port}/`)).text(), await readFile(path.join(folder, 'index.html'), 'utf8'));
   console.log('PASS: downloaded runtime starts the real read-only connector and serves the portable app.');
+  const duplicate = run(launcher, '--no-browser', { ...env, SIG_ASSIST_CONNECTOR_PORT: String(port) });
+  duplicate.child.stdin.end('\r\n');
+  const reopened = await duplicate.done;
+  assert.equal(reopened.code, 0, reopened.output);
+  assert.match(reopened.output, /Reusing the matching Sig-Assist connector/);
+  assert.equal((await fetch(`http://127.0.0.1:${port}/connector/health`)).status, 200);
+  console.log('PASS: launching the actual BAT twice reuses the existing matching connector and preserves its origin.');
   spawn(path.join(process.env.SystemRoot, 'System32/taskkill.exe'), ['/PID', String(live.child.pid), '/T', '/F']);
   await live.done; live = undefined;
+
+  occupied = createHttpServer((_request, response) => response.end('Unrelated listener'));
+  await new Promise(resolve => occupied.listen(0, '127.0.0.1', resolve));
+  const busyPort = occupied.address().port;
+  live = run(launcher, '--no-browser', { ...env, SIG_ASSIST_CONNECTOR_PORT: String(busyPort) });
+  let fallbackUrl;
+  for (let i = 0; i < 100; i++) {
+    fallbackUrl = live.output().match(/Sig-Assist read-only Iguana connector: (http:\/\/127\.0\.0\.1:\d+\/)/)?.[1];
+    if (fallbackUrl) break;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  assert.ok(fallbackUrl, live.output());
+  assert.notEqual(Number(new URL(fallbackUrl).port), busyPort);
+  assert.equal(await (await fetch(`http://127.0.0.1:${busyPort}/`)).text(), 'Unrelated listener');
+  const fallbackHealth = await (await fetch(new URL('/connector/health', fallbackUrl))).json();
+  assert.equal(fallbackHealth.startup.fallbackFrom, busyPort);
+  assert.match(await (await fetch(fallbackUrl)).text(), /Saved browser cases belong to their original address/);
+  console.log('PASS: an occupied port is handled by the actual BAT without stopping the unrelated listener; the page explains browser storage.');
+  spawn(path.join(process.env.SystemRoot, 'System32/taskkill.exe'), ['/PID', String(live.child.pid), '/T', '/F']);
+  await live.done; live = undefined;
+  await new Promise(resolve => { occupied.closeAllConnections(); occupied.close(resolve); }); occupied = undefined;
 
   // A failed verification must never create an executable cache. Change only
   // the isolated test copy's expected digest; the shipped pin stays untouched.
@@ -129,5 +159,6 @@ try {
     spawn(path.join(process.env.SystemRoot, 'System32/taskkill.exe'), ['/PID', String(live.child.pid), '/T', '/F']);
     await live.done;
   }
+  if (occupied) await new Promise(resolve => { occupied.closeAllConnections(); occupied.close(resolve); });
   await rm(temp, { recursive: true, force: true });
 }

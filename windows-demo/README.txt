@@ -44,6 +44,15 @@ MessageBroker and a narrow starting time from Iguana's log screen. Fetch once,
 then Export connector diagnostics. Start polling after the first test succeeds.
 The bridge only reads GET /api_query. It uses no PowerShell.
 
+If port 4190 is busy, a matching connector is reused; otherwise an available
+port is opened. Use the exact address printed by the launcher. Browser-saved
+cases remain at their original address. Close your earlier Sig-Assist connector
+with Ctrl+C and relaunch to return to its port and saved cases.
+
+If the application cannot load, its startup panel offers Save startup diagnostics.
+Send that JSON with the console error. Reloading does not clear saved cases.
+An incomplete or source-only index.html gets an explanatory error page.
+
 Read IGUANA-CONNECTOR.md for mappings, diagnostic stages and remaining live checks.
 Connector exports contain exact order data. Optional decoded payload evidence
 helps diagnose unknown profiles; export before closing the page. Nothing is
