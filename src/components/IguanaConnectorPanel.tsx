@@ -5,12 +5,11 @@ import { ConnectorDiagnostics } from '../lib/iguana/diagnostics';
 import { diagnosticPayload, parseApiQuery, parseHar, parseScriptLog } from '../lib/iguana/payload';
 import { ingestScriptEvents, type IntakeSummary } from '../lib/iguana/intake';
 import { nextAfter, queryIguana } from '../lib/iguana/client';
+import { initialConnectorConfig, yesterdayMidnight } from '../lib/iguana/config';
 import type { ConnectorConfig, IguanaLog } from '../lib/iguana/types';
 import { translateClinicalSig } from '../lib/clinical/clinicalEngine';
 import { orderKey } from '../lib/orderQueue';
 import { reviewButtonClass, reviewInputClass } from './SigReviewPanel';
-
-const initial: ConnectorConfig = { serverUrl: '', username: '', password: '', authMode: 'parameters', channel: 'MessageBroker', after: '', before: '', filter: '', limit: 1000 };
 
 export function IguanaConnectorPanel({ onSelect }: { onSelect: (id: string) => void }) {
   const { orders, setOrders, ready } = useReviewSession();
@@ -18,10 +17,10 @@ export function IguanaConnectorPanel({ onSelect }: { onSelect: (id: string) => v
   const select = useRef(onSelect); select.current = onSelect;
   const [diagnostics] = useState(() => new ConnectorDiagnostics());
   const [, redraw] = useState(0);
-  const [config, setConfig] = useState(initial);
+  const [config, setConfig] = useState(() => initialConnectorConfig());
   const [polling, setPolling] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState('Disconnected · import a capture or configure live intake');
+  const [status, setStatus] = useState('Ready · import a capture or open Live connection settings to fetch logs');
   const [summary, setSummary] = useState<IntakeSummary>();
   const [includePayloads, setIncludePayloads] = useState(false);
   const captureEnabled = useRef(false); captureEnabled.current = includePayloads;
@@ -129,7 +128,7 @@ export function IguanaConnectorPanel({ onSelect }: { onSelect: (id: string) => v
   function exportBundle() {
     const bundle = diagnostics.export({
       buildId: __SIG_ASSIST_BUILD__, connection: { serverUrl: config.serverUrl, channel: config.channel, after: config.after, before: config.before, filter: config.filter, limit: config.limit, authMode: config.authMode, cursor: cursor.current },
-      runtime: { userAgent: navigator.userAgent, pageProtocol: location.protocol, polling, status }, summary,
+      runtime: { userAgent: navigator.userAgent, pageProtocol: location.protocol, localTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, polling, status }, summary,
       queue: latestOrders.current.filter(order => order.iguana).map(order => ({ id: order.id, revision: order.revision, pon: order.pon, drug: order.drug, directions: order.directions, cancelled: order.cancelled, metadata: order.iguana })),
       payloadSnapshots: includePayloads ? snapshots.current : [], droppedSnapshots: droppedSnapshots.current,
     });
@@ -148,7 +147,7 @@ export function IguanaConnectorPanel({ onSelect }: { onSelect: (id: string) => v
           <input aria-label="Import Iguana capture" className="hidden" type="file" accept=".har,.json,.xml,.txt" disabled={busy || polling || ready === false} onChange={event => { const file = event.target.files?.[0]; if (file) void importFile(file); event.target.value = ''; }} />
         </label>
         <button className={reviewButtonClass} onClick={exportBundle}>Export connector diagnostics</button>
-        <label className="text-sm flex items-center gap-2"><input type="checkbox" role="switch" checked={includePayloads} onChange={event => setIncludePayloads(event.target.checked)} />Include decoded payload evidence</label>
+        <label className="text-sm flex items-center gap-2"><input type="checkbox" role="switch" checked={includePayloads} onChange={event => setIncludePayloads(event.target.checked)} />Include payload evidence</label>
       </div>
       <p className="text-xs text-muted-foreground">Imports inspect captured responses only. Diagnostics contain exact order data and resident references. Payload evidence records up to 20 snapshots of 1 MB each while enabled; authentication fields are omitted. Export before closing this page.</p>
       {summary && <p className="text-sm">Added {summary.added} · revised {summary.revised} · duplicates {summary.duplicates} · cancelled {summary.cancelled} · status events {summary.ignored} · investigate {summary.quarantined}</p>}
@@ -162,9 +161,10 @@ export function IguanaConnectorPanel({ onSelect }: { onSelect: (id: string) => v
           <label className="text-sm space-y-1"><span>Authentication mode</span><select className={reviewInputClass} value={config.authMode} onChange={event => setConfig(value => ({ ...value, authMode: event.target.value as ConnectorConfig['authMode'] }))}><option value="parameters">Iguana API parameters</option><option value="basic">HTTP Basic</option></select></label>
           <label className="text-sm space-y-1"><span>Log limit · 1–5000</span><input className={reviewInputClass} type="number" min={1} max={5000} value={config.limit} onChange={event => setConfig(value => ({ ...value, limit: Number(event.target.value) }))} /></label>
         </fieldset>
-        <p className="text-xs text-muted-foreground my-3">Run Start-Iguana-Connector.bat with Node.js 22.12+ and keep its window open. Use a narrow starting time from the Iguana log screen. Polls run every 15 seconds with retry backoff. A full query pauses polling. Leaving Order Queue stops polling.</p>
+        <p className="text-xs text-muted-foreground my-3">Shared connection settings are prefilled. After starts at yesterday’s midnight on this computer; adjust it if Iguana uses a different clock. Every fetch authenticates independently of the Iguana browser login. Keep the connector window open. Polls run every 15 seconds with retry backoff. A full query pauses polling. Leaving Order Queue stops polling.</p>
         {!canLive && <p className="text-sm">This standalone page supports capture import. Launch the connector for live polling.</p>}
         <div className="flex gap-2">
+          <button className={reviewButtonClass} disabled={busy || polling} onClick={() => { cursor.current = ''; setConfig(value => ({ ...value, after: yesterdayMidnight(), before: '' })); }}>Use yesterday’s midnight</button>
           <button className={reviewButtonClass} disabled={!canLive || busy || polling || ready === false} onClick={() => { cursor.current = ''; void runQuery(); }}>Fetch once</button>
           <button className={reviewButtonClass} disabled={!canLive || busy || polling || ready === false} onClick={() => { cursor.current = ''; setPolling(true); }}>Start polling</button>
           <button className={reviewButtonClass} disabled={!busy && !polling} onClick={() => { setPolling(false); abort.current?.abort(); setStatus('Stopped'); }}>Stop intake</button>

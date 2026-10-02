@@ -11,6 +11,10 @@ export async function queryIguana(config: ConnectorConfig, emit: DiagnosticSink,
   try {
     response = await fetch('/connector/query', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config), signal });
   } catch (error) {
+    if (signal?.aborted) {
+      emit('info', 'transport.stopped', 'Local request was stopped by the operator');
+      throw error;
+    }
     emit('error', 'transport.unreachable', 'Local bridge is unavailable or request was stopped', { error: String(error), pageProtocol: location.protocol });
     throw new Error('Live intake needs Start-Iguana-Connector.bat and its localhost page. HAR import works in the standalone page.');
   }
@@ -43,8 +47,14 @@ export async function queryIguana(config: ConnectorConfig, emit: DiagnosticSink,
 
 /** Use server wall-clock strings verbatim; do not assume its timezone is this PC's. */
 export function nextAfter(timestamps: (string | undefined)[]): string | undefined {
-  const dates = timestamps.filter((time): time is string => Boolean(time && /^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(time)));
+  const normalized = timestamps.map(time => time?.replace(/^(\d{4})-(\d{2})-(\d{2}) /, '$1/$2/$3 '));
+  const dates = normalized.filter((time): time is string => Boolean(time && /^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(time)));
   if (dates.length !== timestamps.length || !dates.length) return undefined;
+  if (dates.some(time => {
+    const iso = time.slice(0, 19).replace(/\//g, '-').replace(' ', 'T');
+    const date = new Date(iso + 'Z');
+    return !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 19) !== iso;
+  })) return undefined;
   const latest = dates.sort()[dates.length - 1];
   const instant = new Date(latest.slice(0, 19).replace(/\//g, '-').replace(' ', 'T') + 'Z');
   instant.setUTCSeconds(instant.getUTCSeconds() - 2);

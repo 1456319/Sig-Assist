@@ -41,9 +41,13 @@ profile. No administrator access or PowerShell is needed. The first setup
 requires internet; later launches reuse the cached runtime. If setup fails,
 the console prints the cause and the location of node-setup.log.
 Keep its console open and use the localhost
-page it opens. Configure the Iguana web-interface base URL, account, channel
-MessageBroker and a narrow starting time from Iguana's log screen. Fetch once,
-then Export connector diagnostics. Start polling after the first test succeeds.
+page it opens. Live connection settings are prefilled with:
+  Iguana base URL: http://iguanabalt01v:6543
+  Username: admin    Password: password    Channel: MessageBroker
+  After: yesterday at 00:00:00 on this computer    Before: blank
+Adjust the time if Iguana uses a different clock. Click Fetch once, then Export
+connector diagnostics. Start polling after the first test succeeds. Each fetch
+supplies credentials again, independently of the web UI's 15-minute session.
 The bridge only reads GET /api_query. It uses no PowerShell.
 
 If port 4190 is busy, a matching connector is reused; otherwise an available
@@ -56,7 +60,7 @@ Send that JSON with the console error. Reloading does not clear saved cases.
 An incomplete or source-only index.html gets an explanatory error page.
 
 Read IGUANA-CONNECTOR.md for mappings, diagnostic stages and remaining live checks.
-Connector exports contain exact order data. Optional decoded payload evidence
+Connector exports contain exact order data. Optional payload evidence
 helps diagnose unknown profiles; export before closing the page. Nothing is
 uploaded automatically. Standalone HTML and localhost use different browser
 storage; export saved discrepancy cases before switching.

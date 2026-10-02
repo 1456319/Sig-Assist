@@ -51,6 +51,29 @@ describe('local read-only bridge', () => {
     expect(timeout).toMatchObject({ ok: false, code: 'TIMEOUT_OR_STOPPED' });
     expect(JSON.stringify(timeout)).not.toContain('test-secret');
   });
+  it('authenticates every query without relying on a 15-minute browser session', async () => {
+    let elapsedMinutes = 0;
+    const calls: { minute: number; username: string | null; password: string | null; cookie?: string }[] = [];
+    const upstream = await listen(createServer((request, response) => {
+      const url = new URL(request.url!, 'http://localhost');
+      const username = url.searchParams.get('username');
+      const password = url.searchParams.get('password');
+      calls.push({ minute: elapsedMinutes, username, password, cookie: request.headers.cookie });
+      const validCredentials = username === config.username && password === config.password;
+      const validBrowserSession = elapsedMinutes < 15 && request.headers.cookie === 'session=synthetic';
+      response.writeHead(validCredentials || validBrowserSession ? 200 : 401, {
+        'Content-Type': 'application/xml', 'Set-Cookie': 'session=synthetic; Max-Age=900',
+      });
+      response.end(validCredentials || validBrowserSession ? '<export success="true"/>' : '<export success="false"/>');
+    }));
+    const bridge = await listen(createBridge());
+    for (const minute of [0, 16, 31]) {
+      elapsedMinutes = minute;
+      const result = await fetch(`${bridge}/connector/query`, { method: 'POST', body: JSON.stringify({ ...config, serverUrl: upstream }) });
+      expect(await result.json()).toMatchObject({ ok: true, status: 200, body: '<export success="true"/>' });
+    }
+    expect(calls).toEqual([0, 16, 31].map(minute => ({ minute, username: config.username, password: config.password, cookie: undefined })));
+  });
   it('validates query bounds and supports a separate Basic authentication mode', () => {
     expect(() => makeQuery({ ...config, serverUrl: 'http://example.invalid', after: '' })).toThrow('After is required');
     expect(() => makeQuery({ ...config, serverUrl: 'http://example.invalid', limit: 5001 })).toThrow('1–5000');

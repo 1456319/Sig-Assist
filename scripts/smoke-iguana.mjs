@@ -10,7 +10,7 @@ import { createBridge } from './iguana-bridge.mjs';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // Compile trusted synthetic fixtures; never execute code from a capture.
 const fixtureBundle = await build({ entryPoints: [path.join(root, 'tests/iguanaFixtures.ts')], bundle: true, write: false, platform: 'node', format: 'esm' });
-const { fourLogHar, newRx, escapeXml } = await import(`data:text/javascript;base64,${Buffer.from(fixtureBundle.outputFiles[0].text).toString('base64')}`);
+const { fourLogHar, newRx, attributeExport } = await import(`data:text/javascript;base64,${Buffer.from(fixtureBundle.outputFiles[0].text).toString('base64')}`);
 const harFlag = process.argv.indexOf('--har');
 const suppliedHar = harFlag >= 0 ? await readFile(process.argv[harFlag + 1]) : undefined;
 const servers = [];
@@ -63,7 +63,7 @@ try {
     assert.equal(request.method, 'GET'); assert.equal(new URL(request.url, 'http://localhost').pathname, '/api_query'); requestCount++;
     const entries = saturated ? 1 : 2;
     response.setHeader('Content-Type', 'application/xml');
-    response.end(`<export>${Array.from({ length: entries }, (_, i) => `<message source="MessageBroker" type="Info" time="2026/10/02 01:00:00" message_id="log-${i}"><data>${escapeXml(newRx())}</data></message>`).join('')}</export>`);
+    response.end(attributeExport(Array.from({ length: entries }, () => ({ payload: newRx(), time: '2026-10-02 01:00:00.000' }))));
   }));
   const bridge = await listen(createBridge());
   const live = await browser.newContext(); const livePage = await live.newPage();
@@ -71,6 +71,14 @@ try {
   await livePage.goto(bridge);
   await livePage.locator('#sig-assist-startup').waitFor({ state: 'hidden' });
   await livePage.getByText('Live connection settings', { exact: true }).click();
+  assert.equal(await livePage.getByLabel('Iguana base URL', { exact: true }).inputValue(), 'http://iguanabalt01v:6543');
+  assert.equal(await livePage.getByLabel('Username', { exact: true }).inputValue(), 'admin');
+  assert.equal(await livePage.getByLabel('Password', { exact: true }).inputValue(), 'password');
+  const yesterday = await livePage.evaluate(() => {
+    const date = new Date(); date.setDate(date.getDate() - 1);
+    return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')} 00:00:00`;
+  });
+  assert.equal(await livePage.getByLabel('After · Iguana server time', { exact: true }).inputValue(), yesterday);
   await livePage.getByLabel('Iguana base URL', { exact: true }).fill(upstream);
   await livePage.getByLabel('Username', { exact: true }).fill('demo');
   await livePage.getByLabel('Password', { exact: true }).fill('test-secret');
