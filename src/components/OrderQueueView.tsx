@@ -14,6 +14,7 @@ import { traceLogger } from '../lib/diagnostics/traceLogger';
 import { addDemoOrders, DEMO_ORDERS } from '../lib/demoOrders';
 import { DiscrepancyPanel } from './DiscrepancyPanel';
 import { DiscrepancyArchive } from './DiscrepancyArchive';
+import { IguanaConnectorPanel } from './IguanaConnectorPanel';
 
 const emptySource: OrderSource = { facility: '', patientRef: '', pon: '', drug: '', directions: '' };
 const sample: OrderSource = { facility: 'DEMO-FACILITY', patientRef: 'DEMO-RESIDENT', pon: 'DEMO-PON-001', drug: 'Example medication 10 mg tablet', directions: 'Take 1 tablet by mouth twice daily for 7 days.' };
@@ -96,6 +97,7 @@ export function OrderQueueView() {
   const orderStatusMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const order of orders) {
+      if (order.intakeHold) { map.set(order.id, 'Intake needs investigation'); continue; }
       if (order.cancelled) {
         map.set(order.id, 'Cancelled');
         continue;
@@ -158,7 +160,7 @@ export function OrderQueueView() {
     <div className="flex flex-wrap justify-between items-start gap-3">
       <div>
         <h2 className="text-xl font-semibold">Order review queue</h2>
-        <p className="text-sm text-muted-foreground mt-1">Manual PON matching · local storage · Iguana is not connected</p>
+        <p className="text-sm text-muted-foreground mt-1">Local review queue · manual entry or read-only Iguana intake</p>
         <p className="text-xs text-muted-foreground mt-1">Orders are saved in browser cache or your connected folder and restored after reload. Clear orders removes the saved queue.</p>
       </div>
       <button className={reviewButtonClass} disabled={!orders.length} onClick={() => {
@@ -176,8 +178,9 @@ export function OrderQueueView() {
           toast.success('Demo queue loaded. Select an order, compare directions, edit, review and copy.');
         }}>Load demo queue</button>
       </div>
-      <p className="text-xs text-muted-foreground">Prototype suggestions require human review. Live Iguana intake and automatic Framework matching are pending.</p>
+      <p className="text-xs text-muted-foreground">Suggestions require human review. Match the PON in Framework before copying.</p>
     </section>
+    <IguanaConnectorPanel onSelect={id => { setSelectedId(id); setReviseId(undefined); setForm(emptySource); }} />
     <DiscrepancyArchive />
     <details className="rounded-lg border border-border bg-card p-4" open>
       <summary className="cursor-pointer font-medium">{reviseId ? 'Revise original directions' : 'Add an order'}</summary>
@@ -230,6 +233,18 @@ export function OrderQueueView() {
             <span className="text-sm">{status(selected)}</span>
           </div>
           <p className="text-sm break-all">{selected.facility} · {selected.patientRef} · {selected.drug || 'Drug not supplied'}</p>
+          {selected.intakeHold && <p role="alert" className="text-sm text-amber-400">{selected.intakeHold}</p>}
+          {selected.iguana && <details className="rounded-md border border-border p-3" open>
+            <summary className="cursor-pointer text-sm font-medium">Incoming prescription fields</summary>
+            <dl className="grid sm:grid-cols-2 gap-2 text-sm mt-2">
+              <div><dt className="text-muted-foreground">NDC / strength</dt><dd>{selected.iguana.ndc || 'Not supplied'} / {selected.iguana.strength || 'Not supplied'}</dd></div>
+              <div><dt className="text-muted-foreground">Dose / route / frequency</dt><dd>{[selected.iguana.dose, selected.iguana.doseUnit, selected.iguana.route, selected.iguana.frequency].filter(Boolean).join(' · ') || 'Not supplied'}</dd></div>
+              <div><dt className="text-muted-foreground">Administration times</dt><dd>{selected.iguana.administrationTimes.join(', ') || 'Not supplied'}</dd></div>
+              <div><dt className="text-muted-foreground">Start / effective date</dt><dd>{selected.iguana.startDate || 'Not supplied'} / {selected.iguana.effectiveDate || 'Not supplied'}</dd></div>
+              <div><dt className="text-muted-foreground">Resident reference field</dt><dd>{selected.iguana.patientRefType}</dd></div>
+              <div><dt className="text-muted-foreground">SCRIPT MessageID / source</dt><dd className="break-all">{selected.iguana.messageId} · {selected.iguana.channel || selected.iguana.sender}</dd></div>
+            </dl>
+          </details>}
           <div className="rounded-md border border-border p-3">
             <h4 className="text-xs text-muted-foreground mb-2">Original directions · unchanged</h4>
             <p className="whitespace-pre-wrap break-words">{selected.directions}</p>
@@ -237,7 +252,7 @@ export function OrderQueueView() {
           <div className="flex gap-2">
             <button className={reviewButtonClass} disabled={selected.cancelled || reviseId === selected.id} onClick={() => {
               setReviseId(selected.id);
-              setForm({ facility: selected.facility, patientRef: selected.patientRef, pon: selected.pon, drug: selected.drug, directions: selected.directions, defaultSig: selected.defaultSig });
+              setForm({ facility: selected.facility, patientRef: selected.patientRef, pon: selected.pon, drug: selected.drug, directions: selected.directions, defaultSig: selected.defaultSig, iguana: selected.iguana });
               updateSelected(order => ({
                 ...order,
                 approved: undefined,
@@ -265,7 +280,7 @@ export function OrderQueueView() {
               key={`${selected.id}:${selected.revision}`}
               primarySig={clinicalResult.primarySig}
               subOrders={clinicalResult.subOrders}
-              unavailable={selected.cancelled || reviseId === selected.id}
+              unavailable={selected.cancelled || !!selected.intakeHold || reviseId === selected.id}
               traceId={getOrderTraceId(selected)}
               initialDrafts={selected.subOrderDrafts}
               initialApprovals={selected.subOrderApprovals}
@@ -289,7 +304,7 @@ export function OrderQueueView() {
                 });
               }}
               onCopySubOrder={(subOrder, draftSig, stamp) => {
-                if (selected.cancelled || reviseId === selected.id) return;
+                if (selected.cancelled || selected.intakeHold || reviseId === selected.id) return;
                 const effectiveStamp = stamp || reviewStamp(subOrder.suggestedSig, draftSig, exclusions, policyRevision);
                 updateSelected(order => ({
                   ...order,
@@ -299,7 +314,7 @@ export function OrderQueueView() {
             />
           ) : (
             <SigReviewPanel key={`${selected.id}:${selected.revision}`} source={sourceStamp(selected)} suggestion={clinicalResult?.primarySig || parsed?.sig || selected.draft}
-              draft={selected.draft} approved={selected.approved} unavailable={selected.cancelled || reviseId === selected.id}
+              draft={selected.draft} approved={selected.approved} unavailable={selected.cancelled || !!selected.intakeHold || reviseId === selected.id}
               warnings={parsed?.order.issues.map(issue => `${issue.severity.toUpperCase()}: ${issue.message}`) || []}
               onEdit={draft => updateSelected(order => editDraft(order, draft))}
               onResetSuggestion={() => updateSelected(order => editDraft(order, clinicalResult?.primarySig || parsed?.sig || selected.draft))}
@@ -313,6 +328,7 @@ export function OrderQueueView() {
               ? clinicalResult.subOrders.map(sub => `${sub.label}: ${selected.subOrderDrafts?.[sub.id] ?? sub.suggestedSig}`).join('\n')
               : selected.draft}
             context={{ source: 'queue', traceId: getOrderTraceId(selected), revision: selected.revision,
+              iguana: selected.iguana,
               defaultSigTemplate: selected.defaultSig, policyRevision, exclusions,
               abnormalities: clinicalResult?.abnormalities,
               subOrders: clinicalResult?.subOrders.map(sub => ({ id: sub.id, label: sub.label,

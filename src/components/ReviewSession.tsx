@@ -201,9 +201,11 @@ export function ReviewSession({ children }: { children: ReactNode }) {
         revision: o.revision,
         previousSources: o.previousSources,
         cancelled: o.cancelled,
+        intakeHold: o.intakeHold,
         approved: o.approved,
         copied: o.copied,
         defaultSig: o.defaultSig,
+        iguana: o.iguana,
         subOrderDrafts: o.subOrderDrafts,
         subOrderApprovals: o.subOrderApprovals,
         subOrderCopied: o.subOrderCopied,
@@ -230,5 +232,5 @@ export function ReviewSession({ children }: { children: ReactNode }) {
   const setExclusions: Dispatch<SetStateAction<SigExclusion[]>> = action => setPolicy(previous => ({
     exclusions: typeof action === 'function' ? action(previous.exclusions) : action, revision: previous.revision + 1,
   }));
-  return <ReviewContext.Provider value={{ orders, setOrders, exclusions: policy.exclusions, policyRevision: policy.revision, setExclusions }}>{children}</ReviewContext.Provider>;
+  return <ReviewContext.Provider value={{ ready: isHydrated, orders, setOrders, exclusions: policy.exclusions, policyRevision: policy.revision, setExclusions }}>{children}</ReviewContext.Provider>;
 }

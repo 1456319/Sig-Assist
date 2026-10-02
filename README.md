@@ -15,11 +15,11 @@ is required for the local **Order Queue**. Choose **Load demo queue**,
 add the order, review/correct the uppercase SIG, acknowledge review and copy.
 
 Orders and reversible exclusions persist in this browser or the selected folder. Use **Clear orders** to remove orders and **Undo** to remove exclusions. This
-prototype uses manual PON matching; live Iguana ingestion and clinical parser
-validation remain outstanding. See [the MVP implementation and handoff notes](docs/MVP-REVIEW-QUEUE.md)
+prototype supports manual PON matching and captured/read-only SCRIPT intake;
+live site access and clinical parser validation remain outstanding. See [the MVP implementation and handoff notes](docs/MVP-REVIEW-QUEUE.md)
 for workflow details, corrected-HAR findings, limitations and next steps.
 
-This is a functional demonstration and manual review prototype. Live Iguana intake, automatic Framework matching, site dictionary qualification and actual Citrix clipboard/Framework verification remain outstanding. Iguana is never modified. Rebuild the portable page with `npm run build:demo` and the download with `python scripts/package-demo.py`; CI checks the committed build against source and runs the launcher and Edge workflow on Windows.
+This build supports **read-only Iguana intake**. **Import HAR / log XML** in Order Queue reads captured NewRx details without replaying requests. For live polling, run **Start-Iguana-Connector.bat** (Node.js 22.12+, no PowerShell), configure MessageBroker and a server-time window, then **Fetch once** and **Export connector diagnostics**. See [the connector guide](docs/IGUANA-CONNECTOR.md) for field mappings, verbose debugging and remaining live checks. Actual site access, Framework queue/route matching, site dictionary qualification and Citrix copy/paste still need verification. Iguana is never modified. Rebuild the portable page with `npm run build:demo` and the ZIP with `python scripts/package-demo.py`; CI checks the committed build against source and tests the Windows workflow.
 
 Long-Term Care Facilities and Assisted Living Facilities depend on closed-door pharmacies.. These pharmacies are dedicated only to the needs needs of these facilities 24-hours a day, and so must meet these needs totally and successfully meet them every single day. Typically, the process is thus:
 

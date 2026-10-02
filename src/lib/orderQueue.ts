@@ -1,4 +1,5 @@
 import { finalSig } from './reviewPolicy';
+import { clinicalMetadataStamp, type IguanaOrderMetadata } from './iguana/types';
 
 export interface OrderSource {
   facility: string;
@@ -7,6 +8,7 @@ export interface OrderSource {
   drug: string;
   directions: string;
   defaultSig?: string;
+  iguana?: IguanaOrderMetadata;
 }
 
 export interface QueueOrder extends OrderSource {
@@ -17,18 +19,19 @@ export interface QueueOrder extends OrderSource {
   approved?: string;
   copied?: string;
   cancelled: boolean;
+  intakeHold?: string;
   subOrderDrafts?: Record<string, string>;
   subOrderApprovals?: Record<string, string>;
   subOrderCopied?: Record<string, string>;
 }
 
 export function orderKey(source: OrderSource): string {
-  // These are manually matched identifiers, never inferred from an Rx/HL7 field.
+  // Facility/resident/PON are explicit source identifiers, never matched by name.
   return JSON.stringify([source.facility.trim(), source.patientRef.trim(), source.pon.trim()]);
 }
 
 export function sourceStamp(order: QueueOrder): string {
-  return JSON.stringify([order.id, order.revision, order.drug, order.directions, order.defaultSig ?? '']);
+  return JSON.stringify([order.id, order.revision, order.drug, order.directions, order.defaultSig ?? '', clinicalMetadataStamp(order.iguana)]);
 }
 
 export function saveOrder(orders: QueueOrder[], source: OrderSource, suggestion: string, reviseId?: string): QueueOrder[] {
@@ -42,13 +45,14 @@ export function saveOrder(orders: QueueOrder[], source: OrderSource, suggestion:
     drug: source.drug.trim(),
     directions: source.directions.trim(),
     defaultSig: source.defaultSig?.trim() || undefined,
+    iguana: source.iguana,
   };
   const id = orderKey(cleanSource);
   const existing = orders.find(order => order.id === id);
   if (reviseId && (!existing || existing.id !== reviseId)) throw new Error('The selected order no longer matches.');
   if (existing) {
     if (existing.cancelled) throw new Error('Cancelled orders cannot be revised. Add a new order with its new PON.');
-    if (existing.drug === cleanSource.drug && existing.directions === cleanSource.directions && existing.defaultSig === cleanSource.defaultSig) return orders;
+    if (!existing.intakeHold && existing.drug === cleanSource.drug && existing.directions === cleanSource.directions && existing.defaultSig === cleanSource.defaultSig && clinicalMetadataStamp(existing.iguana) === clinicalMetadataStamp(cleanSource.iguana)) return orders;
     if (reviseId !== id) throw new Error('This order already exists. Select it and use Revise source.');
     const previous: OrderSource = {
       facility: existing.facility,
@@ -57,6 +61,7 @@ export function saveOrder(orders: QueueOrder[], source: OrderSource, suggestion:
       drug: existing.drug,
       directions: existing.directions,
       defaultSig: existing.defaultSig,
+      iguana: existing.iguana,
     };
     return orders.map(order => order.id === id ? {
       ...cleanSource, id, revision: order.revision + 1, previousSources: [...order.previousSources, previous],

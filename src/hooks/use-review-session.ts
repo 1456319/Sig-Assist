@@ -3,6 +3,7 @@ import type { QueueOrder } from '../lib/orderQueue';
 import type { SigExclusion } from '../lib/reviewPolicy';
 
 interface Session {
+  ready?: boolean;
   orders: QueueOrder[];
   setOrders: Dispatch<SetStateAction<QueueOrder[]>>;
   exclusions: SigExclusion[];

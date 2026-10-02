@@ -4,10 +4,11 @@ from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 import sys
 
 demo = Path(__file__).resolve().parent.parent / "windows-demo"
-files = ["Start-Sig-Assist.bat", "README.txt", "index.html"]
+files = ["Start-Sig-Assist.bat", "Start-Iguana-Connector.bat", "README.txt", "index.html", "iguana-bridge.mjs", "IGUANA-CONNECTOR.md"]
 contents = {}
 for name in files:
-    data = (demo / name).read_bytes().replace(b"\r\n", b"\n")
+    source = demo.parent / "scripts" / name if name == "iguana-bridge.mjs" else demo.parent / "docs" / name if name == "IGUANA-CONNECTOR.md" else demo / name
+    data = source.read_bytes().replace(b"\r\n", b"\n")
     if name.endswith((".bat", ".ps1", ".txt")):
         data = data.replace(b"\n", b"\r\n")
     contents[name] = data

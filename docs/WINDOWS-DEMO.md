@@ -44,17 +44,20 @@ connected, writes go to that chosen folder;
 reconnect the folder after restarting. **Clear orders** clears the saved queue.
 Clipboard content is managed separately by Windows.
 
-This is a demonstrable translation/review prototype. Live Iguana intake,
-automatic Framework matching/insertion and site-specific SIG validation remain
-unfinished. Use synthetic examples for this demo. All generated SIGs require
+This translation/review prototype now supports captured and read-only Iguana
+SCRIPT intake. See [IGUANA-CONNECTOR.md](IGUANA-CONNECTOR.md) for the launcher,
+field mapping and verbose diagnostics. Live site access, Framework matching/
+insertion and site-specific SIG validation still need verification.
+Use synthetic examples for this demo. All generated SIGs require
 technician review; this package does not establish clinical accuracy.
 
 ## Collect mistranslations during an evaluation
 
 Use the app alongside the normal order-entry process. Manually enter approved,
 de-identified directions and medication/strength in **Workbench**, or add an
-order in **Order Queue** with anonymous references. Automatic live Iguana intake
-and Framework insertion are not implemented; the app does not replace routine
+order in **Order Queue** with anonymous references, or use the read-only intake
+pilot in the connector guide. Framework insertion is not implemented;
+the app does not replace routine
 technician/pharmacist checks.
 
 1. Compare the suggested SIG and split cards against the original directions.

@@ -1,3 +1,5 @@
+import type { IguanaOrderMetadata } from '../iguana/types';
+
 export interface InboundOrder {
   readonly id: string;
   readonly pon: string;
@@ -54,6 +56,7 @@ export interface DiscrepancyReport {
     readonly exclusions?: SigExclusionPreference[];
     readonly abnormalities?: readonly AbnormalityFinding[];
     readonly subOrders?: readonly { id: string; label: string; suggestedSig: string; draftSig?: string }[];
+    readonly iguana?: IguanaOrderMetadata;
   };
 }
 
