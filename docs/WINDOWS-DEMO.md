@@ -48,6 +48,9 @@ This translation/review prototype now supports captured and read-only Iguana
 SCRIPT intake. See [IGUANA-CONNECTOR.md](IGUANA-CONNECTOR.md) for the launcher,
 field mapping and verbose diagnostics. Live site access, Framework matching/
 insertion and site-specific SIG validation still need verification.
+**Start-Iguana-Connector.bat** checks for Node and automatically downloads a
+verified private copy into your user profile when needed. This setup needs
+internet access on the first run and no administrator access or PowerShell.
 Use synthetic examples for this demo. All generated SIGs require
 technician review; this package does not establish clinical accuracy.
 

@@ -10,11 +10,17 @@ resubmit/dequeue messages, change channels, or insert anything into Framework.
 2. To inspect a capture now, open `index.html` in Edge/Chrome. Choose **Import HAR
    / log XML** in Order Queue and select the HAR. This requires no runtime/server
    installation. Capture imports never replay requests or run the log UI's JS.
-3. For live intake, the computer running the bridge needs **Node.js 22.12+**.
-   Double-click **Start-Iguana-Connector.bat**, then use the localhost page it
-   opens (`http://127.0.0.1:4190/`). Keep its console window open. No PowerShell is
-   used. The packaged bridge needs no npm dependencies. From a source checkout,
-   run `npm run build:demo`, then `npm run connector`.
+3. For live intake, double-click **Start-Iguana-Connector.bat**. It checks for
+   **Node.js 22.12+** beside the launcher and on PATH, then checks its private
+   user cache. If none works, it downloads the official standalone Node.js
+   **22.23.3** executable for Windows x64/ARM64/x86 from `nodejs.org`, verifies
+   the pinned official SHA-256 checksum, and saves it under
+   `%LOCALAPPDATA%\Sig-Assist\runtime\node-v22.23.3-win-<architecture>\node.exe`.
+   This needs no administrator access, MSI installer, npm, PowerShell or
+   permanent PATH change. The first download needs internet access; later
+   launches reuse the cache. Use the localhost page it opens
+   (`http://127.0.0.1:4190/`) and keep its console window open. From a source
+   checkout, run `npm run build:demo`, then `npm run connector` with Node installed.
 4. Expand **Live connection settings**. Enter the base URL/port of Iguana's
    **web management interface**, rather than the separate e-prescribing listener.
    Enter the account used to read logs. Leave **Channel = MessageBroker**.
@@ -38,6 +44,24 @@ port. The standalone file and localhost page use different browser storage
 origins. Export saved discrepancy cases from the old page before switching;
 its queue/case archive is not automatically transferred. Existing folder storage
 in Settings remains available.
+
+### User runtime setup troubleshooting
+
+Automatic setup uses Windows `curl.exe` and `certutil.exe`; neither requires
+elevation. If setup fails, the console identifies download, checksum, profile
+write or runtime execution failure and prints `node-setup.log` from the runtime
+folder. Keep that log with the error report. Downloads are staged under a
+temporary name; an incomplete or wrong-checksum file is never installed.
+Application policy or a proxy can still block a download or executable; the
+launcher reports the failure and does not change that policy. A compatible
+official `node.exe` placed beside the BAT also works offline. The runtime is
+installed for the Windows/Citrix user executing the launcher, and only the
+standalone Node executable is needed for this bridge.
+
+`Start-Iguana-Connector.bat --check` checks or sets up Node and exits before
+starting the bridge. `--no-browser` runs the bridge without opening a tab.
+The version and checksums come from the
+[official Node.js release](https://nodejs.org/en/blog/release/v22.23.3).
 
 ## Confirmed source mapping
 

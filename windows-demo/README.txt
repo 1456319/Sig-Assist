@@ -33,8 +33,12 @@ READ-ONLY IGUANA INTAKE
 In Order Queue, Import HAR / log XML inspects captured NewRx details and fills
 the queue automatically. This works in the standalone page without Node.js.
 
-For live intake, use Node.js 22.12+ on the computer running the bridge,
-then run Start-Iguana-Connector.bat. Keep its console open and use the localhost
+For live intake, run Start-Iguana-Connector.bat. It checks for Node.js 22.12+,
+and if missing, downloads and verifies official Node.js 22.23.3 into your user
+profile. No administrator access or PowerShell is needed. The first setup
+requires internet; later launches reuse the cached runtime. If setup fails,
+the console prints the cause and the location of node-setup.log.
+Keep its console open and use the localhost
 page it opens. Configure the Iguana web-interface base URL, account, channel
 MessageBroker and a narrow starting time from Iguana's log screen. Fetch once,
 then Export connector diagnostics. Start polling after the first test succeeds.

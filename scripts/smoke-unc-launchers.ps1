@@ -55,7 +55,7 @@ function Test-HttpLauncher([string]$Launcher, [string]$ExpectedPage) {
     }
 }
 
-function Test-BrowserLauncher([string]$Launcher) {
+function Test-BrowserLauncher([string]$Launcher, [string]$ExpectedMarker = 'Prebuilt page found:') {
     $info = [System.Diagnostics.ProcessStartInfo]::new()
     $info.FileName = $env:ComSpec
     $info.Arguments = "/d /s /c `"`"$Launcher`" --check`""
@@ -72,7 +72,7 @@ function Test-BrowserLauncher([string]$Launcher) {
         if (-not $process.WaitForExit(10000)) { $process.Kill(); throw 'Browser launcher did not exit.' }
         $out = $stdout.Result
         $err = $stderr.Result
-        if ($process.ExitCode -ne 0 -or $err -or $out -notmatch 'Prebuilt page found:') {
+        if ($process.ExitCode -ne 0 -or $err -or $out -notmatch [regex]::Escape($ExpectedMarker)) {
             throw "Browser launcher failed: $out $err"
         }
         if ($out -match '\[ERROR\]|UNC paths are not supported|CMD does not support UNC paths') {
@@ -85,9 +85,11 @@ function Test-BrowserLauncher([string]$Launcher) {
 try {
     New-Item -ItemType Directory -Path $demo, (Join-Path $legacy 'app') -Force | Out-Null
     Copy-Item (Join-Path $root 'start-windows.bat'), (Join-Path $root 'preview-windows.bat') $source
-    foreach ($filename in @('Start-Sig-Assist.bat', 'Serve-Demo.ps1', 'index.html')) {
+    foreach ($filename in @('Start-Sig-Assist.bat', 'Start-Iguana-Connector.bat', 'Serve-Demo.ps1', 'index.html')) {
         Copy-Item (Join-Path $root "windows-demo/$filename") $demo
     }
+    # Provide an offline executable beside the connector; PATH still has no Node.
+    Copy-Item (Get-Command node.exe).Source (Join-Path $demo 'node.exe')
     Copy-Item (Join-Path $root 'windows/Start-Sig-Assist.cmd'), (Join-Path $root 'windows/serve.ps1') $legacy
     Copy-Item (Join-Path $root 'dist/*') (Join-Path $legacy 'app') -Recurse
     if ((Get-Service LanmanServer).Status -ne 'Running') { Start-Service LanmanServer }
@@ -95,6 +97,7 @@ try {
     $shareCreated = $true
     $unc = "\\$env:COMPUTERNAME\$shareName"
     Test-BrowserLauncher "$unc\source folder !\windows-demo\Start-Sig-Assist.bat"
+    Test-BrowserLauncher "$unc\source folder !\windows-demo\Start-Iguana-Connector.bat" 'Using Node.js:'
     Test-BrowserLauncher "$unc\source folder !\start-windows.bat"
     Test-BrowserLauncher "$unc\source folder !\preview-windows.bat"
     Test-HttpLauncher "$unc\legacy folder !\Start-Sig-Assist.cmd" (Join-Path $legacy 'app/index.html')
