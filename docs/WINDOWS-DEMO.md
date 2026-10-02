@@ -6,7 +6,10 @@ The launcher opens the standalone **index.html** in your default browser and
 exits. You can also open **index.html** directly in Edge or Chrome. The same
 download is available
 from successful [MVP checks runs](https://github.com/1456319/Sig-Assist/actions/workflows/checks.yml).
-The existing **Start-Sig-Assist.cmd** package remains supported by `npm run demo:package`.
+**Start-Sig-Assist.cmd** is also included as an alias for the browser-only BAT
+launcher. Extracting the current ZIP replaces the older CMD that invoked
+PowerShell. The repository's `windows/Start-Sig-Assist.cmd` opens the same
+prebuilt page from the sibling `windows-demo` folder.
 
 If you downloaded the repository ZIP, open **windows-demo** and run
 **Start-Sig-Assist.bat**. The root `start-windows.bat` and `preview-windows.bat`
@@ -96,6 +99,7 @@ later become regression tests to check each parser fix.
 
 With Node.js 22.12+ installed, run `npm ci`, then `npm run build:demo` and
 `python scripts/package-demo.py` to create the standalone ZIP. Alternatively,
-`npm run demo:package` creates the existing multi-file CMD package. The source
+`npm run demo:package` also refreshes the standalone page and browser-only CMD
+alias while retaining the optional server assets. The source
 launchers `start-windows.bat` and `preview-windows.bat` remain available when
 Node.js is installed; the downloaded prebuilt artifact avoids that requirement.

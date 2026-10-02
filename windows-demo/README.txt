@@ -4,6 +4,8 @@ SIG-ASSIST BROWSER DEMO
 2. Open index.html directly in Microsoft Edge or Google Chrome.
    Alternatively, double-click Start-Sig-Assist.bat to open your default browser.
    The launcher exits after opening the page; no console needs to stay open.
+   Start-Sig-Assist.cmd is the same browser launcher under the older file name.
+   The current ZIP replaces the old CMD that required PowerShell.
 3. Click Load demo queue. Select DEMO-001; compare original directions and SIG.
 4. Edit the final SIG, check the review box, and click Copy reviewed SIG.
 5. Select DEMO-002 for morning/bedtime split cards, DEMO-003 for a taper,
