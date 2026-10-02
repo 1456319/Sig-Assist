@@ -1,5 +1,5 @@
 // CI harness only. The user launcher itself requires no Node, npm or PowerShell.
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:net';
 import { mkdtemp, mkdir, readFile, writeFile, cp, rm, stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -18,7 +18,13 @@ const source = await readFile(path.join(root, 'windows-demo/Start-Iguana-Connect
 const version = source.match(/set "SIG_VERSION=([\d.]+)"/)[1];
 const expectedHash = source.match(/if "%SIG_ARCH%"=="x64" set "SIG_SHA=([a-f0-9]{64})"/)[1];
 const cachedNode = path.join(profile, 'Sig-Assist', 'runtime', `node-v${version}-win-x64`, 'node.exe');
-const env = { ...process.env, LOCALAPPDATA: profile, PATH: path.join(process.env.SystemRoot, 'System32'), PROCESSOR_ARCHITECTURE: 'AMD64', PROCESSOR_ARCHITEW6432: '' };
+// Windows keys are case-insensitive. Canonicalize before overriding so Node's
+// case-variant de-duplication cannot silently select an inherited value.
+const env = Object.fromEntries(Object.entries(process.env).map(([key, value]) => [key.toUpperCase(), value]));
+env.LOCALAPPDATA = profile;
+env.PATH = path.join(process.env.SystemRoot, 'System32');
+env.PROCESSOR_ARCHITECTURE = 'AMD64';
+delete env.PROCESSOR_ARCHITEW6432;
 let live;
 function run(file, args, environment = env) {
   const child = spawn(process.env.ComSpec, ['/d', '/s', '/c', `""${file}" ${args}"`], {
@@ -43,6 +49,9 @@ async function check(file = launcher, environment = env) {
   return result.output;
 }
 try {
+  const probe = spawnSync(process.env.ComSpec, ['/d', '/c', 'set PROCESSOR'], { env, encoding: 'utf8' });
+  console.log(`Setup test architecture environment: ${probe.stdout.trim()}`);
+  assert.match(probe.stdout, /PROCESSOR_ARCHITECTURE=AMD64/i);
   await mkdir(folder, { recursive: true });
   await writeFile(launcher, source);
   await cp(path.join(root, 'scripts/iguana-bridge.mjs'), path.join(folder, 'iguana-bridge.mjs'));
