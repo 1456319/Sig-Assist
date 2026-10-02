@@ -28,7 +28,7 @@ try {
     server = createServer((request, response) => { response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); response.end(html); });
     await new Promise(resolve => server.listen(4189, '127.0.0.1', resolve));
   }
-  browser = await chromium.launch({ channel: process.platform === 'win32' ? 'msedge' : 'chrome', headless: true });
+  browser = await chromium.launch({ channel: process.platform === 'win32' ? 'msedge' : undefined, headless: true });
   const context = await browser.newContext(fileMode ? {} : { permissions: ['clipboard-read', 'clipboard-write'] });
   const page = await context.newPage();
   const errors = [];

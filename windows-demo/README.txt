@@ -28,7 +28,29 @@ Keep index.html in the same folder; moving it or changing from localhost uses a
 different storage location. Clear orders removes the queue. Undo removes exclusions.
 Clipboard and optional folder storage also depend on the browser's permissions.
 
-This is a synthetic demonstration and manual review prototype. Live Iguana
-ingestion and automatic Framework matching are not implemented. Generated SIGs
+READ-ONLY IGUANA INTAKE
+
+In Order Queue, Import HAR / log XML inspects captured NewRx details and fills
+the queue automatically. This works in the standalone page without Node.js.
+
+For live intake, run Start-Iguana-Connector.bat. It checks for Node.js 22.12+,
+and if missing, downloads and verifies official Node.js 22.23.3 into your user
+profile. No administrator access or PowerShell is needed. The first setup
+requires internet; later launches reuse the cached runtime. If setup fails,
+the console prints the cause and the location of node-setup.log.
+Keep its console open and use the localhost
+page it opens. Configure the Iguana web-interface base URL, account, channel
+MessageBroker and a narrow starting time from Iguana's log screen. Fetch once,
+then Export connector diagnostics. Start polling after the first test succeeds.
+The bridge only reads GET /api_query. It uses no PowerShell.
+
+Read IGUANA-CONNECTOR.md for mappings, diagnostic stages and remaining live checks.
+Connector exports contain exact order data. Optional decoded payload evidence
+helps diagnose unknown profiles; export before closing the page. Nothing is
+uploaded automatically. Standalone HTML and localhost use different browser
+storage; export saved discrepancy cases before switching.
+
+Actual site access and Framework queue/route matching require on-site checks.
+Generated SIGs
 require human comparison against every source clause and Framework Preview Sig.
 Actual pharmacy Citrix clipboard and Framework behavior require site testing.

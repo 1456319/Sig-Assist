@@ -1,5 +1,6 @@
 import { DiscrepancyReport, TechnicianPreferences } from './clinical/types';
 import type { OrderSource } from './orderQueue';
+import type { IguanaOrderMetadata } from './iguana/types';
 import { traceLogger, type TraceEvent } from './diagnostics/traceLogger';
 
 export interface StoredQueueOrder {
@@ -16,9 +17,11 @@ export interface StoredQueueOrder {
   revision?: number;
   previousSources?: OrderSource[];
   cancelled?: boolean;
+  intakeHold?: string;
   approved?: string;
   copied?: string;
   defaultSig?: string;
+  iguana?: IguanaOrderMetadata;
   subOrderDrafts?: Record<string, string>;
   subOrderApprovals?: Record<string, string>;
   subOrderCopied?: Record<string, string>;
