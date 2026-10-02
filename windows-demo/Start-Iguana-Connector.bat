@@ -6,18 +6,22 @@ set "SIG_NODE="
 set "SIG_DOWNLOAD="
 set "SIG_SETUP_LOG="
 set "SIG_VERSION=22.23.3"
+echo Windows architecture: "%PROCESSOR_ARCHITECTURE%"; native override: "%PROCESSOR_ARCHITEW6432%"
 set "SIG_ARCH=%PROCESSOR_ARCHITECTURE%"
 if not "%PROCESSOR_ARCHITEW6432%"=="" set "SIG_ARCH=%PROCESSOR_ARCHITEW6432%"
 if /i "%SIG_ARCH%"=="AMD64" set "SIG_ARCH=x64"
 if /i "%SIG_ARCH%"=="ARM64" set "SIG_ARCH=arm64"
 if /i "%SIG_ARCH%"=="x86" set "SIG_ARCH=x86"
+echo Selected runtime architecture: "%SIG_ARCH%"
 set "SIG_SHA="
 rem Official https://nodejs.org/dist/v22.23.3/SHASUMS256.txt
 if "%SIG_ARCH%"=="x64" set "SIG_SHA=9c9245166b4a8e182e0b797da9c20136117ff24368eaff1fec8343a123c8db0e"
 if "%SIG_ARCH%"=="arm64" set "SIG_SHA=b5a3165ec6f24c0b1fe2a10fed58e03f6c1d7d141beb3b225ff030ceac6c5eb5"
 if "%SIG_ARCH%"=="x86" set "SIG_SHA=a8aa72dda43af5357d0a502548a54e402d4f7643be221662624a2cc876cd37bb"
+echo Required runtime: Node.js %SIG_VERSION%; checksum: "%SIG_SHA%"
 rem Check an optional offline copy beside the launcher, then all PATH entries.
 call :try_node "%~dp0node.exe"
+echo Checking PATH for a compatible Node.js executable...
 for /f "delims=" %%N in ('where node.exe 2^>nul') do call :try_node "%%N"
 if defined SIG_NODE goto node_ready
 if "%LOCALAPPDATA%"=="" goto no_profile
