@@ -25,15 +25,17 @@ resubmit/dequeue messages, change channels, or insert anything into Framework.
    occupies that port, the launcher selects an available port without stopping
    the existing process. From a source
    checkout, run `npm run build:demo`, then `npm run connector` with Node installed.
-4. Expand **Live connection settings**. Enter the base URL/port of Iguana's
-   **web management interface**, rather than the separate e-prescribing listener.
-   Enter the account used to read logs. Leave **Channel = MessageBroker**.
-5. Enter **After** in the time shown by Iguana: `YYYY/MM/DD HH:MM:SS`. Start with
-   a narrow interval containing one known order. **Before** can bound a historical
-   test. These are Iguana server wall-clock times; the bridge does not assume its
-   timezone matches the PC.
+4. Expand **Live connection settings**. The site defaults are already filled:
+   **Iguana base URL = http://iguanabalt01v:6543**, **Username = admin**,
+   **Password = password**, and **Channel = MessageBroker**. The URL is the web
+   management interface including its port, without `/logs.html`.
+5. **After** starts at midnight of the previous calendar day on this computer,
+   in `YYYY/MM/DD HH:MM:SS` format. **Before** is blank. Adjust the time if the
+   PC and Iguana use different clocks, or narrow the window for a known order.
+   **Use yesterday’s midnight** resets After and clears Before. These query
+   values are interpreted as Iguana server wall-clock times.
 6. For this first test, enter the known PON in **Text / PON filter**, enable
-   **Include decoded payload evidence**, and click **Fetch once**.
+   **Include payload evidence**, and click **Fetch once**.
 7. Check the counts, original directions, identifiers, NDC, structured dose,
    route, frequency and administration times. Match the order/PON in Framework
    before reviewing/copying the suggested SIG.
@@ -132,17 +134,23 @@ The bridge calls **GET `/api_query`** with `source=MessageBroker`,
 and `limit`, plus optional `before` and `filter`. **Info must be included**.
 Authentication defaults to Iguana API username/password parameters; HTTP Basic
 is an alternate mode. Credentials stay in page memory and are excluded from
-exports. Captured HAR cookies/credentials are never reused.
+exports. Every request supplies credentials again; the connector does not depend
+on the Iguana web UI session or its 15-minute inactivity timeout. Captured HAR
+cookies/credentials are never reused.
 
-The initial live adapter expects `<export><message ...><data>...</data></message>
-</export>`, accepting entity text, CDATA or nested XML data. It records schema
-names/metadata. Unknown roots, missing data, malformed XML and partial HAR
-details are reported. The real site's `/api_query` response/authentication is
-still a live check: the HAR verified browser details, not the log API.
+The live adapter accepts the site's observed `<export><message data="..."
+source_name="..." time_stamp="..." reference_id="..." /></export>` profile.
+It also accepts `<message><data>...</data></message>` with entity text, CDATA or
+nested XML. Explicitly empty data is a valid queue marker and still counts toward
+the query limit. Missing data, conflicting representations, rejected API queries,
+unknown roots, malformed XML and partial HAR details are reported. Schema
+diagnostics include attribute names, representation counts and empty-body counts.
+The October 2 diagnostic export confirmed HTTP 200 API access with parameter
+authentication; the parser had been rejecting the attribute-based response.
 
 Polls run every 15 seconds, backing off to at most two minutes on connection
 failures, with no overlapping polls. If every entry supplies server time in
-`YYYY/MM/DD HH:MM:SS` (optional fractions), a cursor advances with a two-second
+`YYYY/MM/DD HH:MM:SS` or `YYYY-MM-DD HH:MM:SS` (optional fractions), a cursor advances with a two-second
 overlap. Unknown formats keep the current window and produce a warning.
 
 When a result reaches its limit, automatic polling **pauses**. Returned oldest
@@ -182,9 +190,11 @@ complete collection of a saturated historical window.
 - Mapped source/transaction identifiers, original directions, missing fields,
   duplicate/status decisions, revisions/cancellations and quarantine causes.
 - Current imported order metadata, revision and cancellation state.
-- Optional decoded payload evidence collected only while enabled: up to 20
+- Optional payload evidence collected only while enabled: up to 20
   snapshots, 1 MB each, with truncation/drop information. Transport authentication
-  headers and SCRIPT Security blocks are omitted.
+  headers and SCRIPT Security blocks are omitted. XML entity escaping is retained
+  so an untruncated API snapshot remains parseable; nested authentication removal
+  does not leave orphan closing tags.
 
 Exports contain exact prescription data/resident references and are marked
 `redacted: false`; they are not anonymized. They stay local and are not uploaded
@@ -214,11 +224,14 @@ Tests cover encoded/base64 details, duplicates, RxFill section selection, HL7
 exclusion, source revisions/historical replay, cancellations, missing identity,
 malformed/partial XML, diagnostic limits and clock overlap. Bridge tests use a
 synthetic localhost server to assert GET-only requests, Info inclusion, auth
-failures and timeouts. Browser smoke tests cover import, metadata persistence,
-diagnostic downloads and live fetch through the bridge.
+failures, timeouts and repeated authentication after simulated session expiry.
+Tests reproduce the observed attribute format using synthetic records, including
+empty markers, escaped SOAP, duplicate NewRx entries and fractional timestamps.
+Browser smoke tests cover import, metadata persistence, prefilled settings,
+diagnostic downloads and attribute-based live fetch through the bridge.
 
-Remaining site checks: API schema/auth mode, account/channel visibility,
-timestamp format, throughput/query limits, additional transaction types,
+Remaining site checks: sustained intake after this parser fix, throughput/query
+limits, additional transaction types,
 Framework queue selection/route mapping and actual Citrix copy/paste. This
 connector observes incoming orders; it does not determine which orders are
 currently assigned to a technician in Framework's E-Rx Queue.

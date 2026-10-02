@@ -5,7 +5,8 @@ import { readFile } from 'node:fs/promises';
 import { ReviewContext } from '../src/hooks/use-review-session';
 import { OrderQueueView } from '../src/components/OrderQueueView';
 import type { QueueOrder } from '../src/lib/orderQueue';
-import { fourLogHar, newRx, escapeXml } from './iguanaFixtures';
+import { attributeExport, fourLogHar, newRx, escapeXml } from './iguanaFixtures';
+import { yesterdayMidnight } from '../src/lib/iguana/config';
 
 function Harness() {
   const [orders, setOrders] = useState<QueueOrder[]>([]);
@@ -20,6 +21,27 @@ beforeEach(() => { localStorage.clear(); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 describe('connector through queue UI', () => {
+  it('fetches attribute-based live logs with the prefilled settings and preserves the edited draft on a repeat fetch', async () => {
+    const body = attributeExport([{ type: 'Message', payload: '' }, { payload: newRx() }]);
+    const fetcher = vi.fn().mockImplementation(async () => new Response(JSON.stringify({ ok: true, status: 200, body }), { headers: { 'content-type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetcher);
+    render(<Harness />);
+    fireEvent.click(screen.getByText('Live connection settings'));
+    expect((screen.getByLabelText('After · Iguana server time') as HTMLInputElement).value).toBe(yesterdayMidnight());
+    fireEvent.click(screen.getByRole('button', { name: 'Fetch once', exact: true }));
+    await screen.findByText('Last fetch: 2 logs · 1 added · 0 need investigation');
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({ serverUrl: 'http://iguanabalt01v:6543', username: 'admin', password: 'password', after: yesterdayMidnight(), before: '' });
+    const draft = screen.getByLabelText('Final SIG · editable, uppercase') as HTMLTextAreaElement;
+    fireEvent.change(draft, { target: { value: 'TECHNICIAN CORRECTION' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Fetch once', exact: true }));
+    await screen.findByText('Last fetch: 2 logs · 0 added · 0 need investigation');
+    expect(draft.value).toBe('TECHNICIAN CORRECTION');
+    fireEvent.change(screen.getByLabelText('After · Iguana server time'), { target: { value: '2020/01/01 12:00:00' } });
+    fireEvent.change(screen.getByLabelText('Before · optional server time'), { target: { value: '2020/01/02 12:00:00' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Use yesterday’s midnight' }));
+    expect((screen.getByLabelText('After · Iguana server time') as HTMLInputElement).value).toBe(yesterdayMidnight());
+    expect((screen.getByLabelText('Before · optional server time') as HTMLInputElement).value).toBe('');
+  });
   it('populates the queue from four HAR details and preserves a technician correction on reimport', async () => {
     // Local optional validation reads the authorized capture without copying it into the repo.
     const text = process.env.SIG_ASSIST_HAR_CHECK ? await readFile(process.env.SIG_ASSIST_HAR_CHECK, 'utf8') : JSON.stringify(fourLogHar());

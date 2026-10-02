@@ -136,17 +136,29 @@ export function parseApiQuery(text: string, emit: DiagnosticSink): IguanaLog[] {
   const root = doc.documentElement;
   emit('debug', 'api.schema', 'Log API response schema', { root: root.localName, attributes: Array.from(root.attributes).map(a => a.name), childNames: [...new Set(Array.from(root.children).map(c => c.localName))] });
   if (local(root) !== 'export') throw new Error(`Unexpected log API root <${root.localName}>; expected <export>. Save diagnostics to confirm this server's response profile.`);
+  if (root.getAttribute('success')?.toLowerCase() === 'false') {
+    emit('error', 'api.rejected', 'Iguana rejected the log query', { success: false, attributes: Array.from(root.attributes).map(a => a.name), childNames: Array.from(root.children).map(c => c.localName) });
+    throw new Error('Iguana rejected the log query (success=false). Check the account, channel permissions and query settings.');
+  }
   const nodes = children(root, 'message');
   const unknown = Array.from(root.children).filter(c => local(c) !== 'message');
   if (unknown.length) emit('warn', 'api.schema.extra', 'Additional log API elements', { names: unknown.map(n => n.localName) });
-  return nodes.map((node, index) => {
+  let attributeBodies = 0; let elementBodies = 0; let emptyBodies = 0;
+  const logs = nodes.map((node, index) => {
     const field = (...names: string[]) => names.map(name => node.getAttribute(name) || value(node, name)).find(Boolean) || undefined;
     const data = at(node, 'data');
-    if (!data) throw new Error(`Log entry ${index + 1} lacks <data>; cannot assume its body is complete.`);
+    const attribute = node.getAttribute('data');
+    if (attribute === null && !data) throw new Error(`Log entry ${index + 1} lacks a data attribute or <data> element; cannot assume its body is complete.`);
     // Some exports embed XML as elements; others use entity text or CDATA.
-    const payload = data.children.length ? Array.from(data.childNodes).map(n => new XMLSerializer().serializeToString(n)).join('') : data.textContent ?? '';
-    return { payload, channel: field('source', 'channel'), logType: field('type'), logId: field('message_id', 'messageid', 'id'), refLogId: field('refmsgid', 'refid'), timestamp: field('time', 'timestamp', 'date'), position: field('position') };
+    const elementPayload = data ? data.children.length ? Array.from(data.childNodes).map(n => new XMLSerializer().serializeToString(n)).join('') : data.textContent ?? '' : undefined;
+    if (attribute !== null && elementPayload !== undefined && attribute !== elementPayload) throw new Error(`Log entry ${index + 1} has conflicting data representations; export diagnostics.`);
+    const payload = attribute ?? elementPayload!;
+    if (attribute !== null) attributeBodies++; else elementBodies++;
+    if (!payload) emptyBodies++;
+    return { payload, channel: field('source_name', 'source', 'channel'), logType: field('type'), logId: field('message_id', 'messageid', 'id'), refLogId: field('reference_id', 'refmsgid', 'refid'), timestamp: field('time_stamp', 'time', 'timestamp', 'date'), position: field('position') };
   });
+  emit('debug', 'api.schema.messages', 'Log entry representations decoded', { entries: logs.length, attributeBodies, elementBodies, emptyBodies, messageAttributes: [...new Set(nodes.flatMap(node => Array.from(node.attributes).map(a => a.name)))] });
+  return logs;
 }
 
 function jsonWrapper(text: string): Record<string, unknown> {
@@ -202,10 +214,29 @@ export function parseHar(text: string, emit: DiagnosticSink): IguanaLog[] {
 }
 
 /** Diagnostic copy only: omit transport/SCRIPT credentials, preserve order evidence. */
-export function diagnosticPayload(payload: string): string {
-  let text = payload.replace(/<br\s*\/?>/gi, '\n').replace(/<(?:a|span|font)\b[^>]*>|<\/(?:a|span|font)>/gi, '');
-  for (let i = 0; i < 8; i++) { const decoded = unescape(text); if (decoded === text) break; text = decoded; }
-  return text.replace(/<(?:[\w.-]+:)?(?:Security|UsernameToken)\b[^>]*>[\s\S]*?<\/(?:[\w.-]+:)?(?:Security|UsernameToken)>/gi, '[SCRIPT authentication omitted]')
+function omitAuthentication(text: string): string {
+  // Match the SAME closing tag, including nested UsernameToken inside Security.
+  // Keep entity layers intact so the diagnostic copy remains replayable XML.
+  for (let depth = 0; depth <= 8; depth++) {
+    const lt = depth ? `&${'amp;'.repeat(depth - 1)}lt;` : '<';
+    const gt = depth ? `&${'amp;'.repeat(depth - 1)}gt;` : '>';
+    text = text.replace(new RegExp(`${lt}(?:[\\w.-]+:)?(Security|UsernameToken)\\b[\\s\\S]*?${lt}\\/(?:[\\w.-]+:)?\\1\\s*${gt}`, 'gi'), '[SCRIPT authentication omitted]');
+  }
+  return text
     .replace(/^(?:Authorization|Proxy-Authorization|Cookie|Set-Cookie):[^\r\n]*/gim, '[HTTP authentication omitted]')
     .replace(/((?:password|username)=)[^&\s"<>]*/gi, '$1[omitted]');
+}
+
+export function diagnosticPayload(payload: string): string {
+  try {
+    const doc = parseXml(payload);
+    if (local(doc.documentElement) === 'export') {
+      for (const message of children(doc.documentElement, 'message')) {
+        const data = message.getAttribute('data');
+        if (data !== null) message.setAttribute('data', omitAuthentication(data));
+      }
+      return omitAuthentication(new XMLSerializer().serializeToString(doc));
+    }
+  } catch { /* A captured log can be HTTP text or display markup instead of XML. */ }
+  return omitAuthentication(payload.replace(/<br\s*\/?>/gi, '\n').replace(/<(?:a|span|font)\b[^>]*>|<\/(?:a|span|font)>/gi, ''));
 }

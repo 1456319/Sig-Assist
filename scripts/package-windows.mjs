@@ -5,6 +5,8 @@ import path from 'node:path';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const output = path.join(root, 'windows-demo');
 await readFile(path.join(root, 'dist', 'index.html')); // Require a successful build first.
+// The old CMD name now opens the standalone browser page as well.
+await import('./build-demo.mjs');
 // Preserve the committed offline page and download when packaging the legacy launcher.
 await rm(path.join(output, 'app'), { recursive: true, force: true });
 await mkdir(output, { recursive: true });

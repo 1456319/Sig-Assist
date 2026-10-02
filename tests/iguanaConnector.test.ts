@@ -3,7 +3,8 @@ import { diagnosticPayload, parseApiQuery, parseHar, parseScriptLog } from '../s
 import { ingestScriptEvents } from '../src/lib/iguana/intake';
 import { ConnectorDiagnostics } from '../src/lib/iguana/diagnostics';
 import { nextAfter } from '../src/lib/iguana/client';
-import { fourLogHar, newRx, escapeXml } from './iguanaFixtures';
+import { attributeExport, fourLogHar, newRx, escapeXml } from './iguanaFixtures';
+import { initialConnectorConfig, yesterdayMidnight } from '../src/lib/iguana/config';
 
 const emit = vi.fn();
 const event = (xml = newRx()) => parseScriptLog({ payload: xml }, emit)[0];
@@ -85,7 +86,48 @@ describe('Iguana read-only intake', () => {
     expect(logs[0]).toMatchObject({ channel: 'MessageBroker', timestamp: '2026/10/02 01:00:00', logId: 'log-1' });
     expect(event(logs[0].payload).kind).toBe('NewRx');
     expect(() => parseApiQuery('<html>Login</html>', emit)).toThrow('Unexpected log API root');
-    expect(() => parseApiQuery('<export><message/></export>', emit)).toThrow('lacks <data>');
+    expect(() => parseApiQuery('<export><message/></export>', emit)).toThrow('lacks a data attribute or <data> element');
+  });
+  it('accepts live attribute exports, empty markers and HTTP/SOAP payloads without changing the SIG', () => {
+    const directions = 'Apply &amp; rinse; literal &amp;lt; text';
+    const xml = newRx({ directions });
+    const response = attributeExport([
+      { type: 'Message', payload: '' },
+      { payload: 'Message committed to queue.' },
+      { payload: `Raw incoming data: POST /ProcessMessage HTTP/1.1\r\nSOAPAction: "urn:demo"\r\n\r\n<soap:Envelope xmlns:soap="urn:soap"><xmlMessage>${escapeXml(xml)}</xmlMessage></soap:Envelope>` },
+      { payload: `Request Message: <soap:Envelope xmlns:soap="urn:soap"><xmlMessage><![CDATA[${xml}]]></xmlMessage></soap:Envelope>` },
+    ]);
+    const logs = parseApiQuery(response, emit);
+    expect(logs).toHaveLength(4);
+    expect(logs[0]).toMatchObject({ payload: '', channel: 'MessageBroker', logType: 'Message', timestamp: '2026-10-02 01:00:04.236', refLogId: 'parent-log', logId: 'synthetic-log-0' });
+    expect(logs[2].payload).toContain('SOAPAction: "urn:demo"\r\n');
+    const events = logs.flatMap(log => parseScriptLog(log, emit));
+    expect(events).toHaveLength(2);
+    expect(events.map(e => e.directions)).toEqual(['Apply & rinse; literal &lt; text', 'Apply & rinse; literal &lt; text']);
+    expect(ingestScriptEvents([], events, () => 'SYNTHETIC SIG', emit).summary).toMatchObject({ added: 1, duplicates: 1, quarantined: 0 });
+    expect(nextAfter(logs.map(log => log.timestamp))).toBe('2026/10/02 01:00:02');
+  });
+  it('rejects failed API responses and conflicting body representations instead of treating them as an empty queue', () => {
+    expect(() => parseApiQuery('<export success="false"><error>Login rejected</error></export>', emit)).toThrow('success=false');
+    expect(() => parseApiQuery('<export><message data="first"><data>second</data></message></export>', emit)).toThrow('conflicting data');
+    expect(parseApiQuery('<export><message><data/></message></export>', emit)[0].payload).toBe('');
+  });
+  it('keeps diagnostic exports parseable and preserves SIG entities while removing nested authentication', () => {
+    const xml = newRx({ directions: 'Apply &amp; rinse; literal &amp;lt; text' });
+    const payload = `Authorization: Basic do-not-export\r\n<soap:Envelope xmlns:soap="urn:soap"><xmlMessage>${escapeXml(xml)}</xmlMessage></soap:Envelope>`;
+    const body = attributeExport([{ payload }]);
+    const snapshot = diagnosticPayload(body);
+    expect(snapshot).not.toContain('do-not-export'); expect(snapshot).not.toContain('never-export-this');
+    const logs = parseApiQuery(snapshot, emit);
+    expect(logs).toHaveLength(1);
+    expect(parseScriptLog(logs[0], emit)[0].directions).toBe('Apply & rinse; literal &lt; text');
+    expect(parseScriptLog({ payload: diagnosticPayload(xml) }, emit)[0].messageId).toBe('synthetic-msg-1');
+  });
+  it('prefills the requested shared account and recalculates yesterday at calendar midnight', () => {
+    expect(initialConnectorConfig(new Date(2026, 9, 2, 6, 38))).toMatchObject({ serverUrl: 'http://iguanabalt01v:6543', username: 'admin', password: 'password', channel: 'MessageBroker', after: '2026/10/01 00:00:00', before: '', authMode: 'parameters' });
+    expect(yesterdayMidnight(new Date(2026, 0, 1, 0, 5))).toBe('2025/12/31 00:00:00');
+    expect(yesterdayMidnight(new Date(2024, 2, 1, 12))).toBe('2024/02/29 00:00:00');
+    expect(yesterdayMidnight(new Date(2026, 2, 9, 0, 30))).toBe('2026/03/08 00:00:00');
   });
   it('counts dropped diagnostic events and removes credentials from optional payload evidence', () => {
     const diagnostics = new ConnectorDiagnostics(2);
@@ -99,5 +141,7 @@ describe('Iguana read-only intake', () => {
     expect(nextAfter(['2026/10/02 00:00:01'])).toBe('2026/10/01 23:59:59');
     expect(nextAfter(['October 2 1am'])).toBeUndefined();
     expect(nextAfter(['2026/10/02 00:00:01', undefined])).toBeUndefined();
+    expect(nextAfter(['2026-10-02 00:00:01.123', '2026/10/01 23:59:58'])).toBe('2026/10/01 23:59:59');
+    expect(nextAfter(['2026-02-30 00:00:01'])).toBeUndefined();
   });
 });

@@ -1,22 +1,18 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
-set "sig_assist_dir=%~dp0"
-pushd "%sig_assist_dir%" >nul
-if errorlevel 1 goto missing_directory
 title Sig-Assist Demo
-echo Starting Sig-Assist. Keep this window open during the demo.
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%sig_assist_dir%serve.ps1" %*
-set "sig_assist_exit=%errorlevel%"
-popd
-if not "%sig_assist_exit%"=="0" (
-    echo.
-    echo Sig-Assist could not start. See the message above.
-    pause
-)
-exit /b %sig_assist_exit%
+rem Keep the original CMD entry point compatible with the browser-only demo.
+set "sig_assist_launcher=%~dp0Start-Sig-Assist.bat"
+if exist "%sig_assist_launcher%" goto launch
+set "sig_assist_launcher=%~dp0..\windows-demo\Start-Sig-Assist.bat"
+if exist "%sig_assist_launcher%" goto launch
 
-:missing_directory
-echo [ERROR] Windows could not access the Sig-Assist folder.
-echo Extract the complete demo ZIP to a writable folder and try again.
-pause
+echo [ERROR] The prebuilt browser launcher is missing.
+echo Extract all files from Sig-Assist-Windows-Demo.zip into this folder.
+echo For live intake, run Start-Iguana-Connector.bat from the extracted ZIP.
+if /I not "%~1"=="--check" pause
 exit /b 1
+
+:launch
+call "%sig_assist_launcher%" %*
+exit /b %errorlevel%
