@@ -18,6 +18,9 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Verify user-only Node download, cache and connector startup without Node on PATH
+        if: runner.os == 'Windows'
+        run: node scripts/smoke-node-bootstrap.mjs
       - run: npm run lint
       - run: npm test
       - run: npm run typecheck
@@ -49,9 +52,6 @@ jobs:
       - name: Verify Iguana capture import and read-only localhost bridge in Edge
         if: runner.os == 'Windows'
         run: node scripts/smoke-iguana.mjs
-      - name: Verify user-only Node download, cache and connector startup without Node on PATH
-        if: runner.os == 'Windows'
-        run: node scripts/smoke-node-bootstrap.mjs
       - name: Upload portable Windows demo
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4

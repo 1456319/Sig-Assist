@@ -78,7 +78,7 @@ function Test-BrowserLauncher([string]$Launcher, [string]$ExpectedMarker = 'Preb
         if ($out -match '\[ERROR\]|UNC paths are not supported|CMD does not support UNC paths') {
             throw "Browser launcher reports a startup error: $out"
         }
-        Write-Host "PASS: browser launcher finds the page on a UNC share without Node/npm/PowerShell: $Launcher"
+        Write-Host "PASS: UNC launcher with no Node/npm/PowerShell on PATH, expected output '$ExpectedMarker': $Launcher"
     } finally { $process.Dispose() }
 }
 

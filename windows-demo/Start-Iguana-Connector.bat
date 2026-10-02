@@ -7,7 +7,7 @@ set "SIG_DOWNLOAD="
 set "SIG_SETUP_LOG="
 set "SIG_VERSION=22.23.3"
 set "SIG_ARCH=%PROCESSOR_ARCHITECTURE%"
-if defined PROCESSOR_ARCHITEW6432 set "SIG_ARCH=%PROCESSOR_ARCHITEW6432%"
+if not "%PROCESSOR_ARCHITEW6432%"=="" set "SIG_ARCH=%PROCESSOR_ARCHITEW6432%"
 if /i "%SIG_ARCH%"=="AMD64" set "SIG_ARCH=x64"
 if /i "%SIG_ARCH%"=="ARM64" set "SIG_ARCH=arm64"
 if /i "%SIG_ARCH%"=="x86" set "SIG_ARCH=x86"
@@ -20,7 +20,7 @@ rem Check an optional offline copy beside the launcher, then all PATH entries.
 call :try_node "%~dp0node.exe"
 for /f "delims=" %%N in ('where node.exe 2^>nul') do call :try_node "%%N"
 if defined SIG_NODE goto node_ready
-if not defined LOCALAPPDATA goto no_profile
+if "%LOCALAPPDATA%"=="" goto no_profile
 if not defined SIG_SHA goto unsupported_arch
 set "SIG_RUNTIME=%LOCALAPPDATA%\Sig-Assist\runtime\node-v%SIG_VERSION%-win-%SIG_ARCH%"
 set "SIG_CACHED_NODE=%SIG_RUNTIME%\node.exe"
