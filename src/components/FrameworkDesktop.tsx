@@ -12,7 +12,7 @@ export function FrameworkDetect({ disabled, onStart, onDetected }: { disabled: b
   async function detect(inspect = false, chooseWindow = false) {
     setBusy(true); setEvidence(undefined); setFound(undefined);
     if (!inspect) onStart();
-    setStatus(chooseWindow ? 'Click inside the Framework window you use for E-Rx entry within 8 seconds. Sig-Assist will remember that window.' : 'Reading the E-Rx entry window…');
+    setStatus(chooseWindow ? 'Click inside the Framework window you use for E-Rx entry within 8 seconds, then keep it in front until reading finishes. Sig-Assist will remember that window.' : 'Reading the E-Rx entry window… Framework may come forward if its grid needs a direct accessibility read.');
     try {
       const result = await frameworkDesktop(inspect ? 'inspect' : 'detect', inspect ? {} : { positionReview, ...(chooseWindow ? { chooseWindow: true } : {}) });
       setEvidence(result.diagnostics);
@@ -33,6 +33,7 @@ export function FrameworkDetect({ disabled, onStart, onDetected }: { disabled: b
       <span className="text-xs text-muted-foreground">Windows desktop integration · pilot</span>
     </div>
     <p className="text-sm" role="status">{status}</p>
+    {!!evidence && !found?.pon && <button type="button" className={reviewButtonClass} disabled={busy} onClick={() => downloadDesktopDiagnostics(evidence)}>Download PON detection report</button>}
     {found?.entryWindow && <p className="text-xs text-muted-foreground">Entry window: {found.entryWindow.title}. Other Framework windows are ignored.</p>}
     {found?.viewportStatus && <p className="text-sm" role="status">{found.viewportStatus}</p>}
     {found?.warnings?.filter(warning => !warning.startsWith('Multiple PONs')).map(warning => <p key={warning} role="status" className="text-sm text-amber-600 dark:text-amber-400">{warning}</p>)}

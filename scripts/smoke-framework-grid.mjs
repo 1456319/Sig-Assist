@@ -107,14 +107,35 @@ try {
   const rawPositioned = await run({ action: 'detect', positionReview: true, entryWindow: raw.entryWindow });
   assert.equal(rawPositioned.diagnostics.windows.find(w => w.openErx).grids[0].reviewPosition, 'rxfill-visible', summary(rawPositioned));
   assert.equal((await readFile(path.join(opened.dir, 'state'), 'utf8')).split(',')[0], '64');
+  await stop(opened.app); opened = await launch('indexed-visible', 'open', 'indexed-visible');
+  const indexedVisible = await run({ action: 'detect' });
+  assert.equal(indexedVisible.pon, 'SYNTHETIC-OPEN', summary(indexedVisible));
+  const indexedGrid = indexedVisible.diagnostics.windows.find(w => w.openErx).grids[0];
+  assert.equal(indexedGrid.initialRows, 0);
+  assert.ok(indexedGrid.viewports.some(v => v.view === 'indexed-viewport' && v.rows > 0));
+  for (const mode of ['point-only', 'point-narrow']) {
+    await stop(opened.app); opened = await launch(mode, 'open', mode);
+    const pointed = await run({ action: 'detect' });
+    assert.equal(pointed.pon, 'SYNTHETIC-OPEN', summary(pointed));
+    assert.equal(pointed.diagnostics.windowsScanned, 1);
+    const pointGrid = pointed.diagnostics.windows.find(w => w.openErx).grids[0];
+    assert.equal(pointGrid.initialRows, 0); assert.ok(pointGrid.nullCells > 0);
+    assert.ok(pointGrid.viewports.some(v => v.view === 'point' && v.rows > 0), summary(pointed));
+    assert.equal(pointGrid.ponFound, true); assert.equal(pointGrid.reviewPosition, 'unchanged');
+  }
   await stop(opened.app); opened = await launch('empty-provider', 'open', 'empty');
   const empty = await run({ action: 'detect' });
   const emptyGrid = empty.diagnostics.windows.find(w => w.openErx).grids[0];
   assert.deepEqual(empty.pons, []); assert.equal(emptyGrid.complete, false); assert.equal(emptyGrid.ponFound, false);
   assert.equal(emptyGrid.rows.length, 0); assert.ok(emptyGrid.nullCells > 0);
   assert.ok(emptyGrid.viewports.some(v => v.view === 'raw' && v.sample.length > 0));
+  assert.ok(emptyGrid.viewports.some(v => v.view === 'point' && v.rows === 0));
   assert.ok(emptyGrid.issues.every(issue => !issue.includes('NullReferenceException')));
   assert.equal((await readFile(path.join(opened.dir, 'state'), 'utf8')).split(',')[0], '76');
+  await stop(opened.app); opened = await launch('point-overlay', 'open', 'point-overlay');
+  const overlay = await run({ action: 'detect' });
+  assert.deepEqual(overlay.pons, [], summary(overlay));
+  assert.ok(overlay.diagnostics.windows.find(w => w.openErx).grids[0].viewports.some(v => v.view === 'point' && v.rejected > 0), summary(overlay));
   console.log('Multi-instance UIA passed: remembered-window-only detection, diagnostics and sending; unrelated open E-Rx ignored; stale/closed window handling; PON-first indexed/scroll/raw reads and optional review positioning.');
 } finally {
   for (const app of apps) await stop(app);

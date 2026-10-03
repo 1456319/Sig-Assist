@@ -38,13 +38,14 @@ describe('technician-controlled Framework sending', () => {
     expect(JSON.parse(fetcher.mock.calls[1][1].body)).toEqual({ positionReview: true });
   });
   it('distinguishes finding the open wizard from reading its PON across five instances', async () => {
-    const detection = { ok: true, instances: 5, openErxWindows: 1, pons: [], warnings: ['Some open E-Rx detail rows could not be read.'] };
+    const detection = { ok: true, instances: 5, openErxWindows: 1, pons: [], diagnostics: { windowsScanned: 1, windows: [] }, warnings: ['Some open E-Rx detail rows could not be read.'] };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(detection))));
     const onDetected = vi.fn(); render(<FrameworkDetect disabled={false} onStart={vi.fn()} onDetected={onDetected} />);
     fireEvent.click(screen.getByRole('button', { name: 'Detect open E-Rx' }));
     await screen.findByText(/5 Framework instances; 1 open E-Rx window/);
     expect(screen.getByText(/its PON could not be read/)).toBeTruthy();
     expect(onDetected).toHaveBeenCalledWith(detection);
+    expect(screen.getByRole('button', { name: 'Download PON detection report' })).toBeTruthy();
   });
   it('warns about two PONs without blocking an approved send', async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true, verified: true, next: found })));

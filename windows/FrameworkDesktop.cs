@@ -39,6 +39,7 @@ public sealed class GridInfo {
     public string stopReason = "not-expanded";
     public string reviewPosition = "unchanged";
     public double finalVerticalPercent = -1;
+    public string activation = "not-needed";
     public List<GridRow> rows = new List<GridRow>();
     public List<string> issues = new List<string>();
     public List<GridViewport> viewports = new List<GridViewport>();
@@ -46,6 +47,9 @@ public sealed class GridInfo {
 public sealed class GridViewport {
     public string stage, view, error = "";
     public int nodes, cells, rows, attempt, elapsedMs;
+    public int probes, rejected, nullCells;
+    public object bounds;
+    public double horizontalPercent = -1, verticalViewSize = -1;
     public int[] visibleRows = new int[0];
     public double verticalPercent = -1;
     public bool anchorVisible, limited;
@@ -59,7 +63,7 @@ sealed class ScanNode {
 }
 public sealed class DesktopSnapshot {
     public string format = "sig-assist-framework-desktop";
-    public int schemaVersion = 4;
+    public int schemaVersion = 5;
     public string scanMode;
     public int windowsScanned;
     public EntryWindow entryWindow;
@@ -70,6 +74,7 @@ public sealed class DesktopSnapshot {
 public static class FrameworkDesktop {
     [DllImport("user32.dll")] static extern IntPtr GetTopWindow(IntPtr parent);
     [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr window, uint command);
+    [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr window);
     static bool writeAttempted;
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = 4 * 1024 * 1024 };
     static readonly Regex PonLabel = new Regex(@"^(?:PON|Prescriber Order (?:Number|No\.?))\s*:?$", RegexOptions.IgnoreCase);
@@ -212,7 +217,7 @@ public static class FrameworkDesktop {
         var budget = Stopwatch.StartNew();
         foreach (var window in result.windows.Where(w => w.openErx)) {
             foreach (var grid in window.controls.Where(c => c.inOpenErx && !c.hidden && c.enabled && c.type == "ControlType.DataGrid" && c.automationId == "ERxGrid")) {
-                window.grids.Add(ReadGrid(grid, expandGrids, positionReview, budget));
+                window.grids.Add(ReadGrid(grid, expandGrids, positionReview, budget, window.handle));
             }
         }
         if (result.windows.Count == 0) {
@@ -337,6 +342,105 @@ public static class FrameworkDesktop {
         return info.rowCount >= 0 && info.rowCount <= 512 && info.rows.Count == info.rowCount;
     }
     static bool HasPon(GridInfo info) { return info.rows.Any(r => PonTitle(r.title) && ValidPon(r.value)); }
+    static void DescribeViewport(GridViewport view, AutomationElement element, ScrollPattern scroll) {
+        try {
+            var rect = element.Current.BoundingRectangle;
+            if (!rect.IsEmpty) view.bounds = new { x = rect.X, y = rect.Y, width = rect.Width, height = rect.Height };
+            if (scroll != null) {
+                view.verticalPercent = scroll.Current.VerticalScrollPercent;
+                view.horizontalPercent = scroll.Current.HorizontalScrollPercent;
+                view.verticalViewSize = scroll.Current.VerticalViewSize;
+            }
+        } catch (Exception error) { view.error = error.GetType().Name + ": " + error.Message; }
+    }
+    static void IndexedViewport(AutomationElement element, GridInfo info, ScrollPattern scroll, string stage, Stopwatch budget, int deadline) {
+        // Retry AFTER scrolling. Some providers expose neither tree children nor
+        // offscreen indexed cells. Do not abandon them because rows 0..2 were
+        // unreadable while the viewport was at the bottom.
+        var view = new GridViewport { stage = stage, view = "indexed-viewport", elapsedMs = (int)budget.ElapsedMilliseconds };
+        info.viewports.Add(view); DescribeViewport(view, element, scroll);
+        var found = new List<int>(); object pattern;
+        try {
+            if (!element.TryGetCurrentPattern(GridPattern.Pattern, out pattern)) return;
+            var grid = (GridPattern)pattern;
+            int count = Math.Min(grid.Current.RowCount, 512);
+            if (grid.Current.ColumnCount != 2) return;
+            int start = 0;
+            if (view.verticalPercent >= 0 && view.verticalViewSize > 0 && view.verticalViewSize <= 100)
+                start = Math.Max(0, Math.Min(count - 1, (int)Math.Floor(count * (1 - view.verticalViewSize / 100) * view.verticalPercent / 100) - 2));
+            // The scroll-based estimate is only a probe order, never a row
+            // identity. Try all advertised indexes within the bounded budget.
+            for (int offset = 0; offset < count && !HasPon(info) && budget.ElapsedMilliseconds < deadline; offset++) {
+                int row = (start + offset) % count; view.probes++;
+                try {
+                    var title = grid.GetItem(row, 0); var value = grid.GetItem(row, 1);
+                    if (title == null || value == null) { int missing = (title == null ? 1 : 0) + (value == null ? 1 : 0); view.nullCells += missing; info.nullCells += missing; continue; }
+                    // An indexed provider may realize offscreen rows as a side
+                    // effect. The row index still comes from GetItem, not pixels.
+                    AddRow(info, row, CellText(title), CellText(value)); found.Add(row); view.cells += 2;
+                } catch (Exception error) { info.rowFailures++; if (view.error == "") view.error = error.GetType().Name + ": " + error.Message; }
+            }
+        } catch (Exception error) { view.error = error.GetType().Name + ": " + error.Message; }
+        finally { view.rows = found.Count; view.visibleRows = found.ToArray(); view.limited = budget.ElapsedMilliseconds >= deadline; }
+    }
+    static ControlInfo PointCell(AutomationElement hit, string gridId, int pid) {
+        ControlInfo cell = null;
+        // A screen point can hit an overlay or another Framework window. Require
+        // the exact grid in its ancestor chain, not just a matching process/label.
+        for (int depth = 0; hit != null && depth < 24; depth++) {
+            if (hit.Current.ProcessId != pid || hit.Current.IsPassword) return null;
+            if (Id(hit) == gridId) return cell;
+            var item = Read(hit);
+            if (item != null && !item.offscreen && GridCellName.IsMatch(item.name ?? "")) cell = item;
+            hit = TreeWalker.RawViewWalker.GetParent(hit);
+        }
+        return null;
+    }
+    static void PointViewport(AutomationElement element, GridInfo info, ScrollPattern scroll, string stage, Stopwatch budget, int deadline) {
+        var view = new GridViewport { stage = stage, view = "point", elapsedMs = (int)budget.ElapsedMilliseconds };
+        info.viewports.Add(view); DescribeViewport(view, element, scroll);
+        var cells = new Dictionary<int, Dictionary<int, string>>(); var seen = new HashSet<string>(); var hits = new HashSet<string>();
+        try {
+            var bounds = element.Current.BoundingRectangle; int pid = element.Current.ProcessId; string gridId = Id(element);
+            if (bounds.IsEmpty || bounds.Width < 4 || bounds.Height < 4 || element.Current.IsOffscreen) { view.error = "The selected detail grid has no visible screen area."; return; }
+            // Read-only hit testing, never mouse input/OCR. Recompute bounds on
+            // each viewport so moves/resizes and display scaling are respected.
+            // Sampling both sides of the grid tolerates uneven column widths.
+            double[] columns = { 0.08, 0.25, 0.45, 0.65, 0.85, 0.96 };
+            for (double y = bounds.Top + 4; y < bounds.Bottom - 2 && view.probes < 900 && !HasPon(info) && budget.ElapsedMilliseconds < deadline; y += 8) {
+                foreach (double fraction in columns) {
+                    if (budget.ElapsedMilliseconds >= deadline || view.probes >= 900) break;
+                    view.probes++;
+                    var hit = AutomationElement.FromPoint(new System.Windows.Point(bounds.Left + bounds.Width * fraction, y));
+                    if (hit == null || !hits.Add(Id(hit))) continue;
+                    var cell = PointCell(hit, gridId, pid);
+                    if (cell == null) { view.rejected++; continue; }
+                    if (!seen.Add(cell.id)) continue;
+                    var match = GridCellName.Match(cell.name ?? ""); int row, col;
+                    if (!Int32.TryParse(match.Groups[1].Value, out row) || !Int32.TryParse(match.Groups[2].Value, out col) || row < 0 || row >= Math.Min(info.rowCount, 512) || col < 0 || col > 1) continue;
+                    string value = String.IsNullOrWhiteSpace(cell.value) ? Trim(match.Groups[3].Value) : Trim(cell.value);
+                    if (!cells.ContainsKey(row)) cells[row] = new Dictionary<int, string>();
+                    cells[row][col] = value; view.cells++;
+                    if (view.sample.Count < 16) view.sample.Add(new { row = row, column = col, name = cell.name, automationId = cell.automationId });
+                    if (cells[row].ContainsKey(0) && cells[row].ContainsKey(1)) AddRow(info, row, cells[row][0], cells[row][1]);
+                }
+            }
+        } catch (Exception error) { view.error = error.GetType().Name + ": " + error.Message; }
+        finally {
+            view.visibleRows = cells.Where(c => c.Value.ContainsKey(0) && c.Value.ContainsKey(1)).Select(c => c.Key).OrderBy(i => i).ToArray();
+            view.rows = view.visibleRows.Length; view.limited = view.probes >= 900 || budget.ElapsedMilliseconds >= deadline;
+        }
+    }
+    static void RecoverViewport(AutomationElement element, GridInfo info, ScrollPattern scroll, string stage, Stopwatch budget, int deadline, int handle) {
+        int before = info.rows.Count;
+        IndexedViewport(element, info, scroll, stage, budget, Math.Min(deadline, (int)budget.ElapsedMilliseconds + 2200));
+        if (HasPon(info) || info.rows.Count > before || budget.ElapsedMilliseconds >= deadline) return;
+        if (info.activation == "not-needed") {
+            info.activation = SetForegroundWindow(new IntPtr(handle)) ? "foreground-request-accepted" : "foreground-request-denied";
+            Pause(budget, deadline, 250);
+        }
+        PointViewport(element, info, scroll, stage, budget, Math.Min(deadline, (int)budget.ElapsedMilliseconds + 2200));
+    }
     static void ReviewPosition(AutomationElement element, GridInfo info, ScrollPattern scroll, Stopwatch budget, int deadline) {
         if (scroll == null || !scroll.Current.VerticallyScrollable) return;
         // The technician wants the useful section left visible, not a restoration
@@ -363,7 +467,7 @@ public static class FrameworkDesktop {
             info.reviewPosition = scroll.Current.VerticalScrollPercent >= 99.9 ? "bottom" : "unconfirmed";
         } catch (Exception error) { info.reviewPosition = "unconfirmed"; info.issues.Add("Could not leave the details at the bottom: " + error.GetType().Name); }
     }
-    static GridInfo ReadGrid(ControlInfo control, bool expand, bool positionReview, Stopwatch budget) {
+    static GridInfo ReadGrid(ControlInfo control, bool expand, bool positionReview, Stopwatch budget, int handle) {
         var info = new GridInfo { id = control.id, expanded = expand };
         ScrollPattern scroll = null;
         int readDeadline = Math.Min(22000, (int)budget.ElapsedMilliseconds + 16000);
@@ -376,8 +480,12 @@ public static class FrameworkDesktop {
             scroll = GridScroll(control.element);
             CaptureRows(control.element, info, scroll, "initial", budget, readDeadline, expand); info.initialRows = info.rows.Count;
             if (!expand) return info;
-            if (!HasPon(info) && grid != null && info.columnCount == 2) {
-                info.method = "GridPattern + refreshed accessibility snapshots";
+            if (info.initialRows == 0) {
+                info.method += " + viewport recovery";
+                RecoverViewport(control.element, info, scroll, "initial-recovery", budget, readDeadline, handle);
+            }
+            if (!HasPon(info) && info.initialRows > 0 && grid != null && info.columnCount == 2) {
+                info.method += " + GridPattern + refreshed accessibility snapshots";
                 int consecutiveFailures = 0;
                 for (int row = 0; row < Math.Min(info.rowCount, 512) && !HasPon(info) && budget.ElapsedMilliseconds < readDeadline; row++) {
                     try {
@@ -405,7 +513,8 @@ public static class FrameworkDesktop {
                 scroll.SetScrollPercent(ScrollPattern.NoScroll, 0);
                 Pause(budget, readDeadline, 350);
                 for (int page = 0; page < 40 && !HasPon(info) && budget.ElapsedMilliseconds < readDeadline; page++) {
-                    CaptureRows(control.element, info, scroll, "page-" + page, budget, readDeadline, true); info.pages++;
+                    var visible = CaptureRows(control.element, info, scroll, "page-" + page, budget, readDeadline, true); info.pages++;
+                    if (visible.Count == 0 && !HasPon(info)) RecoverViewport(control.element, info, scroll, "page-" + page + "-recovery", budget, readDeadline, handle);
                     if (HasPon(info)) break;
                     double before = scroll.Current.VerticalScrollPercent;
                     if (before >= 99.99) break;
@@ -444,6 +553,7 @@ public static class FrameworkDesktop {
         if (pons.Length > 1) warnings.Add("Multiple PONs detected: " + String.Join(", ", pons) + ". Match the intended order before sending.");
         if (snapshot.windows.Any(w => w.incomplete)) warnings.Add("Some Framework controls could not be read. Verify the destination in Framework.");
         if (open.Any(w => w.grids.Any(g => g.expanded && !g.ponFound && !g.complete))) warnings.Add("The PON could not be read from an open E-Rx detail grid. Export desktop diagnostics if the order is missing.");
+        if (open.Any(w => w.grids.Any(g => g.expanded && g.rows.Count == 0 && g.rowCount > 0))) warnings.Add("The selected E-Rx grid reports rows but exposes no readable cells. Try Choose entry window and keep Framework in front until reading finishes, then download the PON detection report.");
         var positions = open.SelectMany(w => w.grids).Where(g => g.expanded).Select(g => g.reviewPosition).ToArray();
         string viewportStatus = positions.Contains("rxfill-visible") ? "Framework details left at RxFill Indicator / All Fill Statuses. Check the SIG and administration times there."
             : positions.Contains("bottom") ? "Framework details left at the bottom. RxFill Indicator / All Fill Statuses could not be read; scroll up to it if needed."

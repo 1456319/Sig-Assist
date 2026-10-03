@@ -23,7 +23,8 @@ public class ViewPeer : FrameworkElementAutomationPeer {
 }
 public class DetailGrid : FrameworkElement {
     public string Folder, Pon;
-    public bool ScrollOnly, FailScroll, RawOnly, Empty, NoAnchor, Ready = true;
+    public bool ScrollOnly, FailScroll, RawOnly, Empty, NoAnchor, IndexedVisible, PointOnly, PointConnected, Ready = true;
+    public int IndexedRow = -1;
     public int RowCount = 80;
     public int Start, ScrollCalls, GetCalls;
     public DetailGridPeer Peer;
@@ -35,7 +36,7 @@ public class DetailGrid : FrameworkElement {
         renderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(450) };
         renderTimer.Tick += delegate { renderTimer.Stop(); Ready = true; if (Peer != null) Peer.Refresh(); };
     }
-    public void Rendering() { if (!RawOnly) return; Ready = false; renderTimer.Stop(); renderTimer.Start(); }
+    public void Rendering() { IndexedRow = -1; PointConnected = false; if (!RawOnly) return; Ready = false; renderTimer.Stop(); renderTimer.Start(); }
     public void Save() { File.WriteAllText(Path.Combine(Folder, "state"), Start + "," + ScrollCalls + "," + GetCalls); }
     protected override AutomationPeer OnCreateAutomationPeer() { Peer = new DetailGridPeer(this); return Peer; }
 }
@@ -53,6 +54,11 @@ public class DetailGridPeer : FrameworkElementAutomationPeer, IGridProvider, ISc
     protected override List<AutomationPeer> GetChildrenCore() {
         var result = new List<AutomationPeer>();
         if (grid.Empty || !grid.Ready) return result;
+        if (grid.PointOnly && !grid.PointConnected) return result;
+        if (grid.IndexedVisible) {
+            if (grid.IndexedRow >= 0) { result.Add(cells[grid.IndexedRow, 0]); result.Add(cells[grid.IndexedRow, 1]); }
+            return result;
+        }
         // Indexed mode exposes connected offscreen peers. Scroll-only mode
         // virtualizes them entirely, matching the observed 30-row provider.
         int first = grid.ScrollOnly ? grid.Start : 0, last = grid.ScrollOnly ? Math.Min(grid.RowCount, grid.Start + 30) : grid.RowCount;
@@ -67,8 +73,12 @@ public class DetailGridPeer : FrameworkElementAutomationPeer, IGridProvider, ISc
     public int ColumnCount { get { return 2; } }
     public IRawElementProviderSimple GetItem(int row, int column) {
         grid.GetCalls++; grid.Save();
-        if (grid.RawOnly || grid.Empty) return null;
+        if (grid.RawOnly || grid.Empty || grid.PointOnly) return null;
         if (row < 0 || row >= grid.RowCount || column < 0 || column > 1) throw new ArgumentOutOfRangeException();
+        if (grid.IndexedVisible) {
+            if (row < grid.Start || row >= grid.Start + 30) return null;
+            grid.IndexedRow = row; Refresh(); GetChildren();
+        }
         if (grid.ScrollOnly && (row < grid.Start || row >= grid.Start + 30)) throw new InvalidOperationException("Row is not realized.");
         return ProviderFromPeer(cells[row, column]);
     }
@@ -79,6 +89,14 @@ public class DetailGridPeer : FrameworkElementAutomationPeer, IGridProvider, ISc
     public double HorizontalViewSize { get { return 100; } }
     public double VerticalViewSize { get { return 3000.0 / grid.RowCount; } }
     public void Refresh() { ResetChildrenCache(); RaiseAutomationEvent(AutomationEvents.StructureChanged); }
+    protected override AutomationPeer GetPeerFromPointCore(Point point) {
+        if (!grid.PointOnly) return base.GetPeerFromPointCore(point);
+        var local = grid.PointFromScreen(point);
+        if (local.X < 0 || local.X >= grid.ActualWidth || local.Y < 0 || local.Y >= grid.ActualHeight) return null;
+        grid.PointConnected = true; Refresh(); GetChildren();
+        int row = grid.Start + Math.Min(29, (int)(local.Y / (grid.ActualHeight / 30)));
+        return cells[row, local.X < grid.ActualWidth * 0.35 ? 0 : 1];
+    }
     public void SetScrollPercent(double horizontal, double vertical) {
         if (vertical >= 0) grid.Start = Math.Max(0, Math.Min(grid.RowCount - 30, (int)Math.Round(vertical * (grid.RowCount - 30) / 100.0)));
         grid.ScrollCalls++; grid.Save(); grid.Rendering(); Refresh();
@@ -105,6 +123,11 @@ public class CellPeer : FrameworkElementAutomationPeer, IValueProvider {
     protected override string GetClassNameCore() { return "SyntheticCell"; }
     protected override AutomationControlType GetAutomationControlTypeCore() { return AutomationControlType.Custom; }
     protected override bool IsOffscreenCore() { return row < grid.Start || row >= grid.Start + 30; }
+    protected override Rect GetBoundingRectangleCore() {
+        if (!grid.PointOnly) return base.GetBoundingRectangleCore();
+        var point = grid.PointToScreen(new Point(col == 0 ? 0 : grid.ActualWidth * 0.35, (row - grid.Start) * grid.ActualHeight / 30));
+        return new Rect(point.X, point.Y, grid.ActualWidth * (col == 0 ? 0.35 : 0.65), grid.ActualHeight / 30);
+    }
     protected override bool IsControlElementCore() { return !grid.RawOnly; }
     protected override bool IsContentElementCore() { return !grid.RawOnly; }
     protected override bool IsEnabledCore() { return true; }
@@ -128,13 +151,26 @@ public static class Fixture {
             var wizard = new View { ProviderClass = "ERxWorkQueueWizardView" }; root.Children.Add(wizard);
             var page = new View { ProviderClass = "ERxWorkQueueView" }; wizard.Children.Add(page);
             grid = new DetailGrid(folder, role == "open-second" ? "SYNTHETIC-SECOND" : "SYNTHETIC-OPEN", mode != "grid");
-            grid.FailScroll = mode == "fail"; grid.RawOnly = mode == "raw-delay"; grid.Empty = mode == "empty"; grid.NoAnchor = mode == "noanchor";
+            grid.FailScroll = mode == "fail"; grid.RawOnly = mode == "raw-delay"; grid.Empty = mode == "empty" || mode == "point-overlay"; grid.NoAnchor = mode == "noanchor";
+            grid.IndexedVisible = mode == "indexed-visible"; grid.PointOnly = mode == "point-only" || mode == "point-narrow";
+            if (grid.PointOnly) { grid.Height = 300; window.Height = 500; }
+            if (mode == "point-narrow") { grid.Width = 260; window.Width = 320; }
             if (grid.RawOnly || grid.Empty) grid.RowCount = 106;
             grid.Rendering(); page.Children.Add(grid);
             page.Children.Add(TextField("SIG", "OLD OPEN SIG"));
             var stale = new View { ProviderClass = "ERxWorkQueueDirectionsView", HiddenPage = true };
             stale.Children.Add(TextField("PON", "STALE-HIDDEN-PON"));
             stale.Children.Add(TextField("SIG", "STALE HIDDEN SIG")); wizard.Children.Add(stale);
+            if (mode == "point-overlay") {
+                // Convincing row/cell labels from the same PID, but outside the
+                // selected grid. Screen hits must not turn them into a PON.
+                var layers = new Grid(); layers.Children.Add(root); window.Content = layers;
+                var overlay = new StackPanel { Background = System.Windows.Media.Brushes.White, Height = 120, VerticalAlignment = VerticalAlignment.Top };
+                foreach (var name in new[] { "Row 1, Column 0: Prescriber Order Number", "Row 1, Column 1: WRONG-OVERLAY-PON" }) {
+                    var text = new TextBlock { Text = name, Height = 50 }; AutomationProperties.SetName(text, name); overlay.Children.Add(text);
+                }
+                layers.Children.Add(overlay);
+            }
         } else if (role == "triage") {
             var triage = new View { ProviderClass = "ERxTriageManagerView" }; root.Children.Add(triage);
             // An exact label too: even this must not compete with the open wizard.
