@@ -24,6 +24,7 @@ it('demonstrates translation, review, clipboard, saved queue recovery and cleari
   let host = render(ui);
   // Wait for initial storage hydration before entering the demo.
   await waitFor(async () => expect(await getCitrixStorageAdapter().readQueue()).toEqual([]));
+  fireEvent.click(screen.getByText('Add an order manually (optional)'));
   fireEvent.click(screen.getByRole('button', { name: 'Fill synthetic example' }));
   fireEvent.click(screen.getByRole('button', { name: 'Add to review queue' }));
   const draft = screen.getByLabelText('Final SIG · editable, uppercase') as HTMLTextAreaElement;

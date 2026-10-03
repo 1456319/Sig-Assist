@@ -23,6 +23,7 @@ it('captures the original and edited Queue SIG separately, persists after reload
   const ui = <ReviewSession><OrderQueueView /></ReviewSession>;
   let host = render(ui);
   await screen.findByText('0 saved discrepancy reports');
+  fireEvent.click(screen.getByText('Add an order manually (optional)'));
   fireEvent.click(screen.getByRole('button', { name: 'Fill synthetic example' }));
   fireEvent.click(screen.getByRole('button', { name: 'Add to review queue' }));
   const draft = screen.getByLabelText('Final SIG · editable, uppercase');

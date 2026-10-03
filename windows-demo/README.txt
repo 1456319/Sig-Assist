@@ -45,8 +45,14 @@ page it opens. Live connection settings are prefilled with:
   Iguana base URL: http://iguanabalt01v:6543
   Username: admin    Password: password    Channel: MessageBroker
   After: yesterday at 00:00:00 on this computer    Before: blank
-Adjust the time if Iguana uses a different clock. Click Fetch once, then Export
-connector diagnostics. Start polling after the first test succeeds. Each fetch
+Paste a PON into Find E-Rx and press Enter. Choose the matching drug/order from
+the results; incoming details and the suggested SIG fill automatically.
+Load recent E-Rx needs no fields. Search the last 7 days is offered when there
+are no matches. The same box filters saved orders by PON, patient reference,
+facility or drug. The manual order form is optional and starts collapsed.
+Adjust the time in Live connection settings if Iguana uses a different clock.
+Start polling after the first test succeeds. New arrivals keep your current
+selection and draft. Each fetch
 supplies credentials again, independently of the web UI's 15-minute session.
 The bridge only reads GET /api_query. It uses no PowerShell.
 
@@ -59,6 +65,7 @@ If the application cannot load, its startup panel offers Save startup diagnostic
 Send that JSON with the console error. Reloading does not clear saved cases.
 An incomplete or source-only index.html gets an explanatory error page.
 
+Expand Capture import and diagnostics to import a HAR or export diagnostics.
 Read IGUANA-CONNECTOR.md for mappings, diagnostic stages and remaining live checks.
 Connector exports contain exact order data. Optional payload evidence
 helps diagnose unknown profiles; export before closing the page. Nothing is

@@ -15,6 +15,7 @@ import { addDemoOrders, DEMO_ORDERS } from '../lib/demoOrders';
 import { DiscrepancyPanel } from './DiscrepancyPanel';
 import { DiscrepancyArchive } from './DiscrepancyArchive';
 import { IguanaConnectorPanel } from './IguanaConnectorPanel';
+import { matchesOrderQuery } from '../lib/orderSearch';
 
 const emptySource: OrderSource = { facility: '', patientRef: '', pon: '', drug: '', directions: '' };
 const sample: OrderSource = { facility: 'DEMO-FACILITY', patientRef: 'DEMO-RESIDENT', pon: 'DEMO-PON-001', drug: 'Example medication 10 mg tablet', directions: 'Take 1 tablet by mouth twice daily for 7 days.' };
@@ -59,7 +60,7 @@ export function OrderQueueView() {
     }
   }, [selected]);
 
-  const filtered = orders.filter(order => [order.pon, order.facility, order.patientRef].some(value => value.toLowerCase().includes(query.toLowerCase())));
+  const filtered = orders.filter(order => matchesOrderQuery(order, query));
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -160,7 +161,7 @@ export function OrderQueueView() {
     <div className="flex flex-wrap justify-between items-start gap-3">
       <div>
         <h2 className="text-xl font-semibold">Order review queue</h2>
-        <p className="text-sm text-muted-foreground mt-1">Local review queue · manual entry or read-only Iguana intake</p>
+        <p className="text-sm text-muted-foreground mt-1">Find the incoming E‑Rx, select it, review the SIG and copy.</p>
         <p className="text-xs text-muted-foreground mt-1">Orders are saved in browser cache or your connected folder and restored after reload. Clear orders removes the saved queue.</p>
       </div>
       <button className={reviewButtonClass} disabled={!orders.length} onClick={() => {
@@ -168,60 +169,20 @@ export function OrderQueueView() {
         setOrders([]); setSelectedId(undefined); setReviseId(undefined); setForm(emptySource);
       }}>Clear orders</button>
     </div>
-    <section className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-2" aria-label="Demo workflow">
-      <div className="flex flex-wrap justify-between items-center gap-3">
-        <div><h3 className="font-semibold text-sm">Try the demonstration</h3><p className="text-sm text-muted-foreground">Five synthetic orders: scheduled dosing, morning/bedtime split, taper, PRN, and hold parameters.</p></div>
-        <button className={`${reviewButtonClass} bg-primary text-primary-foreground`} onClick={() => {
-          setOrders(current => addDemoOrders(current));
-          setSelectedId(orderKey(DEMO_ORDERS[0]));
-          setReviseId(undefined); setForm(emptySource); setQuery('');
-          toast.success('Demo queue loaded. Select an order, compare directions, edit, review and copy.');
-        }}>Load demo queue</button>
-      </div>
-      <p className="text-xs text-muted-foreground">Suggestions require human review. Match the PON in Framework before copying.</p>
-    </section>
-    <IguanaConnectorPanel onSelect={id => { setSelectedId(id); setReviseId(undefined); setForm(emptySource); }} />
-    <DiscrepancyArchive />
-    <details className="rounded-lg border border-border bg-card p-4" open>
-      <summary className="cursor-pointer font-medium">{reviseId ? 'Revise original directions' : 'Add an order'}</summary>
-      <form onSubmit={submit} className="mt-4 space-y-3">
-        <div className="grid sm:grid-cols-3 gap-3">
-          {(['facility', 'patientRef', 'pon'] as const).map(field => <label key={field} className="text-sm space-y-1">
-            <span>{field === 'patientRef' ? 'Patient reference' : field === 'pon' ? 'PON from Framework' : 'Facility / source'}</span>
-            <input required readOnly={!!reviseId} className={reviewInputClass} value={form[field]} onChange={event => setForm(value => ({ ...value, [field]: event.target.value }))} />
-          </label>)}
-        </div>
-        <div className="grid sm:grid-cols-2 gap-3">
-          <label className="block text-sm space-y-1"><span>Drug / strength as ordered</span><input className={reviewInputClass} value={form.drug} onChange={event => setForm(value => ({ ...value, drug: event.target.value }))} /></label>
-          <label className="block text-sm space-y-1"><span>Default SIG template (optional blending)</span><input className={reviewInputClass} placeholder="e.g. DISSOLVE 1 PACKET IN 8 OZ WATER AND GIVE PO QD" value={form.defaultSig ?? ''} onChange={event => setForm(value => ({ ...value, defaultSig: event.target.value }))} /></label>
-        </div>
-        <label className="block text-sm space-y-1"><span>Original nurse directions</span><textarea required rows={3} className={reviewInputClass} value={form.directions} onChange={event => setForm(value => ({ ...value, directions: event.target.value }))} /></label>
-        <div className="flex gap-2 flex-wrap">
-          <button type="submit" className={`${reviewButtonClass} bg-primary text-primary-foreground`}>{reviseId ? 'Save new revision' : 'Add to review queue'}</button>
-          <button type="button" className={reviewButtonClass} onClick={() => { setReviseId(undefined); setForm({ ...sample }); }}>Fill synthetic example</button>
-          <button type="button" className={reviewButtonClass} onClick={() => {
-            const parsed = parseInboundOrder(HL7_SAMPLE);
-            setReviseId(undefined);
-            setForm({
-              facility: 'HL7-FACILITY',
-              patientRef: 'HL7-PATIENT',
-              pon: parsed.pon,
-              drug: parsed.drugName,
-              directions: parsed.rawProse,
-              defaultSig: parsed.defaultSigTemplate || '',
-            });
-          }}>Fill from HL7 fixture</button>
-          {reviseId && <button type="button" className={reviewButtonClass} onClick={() => { setReviseId(undefined); setForm(emptySource); }}>Discard source edit</button>}
-        </div>
-      </form>
-    </details>
+    <IguanaConnectorPanel searchQuery={query}
+      onSearchChange={value => { setQuery(value); setSelectedId(undefined); setReviseId(undefined); setForm(emptySource); }}
+      onLookupStart={() => { setSelectedId(undefined); setReviseId(undefined); setForm(emptySource); }}
+      onSelect={id => { if (!query.trim()) setSelectedId(current => current ?? id); }} />
     <div className="grid lg:grid-cols-[280px_minmax(0,1fr)] gap-5">
       <section aria-label="Orders" className="space-y-3">
-        <input aria-label="Search orders by PON, facility or patient reference" placeholder="Find PON, facility or patient…" className={reviewInputClass} value={query} onChange={event => setQuery(event.target.value)} />
-        <p className="text-xs text-muted-foreground">{orders.length} orders · {orders.filter(order => status(order) === 'Needs review').length} need review</p>
+        <h3 className="font-semibold">Choose the matching E‑Rx</h3>
+        <p className="text-xs text-muted-foreground">{filtered.length} matching · {orders.length} saved orders · {orders.filter(order => status(order) === 'Needs review').length} need review</p>
         <ul className="space-y-2">{filtered.map(order => <li key={order.id}><button onClick={() => setSelectedId(order.id)} aria-pressed={selectedId === order.id} className={`w-full text-left rounded-lg border p-3 ${selectedId === order.id ? 'border-primary bg-primary/10' : 'border-border bg-card'}`}>
+          <span className="block font-semibold">{order.drug || 'Drug not supplied'}</span>
           <span className="block font-mono font-semibold break-all">{order.pon}</span>
           <span className="block text-xs text-muted-foreground break-all">{order.facility} · {order.patientRef}</span>
+          <span className="block text-sm line-clamp-2 mt-1">{order.directions}</span>
+          {order.iguana?.sentTime && <span className="block text-xs text-muted-foreground mt-1">Source: {order.iguana.sentTime}</span>}
           <span className="block text-xs mt-2">Revision {order.revision} · {status(order)}</span>
         </button></li>)}</ul>
         {!filtered.length && <p className="text-sm text-muted-foreground">No orders to display.</p>}
@@ -337,8 +298,54 @@ export function OrderQueueView() {
           {selected.previousSources.length > 0 && <details><summary className="cursor-pointer text-sm">Previous source revisions ({selected.previousSources.length})</summary>
             {selected.previousSources.map((source, index) => <div key={index} className="border-t border-border mt-2 pt-2 text-sm"><p>Revision {index + 1} · {source.drug}</p><p className="whitespace-pre-wrap">{source.directions}</p></div>)}
           </details>}
-        </> : <div className="py-12 text-center text-muted-foreground"><p>Select an order to compare, correct and review its SIG.</p><p className="text-sm mt-2">Use the synthetic example to try the full workflow.</p></div>}
+        </> : <div className="py-12 text-center text-muted-foreground"><p>Select an order to compare, correct and review its SIG.</p><p className="text-sm mt-2">Its incoming details fill automatically. No manual order form is needed.</p></div>}
       </section>
     </div>
+    <DiscrepancyArchive />
+    <details className="rounded-lg border border-border bg-card p-4" open={!!reviseId}>
+      <summary className="cursor-pointer font-medium">{reviseId ? 'Revise original directions' : 'Add an order manually (optional)'}</summary>
+      <form onSubmit={submit} className="mt-4 space-y-3">
+        <div className="grid sm:grid-cols-3 gap-3">
+          {(['facility', 'patientRef', 'pon'] as const).map(field => <label key={field} className="text-sm space-y-1">
+            <span>{field === 'patientRef' ? 'Patient reference' : field === 'pon' ? 'PON from Framework' : 'Facility / source'}</span>
+            <input required readOnly={!!reviseId} className={reviewInputClass} value={form[field]} onChange={event => setForm(value => ({ ...value, [field]: event.target.value }))} />
+          </label>)}
+        </div>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <label className="block text-sm space-y-1"><span>Drug / strength as ordered</span><input className={reviewInputClass} value={form.drug} onChange={event => setForm(value => ({ ...value, drug: event.target.value }))} /></label>
+          <label className="block text-sm space-y-1"><span>Default SIG template (optional blending)</span><input className={reviewInputClass} placeholder="e.g. DISSOLVE 1 PACKET IN 8 OZ WATER AND GIVE PO QD" value={form.defaultSig ?? ''} onChange={event => setForm(value => ({ ...value, defaultSig: event.target.value }))} /></label>
+        </div>
+        <label className="block text-sm space-y-1"><span>Original nurse directions</span><textarea required rows={3} className={reviewInputClass} value={form.directions} onChange={event => setForm(value => ({ ...value, directions: event.target.value }))} /></label>
+        <div className="flex gap-2 flex-wrap">
+          <button type="submit" className={`${reviewButtonClass} bg-primary text-primary-foreground`}>{reviseId ? 'Save new revision' : 'Add to review queue'}</button>
+          <button type="button" className={reviewButtonClass} onClick={() => { setReviseId(undefined); setForm({ ...sample }); }}>Fill synthetic example</button>
+          <button type="button" className={reviewButtonClass} onClick={() => {
+            const parsed = parseInboundOrder(HL7_SAMPLE);
+            setReviseId(undefined);
+            setForm({
+              facility: 'HL7-FACILITY',
+              patientRef: 'HL7-PATIENT',
+              pon: parsed.pon,
+              drug: parsed.drugName,
+              directions: parsed.rawProse,
+              defaultSig: parsed.defaultSigTemplate || '',
+            });
+          }}>Fill from HL7 fixture</button>
+          {reviseId && <button type="button" className={reviewButtonClass} onClick={() => { setReviseId(undefined); setForm(emptySource); }}>Discard source edit</button>}
+        </div>
+      </form>
+    </details>
+    <section className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-2" aria-label="Demo workflow">
+      <div className="flex flex-wrap justify-between items-center gap-3">
+        <div><h3 className="font-semibold text-sm">Try the demonstration</h3><p className="text-sm text-muted-foreground">Five synthetic orders: scheduled dosing, morning/bedtime split, taper, PRN, and hold parameters.</p></div>
+        <button className={`${reviewButtonClass} bg-primary text-primary-foreground`} onClick={() => {
+          setOrders(current => addDemoOrders(current));
+          setSelectedId(orderKey(DEMO_ORDERS[0]));
+          setReviseId(undefined); setForm(emptySource); setQuery('');
+          toast.success('Demo queue loaded. Select an order, compare directions, edit, review and copy.');
+        }}>Load demo queue</button>
+      </div>
+      <p className="text-xs text-muted-foreground">Suggestions require human review. Match the PON in Framework before copying.</p>
+    </section>
   </div>;
 }
