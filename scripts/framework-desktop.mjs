@@ -71,6 +71,7 @@ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } 
   return async function desktop(action, body = {}) {
     if (busy) return { ok: false, error: 'A Framework desktop operation is already running.' };
     busy = true;
+    let writeStarted = false;
     try {
       if (action === 'detect') { bindings.clear(); return remember(await run({ action: 'detect' })); }
       if (action === 'target') {
@@ -85,10 +86,11 @@ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } 
       if (body.approved !== true || body.matched !== true || typeof body.pon !== 'string' || !body.pon.trim()) throw new Error('Match the intended order and approve the exact text before sending.');
       if (!['sig', 'times'].includes(body.field) || !bound.detected.fields?.[body.field]) throw new Error('Choose the destination field in Framework first.');
       if (typeof body.value !== 'string' || !body.value.trim() || body.value.length > (body.field === 'sig' ? 4000 : 500)) throw new Error('Invalid field text.');
+      writeStarted = true;
       const result = await run({ action: 'send', expected: bound.detected, field: body.field, value: body.value });
       if (result.ok && result.verified && result.detected?.ok) return { ok: true, verified: true, field: body.field, warnings: result.warnings ?? [], next: remember(result.detected) };
       return { ...result, ok: false };
-    } catch (error) { return { ok: false, uncertain: action === 'send', error: error.message }; }
+    } catch (error) { return { ok: false, uncertain: writeStarted, error: error.message }; }
     finally { busy = false; }
   };
 }

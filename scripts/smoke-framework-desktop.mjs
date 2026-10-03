@@ -18,7 +18,7 @@ try {
   const helper = await helperExecutable();
   const exe = path.join(folder, 'SigAssistFrameworkFixture.exe');
   const compiler = path.join(process.env.WINDIR, 'Microsoft.NET/Framework/v4.0.30319/csc.exe');
-  await exec(compiler, ['/nologo', '/target:winexe', `/out:${exe}`, '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll', '/reference:System.Web.Extensions.dll', 'tests/fixtures/FrameworkDesktopFixture.cs']);
+  await exec(compiler, ['/nologo', '/target:winexe', `/out:${exe}`, '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll', '/reference:System.Web.Extensions.dll', path.resolve('tests', 'fixtures', 'FrameworkDesktopFixture.cs')]);
   app = spawn(exe, [folder], { stdio: 'ignore' });
   await until(() => readFile(path.join(folder, 'ready')));
   const run = input => new Promise((resolve, reject) => {

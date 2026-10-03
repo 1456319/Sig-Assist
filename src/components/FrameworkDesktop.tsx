@@ -30,6 +30,7 @@ export function FrameworkDetect({ disabled, onStart, onDetected }: { disabled: b
       <span className="text-xs text-muted-foreground">Windows desktop integration · pilot</span>
     </div>
     <p className="text-sm" role="status">{status}</p>
+    {found?.warnings?.filter(warning => !warning.startsWith('Multiple PONs')).map(warning => <p key={warning} role="status" className="text-sm text-amber-600 dark:text-amber-400">{warning}</p>)}
     {(found?.pons?.length ?? 0) > 1 && <div role="alert" className="text-sm text-amber-600 dark:text-amber-400 space-y-2"><p>Multiple PONs detected. Check the intended order.</p><div className="flex flex-wrap gap-2">{found!.pons!.map(pon => <button type="button" className={reviewButtonClass} key={pon} disabled={disabled || busy} onClick={() => onDetected({ ...found!, pon })}>Find PON {pon}</button>)}</div></div>}
     <details><summary className="text-xs cursor-pointer">Framework detection help</summary>
       <p className="text-xs text-muted-foreground my-2">Run the connector inside the same Windows/Citrix session as Framework. Detection depends on the fields that this Framework screen exposes. If it cannot find the order, keep that screen open and export desktop diagnostics. The export includes order text; share it with your diagnostic report.</p>
