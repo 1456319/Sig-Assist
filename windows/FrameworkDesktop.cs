@@ -12,7 +12,7 @@ using System.Windows.Automation;
 public sealed class ControlInfo {
     public string id, parentId, automationId, name, label, value, type, className;
     public int depth;
-    public bool offscreen, hidden, enabled, writable, inOpenErx;
+    public bool offscreen, hidden, enabled, writable, inOpenErx, inTriage;
     [ScriptIgnore] public AutomationElement element;
 }
 public sealed class WindowInfo {
@@ -38,7 +38,7 @@ sealed class ScanNode {
     public AutomationElement element;
     public string parentId;
     public int depth;
-    public bool hidden, inOpenErx;
+    public bool hidden, inOpenErx, inTriage;
 }
 public sealed class DesktopSnapshot {
     public string format = "sig-assist-framework-desktop";
@@ -122,7 +122,8 @@ public static class FrameworkDesktop {
                     if (item == null) continue;
                     item.parentId = next.parentId; item.depth = next.depth;
                     item.hidden = next.hidden || item.offscreen;
-                    item.inOpenErx = next.inOpenErx || (!item.hidden && item.enabled && OpenView(item));
+                    item.inTriage = next.inTriage || item.className == "ERxTriageManagerView";
+                    item.inOpenErx = !item.inTriage && (next.inOpenErx || (!item.hidden && item.enabled && OpenView(item)));
                     if (item.inOpenErx && !item.hidden) window.openErx = true;
                     window.controls.Add(item);
                     var child = TreeWalker.ControlViewWalker.GetFirstChild(next.element);
@@ -130,7 +131,7 @@ public static class FrameworkDesktop {
                     int siblings = 0;
                     while (child != null) {
                         if (++siblings > 1800) { window.incomplete = true; break; }
-                        pending.Push(new ScanNode { element = child, parentId = item.id, depth = next.depth + 1, hidden = item.hidden, inOpenErx = item.inOpenErx });
+                        pending.Push(new ScanNode { element = child, parentId = item.id, depth = next.depth + 1, hidden = item.hidden, inOpenErx = item.inOpenErx, inTriage = item.inTriage });
                         child = TreeWalker.ControlViewWalker.GetNextSibling(child);
                     }
                 } catch { window.incomplete = true; }
@@ -279,7 +280,7 @@ public static class FrameworkDesktop {
     static object Detect(DesktopSnapshot snapshot, string chosenId = null, string chosenField = null) {
         var open = snapshot.windows.Where(w => w.openErx).ToArray();
         var scope = open.Length > 0 ? open : snapshot.windows.ToArray();
-        var pons = scope.SelectMany(w => w.controls).Where(c => !c.hidden && (open.Length == 0 || c.inOpenErx)).Select(c => Pon(c))
+        var pons = scope.SelectMany(w => w.controls).Where(c => !c.hidden && !c.inTriage && (open.Length == 0 || c.inOpenErx)).Select(c => Pon(c))
             .Concat(scope.SelectMany(w => w.grids).SelectMany(g => g.rows).Where(r => PonTitle(r.title) && ValidPon(r.value)).Select(r => r.value))
             .Where(p => p != "").Distinct(StringComparer.Ordinal).OrderBy(p => p, StringComparer.Ordinal).ToArray();
         var warnings = new List<string>(snapshot.issues);
@@ -291,7 +292,7 @@ public static class FrameworkDesktop {
         var fields = new Dictionary<string, object>();
         foreach (var field in new[] { "sig", "times" }) {
             var controls = snapshot.windows.SelectMany(w => w.controls.Select(c => new { window = w, control = c }))
-                .Where(x => chosenField == field ? x.control.id == chosenId : Field(x.control, field) && (open.Length == 0 || x.control.inOpenErx)).ToArray();
+                .Where(x => chosenField == field ? x.control.id == chosenId : Field(x.control, field) && !x.control.inTriage && (open.Length == 0 || x.control.inOpenErx)).ToArray();
             if (controls.Length == 1) fields[field] = FieldInfo(controls[0].window, controls[0].control, chosenField == field);
         }
         return new { ok = true, pon = pons.Length == 1 ? pons[0] : null, pons = pons, fields = fields, warnings = warnings,

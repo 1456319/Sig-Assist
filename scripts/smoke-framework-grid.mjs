@@ -37,13 +37,16 @@ try {
   });
   const summary = found => JSON.stringify({ ...found, diagnostics: found.diagnostics?.windows.map(w => ({ pid: w.pid, openErx: w.openErx, incomplete: w.incomplete, grids: w.grids, controls: w.controls.length })) });
   const idle = await launch('idle1', 'idle'); await launch('idle2', 'idle'); await launch('idle3', 'idle');
-  const triage = await launch('triage', 'triage'); let opened = await launch('opened', 'open');
+  const triage = await launch('triage', 'triage');
+  const queueOnly = await run({ action: 'detect' });
+  assert.equal(queueOnly.openErxWindows, 0); assert.deepEqual(queueOnly.pons, [], summary(queueOnly));
+  let opened = await launch('opened', 'open');
   const direct = await run({ action: 'detect' });
   assert.equal(direct.ok, true, summary(direct)); assert.equal(direct.instances, 5, summary(direct));
   assert.equal(direct.openErxWindows, 1, summary(direct)); assert.deepEqual(direct.pons, ['SYNTHETIC-OPEN'], summary(direct));
   assert.equal(direct.fields.sig.value, 'OLD OPEN SIG');
   const grid = direct.diagnostics.windows.find(w => w.openErx).grids[0];
-  assert.equal(grid.initialRows, 30); assert.equal(grid.rowCount, 80); assert.equal(grid.complete, true); assert.equal(grid.pages, 0);
+  assert.equal(grid.initialRows, 30); assert.equal(grid.rowCount, 80); assert.equal(grid.complete, true); assert.equal(grid.pages, 0, summary(direct));
   assert.ok(grid.rows.some(r => r.index === 67 && r.value === 'SYNTHETIC-OPEN'));
   // No read/scroll of the other instance's queue grid, despite an identical ID.
   await assert.rejects(readFile(path.join(triage.dir, 'state')));

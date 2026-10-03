@@ -45,7 +45,10 @@ public class DetailGridPeer : FrameworkElementAutomationPeer, IGridProvider, ISc
     protected override bool IsOffscreenCore() { return false; }
     protected override List<AutomationPeer> GetChildrenCore() {
         var result = new List<AutomationPeer>();
-        for (int row = grid.Start; row < Math.Min(80, grid.Start + 30); row++) for (int col = 0; col < 2; col++) result.Add(cells[row, col]);
+        // Indexed mode exposes connected offscreen peers. Scroll-only mode
+        // virtualizes them entirely, matching the observed 30-row provider.
+        int first = grid.ScrollOnly ? grid.Start : 0, last = grid.ScrollOnly ? Math.Min(80, grid.Start + 30) : 80;
+        for (int row = first; row < last; row++) for (int col = 0; col < 2; col++) result.Add(cells[row, col]);
         return result;
     }
     public override object GetPattern(PatternInterface pattern) {
