@@ -28,6 +28,17 @@ async function start(options: Record<string, unknown> = {}) {
 }
 
 describe('local read-only bridge', () => {
+  it('isolates desktop operations and rejects cross-origin and non-JSON requests', async () => {
+    const calls: string[] = [];
+    const bridge = await listen(createBridge({ desktop: async (action: string) => { calls.push(action); return { ok: true }; } }));
+    const url = `${bridge}/connector/desktop/detect`;
+    expect((await fetch(url, { method: 'POST', body: '{}' })).status).toBe(403);
+    expect((await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'https://example.invalid' }, body: '{}' })).status).toBe(403);
+    expect(calls).toEqual([]);
+    expect(await (await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: bridge }, body: '{}' })).json()).toEqual({ ok: true });
+    expect(calls).toEqual(['detect']);
+    expect((await fetch(`${bridge}/connector/desktop/submit`, { method: 'POST' })).status).toBe(404);
+  });
   it('serves health and sends only GET api_query requests, including Info logs', async () => {
     const calls: { method?: string; url?: string }[] = [];
     const upstream = await listen(createServer((request, response) => { calls.push({ method: request.method, url: request.url }); response.setHeader('content-type', 'application/xml'); response.end('<export/>'); }));

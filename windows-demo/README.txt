@@ -1,5 +1,16 @@
 SIG-ASSIST BROWSER DEMO
 
+FRAMEWORK DESKTOP PILOT
+Run Start-Iguana-Connector.bat in the same Windows/Citrix session as Framework.
+Detect open E-Rx fills the search when Framework exposes its PON. Select the
+matching order, review the SIG and administration times, and approve it.
+Multiple PONs show a warning; approved sending remains available. If needed,
+use Choose Framework SIG field and click the destination within eight seconds. Verify Preview Sig and
+save in Framework. No prescription is saved or submitted by Sig-Assist.
+Actual Framework screen compatibility needs an on-site check. If unavailable,
+use Framework detection help > Export desktop diagnostics with the E-Rx open.
+See FRAMEWORK-DESKTOP.md for setup, supported fields and current limitations.
+
 1. Extract ALL files from Sig-Assist-Windows-Demo.zip to a folder.
 2. Open index.html directly in Microsoft Edge or Google Chrome.
    Alternatively, double-click Start-Sig-Assist.bat to open your default browser.
@@ -45,8 +56,14 @@ page it opens. Live connection settings are prefilled with:
   Iguana base URL: http://iguanabalt01v:6543
   Username: admin    Password: password    Channel: MessageBroker
   After: yesterday at 00:00:00 on this computer    Before: blank
-Adjust the time if Iguana uses a different clock. Click Fetch once, then Export
-connector diagnostics. Start polling after the first test succeeds. Each fetch
+Paste a PON into Find E-Rx and press Enter. Choose the matching drug/order from
+the results; incoming details and the suggested SIG fill automatically.
+Load recent E-Rx needs no fields. Search the last 7 days is offered when there
+are no matches. The same box filters saved orders by PON, patient reference,
+facility or drug. The manual order form is optional and starts collapsed.
+Adjust the time in Live connection settings if Iguana uses a different clock.
+Start polling after the first test succeeds. New arrivals keep your current
+selection and draft. Each fetch
 supplies credentials again, independently of the web UI's 15-minute session.
 The bridge only reads GET /api_query. It uses no PowerShell.
 
@@ -59,6 +76,7 @@ If the application cannot load, its startup panel offers Save startup diagnostic
 Send that JSON with the console error. Reloading does not clear saved cases.
 An incomplete or source-only index.html gets an explanatory error page.
 
+Expand Capture import and diagnostics to import a HAR or export diagnostics.
 Read IGUANA-CONNECTOR.md for mappings, diagnostic stages and remaining live checks.
 Connector exports contain exact order data. Optional payload evidence
 helps diagnose unknown profiles; export before closing the page. Nothing is

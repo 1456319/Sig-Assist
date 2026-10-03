@@ -7,8 +7,9 @@ resubmit/dequeue messages, change channels, or insert anything into Framework.
 ## First run on Windows
 
 1. Extract the entire `Sig-Assist-Windows-Demo.zip`.
-2. To inspect a capture now, open `index.html` in Edge/Chrome. Choose **Import HAR
-   / log XML** in Order Queue and select the HAR. This requires no runtime/server
+2. To inspect a capture now, open `index.html` in Edge/Chrome. Expand **Capture
+   import and diagnostics**, choose **Import HAR / log XML** in Order Queue and
+   select the HAR. This requires no runtime/server
    installation. Capture imports never replay requests or run the log UI's JS.
 3. For live intake, double-click **Start-Iguana-Connector.bat**. It checks for
    **Node.js 22.12+** beside the launcher and on PATH, then checks its private
@@ -25,25 +26,42 @@ resubmit/dequeue messages, change channels, or insert anything into Framework.
    occupies that port, the launcher selects an available port without stopping
    the existing process. From a source
    checkout, run `npm run build:demo`, then `npm run connector` with Node installed.
-4. Expand **Live connection settings**. The site defaults are already filled:
-   **Iguana base URL = http://iguanabalt01v:6543**, **Username = admin**,
-   **Password = password**, and **Channel = MessageBroker**. The URL is the web
-   management interface including its port, without `/logs.html`.
-5. **After** starts at midnight of the previous calendar day on this computer,
-   in `YYYY/MM/DD HH:MM:SS` format. **Before** is blank. Adjust the time if the
-   PC and Iguana use different clocks, or narrow the window for a known order.
-   **Use yesterday’s midnight** resets After and clears Before. These query
-   values are interpreted as Iguana server wall-clock times.
-6. For this first test, enter the known PON in **Text / PON filter**, enable
-   **Include payload evidence**, and click **Fetch once**.
-7. Check the counts, original directions, identifiers, NDC, structured dose,
+4. Paste a PON into **Find E-Rx** and press Enter or click **Find E-Rx**. This is
+   the only field needed. **Load recent E-Rx** needs no field at all. Both use the
+   prefilled shared connection settings.
+5. Choose the correct result by drug, original directions, facility, patient
+   reference, PON and source time. The incoming details and suggested SIG load
+   automatically. Results are not automatically selected after a lookup, even
+   when there is one candidate; a PON can belong to multiple source identities.
+6. Check the counts, original directions, identifiers, NDC, structured dose,
    route, frequency and administration times. Match the order/PON in Framework
-   before reviewing/copying the suggested SIG.
-8. **Export connector diagnostics**, including when the fetch fails or returns
+   before reviewing/copying the suggested SIG. The manual order form is optional.
+7. If no order matches, **Search the last 7 days** widens the time window without
+   another field. Saved results also filter as you type a patient reference,
+   facility or drug. The live search uses the same text as Iguana's log filter.
+8. Expand **Capture import and diagnostics** to enable **Include payload
+   evidence** or **Export connector diagnostics**, including when a fetch returns
    zero entries. This supplies the response-profile evidence for further fixes.
-9. To collect ongoing orders, remove the PON filter, set a recent starting time,
-   and **Start polling**. Keep Order Queue open: leaving that view stops polling.
+9. To collect ongoing orders, **Start polling**. Keep Order Queue open: leaving
+   that view stops polling. New arrivals do not switch away from the selected
+   order or replace its technician draft.
    **Stop intake** stops the outstanding fetch/timer; Ctrl+C closes the bridge.
+
+**Live connection settings** remains available for overrides and **Fetch once**.
+Defaults are **http://iguanabalt01v:6543**, **admin / password**, and
+**MessageBroker**. Use the web management URL including its port, without
+`/logs.html`. **After** starts at midnight of the previous calendar day on this
+computer (`YYYY/MM/DD HH:MM:SS`); **Before** is blank. These are Iguana wall-clock
+times, so adjust them if the clocks differ. **Use yesterday’s midnight** resets
+After and clears Before. One-field lookups use their own text filter and leave
+Before empty; they never advance or change the continuous polling cursor/filter.
+An explicit advanced filter still applies to polling and Fetch once.
+
+Search only covers captured/imported orders and Iguana's available log history.
+It does not establish which order is currently selected in Framework. A separate
+selection event or desktop integration must be verified before automatic following
+can be enabled. Saturated results and intake conflicts remain visible and retain
+the existing review/copy restrictions.
 
 The optional environment variable `SIG_ASSIST_CONNECTOR_PORT` changes the local
 port. The standalone file and localhost page use different browser storage
@@ -237,3 +255,6 @@ connector observes incoming orders; it does not determine which orders are
 currently assigned to a technician in Framework's E-Rx Queue.
 
 API reference: <https://help.interfaceware.com/v6/http-api-reference#api_query>.
+# Framework desktop pilot
+
+`Detect open E-Rx` can fill the search from Framework in the same Windows/Citrix session. Reviewed SIG and administration-time text can be sent to an automatically identified or technician-selected editable field. Multiple PONs show a warning without blocking approved sending. This does not save or submit prescriptions. Iguana access remains read-only; desktop transfer is separate. See [FRAMEWORK-DESKTOP.md](FRAMEWORK-DESKTOP.md) for the workflow, runtime compatibility check and diagnostics.

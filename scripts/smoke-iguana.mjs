@@ -24,6 +24,7 @@ try {
   page.on('dialog', dialog => dialog.accept());
   await page.goto(pathToFileURL(path.join(root, 'windows-demo/index.html')).href);
   await page.locator('#sig-assist-startup').waitFor({ state: 'hidden' });
+  await page.getByText('Capture import and diagnostics', { exact: true }).click();
   await page.getByLabel('Import Iguana capture').setInputFiles({ name: 'synthetic.har', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(fourLogHar())) });
   await page.getByText(/Capture imported: 4 logs · 1 added · 1 duplicates · 0 need investigation/).waitFor();
   assert.equal(await page.locator('section[aria-label="Orders"] li').count(), 1);
@@ -48,6 +49,7 @@ try {
   await page.getByRole('button').filter({ has: page.getByText('DEMO-PON-1', { exact: true }) }).click();
   await page.getByText('0900, 2100', { exact: true }).waitFor();
   if (suppliedHar) {
+    await page.getByText('Capture import and diagnostics', { exact: true }).click();
     await page.getByRole('button', { name: 'Clear orders', exact: true }).click();
     await page.getByLabel('Import Iguana capture').setInputFiles({ name: 'provided.har', mimeType: 'application/json', buffer: suppliedHar });
     await page.getByText(/Capture imported: 4 logs · 1 added · 1 duplicates · 0 need investigation/).waitFor();
@@ -88,12 +90,21 @@ try {
   assert.equal(await livePage.locator('section[aria-label="Orders"] li').count(), 1);
   await livePage.getByText('0900, 2100', { exact: true }).waitFor();
   const liveDownloadPromise = livePage.waitForEvent('download');
+  await livePage.getByText('Capture import and diagnostics', { exact: true }).click();
   await livePage.getByRole('button', { name: 'Export connector diagnostics', exact: true }).click();
   const liveDownload = await liveDownloadPromise;
   const liveDiagnostic = JSON.parse(await readFile(await liveDownload.path(), 'utf8'));
   assert.ok(liveDiagnostic.events.some(event => event.stage === 'transport.response' && event.details.status === 200));
   assert.equal(liveDiagnostic.connection.cursor, '2026/10/02 00:59:58');
   assert.equal(JSON.stringify(liveDiagnostic).includes('test-secret'), false);
+  await livePage.getByText('Live connection settings', { exact: true }).click();
+  await livePage.getByLabel('PON, patient reference, facility or drug', { exact: true }).fill('DEMO-PON-1');
+  await livePage.getByRole('button', { name: 'Find E-Rx', exact: true }).click();
+  await livePage.getByText('Search complete: 2 logs · 0 added. Choose a matching E‑Rx below.', { exact: true }).waitFor();
+  assert.equal(await livePage.getByLabel('Final SIG · editable, uppercase').count(), 0);
+  await livePage.locator('section[aria-label="Orders"]').getByRole('button').click();
+  assert.equal(await livePage.getByLabel('Final SIG · editable, uppercase').inputValue(), '1T PO BID FOR EXAMPLE SYMPTOMS');
+  await livePage.getByText('Live connection settings', { exact: true }).click();
   saturated = true;
   await livePage.getByLabel('Log limit · 1–5000', { exact: true }).fill('1');
   await livePage.getByRole('button', { name: 'Start polling', exact: true }).click();
