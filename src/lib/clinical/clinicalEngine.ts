@@ -5,6 +5,9 @@ import { resolveIndicationToken } from './indicationEngine';
 import { evaluatePaxitPackaging } from './paxitEngine';
 import { traceLogger } from '../diagnostics/traceLogger';
 import { splitSupplementalDirections, uppercaseDirections } from './instructionClauses';
+import { translateRecognizedPhrases } from './partialTranslation';
+import { mergeRepeatedSolidDirections } from './repeatedDirections';
+import { splitMixedTabletDose } from './paxitFractionalDose';
 
 function assembleSig(
   drugName: string,
@@ -13,11 +16,15 @@ function assembleSig(
   preferences?: TechnicianPreferences,
   fallbackIndication?: string
 ): { sig: string; abnormalities: AbnormalityFinding[] } {
+  const repeated = mergeRepeatedSolidDirections(drugName, rawProse);
+  rawProse = repeated.prose;
   const clauses = splitSupplementalDirections(rawProse);
   const doseRes = calculateDoseAndVolume(drugName, rawProse);
   const preparationTemplate = defaultTemplate?.trim() || doseRes.preparationTemplate;
   const freqRes = resolveFrequencyAndSchedule(clauses.primary, preparationTemplate);
   const allAbnormalities = [...doseRes.abnormalities, ...freqRes.abnormalities];
+  if (repeated.merged) allAbnormalities.push({ id: 'duplicate_solid_direction', tier: 'applied_correction', title: 'Duplicate Direction Removed',
+    message: 'A matching repeated dose, route and interval was consolidated. Additional morning, empty-stomach and dose-count instructions were preserved.', trigger: rawProse });
 
   if (/\b(?:PANTOPRAZOLE|PROTONIX)\b/i.test(drugName) && /\bDISSOLVE\b/i.test(preparationTemplate || '')) {
     allAbnormalities.push({ id: 'pantoprazole_preparation_wording', tier: 'potential_error', title: 'Pantoprazole Preparation Requires Review',
@@ -25,14 +32,18 @@ function assembleSig(
   }
 
   if (!defaultTemplate?.trim() && doseRes.preparationTemplate) {
-    allAbnormalities.push({ id: 'peg_packet_preparation', tier: 'applied_correction', title: 'PEG Packet Preparation Added',
-      message: 'Preparation instructions were added from the PEG 17 g packet template. Verify the product and Framework Preview Sig before copying.',
+    const packet = doseRes.preparationTemplate.includes('PACKET');
+    allAbnormalities.push({ id: 'peg_packet_preparation', tier: 'applied_correction', title: packet ? 'PEG Packet Preparation Added' : 'PEG Powder Preparation Added',
+      message: 'Preparation instructions were added from the PEG 17 g template. Verify the container and Framework Preview Sig before copying.',
       correction: doseRes.preparationTemplate,
-      trigger: 'Recognized one-packet PEG 17 g oral dose; no source mixing instructions. Institutional 8 oz water template; PEG 3350 packet labeling permits 4–8 oz beverage.' });
+      trigger: `Recognized PEG 17 g oral ${packet ? 'packet' : 'bulk powder'} dose; no source mixing instructions. Institutional 8 oz water template; PEG 3350 labeling permits 4–8 oz beverage.` });
   }
 
   if (!freqRes.slidingScaleString && (doseRes.requiresManualTranslation || freqRes.requiresManualTranslation || !doseRes.doseToken || (!freqRes.frequencyToken && !freqRes.blendedTemplate && !freqRes.prnToken))) {
-    return { sig: uppercaseDirections(rawProse), abnormalities: allAbnormalities };
+    const partial = translateRecognizedPhrases(rawProse);
+    if (partial !== uppercaseDirections(rawProse)) allAbnormalities.push({ id: 'partial_translation', tier: 'uncorrected_gap', title: 'Partial Translation — Review Retained Wording',
+      message: 'Recognized directions were abbreviated. Unrecognized dose, formulation, schedule or instructions remain in the Sig for technician review.', trigger: rawProse });
+    return { sig: partial, abnormalities: allAbnormalities };
   }
 
   const finish = (sig: string) => {
@@ -244,6 +255,21 @@ export function translateClinicalSig(inbound: InboundOrder, preferences?: Techni
     // Case C: Standard single order (including non-split controlled substances)
     const compiled = assembleSig(inbound.drugName, inbound.rawProse, inbound.defaultSigTemplate, preferences, inbound.indication);
     const abnormalities = [...compiled.abnormalities];
+    const mixed = !paxitEval.isControlled && !inbound.defaultSigTemplate
+      && !Object.keys(preferences?.drugCodeOverrides || {}).some(key => inbound.drugName.toUpperCase().includes(key.toUpperCase()))
+      ? splitMixedTabletDose(inbound.drugName, inbound.rawProse) : undefined;
+    if (mixed && !abnormalities.some(a => a.tier === 'uncorrected_gap' || a.tier === 'potential_error')) {
+      const finding: AbnormalityFinding = { id: `paxit_fractional_split_${inbound.id}`, tier: 'applied_correction', title: 'Paxit Whole/Fractional Tablet Split',
+        message: 'The prescribed dose is unchanged. Whole and fractional tablets are separate order cards; verify both cards together before entry.',
+        correction: `Take both components together; total dose ${mixed.total}.`, trigger: inbound.rawProse };
+      const parts = mixed.parts.map(part => assembleSig(inbound.drugName, part, undefined, preferences, inbound.indication));
+      if (parts.every(part => !part.abnormalities.some(a => a.tier !== 'applied_correction'))) {
+        const findings = [...abnormalities, finding];
+        return { primarySig: compiled.sig, abnormalities: findings, traceId,
+          subOrders: parts.map((part, i) => ({ id: `${inbound.id}_split_${i + 1}`, label: `Order ${i + 1} of 2`,
+            suggestedSig: `${part.sig}. TAW ${i === 0 ? 'FRACTIONAL' : 'WHOLE'}-TABLET DOSE (TD ${mixed.total})`, abnormalities: [...part.abnormalities, finding] })) };
+      }
+    }
 
     if (paxitEval.isControlled) {
       abnormalities.push({

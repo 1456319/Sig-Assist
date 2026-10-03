@@ -5,6 +5,7 @@ import { extractIndicationToken, administrationScheduleProse } from './indicatio
 import { resolveWeekdaySchedule } from './weekdaySchedule';
 import { resolveDuration } from './durationEngine';
 import { SIG_CODE_REFERENCE } from './sigCodeReference';
+import { normalizeNumericDirections } from './numericDirections';
 
 export interface FrequencyScheduleResult {
   readonly frequencyToken: string;
@@ -20,7 +21,7 @@ export interface FrequencyScheduleResult {
 }
 
 function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?: string): FrequencyScheduleResult {
-  let upper = splitSupplementalDirections(rawProse).primary.toUpperCase()
+  let upper = normalizeNumericDirections(splitSupplementalDirections(rawProse).primary)
     .replace(/\b(?:VIA|USING|WITH)\s+(?:A\s+)?NEBULI[ZS]ER\b/g, '').trim();
   const abnormalities: AbnormalityFinding[] = [];
 
@@ -185,6 +186,15 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     frequencyToken = weekday.token;
   } else if (shift) {
     frequencyToken = `QD (DURING ${shift[1]} SHIFT)`;
+  } else if (/\b(?:EVERY OTHER DAY|EVERY 2 DAYS|QOD|QDQ2D)\b/.test(scheduleProse)) {
+    if (/\b(?:[2-9] TIMES|TWICE|BID|TID|QID|Q\d+H)\b|\bMORNING\b.*\bBEDTIME\b/.test(scheduleProse)) {
+      abnormalities.push({ id: 'complex_alternate_day_schedule', tier: 'uncorrected_gap', title: 'Alternate-Day Schedule Requires Review',
+        message: 'The within-day frequency and alternate-day qualifier were retained for review.', trigger: rawProse });
+      return { frequencyToken: '', abnormalities, requiresManualTranslation: true };
+    }
+    frequencyToken = 'QDQ2D';
+    if (/\b(?:EVERY MORNING|IN THE MORNING)\b/.test(scheduleProse)) frequencyToken += ' IN THE MORNING';
+    if (/\bAT BEDTIME\b/.test(scheduleProse)) frequencyToken += ' AT BEDTIME';
   } else if (scheduleProse.includes('EVERY MORNING AND AT BEDTIME') || (/\b(?:EVERY\s+)?MORNING\b.*?\bAND\b.*?\bBEDTIME\b/i.test(scheduleProse))) {
     frequencyToken = 'BIDAMHS';
   } else if (scheduleProse.includes('BEFORE BREAKFAST')) {
@@ -212,9 +222,9 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     frequencyToken = 'TID';
   } else if (/\b(?:TWO|2) TIMES (?:A|PER|EACH) DAY\b|\bTWICE DAILY\b|\bBID\b/.test(scheduleProse)) {
     frequencyToken = 'BID';
-  } else if (/\b(?:ONE TIME ONLY|ONCE ONLY|X1)\b/.test(scheduleProse)) {
+  } else if (/\b(?:(?:ONE|1) TIME ONLY|ONCE ONLY|X1)\b/.test(scheduleProse)) {
     frequencyToken = /\bONLY\b/.test(scheduleProse) ? 'X1 ONLY' : 'X1';
-  } else if (/\b(?:DAILY|EVERY\s+DAY|ONCE\s+(?:A\s+)?DAY|ONE\s+TIME\s+A\s+DAY|QD)\b/.test(scheduleProse)) {
+  } else if (/\b(?:DAILY|EVERY\s+DAY|ONCE\s+(?:A\s+)?DAY|(?:ONE|1)\s+TIME\s+(?:A|PER|EACH)\s+DAY|QD)\b/.test(scheduleProse)) {
     frequencyToken = 'QD';
   }
 
@@ -223,6 +233,11 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     if (mealCodes[frequencyToken] && SIG_CODE_REFERENCE[mealCodes[frequencyToken]]) frequencyToken = mealCodes[frequencyToken];
     else if (frequencyToken) frequencyToken += ' BEFORE MEALS';
   }
+  if (frequencyToken && /\bWITH MEALS\b/.test(scheduleProse)) {
+    const code = ({ QD: 'WMQD', BID: 'WMBID', TID: 'WMTID' } as Record<string, string>)[frequencyToken];
+    frequencyToken = code && SIG_CODE_REFERENCE[code] ? code : `${frequencyToken} WM`.trim();
+  }
+  if (frequencyToken && /\bON AN? EMPTY STOMACH\b/.test(scheduleProse)) frequencyToken = `${frequencyToken} ON AN EMPTY STOMACH`.trim();
 
   const unsupportedInterval = !frequencyToken && /\b(?:EVERY|EACH\s+(?:DAY|HOUR|WEEK|MORNING|EVENING|NIGHT)|TIMES\s+(?:A|PER))\b/.test(scheduleProse);
   if (!frequencyToken) {

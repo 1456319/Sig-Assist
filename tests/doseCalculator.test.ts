@@ -135,7 +135,7 @@ describe('doseCalculator', () => {
     expect(res.doseToken).toBe('2T (40MG)');
     expect(res.routeToken).toBe('PO');
 
-    const poRes = calculateDoseAndVolume('METOPROLOL TARTRATE 25MG', 'Give 2 PO QD');
+    const poRes = calculateDoseAndVolume('METOPROLOL TARTRATE TAB 25MG', 'Give 2 PO QD');
     expect(poRes.doseToken).toBe('2T (50MG)');
     expect(poRes.routeToken).toBe('PO');
   });

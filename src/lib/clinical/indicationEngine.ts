@@ -9,11 +9,12 @@ for (const [code, expansion] of Object.entries(SIG_CODE_REFERENCE)) {
 // institutional aliases choose among synonymous codes in the root reference.
 export const INDICATION_MAP: Record<string, string> = {
   ...referenceIndications,
-  GERD: 'FGERD', SUPPLEMENT: 'FSU', DM: 'FDM', DM2: 'FDM2',
+  GERD: 'FGERD', SUPPLEMENT: 'FSU', SUPPLEMENTATION: 'FSU', DM: 'FDM', DM2: 'FDM2',
   'TYPE 2 DIABETES': 'FDM2', BPH: 'FBPH', HYPOTHYROIDISM: 'FHYT',
   'GI PROPHYLAXIS': 'FGIP', COUGH: 'FCOU', HTN: 'FHTN', CONSTIPATION: 'FCON',
   'DVT PREVENTION': 'FDVTP', 'BLOOD CLOT PREVENTION': 'FBCP', PAIN: 'FPAIN',
   'SHORTNESS OF BREATH OR WHEEZING': 'FSOBW', 'SOB OR WHEEZING': 'FSOBW',
+  SOB: 'FSOB',
   AFIB: 'FAFIB',
 };
 
@@ -44,16 +45,24 @@ export function resolveIndicationToken(indication?: string): string | undefined 
   if (!cleaned) return undefined;
   if (INDICATION_MAP[cleaned]) return INDICATION_MAP[cleaned];
   if (Object.values(INDICATION_MAP).includes(cleaned)) return cleaned;
-  const clauses = cleaned.split(/\s+(AND|OR)\s+/);
-  if (clauses.length > 1 && clauses.some((c, i) => i % 2 === 0 && INDICATION_MAP[c])) {
-    return clauses.map((clause, i) => i % 2 ? clause : INDICATION_MAP[clause] || `FOR ${clause}`).join(' ');
+  // Prefer a complete compound indication (e.g. nausea OR vomiting) before
+  // splitting into individual symptoms. Never change AND into OR.
+  for (const separator of cleaned.matchAll(/\s+(?:AND|OR)\s+/g)) {
+    const left = cleaned.slice(0, separator.index);
+    const right = cleaned.slice(separator.index! + separator[0].length);
+    if (INDICATION_MAP[right]) return `${resolveIndicationToken(left)}${separator[0]}${INDICATION_MAP[right]}`;
+    if (INDICATION_MAP[left]) return `${INDICATION_MAP[left]}${separator[0]}${resolveIndicationToken(right)}`;
   }
-  return `FOR ${cleaned}`;
+  const clauses = cleaned.split(/(\s+AND\s+|\s+OR\s+|\s*\/\s*)/);
+  if (clauses.length > 1 && clauses.some((c, i) => i % 2 === 0 && INDICATION_MAP[c])) {
+    return clauses.map((clause, i) => i % 2 ? clause : INDICATION_MAP[clause] || `FOR ${clause}`).join('');
+  }
+  return `FOR ${cleaned.replace(/\bSORETHROAT\b/g, 'SORE THROAT')}`;
 }
 
 // Only explicit directives qualify here. A diagnosis such as DAILY EYE
 // DISCOMFORT cannot supply a missing frequency.
-const TRAILING_SCHEDULE = /\b(?:(?:\d+|ONE|TWO|THREE|FOUR)\s+TIMES?\s+(?:A|PER|EACH)\s+DAY|TWICE\s+DAILY|EVERY\s+(?:\d+\s+HOURS?|MORNING)|IN\s+THE\s+(?:MORNING|EVENING)|(?:TAKE\s+)?BEFORE\s+MEALS|BEFORE\s+BREAKFAST|AFTER\s+DINNER|AS\s+NEEDED|PRN)\b/i;
+const TRAILING_SCHEDULE = /\b(?:(?:\d+|ONE|TWO|THREE|FOUR)\s+TIMES?\s+(?:A|PER|EACH)\s+DAY|TWICE\s+DAILY|EVERY\s+(?:\d+\s+HOURS?|MORNING)|IN\s+THE\s+(?:MORNING|EVENING)|(?:TAKE\s+)?BEFORE\s+MEALS|BEFORE\s+BREAKFAST|AFTER\s+DINNER|WITH\s+MEALS|ON\s+AN?\s+EMPTY\s+STOMACH|AS\s+NEEDED|PRN)\b/i;
 
 function indicationStart(prose: string): number | undefined {
   const upper = prose.toUpperCase();
@@ -66,13 +75,19 @@ function indicationStart(prose: string): number | undefined {
   return undefined;
 }
 
-export function extractIndicationToken(prose: string): string | undefined {
-  prose = protectIndicationDurations(prose);
+export function indicationSpan(prose: string): { start: number; end: number } | undefined {
   const start = indicationStart(prose);
   if (start === undefined) return undefined;
-  const indication = prose.slice(start).replace(/^FOR\s+/i, '')
-    .split(/\b(?:HOLD\s+(?:IF|FOR|WHEN)|(?:FOR\s+(?:UP\s+TO\s+)?|X\s*)\d[\d./ -]*\s*(?:DAYS?|D\b|WEEKS?|WK\b|MONTHS?|HOURS?)|THEN\s+(?:STOP|DISCONTINUE)|SWISH\s+AND\s+(?:SWALLOW|SPIT))\b/i)[0].trim();
-  return resolveIndicationToken(indication.split(TRAILING_SCHEDULE)[0]);
+  const tail = prose.slice(start);
+  const clinicalEnd = tail.search(/\b(?:HOLD\s+(?:IF|FOR|WHEN)|(?:FOR\s+(?:UP\s+TO\s+)?|X\s*)\d[\d./ -]*\s*(?:DAYS?|D\b|WEEKS?|WK\b|MONTHS?|HOURS?|DOSES?)|THEN\s+(?:STOP|DISCONTINUE)|SWISH\s+AND\s+(?:SWALLOW|SPIT))\b/i);
+  const scheduleEnd = tail.search(TRAILING_SCHEDULE);
+  return { start, end: start + Math.min(...[tail.length, clinicalEnd, scheduleEnd].filter(n => n >= 0)) };
+}
+
+export function extractIndicationToken(prose: string): string | undefined {
+  prose = protectIndicationDurations(prose);
+  const span = indicationSpan(prose);
+  return span ? resolveIndicationToken(prose.slice(span.start, span.end)) : undefined;
 }
 
 export function administrationScheduleProse(prose: string): string {

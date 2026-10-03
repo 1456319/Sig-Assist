@@ -1,0 +1,87 @@
+[
+  {
+    "case": 1,
+    "drugName": "ARIPiprazole Oral Tablet 5 MG",
+    "rawProse": "Give 1.5 tablet by mouth one time a day for Schizoaffective Disorder"
+  },
+  {
+    "case": 2,
+    "drugName": "Magnesium Hydroxide Oral Suspension",
+    "rawProse": "Give 30 ml by mouth every 24 hours as needed for Constipation"
+  },
+  {
+    "case": 3,
+    "drugName": "Hyoscyamine Sulfate Oral Tablet 0.125 MG",
+    "rawProse": "Give 1 tablet sublingually every 4 hours as needed for secretions"
+  },
+  {
+    "case": 4,
+    "drugName": "Haloperidol Lactate Concentrate 2 MG/ML",
+    "rawProse": "Give 0.5 ml by mouth every 6 hours as needed for agitation or nausea and vomiting"
+  },
+  {
+    "case": 5,
+    "drugName": "BISACODYL SUPP 10MG",
+    "rawProse": "Insert 1 suppository rectally every 24 hours as needed for constipation"
+  },
+  {
+    "case": 6,
+    "drugName": "HYDROCORTISONE CRM 2.5%",
+    "rawProse": "Apply a small amount to affected area once a day as needed for rash/hives for 14 days"
+  },
+  {
+    "case": 7,
+    "drugName": "ALBUTEROL INH SOLN 0.083%",
+    "rawProse": "3 ml inhale orally via nebulizer three times a day for SOB/congestion/wheezing for 7 Days"
+  },
+  {
+    "case": 8,
+    "drugName": "Estradiol Vaginal Cream 0.01 %",
+    "rawProse": "Insert 1 gram vaginally every day shift for vaginal dryness"
+  },
+  {
+    "case": 9,
+    "drugName": "Naproxen Oral Tablet 500 MG",
+    "rawProse": "Give 1 tablet orally every 12 hours as needed for Pain give 1 tab PO PRN Q 12 hours for up to 40 doses."
+  },
+  {
+    "case": 10,
+    "drugName": "Diabetic Tussin Cough Drops Mouth/Throat Lozenge",
+    "rawProse": "Give 1 lozenge by mouth every 6 hours as needed for sorethroat for 3 Days"
+  },
+  {
+    "case": 11,
+    "drugName": "Debrox Otic Solution",
+    "rawProse": "Instill 3 drop in left ear two times a day for loosen earwax"
+  },
+  {
+    "case": 12,
+    "drugName": "Levothyroxine Sodium Tablet 112 MCG",
+    "rawProse": "Give 1 tablet by mouth one time a day for low thyroid hormone TAKE 1 TABLET BY MOUTH DAILY IN THE MORNING ON AN EMPTY STOMACH"
+  },
+  {
+    "case": 13,
+    "drugName": "Levothyroxine Sodium Tablet 112 MCG",
+    "rawProse": "Give 1 tablet by mouth one time a day for low thyroid hormone TAKE 1 TABLET BY MOUTH DAILY IN THE MORNING ON AN EMPTY STOMACH"
+  },
+  {
+    "case": 14,
+    "drugName": "Potassium Chloride ER Tablet Extended Release 10 MEQ",
+    "rawProse": "Give 1 tablet by mouth two times a day for hypokalemia with meals"
+  },
+  {
+    "case": 15,
+    "drugName": "Dulcolax Rectal Suppository 10 MG",
+    "rawProse": "Insert 1 suppository rectally every 24 hours as needed for Constipation"
+  },
+  {
+    "case": 16,
+    "drugName": "GlycoLax Powder",
+    "rawProse": "Give 17 gram by mouth every 24 hours as needed for constipation"
+  },
+  {
+    "case": 17,
+    "drugName": "Ferrous Sulfate Tablet 325 (65 Fe) MG",
+    "rawProse": "Give 1 tablet by mouth every other day for supplementation"
+  }
+]
