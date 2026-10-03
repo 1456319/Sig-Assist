@@ -1,27 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import cases from './fixtures/reported-discrepancies-2026-10-03.json';
+import expected from './fixtures/reported-discrepancies-2026-10-03-expected.json';
 import { translateClinicalSig } from '../src/lib/clinical/clinicalEngine';
 
 const translate = (drugName: string, rawProse: string) => translateClinicalSig({ id: 'regression', pon: 'MANUAL_ENTRY', drugName, rawProse, sourceFormat: 'manual_text' });
-const expected = [
-  '1.5T (7.5MG) PO QD FOR SCHIZOAFFECTIVE DISORDER',
-  'ADM 30ML PO Q24H PRN FCON',
-  '1T SL Q4H PRN FOR SECRETIONS',
-  'LOR1MG PO Q6H PRN FAGT OR FNA AND FVOM',
-  '1RS Q24H PRN FCON',
-  'APPLY A SMALL AMOUNT TO AFFECTED AREA QD PRN FOR RASH/HIVES X14D',
-  '1V NEB TID X7D FSOB/FCOG/FWHZ',
-  'INSERT 1GM PV QD (DURING DAY SHIFT) FOR VAGINAL DRYNESS',
-  '1T PO Q12H PRN FPAIN. FOR UP TO 40 DOSES',
-  '1LOZ PO Q6H PRN FOR SORE THROAT X3D',
-  '3G AL BID FOR LOOSEN EARWAX',
-  '1T PO QAM ON AN EMPTY STOMACH FOR LOW THYROID HORMONE',
-  '1T PO QAM ON AN EMPTY STOMACH FOR LOW THYROID HORMONE',
-  '1T PO WMBID FOR HYPOKALEMIA',
-  '1RS Q24H PRN FCON',
-  'MIX 17 GM (SEE INSIDE CAP) IN 8OZ OF WATER AND GIVE PO Q24H PRN FCON',
-  '1T PO QDQ2D FSU',
-];
+
 
 describe('October 3 reported translator discrepancies', () => {
   it.each(cases.map((c, i) => ({ ...c, expected: expected[i] })))('case $case: $drugName', c => {
