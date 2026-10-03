@@ -52,20 +52,22 @@ export async function helperExecutable() {
 }
 export async function runDesktopHelper(input) {
   const exe = await helperExecutable();
-  return JSON.parse(await execute(exe, [], JSON.stringify(input), ['detect', 'inspect'].includes(input.action) ? 45000 : 20000));
+  return JSON.parse(await execute(exe, [], JSON.stringify(input), input.action === 'window' ? 55000 : ['detect', 'inspect'].includes(input.action) ? 45000 : 20000));
 }
 
 // Bindings stay in this process, expire and are consumed before a write. The page
 // receives an opaque token, never a client-editable process/control selector.
 export function createDesktopSession({ run = runDesktopHelper, now = Date.now } = {}) {
-  const bindings = new Map(); let busy = false;
-  function remember(result) {
+  const bindings = new Map(); let busy = false; let entryWindow;
+  function remember(result, selectEntry = false) {
     if (!result.ok) return result;
+    if (selectEntry && result.entryWindow) entryWindow = { ...result.entryWindow };
     const token = randomUUID(); const expiresAt = now() + 5 * 60 * 1000;
     bindings.set(token, { detected: result, expiresAt });
     for (const [key, item] of bindings) if (item.expiresAt < now() || bindings.size > 20) bindings.delete(key);
     return { ok: true, token, expiresAt, pon: result.pon, pons: result.pons ?? [], warnings: result.warnings ?? [],
       instances: result.instances, openErxWindows: result.openErxWindows, viewportStatus: result.viewportStatus,
+      entryWindow: entryWindow ? { title: entryWindow.title, pid: entryWindow.pid } : undefined, scanMode: result.scanMode,
       fields: Object.fromEntries(Object.entries(result.fields ?? {}).map(([key, value]) => [key, { label: value.label, currentValue: value.value }])),
       diagnostics: result.diagnostics };
   }
@@ -74,12 +76,17 @@ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } 
     busy = true;
     let writeStarted = false;
     try {
-      if (action === 'detect') { bindings.clear(); return remember(await run({ action: 'detect', positionReview: body.positionReview === true })); }
+      if (action === 'detect') {
+        bindings.clear();
+        const input = { action: body.chooseWindow === true ? 'window' : 'detect', positionReview: body.positionReview === true };
+        if (input.action === 'detect' && entryWindow) input.entryWindow = entryWindow;
+        return remember(await run(input), true);
+      }
       if (action === 'target') {
         if (!['sig', 'times'].includes(body.field)) throw new Error('Unknown destination field.');
         bindings.clear(); return remember(await run({ action: 'target', field: body.field }));
       }
-      if (action === 'inspect') return await run({ action: 'inspect' });
+      if (action === 'inspect') return await run({ action: 'inspect', ...(entryWindow ? { entryWindow } : {}) });
       if (action !== 'send') return { ok: false, error: 'Unknown desktop action.' };
       const bound = bindings.get(body.token);
       bindings.delete(body.token);

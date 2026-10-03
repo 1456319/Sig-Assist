@@ -11,6 +11,19 @@ function Harness({ initial }: { initial?: FrameworkDetection }) {
 }
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 describe('technician-controlled Framework sending', () => {
+  it('offers explicit entry-window selection and displays the remembered window', async () => {
+    const result = { ok: true, pon: 'PON-A', pons: ['PON-A'], entryWindow: { title: 'Framework entry fixture', pid: 41 } };
+    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify(result))));
+    vi.stubGlobal('fetch', fetcher);
+    render(<FrameworkDetect disabled={false} onStart={vi.fn()} onDetected={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Choose entry window' }));
+    expect(screen.getByText(/Click inside the Framework window you use/)).toBeTruthy();
+    await screen.findByText(/Entry window: Framework entry fixture/);
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ positionReview: false, chooseWindow: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Detect open E-Rx' }));
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+    expect(JSON.parse(fetcher.mock.calls[1][1].body)).toEqual({ positionReview: false });
+  });
   it('uses Iguana for details after PON detection and makes desktop positioning optional', async () => {
     const result = { ok: true, pon: 'PON-A', pons: ['PON-A'] };
     const fetcher = vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify(result))));

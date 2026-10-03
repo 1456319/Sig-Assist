@@ -8,6 +8,9 @@ export interface FrameworkDetection {
   instances?: number;
   openErxWindows?: number;
   viewportStatus?: string;
+  entryWindow?: { title: string; pid: number };
+  scanMode?: string;
+  windowSelectionRequired?: boolean;
   warnings?: string[];
   fields?: Partial<Record<'sig' | 'times', { label: string; currentValue: string }>>;
   diagnostics?: unknown;

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Web.Script.Serialization;
@@ -16,11 +17,15 @@ public sealed class ControlInfo {
     [ScriptIgnore] public AutomationElement element;
 }
 public sealed class WindowInfo {
-    public int pid;
+    public int pid, handle;
     public string process, started, id, title;
     public bool incomplete, openErx;
     public List<ControlInfo> controls = new List<ControlInfo>();
     public List<GridInfo> grids = new List<GridInfo>();
+}
+public sealed class EntryWindow {
+    public int pid, handle;
+    public string started, id, title;
 }
 public sealed class GridRow {
     public int index;
@@ -54,11 +59,17 @@ sealed class ScanNode {
 }
 public sealed class DesktopSnapshot {
     public string format = "sig-assist-framework-desktop";
-    public int schemaVersion = 3;
+    public int schemaVersion = 4;
+    public string scanMode;
+    public int windowsScanned;
+    public EntryWindow entryWindow;
+    public bool entryUnavailable;
     public List<WindowInfo> windows = new List<WindowInfo>();
     public List<string> issues = new List<string>();
 }
 public static class FrameworkDesktop {
+    [DllImport("user32.dll")] static extern IntPtr GetTopWindow(IntPtr parent);
+    [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr window, uint command);
     static bool writeAttempted;
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = 4 * 1024 * 1024 };
     static readonly Regex PonLabel = new Regex(@"^(?:PON|Prescriber Order (?:Number|No\.?))\s*:?$", RegexOptions.IgnoreCase);
@@ -101,28 +112,67 @@ public static class FrameworkDesktop {
         return new[] { "ERxWorkQueueWizardView", "ERxWorkQueueView" }.Contains(control.className)
             || control.automationId == "ERxWorkQueueWizardView";
     }
-    static DesktopSnapshot Scan(string testProcess, bool expandGrids = false, bool positionReview = false) {
-        var result = new DesktopSnapshot();
-        var session = Process.GetCurrentProcess().SessionId;
-        var processes = new Dictionary<int, Process>();
-        foreach (var process in Process.GetProcesses()) {
-            try {
-                bool match = testProcess == null ? new[] { "FrameworkLTC", "SoftWriters.FrameworkLtc" }.Contains(process.ProcessName, StringComparer.OrdinalIgnoreCase) : process.ProcessName == testProcess;
-                if (match && process.SessionId == session) processes.Add(process.Id, process);
-            } catch { }
+    static bool FrameworkProcess(Process process, string testProcess) {
+        return process.SessionId == Process.GetCurrentProcess().SessionId && (testProcess == null
+            ? new[] { "FrameworkLTC", "SoftWriters.FrameworkLtc" }.Contains(process.ProcessName, StringComparer.OrdinalIgnoreCase)
+            : process.ProcessName == testProcess);
+    }
+    static EntryWindow Identity(WindowInfo window) {
+        return new EntryWindow { pid = window.pid, handle = window.handle, started = window.started, id = window.id, title = window.title };
+    }
+    static EntryWindow InputWindow(object value) { return value == null ? null : Json.Deserialize<EntryWindow>(Json.Serialize(value)); }
+    static AutomationElement RememberedRoot(EntryWindow entry, string testProcess) {
+        using (var process = Process.GetProcessById(entry.pid)) {
+            if (!FrameworkProcess(process, testProcess) || process.StartTime.ToUniversalTime().Ticks.ToString() != entry.started || entry.handle == 0)
+                throw new Exception("The entry window's process was closed or replaced.");
         }
-        if (processes.Count == 0) { result.issues.Add("Framework is not running in this Windows session. Start the connector inside the same Citrix session as Framework."); return result; }
-        var roots = AutomationElement.RootElement.FindAll(TreeScope.Children, Condition.TrueCondition);
+        var root = AutomationElement.FromHandle(new IntPtr(entry.handle));
+        if (root == null || root.Current.ProcessId != entry.pid || Id(root) != entry.id) throw new Exception("The entry window was closed or replaced.");
+        if (root.Current.IsOffscreen) throw new Exception("The entry window is minimized or not visible.");
+        return root;
+    }
+    static int ZOrder(AutomationElement root, Dictionary<int, int> order) {
+        try { int handle = root.Current.NativeWindowHandle; return order.ContainsKey(handle) ? order[handle] : Int32.MaxValue; }
+        catch { return Int32.MaxValue; }
+    }
+    static DesktopSnapshot Scan(string testProcess, bool expandGrids = false, bool positionReview = false, EntryWindow entry = null) {
+        var result = new DesktopSnapshot { scanMode = entry == null ? "discover-entry" : "remembered-entry", entryWindow = entry };
+        var processes = new Dictionary<int, Process>();
+        AutomationElement[] roots;
+        if (entry != null) {
+            // Fast path: no process enumeration, desktop tree walk or other
+            // Framework windows. Validate the remembered handle directly.
+            try { roots = new[] { RememberedRoot(entry, testProcess) }; processes.Add(entry.pid, Process.GetProcessById(entry.pid)); }
+            catch (Exception error) {
+                result.entryUnavailable = true;
+                result.issues.Add("Remembered Framework entry window is unavailable. Restore it or use Choose entry window. " + error.Message);
+                return result;
+            }
+        } else {
+            foreach (var process in Process.GetProcesses()) {
+                try { if (FrameworkProcess(process, testProcess)) processes.Add(process.Id, process); } catch { }
+            }
+            if (processes.Count == 0) { result.issues.Add("Framework is not running in this Windows session. Start the connector inside the same Citrix session as Framework."); return result; }
+            // First discovery prefers the frontmost Framework window. The web
+            // browser may now be foreground, so use desktop Z order, not focus.
+            var order = new Dictionary<int, int>(); var handle = GetTopWindow(IntPtr.Zero);
+            while (handle != IntPtr.Zero && order.Count < 1024) {
+                int key = unchecked((int)handle.ToInt64()); if (order.ContainsKey(key)) break;
+                order[key] = order.Count; handle = GetWindow(handle, 2); // GW_HWNDNEXT
+            }
+            roots = AutomationElement.RootElement.FindAll(TreeScope.Children, Condition.TrueCondition).Cast<AutomationElement>().OrderBy(root => ZOrder(root, order)).ToArray();
+        }
         foreach (AutomationElement root in roots) {
             int pid;
             try { pid = root.Current.ProcessId; } catch { continue; }
             if (!processes.ContainsKey(pid)) continue;
             WindowInfo window;
             try {
-                window = new WindowInfo { pid = pid, process = processes[pid].ProcessName, started = processes[pid].StartTime.ToUniversalTime().Ticks.ToString(), id = Id(root), title = root.Current.Name };
+                window = new WindowInfo { pid = pid, handle = root.Current.NativeWindowHandle, process = processes[pid].ProcessName, started = processes[pid].StartTime.ToUniversalTime().Ticks.ToString(), id = Id(root), title = root.Current.Name };
                 if (root.Current.IsOffscreen) continue;
             } catch { result.issues.Add("A Framework window could not be inspected."); continue; }
             result.windows.Add(window);
+            result.windowsScanned++;
             var pending = new Stack<ScanNode>();
             pending.Push(new ScanNode { element = root, parentId = "" });
             int visited = 0;
@@ -139,6 +189,7 @@ public static class FrameworkDesktop {
                     item.inOpenErx = !item.inTriage && (next.inOpenErx || (!item.hidden && item.enabled && OpenView(item)));
                     if (item.inOpenErx && !item.hidden) window.openErx = true;
                     window.controls.Add(item);
+                    if (item.hidden) continue;
                     var child = TreeWalker.ControlViewWalker.GetFirstChild(next.element);
                     if (next.depth >= 24 && child != null) { window.incomplete = true; continue; }
                     int siblings = 0;
@@ -149,6 +200,12 @@ public static class FrameworkDesktop {
                     }
                 } catch { window.incomplete = true; }
             }
+            if (entry != null || window.openErx || window.controls.Any(c => !c.hidden && !c.inTriage && Pon(c) != "")) {
+                result.entryWindow = Identity(window);
+                // Discard discovery candidates and stop before inspecting the
+                // remaining instances, including unrelated open E-Rx windows.
+                result.windows.Clear(); result.windows.Add(window); break;
+            }
         }
         // Only the visible detail grids of an opened wizard are expanded. Triage
         // rows and hidden cached wizard pages belong to other orders.
@@ -158,7 +215,11 @@ public static class FrameworkDesktop {
                 window.grids.Add(ReadGrid(grid, expandGrids, positionReview, budget));
             }
         }
-        if (result.windows.Count == 0) result.issues.Add("No accessible Framework window is open. A remote Citrix picture on a local desktop cannot expose the remote fields.");
+        if (result.windows.Count == 0) {
+            result.entryUnavailable = entry != null;
+            result.issues.Add(entry != null ? "The remembered Framework entry window could not be read. Restore it or use Choose entry window."
+                : "No accessible Framework window is open. A remote Citrix picture on a local desktop cannot expose the remote fields.");
+        }
         return result;
     }
     static bool PonTitle(string title) {
@@ -370,9 +431,10 @@ public static class FrameworkDesktop {
     }
     static object FieldInfo(WindowInfo window, ControlInfo control, bool manual) {
         return new { id = control.id, value = control.value, label = Label(control), pid = window.pid,
-            started = window.started, window = window.id, manual = manual };
+            started = window.started, window = window.id, handle = window.handle, manual = manual };
     }
     static object Detect(DesktopSnapshot snapshot, string chosenId = null, string chosenField = null) {
+        if (snapshot.entryUnavailable) return new { ok = false, error = snapshot.issues.FirstOrDefault(), windowSelectionRequired = true, diagnostics = snapshot };
         var open = snapshot.windows.Where(w => w.openErx).ToArray();
         var scope = open.Length > 0 ? open : snapshot.windows.ToArray();
         var pons = scope.SelectMany(w => w.controls).Where(c => !c.hidden && !c.inTriage && (open.Length == 0 || c.inOpenErx)).Select(c => Pon(c))
@@ -381,7 +443,6 @@ public static class FrameworkDesktop {
         var warnings = new List<string>(snapshot.issues);
         if (pons.Length > 1) warnings.Add("Multiple PONs detected: " + String.Join(", ", pons) + ". Match the intended order before sending.");
         if (snapshot.windows.Any(w => w.incomplete)) warnings.Add("Some Framework controls could not be read. Verify the destination in Framework.");
-        if (open.Length > 1) warnings.Add("More than one Framework window has an open E-Rx. Check the intended order; sending remains available after review.");
         if (open.Any(w => w.grids.Any(g => g.expanded && !g.ponFound && !g.complete))) warnings.Add("The PON could not be read from an open E-Rx detail grid. Export desktop diagnostics if the order is missing.");
         var positions = open.SelectMany(w => w.grids).Where(g => g.expanded).Select(g => g.reviewPosition).ToArray();
         string viewportStatus = positions.Contains("rxfill-visible") ? "Framework details left at RxFill Indicator / All Fill Statuses. Check the SIG and administration times there."
@@ -394,10 +455,34 @@ public static class FrameworkDesktop {
             if (controls.Length == 1) fields[field] = FieldInfo(controls[0].window, controls[0].control, chosenField == field);
         }
         return new { ok = true, pon = pons.Length == 1 ? pons[0] : null, pons = pons, fields = fields, warnings = warnings,
-            instances = snapshot.windows.Select(w => w.pid).Distinct().Count(), openErxWindows = open.Length, viewportStatus = viewportStatus, diagnostics = snapshot };
+            instances = snapshot.windows.Select(w => w.pid).Distinct().Count(), openErxWindows = open.Length, viewportStatus = viewportStatus,
+            entryWindow = snapshot.entryWindow, scanMode = snapshot.scanMode, diagnostics = snapshot };
     }
     static string Serialize(object value) { return Json.Serialize(value); }
     static Dictionary<string, object> Map(object value) { return (Dictionary<string, object>)value; }
+    static EntryWindow FocusedWindow(AutomationElement focused, string testProcess) {
+        if (focused == null) throw new Exception("Click inside the Framework entry window and choose it again.");
+        var root = focused; string desktopId = Id(AutomationElement.RootElement);
+        for (int depth = 0; depth < 40; depth++) {
+            var parent = TreeWalker.RawViewWalker.GetParent(root);
+            if (parent == null || Id(parent) == desktopId) {
+                using (var process = Process.GetProcessById(root.Current.ProcessId)) {
+                    if (!FrameworkProcess(process, testProcess) || root.Current.NativeWindowHandle == 0)
+                        throw new Exception("Click inside the Framework entry window in this Windows session and choose it again.");
+                    return new EntryWindow { pid = process.Id, started = process.StartTime.ToUniversalTime().Ticks.ToString(),
+                        handle = root.Current.NativeWindowHandle, id = Id(root), title = root.Current.Name };
+                }
+            }
+            root = parent;
+        }
+        throw new Exception("The focused Framework window could not be identified. Choose it again.");
+    }
+    static object ChooseEntryWindow(string testProcess, bool positionReview) {
+        System.Threading.Thread.Sleep(8000);
+        var entry = FocusedWindow(AutomationElement.FocusedElement, testProcess);
+        var snapshot = Scan(testProcess, true, positionReview, entry); snapshot.scanMode = "chosen-entry";
+        return Detect(snapshot);
+    }
     static object ChooseTarget(string field, string testProcess) {
         if (field != "sig" && field != "times") throw new Exception("Unknown destination field.");
         // Read-only selection. The technician clicks a field during the countdown,
@@ -406,7 +491,7 @@ public static class FrameworkDesktop {
         var focused = AutomationElement.FocusedElement;
         var selected = Read(focused);
         if (selected == null || selected.offscreen || !selected.enabled || !selected.writable || selected.type != "ControlType.Edit") throw new Exception("The selected field is not an editable text field. Click directly inside the Framework field and choose it again.");
-        var snapshot = Scan(testProcess);
+        var snapshot = Scan(testProcess, false, false, FocusedWindow(focused, testProcess));
         if (!snapshot.windows.Any(w => w.controls.Any(c => c.id == selected.id))) throw new Exception("The selected field is outside Framework in this Windows session.");
         return Detect(snapshot, selected.id, field);
     }
@@ -435,7 +520,7 @@ public static class FrameworkDesktop {
         if (after == null || after.id != fresh.id || after.value != value)
             return new { ok = false, uncertain = true, error = "A write was attempted but exact text read-back failed. Inspect Framework before sending again." };
         return new { ok = true, verified = true, field = field, warnings = warnings,
-            detected = Detect(Scan(testProcess), control.id, field) };
+            detected = Detect(Scan(testProcess, false, false, Identity(window)), control.id, field) };
     }
     [STAThread]
     public static int Main(string[] args) {
@@ -447,7 +532,16 @@ public static class FrameworkDesktop {
             var action = Text(input["action"]);
             if (action == "target") { Console.WriteLine(Serialize(ChooseTarget(Text(input["field"]), testProcess))); return 0; }
             bool positionReview = input.ContainsKey("positionReview") && Object.Equals(input["positionReview"], true);
-            var snapshot = Scan(testProcess, action == "detect" || action == "inspect", positionReview);
+            if (action == "window") { Console.WriteLine(Serialize(ChooseEntryWindow(testProcess, positionReview))); return 0; }
+            var entry = input.ContainsKey("entryWindow") ? InputWindow(input["entryWindow"]) : null;
+            if (action == "send") {
+                var fields = Map(Map(input["expected"])["fields"]); string field = Text(input["field"]);
+                if (!fields.ContainsKey(field)) throw new Exception("Choose the destination field in Framework first.");
+                var destination = Map(fields[field]);
+                entry = new EntryWindow { pid = Convert.ToInt32(destination["pid"]), started = Text(destination["started"]),
+                    id = Text(destination["window"]), handle = Convert.ToInt32(destination["handle"]) };
+            }
+            var snapshot = Scan(testProcess, action == "detect" || action == "inspect", positionReview, entry);
             object result = action == "detect" ? Detect(snapshot) : action == "inspect" ? (object)new { ok = true, diagnostics = snapshot } : action == "send" ? Send(input, snapshot, testProcess) : throwUnknown();
             Console.WriteLine(Serialize(result)); return 0;
         } catch (Exception error) { Console.WriteLine(Serialize(new { ok = false, uncertain = writeAttempted, error = error.Message })); return 0; }

@@ -42,7 +42,8 @@ try {
   assert.equal(queueOnly.openErxWindows, 0); assert.deepEqual(queueOnly.pons, [], summary(queueOnly));
   let opened = await launch('opened', 'open');
   const direct = await run({ action: 'detect' });
-  assert.equal(direct.ok, true, summary(direct)); assert.equal(direct.instances, 5, summary(direct));
+  assert.equal(direct.ok, true, summary(direct)); assert.equal(direct.instances, 1, summary(direct));
+  assert.equal(direct.entryWindow.pid, opened.app.pid); assert.equal(direct.diagnostics.windowsScanned, 1);
   assert.equal(direct.openErxWindows, 1, summary(direct)); assert.deepEqual(direct.pons, ['SYNTHETIC-OPEN'], summary(direct));
   assert.equal(direct.fields.sig.value, 'OLD OPEN SIG');
   const grid = direct.diagnostics.windows.find(w => w.openErx).grids[0];
@@ -52,7 +53,8 @@ try {
   assert.equal(grid.reviewPosition, 'unchanged'); assert.equal(grid.anchorVisible, false);
   assert.equal((await readFile(path.join(opened.dir, 'state'), 'utf8')).split(',')[1], '0');
   assert.ok(!direct.warnings.some(w => w.includes('could not be read')));
-  const positioned = await run({ action: 'detect', positionReview: true });
+  const positioned = await run({ action: 'detect', positionReview: true, entryWindow: direct.entryWindow });
+  assert.equal(positioned.diagnostics.scanMode, 'remembered-entry'); assert.equal(positioned.diagnostics.windowsScanned, 1);
   assert.equal(positioned.diagnostics.windows.find(w => w.openErx).grids[0].reviewPosition, 'rxfill-visible');
   assert.equal((await readFile(path.join(opened.dir, 'state'), 'utf8')).split(',')[0], '38');
   // No read/scroll of the other instance's queue grid, despite an identical ID.
@@ -64,21 +66,35 @@ try {
   assert.ok(scrollGrid.pages >= 3, summary(scrolled)); assert.equal(scrollGrid.ponFound, true); assert.equal(scrollGrid.reviewPosition, 'unchanged');
   assert.equal((await readFile(path.join(opened.dir, 'state'), 'utf8')).split(',')[0], '50');
   await stop(idle.app); const second = await launch('second', 'open-second');
-  const multiple = await run({ action: 'detect' });
-  assert.equal(multiple.instances, 5); assert.equal(multiple.openErxWindows, 2); assert.equal(multiple.pon, null);
-  assert.deepEqual(multiple.pons, ['SYNTHETIC-OPEN', 'SYNTHETIC-SECOND']);
-  assert.ok(multiple.warnings.some(w => w.startsWith('Multiple PONs')));
-  // Sending to the technician's already identified field stays available.
+  const secondBefore = await readFile(path.join(second.dir, 'state'), 'utf8');
+  const pinned = await run({ action: 'detect', entryWindow: scrolled.entryWindow });
+  assert.equal(pinned.instances, 1); assert.equal(pinned.openErxWindows, 1); assert.equal(pinned.pon, 'SYNTHETIC-OPEN');
+  assert.equal(pinned.diagnostics.windowsScanned, 1); assert.equal(pinned.diagnostics.scanMode, 'remembered-entry');
+  assert.deepEqual(pinned.diagnostics.windows.map(w => w.pid), [opened.app.pid]);
+  assert.ok(!pinned.warnings.some(w => w.startsWith('Multiple PONs')));
+  assert.equal(await readFile(path.join(second.dir, 'state'), 'utf8'), secondBefore);
+  const inspected = await run({ action: 'inspect', entryWindow: scrolled.entryWindow });
+  assert.deepEqual(inspected.diagnostics.windows.map(w => w.pid), [opened.app.pid]);
+  assert.equal(await readFile(path.join(second.dir, 'state'), 'utf8'), secondBefore);
+  const wrongStart = await run({ action: 'detect', entryWindow: { ...scrolled.entryWindow, started: '0' } });
+  assert.equal(wrongStart.ok, false); assert.equal(wrongStart.windowSelectionRequired, true); assert.equal(wrongStart.diagnostics.windowsScanned, 0);
+  // Even after another open E-Rx comes to the front, sends inspect only their
+  // previously chosen destination window and do not change the entry selection.
   const sent = await run({ action: 'send', expected: scrolled, field: 'sig', value: 'TECHNICIAN APPROVED' });
   assert.equal(sent.verified, true, summary(sent));
-  await stop(opened.app); opened = await launch('failed-scroll', 'open', 'fail');
+  assert.equal(await readFile(path.join(second.dir, 'state'), 'utf8'), secondBefore);
+  await stop(opened.app);
+  const missing = await run({ action: 'detect', entryWindow: scrolled.entryWindow });
+  assert.equal(missing.ok, false); assert.equal(missing.windowSelectionRequired, true); assert.equal(missing.diagnostics.windowsScanned, 0);
+  assert.equal(await readFile(path.join(second.dir, 'state'), 'utf8'), secondBefore);
+  await stop(second.app); opened = await launch('failed-scroll', 'open', 'fail');
   const partial = await run({ action: 'detect', positionReview: true });
   const partialGrid = partial.diagnostics.windows.find(w => w.pid === opened.app.pid).grids[0];
   assert.equal(partialGrid.complete, false); assert.equal(partialGrid.reviewPosition, 'bottom');
   assert.ok(partialGrid.issues.some(issue => issue.includes('inspection failed')));
   assert.equal((await readFile(path.join(opened.dir, 'state'), 'utf8')).split(',')[0], '50');
   assert.ok(!partial.warnings.some(w => w.includes('restored')));
-  await stop(opened.app); await stop(second.app);
+  await stop(opened.app);
   opened = await launch('raw-delayed', 'open', 'raw-delay');
   const raw = await run({ action: 'detect' });
   assert.deepEqual(raw.pons, ['SYNTHETIC-OPEN'], summary(raw));
@@ -88,7 +104,7 @@ try {
   assert.ok(rawGrid.viewports.some(v => v.view === 'raw' && v.rows > 0));
   assert.ok(rawGrid.viewports.some(v => v.attempt > 0 && v.rows > 0));
   assert.equal((await readFile(path.join(opened.dir, 'state'), 'utf8')).split(',')[0], '75');
-  const rawPositioned = await run({ action: 'detect', positionReview: true });
+  const rawPositioned = await run({ action: 'detect', positionReview: true, entryWindow: raw.entryWindow });
   assert.equal(rawPositioned.diagnostics.windows.find(w => w.openErx).grids[0].reviewPosition, 'rxfill-visible', summary(rawPositioned));
   assert.equal((await readFile(path.join(opened.dir, 'state'), 'utf8')).split(',')[0], '64');
   await stop(opened.app); opened = await launch('empty-provider', 'open', 'empty');
@@ -99,7 +115,7 @@ try {
   assert.ok(emptyGrid.viewports.some(v => v.view === 'raw' && v.sample.length > 0));
   assert.ok(emptyGrid.issues.every(issue => !issue.includes('NullReferenceException')));
   assert.equal((await readFile(path.join(opened.dir, 'state'), 'utf8')).split(',')[0], '76');
-  console.log('Multi-instance UIA passed: PON-first early stopping, wizard/triage scoping, indexed and scroll reads, null cells, delayed raw-only rows, optional RxFill positioning, empty-provider diagnostics and two-open-order sending.');
+  console.log('Multi-instance UIA passed: remembered-window-only detection, diagnostics and sending; unrelated open E-Rx ignored; stale/closed window handling; PON-first indexed/scroll/raw reads and optional review positioning.');
 } finally {
   for (const app of apps) await stop(app);
   await rm(folder, { recursive: true, force: true, maxRetries: 8, retryDelay: 150 });
