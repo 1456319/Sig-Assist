@@ -5,6 +5,8 @@ export interface FrameworkDetection {
   expiresAt?: number;
   pon?: string;
   pons?: string[];
+  instances?: number;
+  openErxWindows?: number;
   warnings?: string[];
   fields?: Partial<Record<'sig' | 'times', { label: string; currentValue: string }>>;
   diagnostics?: unknown;

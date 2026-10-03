@@ -11,7 +11,7 @@ export function FrameworkDetect({ disabled, onStart, onDetected }: { disabled: b
   async function detect(inspect = false) {
     setBusy(true); setEvidence(undefined); setFound(undefined);
     if (!inspect) onStart();
-    setStatus('Reading Framework in this Windows session…');
+    setStatus('Checking Framework instances and reading the open E-Rx details…');
     try {
       const result = await frameworkDesktop(inspect ? 'inspect' : 'detect');
       setEvidence(result.diagnostics);
@@ -19,7 +19,8 @@ export function FrameworkDetect({ disabled, onStart, onDetected }: { disabled: b
       if (inspect) { downloadDesktopDiagnostics(result.diagnostics); setStatus('Desktop diagnostics saved. They contain visible order information.'); }
       else {
         setFound(result); onDetected(result);
-        setStatus(result.pon ? `Detected PON ${result.pon}. Select the matching E-Rx below.` : result.pons?.length ? `${result.pons.length} PONs detected. Choose which one to find; sending remains available after review.` : 'No labelled PON was exposed. Use the search below; you can still choose a Framework field and send after review.');
+        const instances = result.instances === undefined ? '' : `${result.instances} Framework instance${result.instances === 1 ? '' : 's'}; ${result.openErxWindows ?? 0} open E-Rx window${result.openErxWindows === 1 ? '' : 's'}. `;
+        setStatus(instances + (result.pon ? `Detected PON ${result.pon}. Select the matching E-Rx below.` : result.pons?.length ? `${result.pons.length} PONs detected. Choose which one to find; sending remains available after review.` : result.openErxWindows ? 'The open E-Rx was found, but its PON could not be read. Export desktop diagnostics or use the search below; sending remains available after review.' : 'No open E-Rx with a readable PON was found. Open the E-Rx wizard and detect again, or use the search below.'));
       }
     } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
     finally { setBusy(false); }
@@ -33,7 +34,7 @@ export function FrameworkDetect({ disabled, onStart, onDetected }: { disabled: b
     {found?.warnings?.filter(warning => !warning.startsWith('Multiple PONs')).map(warning => <p key={warning} role="status" className="text-sm text-amber-600 dark:text-amber-400">{warning}</p>)}
     {(found?.pons?.length ?? 0) > 1 && <div role="alert" className="text-sm text-amber-600 dark:text-amber-400 space-y-2"><p>Multiple PONs detected. Check the intended order.</p><div className="flex flex-wrap gap-2">{found!.pons!.map(pon => <button type="button" className={reviewButtonClass} key={pon} disabled={disabled || busy} onClick={() => onDetected({ ...found!, pon })}>Find PON {pon}</button>)}</div></div>}
     <details><summary className="text-xs cursor-pointer">Framework detection help</summary>
-      <p className="text-xs text-muted-foreground my-2">Run the connector inside the same Windows/Citrix session as Framework. Detection depends on the fields that this Framework screen exposes. If it cannot find the order, keep that screen open and export desktop diagnostics. The export includes order text; share it with your diagnostic report.</p>
+      <p className="text-xs text-muted-foreground my-2">Run the connector inside the same Windows/Citrix session as Framework. Multiple instances can stay open. Detection looks for the open E-Rx wizard and may briefly scroll its details, then restore the position. Keep the order open while it reads. If it cannot find the order, export desktop diagnostics. The export includes order text; share it with your diagnostic report.</p>
       <button type="button" className={reviewButtonClass} disabled={disabled || busy} onClick={() => evidence ? downloadDesktopDiagnostics(evidence) : void detect(true)}>Export desktop diagnostics</button>
     </details>
   </div>;

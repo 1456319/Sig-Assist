@@ -17,6 +17,9 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+      - name: Verify multiple Framework instances and virtualized E-Rx detail grids
+        if: runner.os == 'Windows'
+        run: node scripts/smoke-framework-grid.mjs
       - run: npm ci
       - name: Verify user-only Node download, cache and connector startup without Node on PATH
         if: runner.os == 'Windows'

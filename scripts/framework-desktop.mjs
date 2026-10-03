@@ -52,7 +52,7 @@ export async function helperExecutable() {
 }
 export async function runDesktopHelper(input) {
   const exe = await helperExecutable();
-  return JSON.parse(await execute(exe, [], JSON.stringify(input)));
+  return JSON.parse(await execute(exe, [], JSON.stringify(input), ['detect', 'inspect'].includes(input.action) ? 35000 : 20000));
 }
 
 // Bindings stay in this process, expire and are consumed before a write. The page
@@ -65,6 +65,7 @@ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } 
     bindings.set(token, { detected: result, expiresAt });
     for (const [key, item] of bindings) if (item.expiresAt < now() || bindings.size > 20) bindings.delete(key);
     return { ok: true, token, expiresAt, pon: result.pon, pons: result.pons ?? [], warnings: result.warnings ?? [],
+      instances: result.instances, openErxWindows: result.openErxWindows,
       fields: Object.fromEntries(Object.entries(result.fields ?? {}).map(([key, value]) => [key, { label: value.label, currentValue: value.value }])),
       diagnostics: result.diagnostics };
   }
