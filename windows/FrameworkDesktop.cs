@@ -43,11 +43,15 @@ public sealed class GridInfo {
     public List<GridRow> rows = new List<GridRow>();
     public List<string> issues = new List<string>();
     public List<GridViewport> viewports = new List<GridViewport>();
+    public List<object> ponCandidates = new List<object>();
 }
 public sealed class GridViewport {
     public string stage, view, error = "";
     public int nodes, cells, rows, attempt, elapsedMs;
     public int probes, rejected, nullCells;
+    public int retries;
+    public double verticalAfterProbe = -1, verticalAfterRecovery = -1;
+    public string viewportRestore = "not-needed";
     public object bounds;
     public double horizontalPercent = -1, verticalViewSize = -1;
     public int[] visibleRows = new int[0];
@@ -63,7 +67,7 @@ sealed class ScanNode {
 }
 public sealed class DesktopSnapshot {
     public string format = "sig-assist-framework-desktop";
-    public int schemaVersion = 5;
+    public int schemaVersion = 6;
     public string scanMode;
     public int windowsScanned;
     public EntryWindow entryWindow;
@@ -78,13 +82,15 @@ public static class FrameworkDesktop {
     static bool writeAttempted;
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = 4 * 1024 * 1024 };
     static readonly Regex PonLabel = new Regex(@"^(?:PON|Prescriber Order (?:Number|No\.?))\s*:?$", RegexOptions.IgnoreCase);
-    static readonly Regex PonInline = new Regex(@"^(?:PON|Prescriber Order (?:Number|No\.?))\s*[:#]\s*([A-Za-z0-9][A-Za-z0-9_.\-/]{0,99})\s*$", RegexOptions.IgnoreCase);
+    static readonly Regex PonInline = new Regex(@"^(?:PON|Prescriber Order (?:Number|No\.?))\s*[:#]\s*([A-Za-z0-9][A-Za-z0-9_.:/\-]{0,99})\s*$", RegexOptions.IgnoreCase);
     static readonly Regex GridCellName = new Regex(@"^Row (\d+), Column (\d+):\s*(.*)$", RegexOptions.Singleline);
     static string Text(object value) { return value == null ? "" : Convert.ToString(value); }
     static string Id(AutomationElement element) { return String.Join(".", element.GetRuntimeId().Select(x => x.ToString()).ToArray()); }
     static string Trim(string value) { return (value ?? "").Trim(); }
     static string Label(ControlInfo control) { return Trim(String.IsNullOrWhiteSpace(control.label) ? control.name : control.label).TrimEnd(':').Trim(); }
-    static bool ValidPon(string value) { return Regex.IsMatch(value ?? "", @"^[A-Za-z0-9][A-Za-z0-9_.\-/]{0,99}$") && value != "PON"; }
+    // PONs are opaque identifiers. Preserve compound values (including colons)
+    // verbatim through detection, lookup and transfer; never split off a suffix.
+    static bool ValidPon(string value) { return Regex.IsMatch(value ?? "", @"^[A-Za-z0-9][A-Za-z0-9_.:/\-]{0,99}$") && value != "PON"; }
     static string Pon(ControlInfo control) {
         if (PonLabel.IsMatch(Label(control)) && ValidPon(Trim(control.value))) return Trim(control.value);
         var match = PonInline.Match(Trim(control.name));
@@ -368,20 +374,39 @@ public static class FrameworkDesktop {
             int start = 0;
             if (view.verticalPercent >= 0 && view.verticalViewSize > 0 && view.verticalViewSize <= 100)
                 start = Math.Max(0, Math.Min(count - 1, (int)Math.Floor(count * (1 - view.verticalViewSize / 100) * view.verticalPercent / 100) - 2));
-            // The scroll-based estimate is only a probe order, never a row
-            // identity. Try all advertised indexes within the bounded budget.
-            for (int offset = 0; offset < count && !HasPon(info) && budget.ElapsedMilliseconds < deadline; offset++) {
-                int row = (start + offset) % count; view.probes++;
+            // GetItem itself can scroll DevExpress grids, even when it returns
+            // null. Probe only near this viewport, allow realization to settle,
+            // and stop after three misses instead of racing through every row.
+            int span = view.verticalViewSize > 0 ? Math.Min(count, (int)Math.Ceiling(count * view.verticalViewSize / 100) + 4) : Math.Min(count, 32);
+            int failures = 0;
+            for (int row = start; row < Math.Min(count, start + span) && !HasPon(info) && budget.ElapsedMilliseconds < deadline; row++) {
+                view.probes++;
                 try {
                     var title = grid.GetItem(row, 0); var value = grid.GetItem(row, 1);
-                    if (title == null || value == null) { int missing = (title == null ? 1 : 0) + (value == null ? 1 : 0); view.nullCells += missing; info.nullCells += missing; continue; }
+                    if (title == null || value == null) {
+                        int missing = (title == null ? 1 : 0) + (value == null ? 1 : 0); view.nullCells += missing; info.nullCells += missing;
+                        Pause(budget, deadline, 500); view.retries++;
+                        // Refresh peers after the provider's implicit scroll;
+                        // this can also recover the PON from a newly drawn row.
+                        CaptureRows(element, info, scroll, stage + "-settled-" + row, budget, deadline, false);
+                        if (HasPon(info) || budget.ElapsedMilliseconds >= deadline) break;
+                        title = grid.GetItem(row, 0); value = grid.GetItem(row, 1);
+                        if (title == null || value == null) {
+                            missing = (title == null ? 1 : 0) + (value == null ? 1 : 0); view.nullCells += missing; info.nullCells += missing;
+                            if (++failures >= 3) break;
+                            continue;
+                        }
+                    }
                     // An indexed provider may realize offscreen rows as a side
                     // effect. The row index still comes from GetItem, not pixels.
-                    AddRow(info, row, CellText(title), CellText(value)); found.Add(row); view.cells += 2;
-                } catch (Exception error) { info.rowFailures++; if (view.error == "") view.error = error.GetType().Name + ": " + error.Message; }
+                    AddRow(info, row, CellText(title), CellText(value)); found.Add(row); view.cells += 2; failures = 0;
+                } catch (Exception error) { info.rowFailures++; if (view.error == "") view.error = error.GetType().Name + ": " + error.Message; if (++failures >= 3) break; }
             }
         } catch (Exception error) { view.error = error.GetType().Name + ": " + error.Message; }
-        finally { view.rows = found.Count; view.visibleRows = found.ToArray(); view.limited = budget.ElapsedMilliseconds >= deadline; }
+        finally {
+            view.rows = found.Count; view.visibleRows = found.ToArray(); view.limited = budget.ElapsedMilliseconds >= deadline;
+            try { if (scroll != null) view.verticalAfterProbe = scroll.Current.VerticalScrollPercent; } catch { }
+        }
     }
     static ControlInfo PointCell(AutomationElement hit, string gridId, int pid) {
         ControlInfo cell = null;
@@ -414,7 +439,18 @@ public static class FrameworkDesktop {
                     var hit = AutomationElement.FromPoint(new System.Windows.Point(bounds.Left + bounds.Width * fraction, y));
                     if (hit == null || !hits.Add(Id(hit))) continue;
                     var cell = PointCell(hit, gridId, pid);
-                    if (cell == null) { view.rejected++; continue; }
+                    if (cell == null) {
+                        view.rejected++;
+                        // Log the rejected shape to distinguish an empty data
+                        // presenter from occlusion, without reading another PID.
+                        if (view.sample.Count < 16) {
+                            bool sameProcess = hit.Current.ProcessId == pid;
+                            var rejected = sameProcess ? Read(hit) : null;
+                            view.sample.Add(new { accepted = false, sameProcess = sameProcess, name = rejected == null ? "" : rejected.name,
+                                automationId = rejected == null ? "" : rejected.automationId, type = rejected == null ? "" : rejected.type });
+                        }
+                        continue;
+                    }
                     if (!seen.Add(cell.id)) continue;
                     var match = GridCellName.Match(cell.name ?? ""); int row, col;
                     if (!Int32.TryParse(match.Groups[1].Value, out row) || !Int32.TryParse(match.Groups[2].Value, out col) || row < 0 || row >= Math.Min(info.rowCount, 512) || col < 0 || col > 1) continue;
@@ -434,7 +470,22 @@ public static class FrameworkDesktop {
     static void RecoverViewport(AutomationElement element, GridInfo info, ScrollPattern scroll, string stage, Stopwatch budget, int deadline, int handle) {
         int before = info.rows.Count;
         IndexedViewport(element, info, scroll, stage, budget, Math.Min(deadline, (int)budget.ElapsedMilliseconds + 2200));
-        if (HasPon(info) || info.rows.Count > before || budget.ElapsedMilliseconds >= deadline) return;
+        var indexed = info.viewports.Last(v => v.stage == stage && v.view == "indexed-viewport");
+        if (HasPon(info)) return;
+        // Keep page progression anchored to the viewport being inspected. A
+        // failed GetItem call must not skip the remaining pages by leaving the
+        // provider at the bottom, as observed in the eOrder diagnostic.
+        if (scroll != null && indexed.verticalPercent >= 0) {
+            try {
+                if (Math.Abs(scroll.Current.VerticalScrollPercent - indexed.verticalPercent) > 0.001) {
+                    scroll.SetScrollPercent(ScrollPattern.NoScroll, indexed.verticalPercent);
+                    Pause(budget, deadline, 400); indexed.viewportRestore = "restored";
+                }
+                indexed.verticalAfterRecovery = scroll.Current.VerticalScrollPercent;
+                if (Math.Abs(indexed.verticalAfterRecovery - indexed.verticalPercent) > 0.1) throw new InvalidOperationException("The detail grid did not return to the page being inspected.");
+            } catch (Exception error) { indexed.viewportRestore = "failed"; throw new InvalidOperationException("Could not restore the scan page after indexed reads: " + error.Message); }
+        }
+        if (info.rows.Count > before || budget.ElapsedMilliseconds >= deadline) return;
         if (info.activation == "not-needed") {
             info.activation = SetForegroundWindow(new IntPtr(handle)) ? "foreground-request-accepted" : "foreground-request-denied";
             Pause(budget, deadline, 250);
@@ -470,8 +521,8 @@ public static class FrameworkDesktop {
     static GridInfo ReadGrid(ControlInfo control, bool expand, bool positionReview, Stopwatch budget, int handle) {
         var info = new GridInfo { id = control.id, expanded = expand };
         ScrollPattern scroll = null;
-        int readDeadline = Math.Min(22000, (int)budget.ElapsedMilliseconds + 16000);
-        int reviewDeadline = Math.Min(30000, readDeadline + 8000);
+        int readDeadline = Math.Min(26000, (int)budget.ElapsedMilliseconds + 22000);
+        int reviewDeadline = Math.Min(34000, readDeadline + 8000);
         try {
             info.patterns = control.element.GetSupportedPatterns().Select(p => p.ProgrammaticName).ToArray();
             object pattern;
@@ -532,6 +583,8 @@ public static class FrameworkDesktop {
             try { if (scroll != null) info.finalVerticalPercent = scroll.Current.VerticalScrollPercent; } catch { }
             info.complete = CompleteGrid(info);
             info.ponFound = HasPon(info);
+            info.ponCandidates = info.rows.Where(r => PonTitle(r.title)).Select(r => (object)new { index = r.index, title = r.title, value = r.value,
+                accepted = ValidPon(r.value), reason = ValidPon(r.value) ? "accepted" : String.IsNullOrWhiteSpace(r.value) ? "empty-value" : "unsupported-identifier-format" }).ToList();
             info.stopReason = info.ponFound ? "pon-found" : !expand ? "not-expanded" : info.complete ? "all-rows-read-no-pon" : "provider-or-scan-limit";
             if (expand && !info.ponFound && !info.complete) info.issues.Add("PON not found. Read " + info.rows.Count + " of " + info.rowCount + " advertised detail rows; see viewport samples, null-cell counts and provider errors.");
             info.rows = info.rows.OrderBy(r => r.index).ToList();

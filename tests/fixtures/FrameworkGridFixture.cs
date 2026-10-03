@@ -24,6 +24,8 @@ public class ViewPeer : FrameworkElementAutomationPeer {
 public class DetailGrid : FrameworkElement {
     public string Folder, Pon;
     public bool ScrollOnly, FailScroll, RawOnly, Empty, NoAnchor, IndexedVisible, PointOnly, PointConnected, Ready = true;
+    public bool AutoScrollNull, DelayedIndex;
+    public int RequestedRow = -1, PonRow = -1;
     public int IndexedRow = -1;
     public int RowCount = 80;
     public int Start, ScrollCalls, GetCalls;
@@ -36,7 +38,7 @@ public class DetailGrid : FrameworkElement {
         renderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(450) };
         renderTimer.Tick += delegate { renderTimer.Stop(); Ready = true; if (Peer != null) Peer.Refresh(); };
     }
-    public void Rendering() { IndexedRow = -1; PointConnected = false; if (!RawOnly) return; Ready = false; renderTimer.Stop(); renderTimer.Start(); }
+    public void Rendering() { IndexedRow = -1; PointConnected = false; if (!RawOnly && !DelayedIndex) return; Ready = false; renderTimer.Stop(); renderTimer.Start(); }
     public void Save() { File.WriteAllText(Path.Combine(Folder, "state"), Start + "," + ScrollCalls + "," + GetCalls); }
     protected override AutomationPeer OnCreateAutomationPeer() { Peer = new DetailGridPeer(this); return Peer; }
 }
@@ -73,6 +75,14 @@ public class DetailGridPeer : FrameworkElementAutomationPeer, IGridProvider, ISc
     public int ColumnCount { get { return 2; } }
     public IRawElementProviderSimple GetItem(int row, int column) {
         grid.GetCalls++; grid.Save();
+        if (grid.AutoScrollNull || grid.DelayedIndex) {
+            if (grid.RequestedRow != row) {
+                grid.RequestedRow = row; grid.Start = Math.Max(0, Math.Min(grid.RowCount - 30, row));
+                grid.Save(); grid.Rendering(); Refresh();
+            }
+            if (grid.AutoScrollNull || !grid.Ready) return null;
+            GetChildren();
+        }
         if (grid.RawOnly || grid.Empty || grid.PointOnly) return null;
         if (row < 0 || row >= grid.RowCount || column < 0 || column > 1) throw new ArgumentOutOfRangeException();
         if (grid.IndexedVisible) {
@@ -112,7 +122,7 @@ public class CellPeer : FrameworkElementAutomationPeer, IValueProvider {
     int row, col;
     public CellPeer(DetailGrid owner, int rowIndex, int columnIndex) : base(new TextBlock()) { grid = owner; row = rowIndex; col = columnIndex; }
     string TextValue { get {
-        if (row == grid.RowCount - 13) return col == 0 ? "Prescriber Order Number" : grid.Pon;
+        if (row == (grid.PonRow >= 0 ? grid.PonRow : grid.RowCount - 13)) return col == 0 ? "Prescriber Order Number" : grid.Pon;
         if (row == grid.RowCount - 42 && !grid.NoAnchor) return col == 0 ? "RxFill Indicator" : "All Fill Statuses";
         if (row == grid.RowCount - 41) return col == 0 ? "Directions" : "Synthetic SIG";
         if (row == grid.RowCount - 40 || row == grid.RowCount - 39) return col == 0 ? "Facility Hours of Administration" : "0900";
@@ -156,7 +166,13 @@ public static class Fixture {
             if (grid.PointOnly) { grid.Height = 300; window.Height = 500; }
             if (mode == "point-narrow") { grid.Width = 260; window.Width = 320; }
             if (grid.RawOnly || grid.Empty) grid.RowCount = 106;
-            grid.Rendering(); page.Children.Add(grid);
+            if (mode == "compound-pon") { grid.RowCount = 114; grid.PonRow = 113; grid.Pon = "123456789:0000123456"; grid.ScrollOnly = false; }
+            if (mode == "auto-scroll-empty" || mode == "auto-scroll-delayed") {
+                grid.RowCount = 139; grid.Start = 109;
+                grid.AutoScrollNull = mode == "auto-scroll-empty"; grid.Empty = grid.AutoScrollNull;
+                grid.DelayedIndex = mode == "auto-scroll-delayed"; grid.Ready = !grid.DelayedIndex;
+            }
+            if (!grid.DelayedIndex) grid.Rendering(); page.Children.Add(grid);
             page.Children.Add(TextField("SIG", "OLD OPEN SIG"));
             var stale = new View { ProviderClass = "ERxWorkQueueDirectionsView", HiddenPage = true };
             stale.Children.Add(TextField("PON", "STALE-HIDDEN-PON"));

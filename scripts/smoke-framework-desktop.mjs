@@ -34,6 +34,11 @@ try {
   const first = await run({ action: 'detect' });
   assert.equal(first.ok, true, JSON.stringify(first)); assert.equal(first.pon, 'SYNTHETIC-1');
   assert.equal(first.fields.sig.value, 'OLD SIG'); assert.equal(first.fields.times.value, '0900, 2100');
+  await command({ pon: 'SYNTHETIC:0001' });
+  assert.equal((await run({ action: 'detect' })).pon, 'SYNTHETIC:0001');
+  await command({ pon: '', ponLabel: 'Prescriber Order Number: SYNTHETIC:0002' });
+  assert.equal((await run({ action: 'detect' })).pon, 'SYNTHETIC:0002');
+  await command({ pon: 'SYNTHETIC-1', ponLabel: 'PON' });
   await command({ focus: 'sig' });
   const entry = await run({ action: 'window' });
   assert.equal(entry.ok, true, JSON.stringify(entry)); assert.equal(entry.entryWindow.pid, app.pid);

@@ -22,6 +22,7 @@ public static class FrameworkDesktopFixture {
                 var text = File.ReadAllText(file); if (text == seen) return;
                 var command = new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(text);
                 if (command.ContainsKey("pon")) pon.Text = command["pon"];
+                if (command.ContainsKey("ponLabel")) pon.AccessibleName = command["ponLabel"];
                 if (command.ContainsKey("sig")) sig.Text = command["sig"];
                 if (command.ContainsKey("patient")) patient.Text = command["patient"];
                 if (command.ContainsKey("focus")) { form.Activate(); sig.Focus(); }

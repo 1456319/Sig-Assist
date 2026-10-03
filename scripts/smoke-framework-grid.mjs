@@ -136,6 +136,26 @@ try {
   const overlay = await run({ action: 'detect' });
   assert.deepEqual(overlay.pons, [], summary(overlay));
   assert.ok(overlay.diagnostics.windows.find(w => w.openErx).grids[0].viewports.some(v => v.view === 'point' && v.rejected > 0), summary(overlay));
+  await stop(opened.app); opened = await launch('compound-pon', 'open', 'compound-pon');
+  const compound = await run({ action: 'detect' });
+  assert.equal(compound.pon, '123456789:0000123456', summary(compound));
+  const compoundGrid = compound.diagnostics.windows.find(w => w.openErx).grids[0];
+  assert.equal(compoundGrid.rowCount, 114); assert.equal(compoundGrid.ponCandidates[0].accepted, true);
+  assert.equal(compoundGrid.ponCandidates[0].index, 113);
+  await stop(opened.app); opened = await launch('auto-scroll-delayed', 'open', 'auto-scroll-delayed');
+  const delayedIndex = await run({ action: 'detect' });
+  assert.equal(delayedIndex.pon, 'SYNTHETIC-OPEN', summary(delayedIndex));
+  const delayedGrid = delayedIndex.diagnostics.windows.find(w => w.openErx).grids[0];
+  assert.equal(delayedGrid.initialRows, 0);
+  assert.ok(delayedGrid.viewports.some(v => v.view === 'indexed-viewport' && v.retries > 0), summary(delayedIndex));
+  await stop(opened.app); opened = await launch('auto-scroll-empty', 'open', 'auto-scroll-empty');
+  const moved = await run({ action: 'detect' });
+  assert.deepEqual(moved.pons, [], summary(moved));
+  const movedGrid = moved.diagnostics.windows.find(w => w.openErx).grids[0];
+  assert.ok(movedGrid.pages >= 5, summary(moved));
+  assert.ok(movedGrid.viewports.some(v => v.view === 'indexed-viewport' && v.viewportRestore === 'restored'), summary(moved));
+  assert.ok(movedGrid.viewports.filter(v => v.view === 'indexed-viewport').every(v => v.probes <= 3), summary(moved));
+  assert.equal(movedGrid.finalVerticalPercent, 100, summary(moved));
   console.log('Multi-instance UIA passed: remembered-window-only detection, diagnostics and sending; unrelated open E-Rx ignored; stale/closed window handling; PON-first indexed/scroll/raw reads and optional review positioning.');
 } finally {
   for (const app of apps) await stop(app);
