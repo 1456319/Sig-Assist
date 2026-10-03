@@ -164,6 +164,7 @@ public static class Fixture {
             if (mode == "point-overlay") {
                 // Convincing row/cell labels from the same PID, but outside the
                 // selected grid. Screen hits must not turn them into a PON.
+                window.Content = null;
                 var layers = new Grid(); layers.Children.Add(root); window.Content = layers;
                 var overlay = new StackPanel { Background = System.Windows.Media.Brushes.White, Height = 120, VerticalAlignment = VerticalAlignment.Top };
                 foreach (var name in new[] { "Row 1, Column 0: Prescriber Order Number", "Row 1, Column 1: WRONG-OVERLAY-PON" }) {
