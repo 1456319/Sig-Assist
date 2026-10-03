@@ -255,3 +255,6 @@ connector observes incoming orders; it does not determine which orders are
 currently assigned to a technician in Framework's E-Rx Queue.
 
 API reference: <https://help.interfaceware.com/v6/http-api-reference#api_query>.
+# Framework desktop pilot
+
+`Detect open E-Rx` can fill the search from Framework in the same Windows/Citrix session. Reviewed SIG and administration-time text can be sent to an automatically identified or technician-selected editable field. Multiple PONs show a warning without blocking approved sending. This does not save or submit prescriptions. Iguana access remains read-only; desktop transfer is separate. See [FRAMEWORK-DESKTOP.md](FRAMEWORK-DESKTOP.md) for the workflow, runtime compatibility check and diagnostics.

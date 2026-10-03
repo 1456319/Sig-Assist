@@ -1,5 +1,16 @@
 SIG-ASSIST BROWSER DEMO
 
+FRAMEWORK DESKTOP PILOT
+Run Start-Iguana-Connector.bat in the same Windows/Citrix session as Framework.
+Detect open E-Rx fills the search when Framework exposes its PON. Select the
+matching order, review the SIG and administration times, and approve it.
+Multiple PONs show a warning; approved sending remains available. If needed,
+use Choose Framework SIG field and click the destination within eight seconds. Verify Preview Sig and
+save in Framework. No prescription is saved or submitted by Sig-Assist.
+Actual Framework screen compatibility needs an on-site check. If unavailable,
+use Framework detection help > Export desktop diagnostics with the E-Rx open.
+See FRAMEWORK-DESKTOP.md for setup, supported fields and current limitations.
+
 1. Extract ALL files from Sig-Assist-Windows-Demo.zip to a folder.
 2. Open index.html directly in Microsoft Edge or Google Chrome.
    Alternatively, double-click Start-Sig-Assist.bat to open your default browser.

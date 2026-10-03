@@ -4,10 +4,13 @@ from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 import sys
 
 demo = Path(__file__).resolve().parent.parent / "windows-demo"
-files = ["Start-Sig-Assist.bat", "Start-Sig-Assist.cmd", "Start-Iguana-Connector.bat", "README.txt", "index.html", "iguana-bridge.mjs", "IGUANA-CONNECTOR.md"]
+files = ["Start-Sig-Assist.bat", "Start-Sig-Assist.cmd", "Start-Iguana-Connector.bat", "README.txt", "index.html", "iguana-bridge.mjs", "framework-desktop.mjs", "FrameworkDesktop.cs", "IGUANA-CONNECTOR.md", "FRAMEWORK-DESKTOP.md"]
 sources = {
     "Start-Sig-Assist.cmd": demo.parent / "windows" / "Start-Sig-Assist.cmd",
     "iguana-bridge.mjs": demo.parent / "scripts" / "iguana-bridge.mjs",
+    "framework-desktop.mjs": demo.parent / "scripts" / "framework-desktop.mjs",
+    "FrameworkDesktop.cs": demo.parent / "windows" / "FrameworkDesktop.cs",
+    "FRAMEWORK-DESKTOP.md": demo.parent / "docs" / "FRAMEWORK-DESKTOP.md",
     "IGUANA-CONNECTOR.md": demo.parent / "docs" / "IGUANA-CONNECTOR.md",
 }
 contents = {}

@@ -5,6 +5,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
+import { createDesktopSession, desktopBuildId } from './framework-desktop.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const maxBytes = 32 * 1024 * 1024;
@@ -57,12 +58,12 @@ async function limitedText(stream, limit) {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-export function createBridge({ htmlPath = path.join(here, '../windows-demo/index.html'), fetchImpl = fetch, timeoutMs = 20000, startup = {} } = {}) {
+export function createBridge({ htmlPath = path.join(here, '../windows-demo/index.html'), fetchImpl = fetch, timeoutMs = 20000, startup = {}, desktop = createDesktopSession() } = {}) {
   return createServer(async (request, response) => {
     const send = (status, object) => { response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(JSON.stringify(object)); };
     if (request.method === 'GET' && ['/connector/health', '/connector/diagnostics'].includes(request.url)) {
       const { profile } = await portablePage(htmlPath);
-      send(200, { ok: true, service, protocolVersion: 1, bridgeBuildId, readOnly: true, upstreamEndpoints: ['GET /api_query'], runtime: process.version, pid: process.pid, page: profile, startup }); return;
+      send(200, { ok: true, service, protocolVersion: 1, bridgeBuildId, desktopBuildId: await desktopBuildId(), readOnly: true, readOnlyScope: 'Iguana upstream', desktopTransfer: true, upstreamEndpoints: ['GET /api_query'], runtime: process.version, pid: process.pid, page: profile, startup }); return;
     }
     if (request.method === 'GET' && request.url === '/favicon.ico') { response.writeHead(204); response.end(); return; }
     if (request.method === 'GET' && ['/', '/index.html'].includes(request.url)) {
@@ -73,6 +74,16 @@ export function createBridge({ htmlPath = path.join(here, '../windows-demo/index
         const info = JSON.stringify(startup).replace(/</g, '\\u003c');
         response.end(html.replace('</body>', `<script type="application/json" id="sig-assist-connector-startup">${info}</script><aside id="sig-assist-port-notice" role="status" style="position:fixed;bottom:16px;left:16px;right:16px;z-index:9999;background:#fff8dd;color:#292211;border:1px solid #b69539;padding:12px;border-radius:8px;font:14px system-ui">Connector opened on port ${startup.actualPort} because port ${startup.fallbackFrom} is busy. Saved browser cases belong to their original address. To return to that address, close your earlier Sig-Assist connector window and relaunch. <button id="sig-assist-dismiss-port-notice" type="button">Dismiss</button></aside></body>`));
       } else response.end(html);
+      return;
+    }
+    if (request.method === 'POST' && /^\/connector\/desktop\/(detect|inspect|target|send)$/.test(request.url ?? '')) {
+      // Local UI writes require a JSON request from this served page, never a
+      // form POST from another site. No CORS access is granted.
+      if (request.headers['content-type'] !== 'application/json' || (request.headers.origin && request.headers.origin !== `http://${request.headers.host}`) || request.headers['sec-fetch-site'] === 'cross-site') {
+        send(403, { ok: false, error: 'Open Sig-Assist through this local connector to use Framework integration.' }); return;
+      }
+      try { send(200, await desktop(request.url.split('/').pop(), JSON.parse(await limitedText(request, 64 * 1024)))); }
+      catch { send(400, { ok: false, error: 'Invalid desktop request.' }); }
       return;
     }
     if (request.method !== 'POST' || request.url !== '/connector/query') { send(404, { ok: false, error: 'Unknown local connector endpoint.' }); return; }
@@ -114,7 +125,7 @@ async function matchingBridge(port, pageSha256) {
     const response = await fetch(`http://127.0.0.1:${port}/connector/health`, { signal: AbortSignal.timeout(500), redirect: 'error' });
     if (!response.ok) return false;
     const health = JSON.parse(await limitedText(response.body, 32 * 1024));
-    return health.service === service && health.protocolVersion === 1 && health.readOnly === true && health.bridgeBuildId === bridgeBuildId && health.page?.ok === true && health.page.sha256 === pageSha256;
+    return health.service === service && health.protocolVersion === 1 && health.readOnly === true && health.bridgeBuildId === bridgeBuildId && health.desktopBuildId === await desktopBuildId() && health.page?.ok === true && health.page.sha256 === pageSha256;
   } catch { return false; }
 }
 // A second launch must neither stop an unrelated listener nor open an old build.

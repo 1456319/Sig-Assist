@@ -57,6 +57,8 @@ try {
   await mkdir(folder, { recursive: true });
   await writeFile(launcher, source);
   await cp(path.join(root, 'scripts/iguana-bridge.mjs'), path.join(folder, 'iguana-bridge.mjs'));
+  await cp(path.join(root, 'scripts/framework-desktop.mjs'), path.join(folder, 'framework-desktop.mjs'));
+  await cp(path.join(root, 'windows/FrameworkDesktop.cs'), path.join(folder, 'FrameworkDesktop.cs'));
   await cp(path.join(root, 'windows-demo/index.html'), path.join(folder, 'index.html'));
 
   // Missing Node: real official download, real certutil checksum, user-only cache.

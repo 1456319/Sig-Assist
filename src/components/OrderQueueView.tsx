@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { translateFreeTextSig } from '../lib/sigEngine';
 import { cancelOrder, editDraft, orderKey, saveOrder, sourceStamp, type OrderSource, type QueueOrder } from '../lib/orderQueue';
-import { copyBlockReason, reviewStamp } from '../lib/reviewPolicy';
+import { copyBlockReason, finalSig, reviewStamp } from '../lib/reviewPolicy';
 import { useReviewSession } from '../hooks/use-review-session';
 import { SigReviewPanel, reviewButtonClass, reviewInputClass } from './SigReviewPanel';
 import { parseInboundOrder } from '../lib/clinical/inboundParser';
@@ -16,6 +16,8 @@ import { DiscrepancyPanel } from './DiscrepancyPanel';
 import { DiscrepancyArchive } from './DiscrepancyArchive';
 import { IguanaConnectorPanel } from './IguanaConnectorPanel';
 import { matchesOrderQuery } from '../lib/orderSearch';
+import { AdministrationTimes, FrameworkTransfer } from './FrameworkDesktop';
+import type { FrameworkDetection } from '../lib/frameworkDesktop';
 
 const emptySource: OrderSource = { facility: '', patientRef: '', pon: '', drug: '', directions: '' };
 const sample: OrderSource = { facility: 'DEMO-FACILITY', patientRef: 'DEMO-RESIDENT', pon: 'DEMO-PON-001', drug: 'Example medication 10 mg tablet', directions: 'Take 1 tablet by mouth twice daily for 7 days.' };
@@ -26,6 +28,7 @@ export function OrderQueueView() {
   const [selectedId, setSelectedId] = useState<string>();
   const [reviseId, setReviseId] = useState<string>();
   const [query, setQuery] = useState('');
+  const [desktop, setDesktop] = useState<FrameworkDetection>();
   const selected = orders.find(order => order.id === selectedId);
   const selectedDirections = selected?.directions;
   const selectedDrug = selected?.drug;
@@ -161,7 +164,7 @@ export function OrderQueueView() {
     <div className="flex flex-wrap justify-between items-start gap-3">
       <div>
         <h2 className="text-xl font-semibold">Order review queue</h2>
-        <p className="text-sm text-muted-foreground mt-1">Find the incoming E‑Rx, select it, review the SIG and copy.</p>
+        <p className="text-sm text-muted-foreground mt-1">Detect or find the incoming E‑Rx, review its SIG and administration times, then copy or send to Framework.</p>
         <p className="text-xs text-muted-foreground mt-1">Orders are saved in browser cache or your connected folder and restored after reload. Clear orders removes the saved queue.</p>
       </div>
       <button className={reviewButtonClass} disabled={!orders.length} onClick={() => {
@@ -170,6 +173,7 @@ export function OrderQueueView() {
       }}>Clear orders</button>
     </div>
     <IguanaConnectorPanel searchQuery={query}
+      onDesktopDetected={setDesktop}
       onSearchChange={value => { setQuery(value); setSelectedId(undefined); setReviseId(undefined); setForm(emptySource); }}
       onLookupStart={() => { setSelectedId(undefined); setReviseId(undefined); setForm(emptySource); }}
       onSelect={id => { if (!query.trim()) setSelectedId(current => current ?? id); }} />
@@ -195,12 +199,11 @@ export function OrderQueueView() {
           </div>
           <p className="text-sm break-all">{selected.facility} · {selected.patientRef} · {selected.drug || 'Drug not supplied'}</p>
           {selected.intakeHold && <p role="alert" className="text-sm text-amber-400">{selected.intakeHold}</p>}
-          {selected.iguana && <details className="rounded-md border border-border p-3" open>
+          {selected.iguana && <details className="rounded-md border border-border p-3">
             <summary className="cursor-pointer text-sm font-medium">Incoming prescription fields</summary>
             <dl className="grid sm:grid-cols-2 gap-2 text-sm mt-2">
               <div><dt className="text-muted-foreground">NDC / strength</dt><dd>{selected.iguana.ndc || 'Not supplied'} / {selected.iguana.strength || 'Not supplied'}</dd></div>
               <div><dt className="text-muted-foreground">Dose / route / frequency</dt><dd>{[selected.iguana.dose, selected.iguana.doseUnit, selected.iguana.route, selected.iguana.frequency].filter(Boolean).join(' · ') || 'Not supplied'}</dd></div>
-              <div><dt className="text-muted-foreground">Administration times</dt><dd>{selected.iguana.administrationTimes.join(', ') || 'Not supplied'}</dd></div>
               <div><dt className="text-muted-foreground">Start / effective date</dt><dd>{selected.iguana.startDate || 'Not supplied'} / {selected.iguana.effectiveDate || 'Not supplied'}</dd></div>
               <div><dt className="text-muted-foreground">Resident reference field</dt><dd>{selected.iguana.patientRefType}</dd></div>
               <div><dt className="text-muted-foreground">SCRIPT MessageID / source</dt><dd className="break-all">{selected.iguana.messageId} · {selected.iguana.channel || selected.iguana.sender}</dd></div>
@@ -235,7 +238,7 @@ export function OrderQueueView() {
           {clinicalResult && clinicalResult.abnormalities.length > 0 && (
             <AbnormalityBanner findings={clinicalResult.abnormalities} />
           )}
-
+          <AdministrationTimes times={selected.iguana?.administrationTimes ?? []} />
           {clinicalResult && clinicalResult.subOrders.length > 1 ? (
             <MultiOrderCards
               key={`${selected.id}:${selected.revision}`}
@@ -282,6 +285,14 @@ export function OrderQueueView() {
               onApprove={approved => updateSelected(order => ({ ...order, approved, copied: undefined }))}
               onCopied={stamp => updateSelected(order => order.approved === stamp && reviewStamp(sourceStamp(order), order.draft, exclusions, policyRevision) === stamp ? { ...order, copied: stamp } : order)} />
           )}
+          <FrameworkTransfer key={`${sourceStamp(selected)}:${desktop?.token}`} detected={desktop}
+            pon={selected.pon} sig={finalSig(selected.draft)} times={selected.iguana?.administrationTimes ?? []}
+            parts={(clinicalResult?.subOrders.length ?? 0) > 1 ? clinicalResult!.subOrders.map(sub => {
+              const draft = selected.subOrderDrafts?.[sub.id] ?? sub.suggestedSig;
+              return { id: sub.id, label: sub.label, sig: finalSig(draft), blocked: copyBlockReason(sub.suggestedSig, draft, exclusions, selected.subOrderApprovals?.[sub.id], selected.cancelled || !!selected.intakeHold || reviseId === selected.id, policyRevision) };
+            }) : []}
+            blocked={copyBlockReason(sourceStamp(selected), selected.draft, exclusions, selected.approved, selected.cancelled || !!selected.intakeHold || reviseId === selected.id, policyRevision)}
+            onDetected={setDesktop} />
           <DiscrepancyPanel key={`report:${selected.id}:${selected.revision}`}
             pon={selected.pon} drugName={selected.drug} rawProse={selected.directions}
             generatedSig={clinicalResult?.primarySig || parsed?.sig || ''}

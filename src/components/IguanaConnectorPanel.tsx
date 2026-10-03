@@ -11,12 +11,15 @@ import { translateClinicalSig } from '../lib/clinical/clinicalEngine';
 import { orderKey } from '../lib/orderQueue';
 import { matchesOrderQuery } from '../lib/orderSearch';
 import { reviewButtonClass, reviewInputClass } from './SigReviewPanel';
+import { FrameworkDetect } from './FrameworkDesktop';
+import type { FrameworkDetection } from '../lib/frameworkDesktop';
 
-export function IguanaConnectorPanel({ onSelect, searchQuery, onSearchChange, onLookupStart }: {
+export function IguanaConnectorPanel({ onSelect, searchQuery, onSearchChange, onLookupStart, onDesktopDetected }: {
   onSelect: (id: string) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onLookupStart: () => void;
+  onDesktopDetected?: (result?: FrameworkDetection) => void;
 }) {
   const { orders, setOrders, ready } = useReviewSession();
   const latestOrders = useRef(orders); latestOrders.current = orders;
@@ -162,6 +165,9 @@ export function IguanaConnectorPanel({ onSelect, searchQuery, onSearchChange, on
   return <section className="rounded-lg border border-primary/40 bg-card p-4" aria-label="Find E-Rx">
     <h3 className="font-semibold">Find E‑Rx</h3>
     <div className="mt-3 space-y-3">
+      <FrameworkDetect disabled={!canLive || busy || polling || ready === false}
+        onStart={() => onDesktopDetected?.(undefined)}
+        onDetected={result => { onDesktopDetected?.(result); if (result.pon) { onSearchChange(result.pon); lookup(result.pon); } }} />
       <form className="flex flex-wrap items-end gap-2" onSubmit={event => { event.preventDefault(); if (canLive && !busy && !polling && ready !== false && searchQuery.trim()) lookup(searchQuery); }}>
         <label className="flex-1 min-w-56 text-sm space-y-1"><span>PON, patient reference, facility or drug</span>
           <input className={reviewInputClass} value={searchQuery} placeholder="Paste the PON from Framework…" autoComplete="off" disabled={busy && !polling} onChange={event => { onSearchChange(event.target.value); setEmptyLookup(undefined); }} />

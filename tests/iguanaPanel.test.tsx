@@ -21,6 +21,35 @@ beforeEach(() => { localStorage.clear(); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 describe('connector through queue UI', () => {
+  it('detects without typing, keeps source times visible, and sends only after order match and current SIG review', async () => {
+    const detected = { ok: true, pon: 'DEMO-PON-1', token: 'opaque-test-token', expiresAt: Date.now() + 300000, fields: { sig: { label: 'SIG', currentValue: 'OLD' } } };
+    const fetcher = vi.fn().mockImplementation(async (url: string) => new Response(JSON.stringify(
+      url.endsWith('/detect') ? detected : url.endsWith('/send') ? { ok: true, verified: true, next: { ...detected, token: 'new-token' } }
+      : { ok: true, status: 200, body: attributeExport([{ payload: newRx() }]) }
+    ), { headers: { 'content-type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetcher);
+    render(<Harness />);
+    fireEvent.click(screen.getByRole('button', { name: 'Detect open E-Rx' }));
+    await screen.findByText('Search complete: 1 logs · 1 added. Choose a matching E‑Rx below.');
+    expect((screen.getByLabelText('PON, patient reference, facility or drug') as HTMLInputElement).value).toBe('DEMO-PON-1');
+    expect(JSON.parse(fetcher.mock.calls[1][1].body).filter).toBe('DEMO-PON-1');
+    expect(screen.queryByLabelText('Final SIG · editable, uppercase')).toBeNull();
+    fireEvent.click(within(screen.getByRole('region', { name: 'Orders' })).getByRole('button'));
+    const schedule = screen.getByRole('complementary', { name: 'Incoming E-Rx administration times' });
+    expect(within(schedule).getByText('0900, 2100')).toBeTruthy();
+    expect(schedule.closest('details')).toBeNull();
+    const send = screen.getByRole('button', { name: 'Send approved SIG to Framework' }) as HTMLButtonElement;
+    expect(send.disabled).toBe(true);
+    fireEvent.click(screen.getByLabelText('I matched this patient, drug and PON with the intended Framework order and destination.'));
+    expect(send.disabled).toBe(true);
+    const review = screen.getByRole('checkbox', { name: /I matched the order and checked/ });
+    fireEvent.click(review); expect(send.disabled).toBe(false);
+    fireEvent.change(screen.getByLabelText('Final SIG · editable, uppercase'), { target: { value: 'TECH REVIEWED SIG' } });
+    expect(send.disabled).toBe(true);
+    fireEvent.click(review); fireEvent.click(send);
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(3));
+    expect(JSON.parse(fetcher.mock.calls[2][1].body)).toEqual({ token: 'opaque-test-token', pon: 'DEMO-PON-1', field: 'sig', value: 'TECH REVIEWED SIG', approved: true, matched: true });
+  });
   it('finds by one field and requires a choice between the same PON for different residents', async () => {
     const first = newRx({ pon: '12345' });
     const second = newRx({ id: 'synthetic-msg-2', pon: '12345', directions: 'Give 2 tablets by mouth daily' })
