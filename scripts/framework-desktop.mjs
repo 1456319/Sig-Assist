@@ -52,7 +52,7 @@ export async function helperExecutable() {
 }
 export async function runDesktopHelper(input) {
   const exe = await helperExecutable();
-  return JSON.parse(await execute(exe, [], JSON.stringify(input), ['detect', 'inspect'].includes(input.action) ? 35000 : 20000));
+  return JSON.parse(await execute(exe, [], JSON.stringify(input), ['detect', 'inspect'].includes(input.action) ? 45000 : 20000));
 }
 
 // Bindings stay in this process, expire and are consumed before a write. The page
@@ -65,7 +65,7 @@ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } 
     bindings.set(token, { detected: result, expiresAt });
     for (const [key, item] of bindings) if (item.expiresAt < now() || bindings.size > 20) bindings.delete(key);
     return { ok: true, token, expiresAt, pon: result.pon, pons: result.pons ?? [], warnings: result.warnings ?? [],
-      instances: result.instances, openErxWindows: result.openErxWindows,
+      instances: result.instances, openErxWindows: result.openErxWindows, viewportStatus: result.viewportStatus,
       fields: Object.fromEntries(Object.entries(result.fields ?? {}).map(([key, value]) => [key, { label: value.label, currentValue: value.value }])),
       diagnostics: result.diagnostics };
   }
@@ -74,7 +74,7 @@ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } 
     busy = true;
     let writeStarted = false;
     try {
-      if (action === 'detect') { bindings.clear(); return remember(await run({ action: 'detect' })); }
+      if (action === 'detect') { bindings.clear(); return remember(await run({ action: 'detect', positionReview: body.positionReview === true })); }
       if (action === 'target') {
         if (!['sig', 'times'].includes(body.field)) throw new Error('Unknown destination field.');
         bindings.clear(); return remember(await run({ action: 'target', field: body.field }));

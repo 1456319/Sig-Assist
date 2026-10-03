@@ -5,6 +5,14 @@ import { createDesktopSession } from '../scripts/framework-desktop.mjs';
 
 const detection = () => ({ ok: true, pon: 'SYNTHETIC-PON', fields: { sig: { id: 'edit-1', value: 'OLD', label: 'SIG' }, times: { id: 'edit-2', value: '0800', label: 'Administration times' } }, binding: { pid: 7, started: '123', window: 'window-1', pon: 'SYNTHETIC-PON' } });
 describe('Framework desktop transfer binding', () => {
+  it('uses PON-only detection by default and positions the review section only when requested', async () => {
+    const run = vi.fn().mockResolvedValue({ ...detection(), viewportStatus: 'Framework details left at RxFill Indicator / All Fill Statuses.' });
+    const desktop = createDesktopSession({ run });
+    await desktop('detect');
+    expect(run).toHaveBeenLastCalledWith({ action: 'detect', positionReview: false });
+    expect(await desktop('detect', { positionReview: true })).toMatchObject({ viewportStatus: expect.stringContaining('RxFill Indicator') });
+    expect(run).toHaveBeenLastCalledWith({ action: 'detect', positionReview: true });
+  });
   it('preserves multiple-instance detection status across the bridge', async () => {
     const desktop = createDesktopSession({ run: vi.fn().mockResolvedValue({ ...detection(), instances: 5, openErxWindows: 1 }) });
     expect(await desktop('detect')).toMatchObject({ instances: 5, openErxWindows: 1, pon: 'SYNTHETIC-PON' });

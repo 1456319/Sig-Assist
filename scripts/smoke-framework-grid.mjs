@@ -31,7 +31,7 @@ try {
     await until(() => readFile(path.join(dir, 'ready'))); return { app, dir };
   }
   const run = input => new Promise((resolve, reject) => {
-    const child = execFile(helper, ['--test-process', 'SigAssistGridFixture'], { timeout: 35000, maxBuffer: 4 * 1024 * 1024 }, (error, stdout) => {
+    const child = execFile(helper, ['--test-process', 'SigAssistGridFixture'], { timeout: 45000, maxBuffer: 4 * 1024 * 1024 }, (error, stdout) => {
       if (error) reject(error); else { try { resolve(JSON.parse(stdout.replace(/^\uFEFF/, ''))); } catch (error) { reject(error); } }
     }); child.stdin.end(JSON.stringify(input));
   });
@@ -46,17 +46,24 @@ try {
   assert.equal(direct.openErxWindows, 1, summary(direct)); assert.deepEqual(direct.pons, ['SYNTHETIC-OPEN'], summary(direct));
   assert.equal(direct.fields.sig.value, 'OLD OPEN SIG');
   const grid = direct.diagnostics.windows.find(w => w.openErx).grids[0];
-  assert.equal(grid.initialRows, 30); assert.equal(grid.rowCount, 80); assert.equal(grid.complete, true); assert.equal(grid.pages, 0, summary(direct));
+  assert.equal(grid.initialRows, 30); assert.equal(grid.rowCount, 80); assert.equal(grid.complete, false); assert.equal(grid.pages, 0, summary(direct));
   assert.ok(grid.rows.some(r => r.index === 67 && r.value === 'SYNTHETIC-OPEN'));
+  assert.equal(grid.ponFound, true); assert.equal(grid.stopReason, 'pon-found'); assert.equal(grid.rows.length, 68);
+  assert.equal(grid.reviewPosition, 'unchanged'); assert.equal(grid.anchorVisible, false);
+  assert.equal((await readFile(path.join(opened.dir, 'state'), 'utf8')).split(',')[1], '0');
+  assert.ok(!direct.warnings.some(w => w.includes('could not be read')));
+  const positioned = await run({ action: 'detect', positionReview: true });
+  assert.equal(positioned.diagnostics.windows.find(w => w.openErx).grids[0].reviewPosition, 'rxfill-visible');
+  assert.equal((await readFile(path.join(opened.dir, 'state'), 'utf8')).split(',')[0], '38');
   // No read/scroll of the other instance's queue grid, despite an identical ID.
   await assert.rejects(readFile(path.join(triage.dir, 'state')));
   await stop(opened.app); opened = await launch('scroll-opened', 'open', 'scroll');
   const scrolled = await run({ action: 'detect' });
   assert.deepEqual(scrolled.pons, ['SYNTHETIC-OPEN'], summary(scrolled));
   const scrollGrid = scrolled.diagnostics.windows.find(w => w.openErx).grids[0];
-  assert.ok(scrollGrid.pages >= 3, summary(scrolled)); assert.equal(scrollGrid.complete, true); assert.equal(scrollGrid.scrollRestored, true);
-  assert.equal((await readFile(path.join(opened.dir, 'state'), 'utf8')).split(',')[0], '10');
-  await stop(idle.app); await launch('second', 'open-second');
+  assert.ok(scrollGrid.pages >= 3, summary(scrolled)); assert.equal(scrollGrid.ponFound, true); assert.equal(scrollGrid.reviewPosition, 'unchanged');
+  assert.equal((await readFile(path.join(opened.dir, 'state'), 'utf8')).split(',')[0], '50');
+  await stop(idle.app); const second = await launch('second', 'open-second');
   const multiple = await run({ action: 'detect' });
   assert.equal(multiple.instances, 5); assert.equal(multiple.openErxWindows, 2); assert.equal(multiple.pon, null);
   assert.deepEqual(multiple.pons, ['SYNTHETIC-OPEN', 'SYNTHETIC-SECOND']);
@@ -65,12 +72,34 @@ try {
   const sent = await run({ action: 'send', expected: scrolled, field: 'sig', value: 'TECHNICIAN APPROVED' });
   assert.equal(sent.verified, true, summary(sent));
   await stop(opened.app); opened = await launch('failed-scroll', 'open', 'fail');
-  const partial = await run({ action: 'detect' });
+  const partial = await run({ action: 'detect', positionReview: true });
   const partialGrid = partial.diagnostics.windows.find(w => w.pid === opened.app.pid).grids[0];
-  assert.equal(partialGrid.complete, false); assert.equal(partialGrid.scrollRestored, true);
+  assert.equal(partialGrid.complete, false); assert.equal(partialGrid.reviewPosition, 'bottom');
   assert.ok(partialGrid.issues.some(issue => issue.includes('inspection failed')));
-  assert.equal((await readFile(path.join(opened.dir, 'state'), 'utf8')).split(',')[0], '10');
-  console.log('Multi-instance UIA passed: 5 processes, wizard selection, hidden/triage exclusion, PON after row 30, direct grid read, scroll fallback/restoration, partial-read diagnostics and two-open-order sending.');
+  assert.equal((await readFile(path.join(opened.dir, 'state'), 'utf8')).split(',')[0], '50');
+  assert.ok(!partial.warnings.some(w => w.includes('restored')));
+  await stop(opened.app); await stop(second.app);
+  opened = await launch('raw-delayed', 'open', 'raw-delay');
+  const raw = await run({ action: 'detect' });
+  assert.deepEqual(raw.pons, ['SYNTHETIC-OPEN'], summary(raw));
+  const rawGrid = raw.diagnostics.windows.find(w => w.openErx).grids[0];
+  assert.equal(rawGrid.rowCount, 106); assert.ok(rawGrid.nullCells > 0); assert.equal(rawGrid.ponFound, true, summary(raw));
+  assert.equal(rawGrid.reviewPosition, 'unchanged', summary(raw));
+  assert.ok(rawGrid.viewports.some(v => v.view === 'raw' && v.rows > 0));
+  assert.ok(rawGrid.viewports.some(v => v.attempt > 0 && v.rows > 0));
+  assert.equal((await readFile(path.join(opened.dir, 'state'), 'utf8')).split(',')[0], '75');
+  const rawPositioned = await run({ action: 'detect', positionReview: true });
+  assert.equal(rawPositioned.diagnostics.windows.find(w => w.openErx).grids[0].reviewPosition, 'rxfill-visible', summary(rawPositioned));
+  assert.equal((await readFile(path.join(opened.dir, 'state'), 'utf8')).split(',')[0], '64');
+  await stop(opened.app); opened = await launch('empty-provider', 'open', 'empty');
+  const empty = await run({ action: 'detect' });
+  const emptyGrid = empty.diagnostics.windows.find(w => w.openErx).grids[0];
+  assert.deepEqual(empty.pons, []); assert.equal(emptyGrid.complete, false); assert.equal(emptyGrid.ponFound, false);
+  assert.equal(emptyGrid.rows.length, 0); assert.ok(emptyGrid.nullCells > 0);
+  assert.ok(emptyGrid.viewports.some(v => v.view === 'raw' && v.sample.length > 0));
+  assert.ok(emptyGrid.issues.every(issue => !issue.includes('NullReferenceException')));
+  assert.equal((await readFile(path.join(opened.dir, 'state'), 'utf8')).split(',')[0], '76');
+  console.log('Multi-instance UIA passed: PON-first early stopping, wizard/triage scoping, indexed and scroll reads, null cells, delayed raw-only rows, optional RxFill positioning, empty-provider diagnostics and two-open-order sending.');
 } finally {
   for (const app of apps) await stop(app);
   await rm(folder, { recursive: true, force: true, maxRetries: 8, retryDelay: 150 });

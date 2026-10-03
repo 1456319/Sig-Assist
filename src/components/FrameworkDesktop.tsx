@@ -8,15 +8,16 @@ export function FrameworkDetect({ disabled, onStart, onDetected }: { disabled: b
   const [status, setStatus] = useState('Open the E-Rx in Framework, then detect it here.');
   const [evidence, setEvidence] = useState<unknown>();
   const [found, setFound] = useState<FrameworkDetection>();
+  const [positionReview, setPositionReview] = useState(false);
   async function detect(inspect = false) {
     setBusy(true); setEvidence(undefined); setFound(undefined);
     if (!inspect) onStart();
     setStatus('Checking Framework instances and reading the open E-Rx details…');
     try {
-      const result = await frameworkDesktop(inspect ? 'inspect' : 'detect');
+      const result = await frameworkDesktop(inspect ? 'inspect' : 'detect', inspect ? {} : { positionReview });
       setEvidence(result.diagnostics);
       if (!result.ok) { setStatus(result.error || 'Framework could not be detected.'); return; }
-      if (inspect) { downloadDesktopDiagnostics(result.diagnostics); setStatus('Desktop diagnostics saved. They contain visible order information.'); }
+      if (inspect) { downloadDesktopDiagnostics(result.diagnostics); setStatus('Desktop diagnostics saved. They contain order information.'); }
       else {
         setFound(result); onDetected(result);
         const instances = result.instances === undefined ? '' : `${result.instances} Framework instance${result.instances === 1 ? '' : 's'}; ${result.openErxWindows ?? 0} open E-Rx window${result.openErxWindows === 1 ? '' : 's'}. `;
@@ -31,10 +32,12 @@ export function FrameworkDetect({ disabled, onStart, onDetected }: { disabled: b
       <span className="text-xs text-muted-foreground">Windows desktop integration · pilot</span>
     </div>
     <p className="text-sm" role="status">{status}</p>
+    {found?.viewportStatus && <p className="text-sm" role="status">{found.viewportStatus}</p>}
     {found?.warnings?.filter(warning => !warning.startsWith('Multiple PONs')).map(warning => <p key={warning} role="status" className="text-sm text-amber-600 dark:text-amber-400">{warning}</p>)}
     {(found?.pons?.length ?? 0) > 1 && <div role="alert" className="text-sm text-amber-600 dark:text-amber-400 space-y-2"><p>Multiple PONs detected. Check the intended order.</p><div className="flex flex-wrap gap-2">{found!.pons!.map(pon => <button type="button" className={reviewButtonClass} key={pon} disabled={disabled || busy} onClick={() => onDetected({ ...found!, pon })}>Find PON {pon}</button>)}</div></div>}
     <details><summary className="text-xs cursor-pointer">Framework detection help</summary>
-      <p className="text-xs text-muted-foreground my-2">Run the connector inside the same Windows/Citrix session as Framework. Multiple instances can stay open. Detection looks for the open E-Rx wizard and may briefly scroll its details, then restore the position. Keep the order open while it reads. If it cannot find the order, export desktop diagnostics. The export includes order text; share it with your diagnostic report.</p>
+      <p className="text-xs text-muted-foreground my-2">Run the connector inside the same Windows/Citrix session as Framework. Multiple instances can stay open. Detection stops reading each open E-Rx when it finds its PON; Iguana supplies the order details and administration times. Keep the order open while it reads. If it cannot find the PON, export desktop diagnostics. The export includes order text; share it with your diagnostic report.</p>
+      <label className="flex gap-2 text-xs my-2"><input type="checkbox" checked={positionReview} disabled={disabled || busy} onChange={event => setPositionReview(event.target.checked)} />Also position Framework at the SIG/admin-times section (slower). It looks for RxFill Indicator / All Fill Statuses, otherwise leaves the details at the bottom.</label>
       <button type="button" className={reviewButtonClass} disabled={disabled || busy} onClick={() => evidence ? downloadDesktopDiagnostics(evidence) : void detect(true)}>Export desktop diagnostics</button>
     </details>
   </div>;

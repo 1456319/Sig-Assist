@@ -29,10 +29,22 @@ public sealed class GridRow {
 public sealed class GridInfo {
     public string id, method = "visible rows";
     public string[] patterns = new string[0];
-    public int rowCount = -1, columnCount = -1, pages, initialRows;
-    public bool complete, scrollRestored = true;
+    public int rowCount = -1, columnCount = -1, pages, initialRows, nullCells, rowFailures;
+    public bool complete, expanded, anchorVisible, ponFound;
+    public string stopReason = "not-expanded";
+    public string reviewPosition = "unchanged";
+    public double finalVerticalPercent = -1;
     public List<GridRow> rows = new List<GridRow>();
     public List<string> issues = new List<string>();
+    public List<GridViewport> viewports = new List<GridViewport>();
+}
+public sealed class GridViewport {
+    public string stage, view, error = "";
+    public int nodes, cells, rows, attempt, elapsedMs;
+    public int[] visibleRows = new int[0];
+    public double verticalPercent = -1;
+    public bool anchorVisible, limited;
+    public List<object> sample = new List<object>();
 }
 sealed class ScanNode {
     public AutomationElement element;
@@ -42,7 +54,7 @@ sealed class ScanNode {
 }
 public sealed class DesktopSnapshot {
     public string format = "sig-assist-framework-desktop";
-    public int schemaVersion = 2;
+    public int schemaVersion = 3;
     public List<WindowInfo> windows = new List<WindowInfo>();
     public List<string> issues = new List<string>();
 }
@@ -70,6 +82,7 @@ public static class FrameworkDesktop {
             : Regex.IsMatch(label, @"^(?:Administration times|Admin times)$", RegexOptions.IgnoreCase);
     }
     static ControlInfo Read(AutomationElement element) {
+        if (element == null) return null;
         var current = element.Current;
         if (current.IsPassword) return null;
         var item = new ControlInfo { element = element, id = Id(element), automationId = current.AutomationId,
@@ -88,7 +101,7 @@ public static class FrameworkDesktop {
         return new[] { "ERxWorkQueueWizardView", "ERxWorkQueueView" }.Contains(control.className)
             || control.automationId == "ERxWorkQueueWizardView";
     }
-    static DesktopSnapshot Scan(string testProcess, bool expandGrids = false) {
+    static DesktopSnapshot Scan(string testProcess, bool expandGrids = false, bool positionReview = false) {
         var result = new DesktopSnapshot();
         var session = Process.GetCurrentProcess().SessionId;
         var processes = new Dictionary<int, Process>();
@@ -142,7 +155,7 @@ public static class FrameworkDesktop {
         var budget = Stopwatch.StartNew();
         foreach (var window in result.windows.Where(w => w.openErx)) {
             foreach (var grid in window.controls.Where(c => c.inOpenErx && !c.hidden && c.enabled && c.type == "ControlType.DataGrid" && c.automationId == "ERxGrid")) {
-                window.grids.Add(ReadGrid(grid, expandGrids, budget));
+                window.grids.Add(ReadGrid(grid, expandGrids, positionReview, budget));
             }
         }
         if (result.windows.Count == 0) result.issues.Add("No accessible Framework window is open. A remote Citrix picture on a local desktop cannot expose the remote fields.");
@@ -153,6 +166,7 @@ public static class FrameworkDesktop {
         return Regex.IsMatch(Regex.Replace(title ?? "", @"[\s_:#.\-]", ""), @"^(?:PON|PrescriberOrder(?:Number|No))$", RegexOptions.IgnoreCase);
     }
     static string CellText(AutomationElement cell) {
+        if (cell == null) throw new InvalidOperationException("The grid provider returned a null cell.");
         var item = Read(cell);
         if (item == null) return "";
         if (!String.IsNullOrWhiteSpace(item.value)) return Trim(item.value);
@@ -168,35 +182,86 @@ public static class FrameworkDesktop {
         if (row == null) { row = new GridRow { index = index }; info.rows.Add(row); }
         row.title = title; row.value = value;
     }
-    static void VisibleRows(AutomationElement grid, GridInfo info) {
-        // Framework's DevExpress provider exposes sibling Title/Value cells,
-        // named "Row n, Column n: ...". Pair by row, never traversal adjacency.
+    static object Cached(AutomationElement element, AutomationProperty property) {
+        var value = element.GetCachedPropertyValue(property, true);
+        return value == AutomationElement.NotSupported ? null : value;
+    }
+    static bool FillAnchor(GridRow row) {
+        return Regex.Replace(row.title ?? "", @"\s+", "").Equals("RxFillIndicator", StringComparison.OrdinalIgnoreCase)
+            && Regex.Replace(Trim(row.value), @"\s+", " ").Equals("All Fill Statuses", StringComparison.OrdinalIgnoreCase);
+    }
+    static List<GridRow> VisibleRows(AutomationElement grid, GridInfo info, string stage, bool raw, int attempt, Stopwatch budget, int deadline) {
+        // Bulk snapshots avoid hundreds of individual cross-process property reads.
+        // Refresh after every scroll. Raw view includes layout/cell peers omitted
+        // from Control view by some DevExpress versions; never leave this grid.
+        var viewport = new GridViewport { stage = stage, view = raw ? "raw" : "control", attempt = attempt, elapsedMs = (int)budget.ElapsedMilliseconds };
+        info.viewports.Add(viewport);
         var cells = new Dictionary<int, Dictionary<int, string>>();
-        var pending = new Stack<KeyValuePair<AutomationElement, int>>();
-        pending.Push(new KeyValuePair<AutomationElement, int>(grid, 0));
-        int visited = 0;
-        while (pending.Count > 0 && ++visited <= 2200) {
-            var next = pending.Pop();
-            var item = Read(next.Key);
-            if (item == null || item.offscreen) continue;
-            var match = GridCellName.Match(item.name ?? "");
-            if (match.Success) {
-                int row = Int32.Parse(match.Groups[1].Value), col = Int32.Parse(match.Groups[2].Value);
-                if (row < 512 && col < 2) {
-                    if (!cells.ContainsKey(row)) cells[row] = new Dictionary<int, string>();
-                    if (!cells[row].ContainsKey(col) || item.automationId == "Title" || item.automationId == "Value")
-                        cells[row][col] = String.IsNullOrEmpty(item.value) ? Trim(match.Groups[3].Value) : Trim(item.value);
+        try {
+            var request = new CacheRequest { TreeScope = TreeScope.Subtree, TreeFilter = raw ? Automation.RawViewCondition : Automation.ControlViewCondition, AutomationElementMode = AutomationElementMode.None };
+            foreach (var property in new[] { AutomationElement.NameProperty, AutomationElement.AutomationIdProperty, AutomationElement.ClassNameProperty,
+                AutomationElement.ControlTypeProperty, AutomationElement.IsOffscreenProperty, AutomationElement.IsPasswordProperty,
+                ValuePattern.ValueProperty, GridItemPattern.RowProperty, GridItemPattern.ColumnProperty }) request.Add(property);
+            var pending = new Stack<KeyValuePair<AutomationElement, int>>();
+            pending.Push(new KeyValuePair<AutomationElement, int>(grid.GetUpdatedCache(request), 0));
+            while (pending.Count > 0 && viewport.nodes < 3000 && budget.ElapsedMilliseconds < deadline) {
+                var next = pending.Pop(); viewport.nodes++;
+                var element = next.Key;
+                if (Object.Equals(Cached(element, AutomationElement.IsPasswordProperty), true)) continue;
+                bool offscreen = Object.Equals(Cached(element, AutomationElement.IsOffscreenProperty), true);
+                string name = Text(Cached(element, AutomationElement.NameProperty)), automationId = Text(Cached(element, AutomationElement.AutomationIdProperty));
+                var type = Cached(element, AutomationElement.ControlTypeProperty) as ControlType;
+                // Preserve a bounded sample even when there are no readable cells.
+                if (viewport.sample.Count < 16) viewport.sample.Add(new { depth = next.Value, name = name, automationId = automationId,
+                    className = Text(Cached(element, AutomationElement.ClassNameProperty)), type = type == null ? "" : type.ProgrammaticName, offscreen = offscreen });
+                // Hidden search panels/other pages are excluded. Raw layout wrappers
+                // may be offscreen even when their children are visible, so descend
+                // through unlabelled panes but accept only visible cell values.
+                if (offscreen && (automationId == "SearchPanel" || type == ControlType.DataGrid)) continue;
+                if (!offscreen) {
+                    var match = GridCellName.Match(name);
+                    object rowProperty = Cached(element, GridItemPattern.RowProperty), columnProperty = Cached(element, GridItemPattern.ColumnProperty);
+                    int row = -1, col = -1;
+                    if (match.Success) { Int32.TryParse(match.Groups[1].Value, out row); Int32.TryParse(match.Groups[2].Value, out col); }
+                    else if (rowProperty is int && columnProperty is int) { row = (int)rowProperty; col = (int)columnProperty; }
+                    if (row >= 0 && row < 512 && col >= 0 && col < 2) {
+                        viewport.cells++;
+                        if (!cells.ContainsKey(row)) cells[row] = new Dictionary<int, string>();
+                        if (!cells[row].ContainsKey(col) || automationId == "Title" || automationId == "Value") {
+                            var value = Cached(element, ValuePattern.ValueProperty);
+                            cells[row][col] = value != null ? Trim(Text(value)) : match.Success ? Trim(match.Groups[3].Value) : Trim(name);
+                        }
+                    }
                 }
+                var children = element.CachedChildren;
+                if (next.Value >= 18) { if (children != null && children.Count > 0) viewport.limited = true; continue; }
+                if (children != null) foreach (AutomationElement child in children) pending.Push(new KeyValuePair<AutomationElement, int>(child, next.Value + 1));
             }
-            if (next.Value >= 6) continue;
-            var child = TreeWalker.ControlViewWalker.GetFirstChild(next.Key);
-            int siblings = 0;
-            while (child != null && ++siblings <= 2200) {
-                pending.Push(new KeyValuePair<AutomationElement, int>(child, next.Value + 1));
-                child = TreeWalker.ControlViewWalker.GetNextSibling(child);
+            if (pending.Count > 0) viewport.limited = true;
+        } catch (Exception error) { viewport.error = error.GetType().Name + ": " + error.Message; }
+        var rows = cells.Where(r => r.Value.ContainsKey(0) && r.Value.ContainsKey(1))
+            .Select(r => new GridRow { index = r.Key, title = r.Value[0], value = r.Value[1] }).OrderBy(r => r.index).ToList();
+        foreach (var row in rows) AddRow(info, row.index, row.title, row.value);
+        viewport.rows = rows.Count; viewport.visibleRows = rows.Select(r => r.index).ToArray(); viewport.anchorVisible = rows.Any(FillAnchor);
+        return rows;
+    }
+    static List<GridRow> CaptureRows(AutomationElement grid, GridInfo info, ScrollPattern scroll, string stage, Stopwatch budget, int deadline, bool retry) {
+        var rows = new List<GridRow>();
+        // Up to 800ms for controls that rebuild peers asynchronously after scrolling.
+        for (int attempt = 0; attempt < (retry ? 3 : 1) && budget.ElapsedMilliseconds < deadline; attempt++) {
+            if (attempt > 0) Pause(budget, deadline, 400);
+            rows = VisibleRows(grid, info, stage, false, attempt, budget, deadline);
+            if (rows.Count == 0 && budget.ElapsedMilliseconds < deadline) rows = VisibleRows(grid, info, stage, true, attempt, budget, deadline);
+            if (scroll != null) foreach (var viewport in info.viewports.Where(v => v.stage == stage && v.attempt == attempt)) {
+                try { viewport.verticalPercent = scroll.Current.VerticalScrollPercent; } catch { }
             }
+            if (rows.Count > 0) break;
         }
-        foreach (var row in cells.Where(r => r.Value.ContainsKey(0) && r.Value.ContainsKey(1))) AddRow(info, row.Key, row.Value[0], row.Value[1]);
+        return rows;
+    }
+    static void Pause(Stopwatch budget, int deadline, int milliseconds) {
+        int remaining = deadline - (int)budget.ElapsedMilliseconds;
+        if (remaining > 0) System.Threading.Thread.Sleep(Math.Min(milliseconds, remaining));
     }
     static ScrollPattern GridScroll(AutomationElement grid) {
         object pattern;
@@ -207,68 +272,98 @@ public static class FrameworkDesktop {
         foreach (AutomationElement child in children) if (!child.Current.IsOffscreen && child.TryGetCurrentPattern(ScrollPattern.Pattern, out pattern)) return (ScrollPattern)pattern;
         return null;
     }
-    static GridInfo ReadGrid(ControlInfo control, bool expand, Stopwatch budget) {
-        var info = new GridInfo { id = control.id };
+    static bool CompleteGrid(GridInfo info) {
+        return info.rowCount >= 0 && info.rowCount <= 512 && info.rows.Count == info.rowCount;
+    }
+    static bool HasPon(GridInfo info) { return info.rows.Any(r => PonTitle(r.title) && ValidPon(r.value)); }
+    static void ReviewPosition(AutomationElement element, GridInfo info, ScrollPattern scroll, Stopwatch budget, int deadline) {
+        if (scroll == null || !scroll.Current.VerticallyScrollable) return;
+        // The technician wants the useful section left visible, not a restoration
+        // to the starting viewport. Only move this already identified detail grid.
+        try {
+            scroll.SetScrollPercent(ScrollPattern.NoScroll, 100);
+            Pause(budget, deadline, 500);
+            for (int step = 0; step <= 24 && budget.ElapsedMilliseconds < deadline; step++) {
+                var visible = CaptureRows(element, info, scroll, "review-" + step, budget, deadline, step == 0);
+                if (visible.Any(FillAnchor)) {
+                    info.anchorVisible = true; info.reviewPosition = "rxfill-visible"; return;
+                }
+                double before = scroll.Current.VerticalScrollPercent;
+                if (before <= 0 || step == 24) break;
+                scroll.Scroll(ScrollAmount.NoAmount, ScrollAmount.SmallDecrement);
+                Pause(budget, deadline, 500);
+                if (Math.Abs(scroll.Current.VerticalScrollPercent - before) < 0.001) break;
+            }
+        } catch (Exception error) { info.issues.Add("Review-position scan: " + error.GetType().Name + ": " + error.Message); }
+        // If the anchor is absent/unreadable, bottom is an acceptable fallback.
+        try {
+            scroll.SetScrollPercent(ScrollPattern.NoScroll, 100);
+            Pause(budget, deadline, 350);
+            info.reviewPosition = scroll.Current.VerticalScrollPercent >= 99.9 ? "bottom" : "unconfirmed";
+        } catch (Exception error) { info.reviewPosition = "unconfirmed"; info.issues.Add("Could not leave the details at the bottom: " + error.GetType().Name); }
+    }
+    static GridInfo ReadGrid(ControlInfo control, bool expand, bool positionReview, Stopwatch budget) {
+        var info = new GridInfo { id = control.id, expanded = expand };
         ScrollPattern scroll = null;
-        double originalVertical = -1, originalHorizontal = -1;
-        bool restore = false;
+        int readDeadline = Math.Min(22000, (int)budget.ElapsedMilliseconds + 16000);
+        int reviewDeadline = Math.Min(30000, readDeadline + 8000);
         try {
             info.patterns = control.element.GetSupportedPatterns().Select(p => p.ProgrammaticName).ToArray();
-            VisibleRows(control.element, info); info.initialRows = info.rows.Count;
             object pattern;
             GridPattern grid = control.element.TryGetCurrentPattern(GridPattern.Pattern, out pattern) ? (GridPattern)pattern : null;
             if (grid != null) { info.rowCount = grid.Current.RowCount; info.columnCount = grid.Current.ColumnCount; }
-            if (!expand) return info;
             scroll = GridScroll(control.element);
-            if (scroll != null) {
-                originalVertical = scroll.Current.VerticalScrollPercent; originalHorizontal = scroll.Current.HorizontalScrollPercent;
-                restore = true; // GetItem/Realize can also move the viewport.
-            }
-            if (grid != null && info.columnCount == 2) {
-                info.method = "GridPattern";
-                int failures = 0;
-                for (int row = 0; row < Math.Min(info.rowCount, 512) && budget.ElapsedMilliseconds < 12000; row++) {
+            CaptureRows(control.element, info, scroll, "initial", budget, readDeadline, expand); info.initialRows = info.rows.Count;
+            if (!expand) return info;
+            if (!HasPon(info) && grid != null && info.columnCount == 2) {
+                info.method = "GridPattern + refreshed accessibility snapshots";
+                int consecutiveFailures = 0;
+                for (int row = 0; row < Math.Min(info.rowCount, 512) && !HasPon(info) && budget.ElapsedMilliseconds < readDeadline; row++) {
                     try {
-                        var title = grid.GetItem(row, 0); var value = grid.GetItem(row, 1);
-                        // Realize only when the scroll position can be restored.
-                        if (restore) foreach (var cell in new[] { title, value }) {
+                        AutomationElement title = null, value = null;
+                        for (int attempt = 0; attempt < 2 && budget.ElapsedMilliseconds < readDeadline; attempt++) {
+                            title = grid.GetItem(row, 0); value = grid.GetItem(row, 1);
+                            if (title != null && value != null) break;
+                            info.nullCells += (title == null ? 1 : 0) + (value == null ? 1 : 0);
+                            Pause(budget, readDeadline, 200);
+                        }
+                        if (title == null || value == null) throw new InvalidOperationException("GridPattern returned no cell after retry at row " + row + ".");
+                        foreach (var cell in new[] { title, value }) {
                             if (cell.TryGetCurrentPattern(VirtualizedItemPattern.Pattern, out pattern)) ((VirtualizedItemPattern)pattern).Realize();
                         }
-                        AddRow(info, row, CellText(title), CellText(value));
+                        AddRow(info, row, CellText(title), CellText(value)); consecutiveFailures = 0;
                     } catch (Exception error) {
-                        if (++failures == 1) info.issues.Add("GridPattern row read failed: " + error.GetType().Name);
-                        if (failures >= 3) break;
+                        info.rowFailures++;
+                        if (++consecutiveFailures == 1) info.issues.Add("GridPattern row " + row + ": " + error.GetType().Name + ": " + error.Message);
+                        if (consecutiveFailures >= 3) break;
                     }
                 }
-                info.complete = info.rowCount > 0 && info.rows.Count == info.rowCount;
             }
-            if (!info.complete && scroll != null && scroll.Current.VerticallyScrollable && budget.ElapsedMilliseconds < 12000) {
-                info.method += " + scroll";
+            if (!HasPon(info) && !CompleteGrid(info) && scroll != null && scroll.Current.VerticallyScrollable && budget.ElapsedMilliseconds < readDeadline) {
+                info.method += " + settled scroll";
                 scroll.SetScrollPercent(ScrollPattern.NoScroll, 0);
-                System.Threading.Thread.Sleep(100);
-                for (int page = 0; page < 40 && budget.ElapsedMilliseconds < 12000; page++) {
-                    VisibleRows(control.element, info); info.pages++;
+                Pause(budget, readDeadline, 350);
+                for (int page = 0; page < 40 && !HasPon(info) && budget.ElapsedMilliseconds < readDeadline; page++) {
+                    CaptureRows(control.element, info, scroll, "page-" + page, budget, readDeadline, true); info.pages++;
+                    if (HasPon(info)) break;
                     double before = scroll.Current.VerticalScrollPercent;
-                    if (before >= 99.99) {
-                        info.complete = info.rowCount > 0 ? info.rows.Count == info.rowCount : true;
-                        break;
-                    }
+                    if (before >= 99.99) break;
                     scroll.Scroll(ScrollAmount.NoAmount, ScrollAmount.LargeIncrement);
-                    System.Threading.Thread.Sleep(100);
+                    Pause(budget, readDeadline, 350);
                     if (Math.Abs(scroll.Current.VerticalScrollPercent - before) < 0.001) { info.issues.Add("Detail grid did not advance when scrolled."); break; }
                 }
             }
-            if (!info.complete) info.issues.Add("Detail grid read is partial (provider unsupported, row/page limit or time budget reached).");
         } catch (Exception error) { info.issues.Add("Detail grid inspection failed: " + error.GetType().Name + ": " + error.Message); }
         finally {
-            if (restore) {
-                try {
-                    scroll.SetScrollPercent(originalHorizontal, originalVertical);
-                    info.scrollRestored = (originalVertical < 0 || Math.Abs(scroll.Current.VerticalScrollPercent - originalVertical) < 0.5)
-                        && (originalHorizontal < 0 || Math.Abs(scroll.Current.HorizontalScrollPercent - originalHorizontal) < 0.5);
-                } catch { info.scrollRestored = false; }
-                if (!info.scrollRestored) info.issues.Add("The detail grid's original scroll position could not be restored.");
+            if (expand && positionReview) {
+                try { ReviewPosition(control.element, info, scroll, budget, reviewDeadline); }
+                catch (Exception error) { info.issues.Add("Review-position unavailable: " + error.GetType().Name); }
             }
+            try { if (scroll != null) info.finalVerticalPercent = scroll.Current.VerticalScrollPercent; } catch { }
+            info.complete = CompleteGrid(info);
+            info.ponFound = HasPon(info);
+            info.stopReason = info.ponFound ? "pon-found" : !expand ? "not-expanded" : info.complete ? "all-rows-read-no-pon" : "provider-or-scan-limit";
+            if (expand && !info.ponFound && !info.complete) info.issues.Add("PON not found. Read " + info.rows.Count + " of " + info.rowCount + " advertised detail rows; see viewport samples, null-cell counts and provider errors.");
             info.rows = info.rows.OrderBy(r => r.index).ToList();
         }
         return info;
@@ -287,8 +382,11 @@ public static class FrameworkDesktop {
         if (pons.Length > 1) warnings.Add("Multiple PONs detected: " + String.Join(", ", pons) + ". Match the intended order before sending.");
         if (snapshot.windows.Any(w => w.incomplete)) warnings.Add("Some Framework controls could not be read. Verify the destination in Framework.");
         if (open.Length > 1) warnings.Add("More than one Framework window has an open E-Rx. Check the intended order; sending remains available after review.");
-        if (open.Any(w => w.grids.Any(g => !g.complete))) warnings.Add("Some open E-Rx detail rows could not be read. Export desktop diagnostics if the order is missing.");
-        if (open.Any(w => w.grids.Any(g => !g.scrollRestored))) warnings.Add("The E-Rx details scroll position changed during detection and could not be restored.");
+        if (open.Any(w => w.grids.Any(g => g.expanded && !g.ponFound && !g.complete))) warnings.Add("The PON could not be read from an open E-Rx detail grid. Export desktop diagnostics if the order is missing.");
+        var positions = open.SelectMany(w => w.grids).Where(g => g.expanded).Select(g => g.reviewPosition).ToArray();
+        string viewportStatus = positions.Contains("rxfill-visible") ? "Framework details left at RxFill Indicator / All Fill Statuses. Check the SIG and administration times there."
+            : positions.Contains("bottom") ? "Framework details left at the bottom. RxFill Indicator / All Fill Statuses could not be read; scroll up to it if needed."
+            : positions.Contains("unconfirmed") ? "The final detail-grid position could not be confirmed. You can position it manually." : null;
         var fields = new Dictionary<string, object>();
         foreach (var field in new[] { "sig", "times" }) {
             var controls = snapshot.windows.SelectMany(w => w.controls.Select(c => new { window = w, control = c }))
@@ -296,7 +394,7 @@ public static class FrameworkDesktop {
             if (controls.Length == 1) fields[field] = FieldInfo(controls[0].window, controls[0].control, chosenField == field);
         }
         return new { ok = true, pon = pons.Length == 1 ? pons[0] : null, pons = pons, fields = fields, warnings = warnings,
-            instances = snapshot.windows.Select(w => w.pid).Distinct().Count(), openErxWindows = open.Length, diagnostics = snapshot };
+            instances = snapshot.windows.Select(w => w.pid).Distinct().Count(), openErxWindows = open.Length, viewportStatus = viewportStatus, diagnostics = snapshot };
     }
     static string Serialize(object value) { return Json.Serialize(value); }
     static Dictionary<string, object> Map(object value) { return (Dictionary<string, object>)value; }
@@ -348,7 +446,8 @@ public static class FrameworkDesktop {
             var input = Map(Json.DeserializeObject(Console.In.ReadToEnd()));
             var action = Text(input["action"]);
             if (action == "target") { Console.WriteLine(Serialize(ChooseTarget(Text(input["field"]), testProcess))); return 0; }
-            var snapshot = Scan(testProcess, action == "detect" || action == "inspect");
+            bool positionReview = input.ContainsKey("positionReview") && Object.Equals(input["positionReview"], true);
+            var snapshot = Scan(testProcess, action == "detect" || action == "inspect", positionReview);
             object result = action == "detect" ? Detect(snapshot) : action == "inspect" ? (object)new { ok = true, diagnostics = snapshot } : action == "send" ? Send(input, snapshot, testProcess) : throwUnknown();
             Console.WriteLine(Serialize(result)); return 0;
         } catch (Exception error) { Console.WriteLine(Serialize(new { ok = false, uncertain = writeAttempted, error = error.Message })); return 0; }

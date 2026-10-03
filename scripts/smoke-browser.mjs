@@ -50,7 +50,7 @@ try {
   await page.getByRole('button', { name: 'Save Discrepancy Report', exact: true }).click();
   await page.getByText('1 saved discrepancy reports', { exact: true }).waitFor();
   await page.getByRole('button', { name: 'Close Feedback', exact: true }).click();
-  await page.getByRole('checkbox').check();
+  await page.getByRole('checkbox', { name: /I matched the order and checked/ }).check();
   await copy.click();
   if (fileMode) {
     // Require the user-click write to succeed before granting read access to verify it.
@@ -70,7 +70,7 @@ try {
   await page.getByRole('button', { name: 'Save Discrepancy Report', exact: true }).click();
   await page.getByText('2 saved discrepancy reports', { exact: true }).waitFor();
   await page.getByRole('button', { name: 'Close Feedback', exact: true }).click();
-  await page.getByRole('checkbox').first().check();
+  await page.getByRole('checkbox', { name: 'Reviewed and approved for FrameworkLTC', exact: true }).first().check();
   const splitCopy = page.getByRole('button', { name: 'Copy Reviewed SIG (Order 1 of 2)', exact: true });
   await splitCopy.click();
   assert.equal(await page.evaluate(() => navigator.clipboard.readText()), '2T PO QAM WITH FOOD');
@@ -130,7 +130,7 @@ try {
     if (notices[index]) await page.getByText(`[${notices[index]}]`, { exact: false }).waitFor();
     const reviewedCopy = page.getByRole('button', { name: 'Copy reviewed SIG', exact: true });
     assert.equal(await reviewedCopy.isDisabled(), true);
-    await page.getByRole('checkbox').check();
+    await page.getByRole('checkbox', { name: /I matched the order and checked/ }).check();
     await reviewedCopy.click();
     assert.equal(await page.evaluate(() => navigator.clipboard.readText()), replayExpected[index]);
   }

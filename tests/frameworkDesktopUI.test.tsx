@@ -11,6 +11,19 @@ function Harness({ initial }: { initial?: FrameworkDetection }) {
 }
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 describe('technician-controlled Framework sending', () => {
+  it('uses Iguana for details after PON detection and makes desktop positioning optional', async () => {
+    const result = { ok: true, pon: 'PON-A', pons: ['PON-A'] };
+    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify(result))));
+    vi.stubGlobal('fetch', fetcher);
+    render(<FrameworkDetect disabled={false} onStart={vi.fn()} onDetected={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Detect open E-Rx' }));
+    await screen.findByText(/Detected PON PON-A/);
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ positionReview: false });
+    fireEvent.click(screen.getByLabelText(/Also position Framework/));
+    fireEvent.click(screen.getByRole('button', { name: 'Detect open E-Rx' }));
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+    expect(JSON.parse(fetcher.mock.calls[1][1].body)).toEqual({ positionReview: true });
+  });
   it('distinguishes finding the open wizard from reading its PON across five instances', async () => {
     const detection = { ok: true, instances: 5, openErxWindows: 1, pons: [], warnings: ['Some open E-Rx detail rows could not be read.'] };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(detection))));
