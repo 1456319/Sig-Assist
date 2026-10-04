@@ -1,6 +1,9 @@
+import { rejectedOutputMatches } from './clinical/outputCodePolicy';
+
 export interface SigExclusion {
   kind: 'code' | 'sig';
   value: string;
+  replacement?: string;
 }
 
 export function finalSig(text: string): string {
@@ -29,6 +32,8 @@ export function reviewStamp(source: string, draft: string, exclusions: SigExclus
 export function copyBlockReason(source: string, draft: string, exclusions: SigExclusion[], approved?: string, unavailable = false, policyRevision = 0): string | undefined {
   if (unavailable) return 'This order is cancelled, its source is changing, or its message profile is unverified.';
   if (!finalSig(draft)) return 'Enter a final SIG before reviewing.';
+  const rejected = rejectedOutputMatches(draft);
+  if (rejected.length) return `Remove rejected packaging code(s): ${rejected.join(', ')}.`;
   if (excludedMatches(draft, exclusions).length) return 'The final SIG matches a session exclusion. Edit it or undo the exclusion.';
   if (approved !== reviewStamp(source, draft, exclusions, policyRevision)) return 'Review the current order, directions, warnings and final SIG before copying.';
 }

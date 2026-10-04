@@ -6,6 +6,7 @@ import { resolveWeekdaySchedule } from './weekdaySchedule';
 import { resolveDuration } from './durationEngine';
 import { SIG_CODE_REFERENCE } from './sigCodeReference';
 import { normalizeNumericDirections } from './numericDirections';
+import { hourlySchedule } from './hourlySchedule';
 
 export interface FrequencyScheduleResult {
   readonly frequencyToken: string;
@@ -22,6 +23,7 @@ export interface FrequencyScheduleResult {
 
 function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?: string): FrequencyScheduleResult {
   let upper = normalizeNumericDirections(splitSupplementalDirections(rawProse).primary)
+    .replace(/\bDAY\(S\)/g, 'DAYS')
     .replace(/\b(?:VIA|USING|WITH)\s+(?:A\s+)?NEBULI[ZS]ER\b/g, '').trim();
   const abnormalities: AbnormalityFinding[] = [];
 
@@ -68,8 +70,9 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     const lowMatch = upper.match(/(?:<|LESS THAN)\s*(\d+)[^;,\n]*(?:HYPOGLYCEMIC PROTOCOL|NOTIFY MD|CALL MD)/i);
     if (lowMatch) {
       const val = parseInt(lowMatch[1], 10);
-      const action = upper.includes('HYPOGLYCEMIC') ? 'HYPOGLYCEMIC PROTOCOL' : 'CALL MD';
+      const action = /HYPOGLYCEMIC/.test(lowMatch[0]) ? `HYPOGLYCEMIC PROTOCOL${/CALL MD|NOTIFY MD/.test(lowMatch[0]) ? '&CALL MD' : ''}` : 'CALL MD';
       segments.push({ sortKey: val, text: `<${val}=${action}` });
+      translatedMarkers.add(lowMatch.index!);
     }
 
     // Bracket matches: 181 - 200 = 1 unit or 200 - 300 = 5ml
@@ -88,6 +91,8 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     if (highActionMatch) {
       const val = parseInt(highActionMatch[1], 10);
       segments.push({ sortKey: val + 1000, text: `>${val}=CALL MD` });
+      translatedMarkers.add(highActionMatch.index!);
+      if (/\b(?:ADMINISTER|GIVE)\b/.test(highActionMatch[0])) unrecognizedNotification = true;
     } else {
       const highUnitMatch = upper.match(/(?:>|GREATER THAN)\s*(\d+)\s*=\s*(\d+)\s*(?:UNITS?|U)\b/i);
       if (highUnitMatch) {
@@ -115,14 +120,30 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
         translatedMarkers.add(highActionMatch.index!);
       }
     }
-    const markers = [...upper.matchAll(/\b\d+\s*-\s*\d+\s*=|\b\d+\s*\+\s*=|(?:>|GREATER THAN)\s*\d+\s*=/g)];
-    if (!segments.length || unrecognizedNotification || markers.some(m => !translatedMarkers.has(m.index!))) {
+    for (const match of upper.matchAll(/(?:>\s*(?:OR\s*)?=|GREATER THAN OR EQUAL TO)\s*(\d+)\s*(?:ADMINISTER|GIVE|=)\s*(\d+)\s*(?:UNITS?|U)\b/g)) {
+      const tail = upper.slice(match.index! + match[0].length).split(/[;,]/)[0];
+      const notify = tail.match(/\b(?:NOTIFY|NOTIFIED|CALL)\s+(MD|NP\s*\/\s*PA|PA\s*\/\s*NP|NP|PA|PROVIDER|PRESCRIBER|PHYSICIAN)\b/);
+      if (/\b(?:NOTIFY|NOTIFIED|CALL)\b/.test(tail) && !notify) unrecognizedNotification = true;
+      segments.push({ sortKey: Number(match[1]) + 1000, text: `${match[1]}+=${match[2]}U${notify ? `&CALL ${notify[1].replace(/\s*\/\s*/g, '/')}` : ''}` });
+      translatedMarkers.add(match.index!);
+    }
+    // Check all condition starts, not just the successfully parsed bands.
+    // Unknown <= thresholds or unsupported doses must retain the complete scale.
+    const markers = [...upper.matchAll(/\b\d+\s*-\s*\d+\s*=|\b\d+\s*\+\s*=|(?:[<>]\s*(?:(?:OR\s*)?=)?|(?:GREATER|LESS) THAN(?: OR EQUAL TO)?)\s*\d+/g)];
+    const sourceNotifications = [...upper.matchAll(/\b(?:NOTIFY|NOTIFIED|CALL)\b/g)].length;
+    const capturedNotifications = segments.filter(s => s.text.includes('CALL ')).length;
+    const hasMealSchedule = /\b(?:BEFORE MEALS|AC|ACHS)\b/.test(upper);
+    if (!segments.length || !hasMealSchedule || unrecognizedNotification || sourceNotifications > capturedNotifications || markers.some(m => !translatedMarkers.has(m.index!))) {
       abnormalities.push({ id: 'incomplete_sliding_scale', tier: 'uncorrected_gap', title: 'Incomplete Sliding Scale',
         message: 'At least one scale band or notification could not be translated. Original directions were retained; no partial scale was proposed.', trigger: rawProse });
       return { frequencyToken: '', abnormalities, requiresManualTranslation: true };
     }
     segments.sort((a, b) => a.sortKey - b.sortKey);
-    const slidingScaleString = `${prefix} ${segments.map(s => s.text).join(';')}`;
+    const scaleDuration = resolveDuration(upper);
+    if (scaleDuration.unsupported) return { frequencyToken: '', abnormalities: [...abnormalities, ...scaleDuration.abnormalities], requiresManualTranslation: true };
+    const lastIndication = upper.match(/\bFOR\s+((?:T1DM|DM2?|TYPE [12] DIABETES))\s*$/)?.[0];
+    const route = /\bSUBCUTANEOUS(?:LY)?\b/.test(upper) ? 'SQ' : '';
+    const slidingScaleString = [prefix, segments.map(s => s.text).join(';'), route, scaleDuration.token, lastIndication ? extractIndicationToken(lastIndication) : ''].filter(Boolean).join(' ');
 
     return {
       frequencyToken: prefix,
@@ -161,10 +182,11 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
   let stopToken: string | undefined;
   if (/\bTHEN\s+(?:STOP|DISCONTINUE)\b/i.test(upper)) {
     stopToken = 'THEN STOP';
-  }
+  } else if (/\bUNTIL FINISHED\b/.test(upper)) stopToken = 'UNTIL FINISHED';
 
   const duration = resolveDuration(upper);
-  const durationToken = duration.token;
+  const administrations = upper.match(/\bFOR\s+(\d+)\s+ADMINISTRATIONS?\b/);
+  const durationToken = duration.token || (administrations && administrations[1] !== '1' ? `FOR ${administrations[1]} DOSES` : undefined);
   abnormalities.push(...duration.abnormalities);
   if (duration.unsupported) return { frequencyToken: '', abnormalities, requiresManualTranslation: true };
 
@@ -177,13 +199,31 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
   // Frequency tokens
   let frequencyToken = '';
   const weekday = resolveWeekdaySchedule(scheduleProse);
+  const compoundShift = scheduleProse.match(/\b(?:EVERY|EACH)\s+(DAY|EVENING|NIGHT)\s+AND\s+(DAY|EVENING|NIGHT)\s+SHIFT\b/);
+  const dayInterval = scheduleProse.match(/\bEVERY\s+(\d+)\s+DAYS?\b/);
   const shift = scheduleProse.match(/\b(?:EVERY|EACH)\s+(DAY|EVENING|NIGHT)\s+SHIFT\b/);
   if (weekday.unsupported) {
     abnormalities.push({ id: 'unsupported_weekday_schedule', tier: 'uncorrected_gap', title: 'Weekday Schedule Requires Review',
       message: 'The complete weekday schedule could not be translated. Original directions were retained; no day or qualifier was discarded.', trigger: rawProse });
     return { frequencyToken: '', abnormalities, requiresManualTranslation: true };
+  } else if (administrations && (duration.token || weekday.token || Number(administrations[1]) <= 0)) {
+    abnormalities.push({ id: 'complex_administration_count', tier: 'uncorrected_gap', title: 'Administration Count Requires Review', message: 'The administration count and other course restrictions were retained together for review.', trigger: rawProse });
+    return { frequencyToken: '', abnormalities, requiresManualTranslation: true };
   } else if (weekday.token) {
     frequencyToken = weekday.token;
+  } else if (administrations?.[1] === '1') {
+    frequencyToken = 'X1 ONLY';
+  } else if (compoundShift && compoundShift[1] !== compoundShift[2]) {
+    frequencyToken = `BID (DURING ${compoundShift[1]} AND ${compoundShift[2]} SHIFT)`;
+  } else if (dayInterval && dayInterval[1] !== '2') {
+    if (/\b(?:[2-9] TIMES|TWICE|BID|TID|QID|Q\d+H)\b|\bMORNING\b.*\bBEDTIME\b/.test(scheduleProse) || Number(dayInterval[1]) <= 0) {
+      abnormalities.push({ id: 'complex_day_interval', tier: 'uncorrected_gap', title: 'Day Interval Requires Review', message: 'The interval and within-day schedule were retained for review.', trigger: rawProse });
+      return { frequencyToken: '', abnormalities, requiresManualTranslation: true };
+    }
+    const code = `QDQ${Number(dayInterval[1])}D`;
+    frequencyToken = SIG_CODE_REFERENCE[code] ? code : `ONCE DAILY EVERY ${Number(dayInterval[1])} DAYS`;
+    if (/\b(?:EVERY MORNING|IN THE MORNING)\b/.test(scheduleProse)) frequencyToken += ' IN THE MORNING';
+    if (/\bAT BEDTIME\b/.test(scheduleProse)) frequencyToken += ' AT BEDTIME';
   } else if (shift) {
     frequencyToken = `QD (DURING ${shift[1]} SHIFT)`;
   } else if (/\b(?:EVERY OTHER DAY|EVERY 2 DAYS|QOD|QDQ2D)\b/.test(scheduleProse)) {
@@ -201,10 +241,14 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     frequencyToken = 'QDA/B';
   } else if (scheduleProse.includes('AFTER DINNER')) {
     frequencyToken = scheduleProse.includes('IN THE EVENING') ? 'QDP/D IN THE EVENING' : 'QDP/D';
+  } else if (/\bBEFORE MEALS AND AT BEDTIME\b/.test(scheduleProse)) {
+    frequencyToken = 'ACHS';
   } else if (scheduleProse.includes('AT BEDTIME') || /\bBEDTIME\b/i.test(scheduleProse) || /\bQHS\b/i.test(scheduleProse)) {
     frequencyToken = 'QHS';
   } else if (scheduleProse.includes('EVERY MORNING') || scheduleProse.includes('IN THE MORNING') || /\bQAM\b/i.test(scheduleProse)) {
     frequencyToken = 'QAM';
+  } else if (/\b(?:IN THE EVENING|EVERY EVENING|QPM)\b/.test(scheduleProse)) {
+    frequencyToken = 'QPM';
   } else if (scheduleProse.includes('EVERY 12 HOURS') || /\bQ12H\b/i.test(scheduleProse)) {
     frequencyToken = 'Q12H';
   } else if (scheduleProse.includes('EVERY 8 HOURS') || /\bQ8H\b/i.test(scheduleProse)) {
@@ -215,7 +259,7 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     frequencyToken = 'Q4H';
   } else if (/\bEVERY\s+(\d+)\s*HOURS?\b/i.test(scheduleProse) || /\bQ(\d+)H\b/i.test(scheduleProse)) {
     const qhMatch = scheduleProse.match(/\bEVERY\s+(\d+)\s*HOURS?\b/i) || scheduleProse.match(/\bQ(\d+)H\b/i);
-    frequencyToken = `Q${qhMatch![1]}H`;
+    frequencyToken = /\bEVERY\b/.test(qhMatch![0]) ? hourlySchedule(qhMatch![1]) : `Q${qhMatch![1]}H`;
   } else if (/\b(?:FOUR|4) TIMES (?:A|PER|EACH) DAY\b|\bQID\b/.test(scheduleProse)) {
     frequencyToken = 'QID';
   } else if (/\b(?:THREE|3) TIMES (?:A|PER|EACH) DAY\b|\bTID\b/.test(scheduleProse)) {
@@ -231,7 +275,11 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
   if (/\bBEFORE MEALS\b/.test(scheduleProse)) {
     const mealCodes: Record<string, string> = { QD: 'QDAC', BID: 'BIDAC', TID: 'TIDAC', QID: 'QIDAC' };
     if (mealCodes[frequencyToken] && SIG_CODE_REFERENCE[mealCodes[frequencyToken]]) frequencyToken = mealCodes[frequencyToken];
-    else if (frequencyToken) frequencyToken += ' BEFORE MEALS';
+    else if (!frequencyToken) {
+      frequencyToken = 'TIDAC';
+      abnormalities.push({ id: 'before_meals_schedule', tier: 'applied_correction', title: 'Before-Meals Schedule Applied',
+        message: 'Before meals was represented as TIDAC using the site convention. Verify three meals per day for this order.', correction: 'BEFORE MEALS → TIDAC', trigger: rawProse });
+    } else if (frequencyToken !== 'ACHS') frequencyToken += ' BEFORE MEALS';
   }
   if (frequencyToken && /\bWITH MEALS\b/.test(scheduleProse)) {
     const code = ({ QD: 'WMQD', BID: 'WMBID', TID: 'WMTID' } as Record<string, string>)[frequencyToken];
@@ -250,7 +298,7 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
   let blendedTemplate: string | undefined;
   if (defaultTemplate) {
     let base = defaultTemplate.trim();
-    const scheduledPreparation = base.match(/^((?:MIX|DISSOLVE)\b[\s\S]*\b(?:GIVE|TAKE)(?:\s+PO)?)\s+(QD|BID|TID|QID|Q\d+H|QAM|QPM|QHS|(?:QD|QAM|QPM)DAY[1-7]+)\s*$/i);
+    const scheduledPreparation = base.match(/^((?:MIX|DISSOLVE)\b[\s\S]*\b(?:GIVE|TAKE)(?:\s+(?:PO|GT|PEGT|JT|NG))?)\s+(QD|BID|TID|QID|Q\d+H|QAM|QPM|QHS|(?:QD|QAM|QPM)DAY[1-7]+)\s*$/i);
     if (scheduledPreparation) {
       base = scheduledPreparation[1];
       if (scheduledPreparation[2].toUpperCase() !== frequencyToken) {
@@ -260,7 +308,7 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
       }
     }
     const ind = indicationToken ? ` ${indicationToken}` : '';
-    if (/\b(?:PO|GIVE|TAKE)$/.test(base.toUpperCase())) {
+    if (/\b(?:PO|GT|PEGT|JT|NG|GIVE|TAKE)$/.test(base.toUpperCase())) {
       const scheduleParts = [frequencyToken];
       if (prnToken) scheduleParts.push(prnToken, indicationToken || '', durationToken || '');
       else scheduleParts.push(durationToken || '', indicationToken || '');

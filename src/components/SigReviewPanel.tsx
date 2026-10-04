@@ -1,3 +1,4 @@
+import { REJECTED_OUTPUT_CODES, rejectedOutputMatches } from '../lib/clinical/outputCodePolicy';
 import { useId, useState } from 'react';
 import { toast } from 'sonner';
 import { copyBlockReason, excludedMatches, finalSig, reviewStamp, type SigExclusion } from '../lib/reviewPolicy';
@@ -22,6 +23,7 @@ interface Props {
 export function SigReviewPanel({ source, suggestion, draft, approved, unavailable = false, warnings, onEdit, onApprove, onCopied, onResetSuggestion }: Props) {
   const { exclusions, setExclusions, policyRevision } = useReviewSession();
   const [code, setCode] = useState('');
+  const [replacement, setReplacement] = useState('');
   const [copying, setCopying] = useState(false);
   const id = useId();
   const stamp = reviewStamp(source, draft, exclusions, policyRevision);
@@ -36,6 +38,7 @@ export function SigReviewPanel({ source, suggestion, draft, approved, unavailabl
       ? items : [...items, { ...exclusion, value }]);
     onApprove(undefined);
     setCode('');
+    setReplacement('');
   }
 
   async function copy() {
@@ -68,7 +71,7 @@ export function SigReviewPanel({ source, suggestion, draft, approved, unavailabl
       <textarea id={`${id}-draft`} rows={4} className={`${reviewInputClass} font-mono`} value={draft} disabled={unavailable} onChange={event => onEdit(event.target.value.toUpperCase())} />
     </div>
     <label className="flex items-start gap-2 text-sm">
-      <input type="checkbox" className="mt-1" checked={reviewed} disabled={unavailable || !draft.trim() || excludedMatches(draft, exclusions).length > 0} onChange={event => onApprove(event.target.checked ? stamp : undefined)} />
+      <input type="checkbox" className="mt-1" checked={reviewed} disabled={unavailable || !draft.trim() || excludedMatches(draft, exclusions).length > 0 || rejectedOutputMatches(draft).length > 0} onChange={event => onApprove(event.target.checked ? stamp : undefined)} />
       I matched the order and checked all original directions, warnings and the final SIG. I will verify Framework Preview Sig and its quantity, schedule and days’ supply effects.
     </label>
     <div className="flex flex-wrap gap-2">
@@ -81,13 +84,15 @@ export function SigReviewPanel({ source, suggestion, draft, approved, unavailabl
     {reason && <p className="text-xs text-muted-foreground" role="status">{reason}</p>}
     <details className="rounded-lg border border-border p-3">
       <summary className="cursor-pointer text-sm font-medium">Saved exclusions ({exclusions.length})</summary>
-      <p className="text-xs text-muted-foreground my-2">Preferences are shared by the queue and workbench and saved in browser cache or your connected folder. Use Undo to remove an exclusion. No substitutions are made.</p>
-      <div className="flex gap-2">
+      <p className="text-xs text-muted-foreground my-2">Preferences are shared by the queue and workbench and saved in browser cache or your connected folder. Suggestions replace excluded codes with your replacement or their verified dictionary expansion. Unknown codes need a replacement or manual translation. Existing edited drafts are retained for review. Use Undo to remove a saved exclusion.</p>
+      <p className="text-xs my-2">Built-in packaging restrictions (always enforced): {Object.keys(REJECTED_OUTPUT_CODES).join(", ")}. These are the restrictions reported so far, not a complete vendor list.</p>
+      <div className="flex flex-wrap gap-2">
         <input aria-label="SIG code to exclude" value={code} onChange={event => setCode(event.target.value.toUpperCase())} className={reviewInputClass} placeholder="Code, e.g. QD" />
-        <button className={reviewButtonClass} disabled={!code.trim() || /\s/.test(code.trim())} onClick={() => exclude({ kind: 'code', value: code })}>Exclude code</button>
+        <input aria-label="Replacement for excluded code" value={replacement} onChange={event => setReplacement(event.target.value.toUpperCase())} className={reviewInputClass} placeholder="Replacement (optional if in dictionary)" />
+        <button className={reviewButtonClass} disabled={!code.trim() || /\s/.test(code.trim())} onClick={() => exclude({ kind: 'code', value: code, replacement: replacement.trim() || undefined })}>Exclude code</button>
       </div>
       <ul className="mt-2 space-y-2">{exclusions.map((item, index) => <li key={`${item.kind}:${item.value}`} className="flex items-center justify-between gap-3 text-sm">
-        <span className="break-all">{item.kind === 'code' ? 'Code' : 'SIG'}: {item.value}</span>
+        <span className="break-all">{item.kind === 'code' ? 'Code' : 'SIG'}: {item.value}{item.replacement ? ` → ${item.replacement}` : ''}</span>
         <button className={reviewButtonClass} onClick={() => setExclusions(items => items.filter((_, position) => position !== index))}>Undo</button>
       </li>)}</ul>
     </details>

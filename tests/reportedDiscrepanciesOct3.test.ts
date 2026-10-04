@@ -99,7 +99,7 @@ describe('October 3 reported translator discrepancies', () => {
 
   it('retains explicit powder preparation and does not treat other powders as PEG', () => {
     const r = translate('GlycoLax Powder', 'Give 17 grams by mouth daily for constipation. Mix in 4 oz of juice.');
-    expect(r.primarySig).toContain('MIX IN 4 OZ OF JUICE');
+    expect(r.primarySig).toContain('IN 4OZ OF JUICE');
     expect(r.primarySig).not.toContain('8OZ');
     expect(translate('UNKNOWN POWDER', 'Give 17 grams by mouth daily').primarySig).toBe('ADM 17GM PO QD');
     expect(translate('GlycoLax Powder', 'Give 8.5 grams by mouth daily').primarySig).toBe('ADM 8.5GM PO QD');
@@ -119,9 +119,9 @@ describe('October 3 reported translator discrepancies', () => {
     expect(translate('EXAMPLE TAB 5MG', 'Give 1 tablet by mouth twice daily every other day').primarySig).toBe('GIVE 1 TABLET PO BID QOD');
   });
 
-  it('uses the compound indication code only when its conjunction agrees with the source', () => {
+  it('uses the reported site FNV convention for combined nausea and vomiting', () => {
     expect(translate('EXAMPLE TAB 5MG', 'Give 1 tablet by mouth daily for agitation or nausea or vomiting').primarySig).toBe('1T PO QD FAGT OR FNV');
-    expect(translate('EXAMPLE TAB 5MG', 'Give 1 tablet by mouth daily for nausea and vomiting').primarySig).toBe('1T PO QD FNA AND FVOM');
+    expect(translate('EXAMPLE TAB 5MG', 'Give 1 tablet by mouth daily for nausea and vomiting').primarySig).toBe('1T PO QD FNV');
   });
 
   it.each(['EXAMPLE TAB ER 5MG', 'EXAMPLE CAP 5MG', 'LORAZEPAM TAB 5MG'])('does not automatically split unsuitable products: %s', drug => {

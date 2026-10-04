@@ -2,9 +2,10 @@ import { getCitrixStorageAdapter } from './citrixStorage';
 
 export const DISCREPANCY_SAVED_EVENT = 'sig-assist-discrepancy-saved';
 
-export async function exportDiscrepancyCases() {
-  const reports = await getCitrixStorageAdapter().readDiscrepancies();
-  if (!reports.length) throw new Error('No discrepancy reports have been saved yet.');
+export async function exportDiscrepancyCases(scope: 'active' | 'archived' | 'all' = 'active') {
+  const saved = await getCitrixStorageAdapter().readDiscrepancies();
+  const reports = saved.filter(report => scope === 'all' || (scope === 'archived' ? !!report.archivedAt : !report.archivedAt));
+  if (!reports.length) throw new Error('No discrepancy reports in the selected list.');
   return {
     format: 'sig-assist-discrepancy-cases',
     schemaVersion: 1,

@@ -14,7 +14,7 @@ Run `npm ci` and `npm run dev` with Node.js 22.12+. No external database configu
 is required for the local **Order Queue**. Choose **Load demo queue**,
 add the order, review/correct the uppercase SIG, acknowledge review and copy.
 
-Orders and reversible exclusions persist in this browser or the selected folder. Use **Clear orders** to remove orders and **Undo** to remove exclusions. This
+Orders and reversible exclusions persist in this browser or the selected folder. Use **Clear orders** to remove orders, **Archive current reports** to start a fresh discrepancy list while retaining older cases, and **Undo** to remove custom exclusions. Known rejected packaging codes are always restricted; see [the October 4 translator update](docs/TRANSLATOR-2026-10-04.md). This
 prototype supports manual PON matching and captured/read-only SCRIPT intake;
 live site access and clinical parser validation remain outstanding. See [the MVP implementation and handoff notes](docs/MVP-REVIEW-QUEUE.md)
 for workflow details, corrected-HAR findings, limitations and next steps.

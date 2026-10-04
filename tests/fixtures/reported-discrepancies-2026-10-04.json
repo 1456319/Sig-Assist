@@ -1,0 +1,202 @@
+[
+  {
+    "case": 1,
+    "drugName": "ARIPiprazole Oral Tablet 5 MG",
+    "rawProse": "Give 1.5 tablet by mouth one time a day for Schizoaffective Disorder"
+  },
+  {
+    "case": 2,
+    "drugName": "Magnesium Hydroxide Oral Suspension",
+    "rawProse": "Give 30 ml by mouth every 24 hours as needed for Constipation"
+  },
+  {
+    "case": 3,
+    "drugName": "Hyoscyamine Sulfate Oral Tablet 0.125 MG",
+    "rawProse": "Give 1 tablet sublingually every 4 hours as needed for secretions"
+  },
+  {
+    "case": 4,
+    "drugName": "Haloperidol Lactate Concentrate 2 MG/ML",
+    "rawProse": "Give 0.5 ml by mouth every 6 hours as needed for agitation or nausea and vomiting"
+  },
+  {
+    "case": 5,
+    "drugName": "BISACODYL SUPP 10MG",
+    "rawProse": "Insert 1 suppository rectally every 24 hours as needed for constipation"
+  },
+  {
+    "case": 6,
+    "drugName": "HYDROCORTISONE CRM 2.5%",
+    "rawProse": "Apply a small amount to affected area once a day as needed for rash/hives for 14 days"
+  },
+  {
+    "case": 7,
+    "drugName": "ALBUTEROL INH SOLN 0.083%",
+    "rawProse": "3 ml inhale orally via nebulizer three times a day for SOB/congestion/wheezing for 7 Days"
+  },
+  {
+    "case": 8,
+    "drugName": "Estradiol Vaginal Cream 0.01 %",
+    "rawProse": "Insert 1 gram vaginally every day shift for vaginal dryness"
+  },
+  {
+    "case": 9,
+    "drugName": "Naproxen Oral Tablet 500 MG",
+    "rawProse": "Give 1 tablet orally every 12 hours as needed for Pain give 1 tab PO PRN Q 12 hours for up to 40 doses."
+  },
+  {
+    "case": 10,
+    "drugName": "Diabetic Tussin Cough Drops Mouth/Throat Lozenge",
+    "rawProse": "Give 1 lozenge by mouth every 6 hours as needed for sorethroat for 3 Days"
+  },
+  {
+    "case": 11,
+    "drugName": "Debrox Otic Solution",
+    "rawProse": "Instill 3 drop in left ear two times a day for loosen earwax"
+  },
+  {
+    "case": 12,
+    "drugName": "Levothyroxine Sodium Tablet 112 MCG",
+    "rawProse": "Give 1 tablet by mouth one time a day for low thyroid hormone TAKE 1 TABLET BY MOUTH DAILY IN THE MORNING ON AN EMPTY STOMACH"
+  },
+  {
+    "case": 13,
+    "drugName": "Levothyroxine Sodium Tablet 112 MCG",
+    "rawProse": "Give 1 tablet by mouth one time a day for low thyroid hormone TAKE 1 TABLET BY MOUTH DAILY IN THE MORNING ON AN EMPTY STOMACH"
+  },
+  {
+    "case": 14,
+    "drugName": "Potassium Chloride ER Tablet Extended Release 10 MEQ",
+    "rawProse": "Give 1 tablet by mouth two times a day for hypokalemia with meals"
+  },
+  {
+    "case": 15,
+    "drugName": "Dulcolax Rectal Suppository 10 MG",
+    "rawProse": "Insert 1 suppository rectally every 24 hours as needed for Constipation"
+  },
+  {
+    "case": 16,
+    "drugName": "GlycoLax Powder",
+    "rawProse": "Give 17 gram by mouth every 24 hours as needed for constipation"
+  },
+  {
+    "case": 17,
+    "drugName": "Ferrous Sulfate Tablet 325 (65 Fe) MG",
+    "rawProse": "Give 1 tablet by mouth every other day for supplementation"
+  },
+  {
+    "case": 18,
+    "drugName": "Latanoprost Ophthalmic Solution 0.005 %",
+    "rawProse": "Instill 1 drop in both eyes at bedtime related to PRIMARY OPEN-ANGLE GLAUCOMA, BILATERAL, SEVERE STAGE (H40.1133)"
+  },
+  {
+    "case": 19,
+    "drugName": "Amoxicillin-Pot Clavulanate Tablet 875-125 MG",
+    "rawProse": "Give 1 tablet by mouth every 12 hours for indications of Pnuemonia for 4 Days until finished"
+  },
+  {
+    "case": 20,
+    "drugName": "Polyethylene Glycol 3350 Oral Powder 17 GM/SCOOP",
+    "rawProse": "Give 17 gram by mouth every 23 hours as needed for Bowel Management In Liquid (1st line agent) if no response administer second line agent"
+  },
+  {
+    "case": 21,
+    "drugName": "Betamethasone Valerate Topical Cream 0.1 %",
+    "rawProse": "Apply to scalp topically every day and night shift for itching"
+  },
+  {
+    "case": 22,
+    "drugName": "Colace Oral Capsule 100 MG",
+    "rawProse": "Give 1 capsule by mouth in the evening for laxative"
+  },
+  {
+    "case": 23,
+    "drugName": "Aspirin Tablet 81 MG",
+    "rawProse": "Give 1 tablet by mouth in the evening for heart healthy"
+  },
+  {
+    "case": 24,
+    "drugName": "Vitamin D3 Tablet 5000 UNIT",
+    "rawProse": "Give 1 tablet by mouth one time a day every 30 day(s) for supplement"
+  },
+  {
+    "case": 25,
+    "drugName": "Amoxicillin-Pot Clavulanate Tablet 875-125 MG",
+    "rawProse": "Give 1 tablet via G-Tube every 12 hours for Aspiration  PNA for 7 Days"
+  },
+  {
+    "case": 26,
+    "drugName": "Polyethylene Glycol 3350 Powder",
+    "rawProse": "Give 17 gram by mouth one time a day for CONSTIPATION mix with 4-8 oz water"
+  },
+  {
+    "case": 27,
+    "drugName": "Fluticasone Propionate Nasal Suspension 50 MCG/ACT",
+    "rawProse": "1 spray in both nostrils one time a day for Allergy"
+  },
+  {
+    "case": 28,
+    "drugName": "Insulin Lispro Injection Solution 100 UNIT/ML",
+    "rawProse": "Inject 8 unit subcutaneously before meals for T1DM"
+  },
+  {
+    "case": 29,
+    "drugName": "Ondansetron Oral Tablet Disintegrating 4 MG",
+    "rawProse": "Give 1 tablet by mouth every 8 hours as needed for nausea and vomiting for 7 Days"
+  },
+  {
+    "case": 30,
+    "drugName": "Insulin Lispro Injection Solution 100 UNIT/ML",
+    "rawProse": "Inject as per sliding scale: if 150 - 199 = 2 units For BS < 70 initiate the hypoglycemic protocol and call MD; 200 - 249 = 4 units; 250 - 299 = 6 units; 300 - 349 = 8 units      For BS> or = 350 administer 10 units and notified MD, subcutaneously before meals and at bedtime for T1DM"
+  },
+  {
+    "case": 31,
+    "drugName": "Azithromycin Oral Tablet 500 MG",
+    "rawProse": "Give 1 tablet by mouth one time a day for PNA for 1 Administrations"
+  },
+  {
+    "case": 32,
+    "drugName": "Azithromycin Oral Tablet 500 MG",
+    "rawProse": "Give 1 tablet by mouth one time a day for PNA for 1 Administrations"
+  },
+  {
+    "case": 33,
+    "drugName": "Azithromycin Oral Tablet 500 MG",
+    "rawProse": "Give 1 tablet by mouth one time a day for PNA for 1 Administrations"
+  },
+  {
+    "case": 34,
+    "drugName": "Aspirin 81 Oral Tablet Chewable 81 MG",
+    "rawProse": "Give 1 tablet via PEG-Tube in the morning for cad"
+  },
+  {
+    "case": 35,
+    "drugName": "levETIRAcetam Oral Solution 100 MG/ML",
+    "rawProse": "Give 5 ml via PEG-Tube at bedtime for seizures"
+  },
+  {
+    "case": 36,
+    "drugName": "Polyethylene Glycol 3350 Powder",
+    "rawProse": "Give 17 gram via PEG-Tube one time a day for constipation"
+  },
+  {
+    "case": 37,
+    "drugName": "Vitamin B1 Oral Tablet",
+    "rawProse": "Give 1 tablet via PEG-Tube one time a day for supplement"
+  },
+  {
+    "case": 38,
+    "drugName": "Acetaminophen Oral Elixir 160 MG/5ML",
+    "rawProse": "Give 10 ml via PEG-Tube every 6 hours as needed for pain"
+  },
+  {
+    "case": 39,
+    "drugName": "Albuterol Sulfate HFA Inhalation Aerosol Solution 108 (90 Base) MCG/ACT",
+    "rawProse": "2 puff inhale orally four times a day for sob"
+  },
+  {
+    "case": 40,
+    "drugName": "Acetaminophen Tablet 325 MG",
+    "rawProse": "Give 1 tablet by mouth every 6 hours as needed for pain for moderate pain (Pain score 4-6).  do not exceed 4000mg of acetaminophen in a 24 hour period"
+  }
+]

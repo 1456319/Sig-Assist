@@ -123,7 +123,7 @@ describe('six new reported mistranslations, 2026-10-01 batch 2', () => {
 
   it('retains explicit source preparation instead of overwriting it with 8 oz water', () => {
     const prose = 'Give 1 packet orally daily for constipation. Mix in 4 oz of juice.';
-    expect(translate(cases.reports[5].drugName, prose).primarySig).toBe('GIVE 1 PACKET PO QD FOR CONSTIPATION. MIX IN 4 OZ OF JUICE');
+    expect(translate(cases.reports[5].drugName, prose).primarySig).toBe('MIX 17 GM (1 PACKET) IN 4OZ OF JUICE AND GIVE PO QD FCON');
   });
 
   it('also preserves source diluent and volume without a mix verb', () => {

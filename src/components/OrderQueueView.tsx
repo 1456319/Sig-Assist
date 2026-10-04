@@ -49,8 +49,8 @@ export function OrderQueueView() {
       defaultSigTemplate: selected.defaultSig,
       sourceFormat: 'manual_text',
       traceId
-    });
-  }, [selected]);
+    }, { exclusions });
+  }, [selected, exclusions]);
 
   useEffect(() => {
     if (selected) {
@@ -78,7 +78,7 @@ export function OrderQueueView() {
         defaultSigTemplate: form.defaultSig,
         sourceFormat: 'manual_text',
         traceId
-      });
+      }, { exclusions });
       const sig = clinical.primarySig;
       const next = saveOrder(orders, form, sig, reviseId);
       setOrders(next);
@@ -115,7 +115,7 @@ export function OrderQueueView() {
           defaultSigTemplate: order.defaultSig,
           sourceFormat: 'manual_text',
           traceId: getOrderTraceId(order),
-        });
+        }, { exclusions });
         if (clinical.subOrders.length > 1) {
           let allApproved = true;
           let allCopied = true;

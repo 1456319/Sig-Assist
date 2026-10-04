@@ -18,7 +18,7 @@ describe('clinicalEngine TESTS.txt validation', () => {
   it('passes Case 3: Humalog Sliding Scale', () => {
     const raw = `3)HumaLOG (LISPRO) KWIKPEN 100U/ML\nUSER ENTRY:Inject as per sliding scale: if 181 - 200 = 1 unit < 70 follow hypoglycemic protocol; 201 - 250 = 2 unit; 251 - 300 = 3 units; 301 - 350 = 4 units > 350 = 5 units, subcutaneously before meals for DM`;
     const res = translateClinicalSig(parseInboundOrder(raw));
-    expect(res.primarySig).toBe('CBS AC SS <70=HYPOGLYCEMIC PROTOCOL;181-200=1U;201-250=2U;251-300=3U;301-350=4U;>350=5U');
+    expect(res.primarySig).toBe('CBS AC SS <70=HYPOGLYCEMIC PROTOCOL;181-200=1U;201-250=2U;251-300=3U;301-350=4U;>350=5U SQ FDM');
   });
 
   it('passes Case 4: Trulicity Injection', () => {

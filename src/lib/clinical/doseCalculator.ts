@@ -3,6 +3,7 @@ import { traceLogger } from '../diagnostics/traceLogger';
 import { splitSupplementalDirections } from './instructionClauses';
 import { normalizeNumericDirections } from './numericDirections';
 import { SIG_CODE_REFERENCE } from './sigCodeReference';
+import { resolvePegPreparation } from './pegPreparation';
 
 export interface DoseCalculationResult {
   readonly doseToken: string;
@@ -13,6 +14,8 @@ export interface DoseCalculationResult {
   readonly siteToken?: string;
   readonly requiresManualTranslation?: boolean;
   readonly preparationTemplate?: string;
+  readonly scheduleProse?: string;
+  readonly preparationWasExplicit?: boolean;
 }
 
 const WORD_TO_NUM: Record<string, number> = {
@@ -80,7 +83,7 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
       const amount = Number(explicitLimit[1].replace(/,/g, ''));
       const milligrams = explicitLimit[2] === 'MG' ? amount : amount * 1000;
       // 3GME is a daily APAP limit; never substitute it for another amount/time period.
-      if (milligrams === 3000 && /\b(?:PER\s+DAY|DAILY|(?:IN|PER)\s+(?:A\s+)?24\s*(?:HOURS?|HRS?|HR|H)\b)/.test(fullProse.slice(explicitLimit.index))) apapLimitToken = '3GME';
+      if ((milligrams === 3000 || milligrams === 4000) && /\b(?:PER\s+DAY|DAILY|(?:IN|PER)\s+(?:A\s+)?24\s*(?:HOURS?|HRS?|HR|H)\b)/.test(fullProse.slice(explicitLimit.index))) apapLimitToken = milligrams === 3000 ? '3GME' : 'NTE4';
     } else apapLimitToken = '3GM';
   }
 
@@ -138,7 +141,14 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
   const sublingual = /\b(?:SUBLINGUAL(?:LY)?|SL)\b/.test(upperProse);
   const oral = /\b(?:BY\s+MOUTH|ORALLY|PO)\b/.test(upperProse);
   if (sublingual && oral && !/\b(?:BY MOUTH|ORALLY|PO)\s+(?:OR|\/)\s*(?:SUBLINGUALLY|SL)\b|\bPO\/SL\b/.test(upperProse)) return manualResult('Conflicting Oral and Sublingual Routes');
-  const solidRoute = sublingual ? oral ? 'PO/SL' : 'SL' : 'PO';
+  const tubeMatches = [...upperProse.matchAll(/\b(?:VIA|PER|BY|THROUGH)\s+(?:THE\s+)?(PEG|G|J|NG)[ -]?TUBE\b/g)];
+  const tubeRoutes: Record<string, string> = { PEG: 'PEGT', G: 'GT', J: 'JT', NG: 'NG' };
+  const tubeRoute = tubeMatches[0] ? tubeRoutes[tubeMatches[0][1]] : undefined;
+  if (tubeRoute && (oral || sublingual || new Set(tubeMatches.map(m => m[1])).size > 1 || /\b(?:NOT|AVOID|WITHOUT)\b/.test(upperProse))) return manualResult('Conflicting Enteral Routes');
+  const enteralRoute = tubeRoute || 'PO';
+  const solidRoute = tubeRoute || (sublingual ? oral ? 'PO/SL' : 'SL' : 'PO');
+  const peg = resolvePegPreparation(upperDrug, fullProse, oral || !!tubeRoute ? enteralRoute : undefined);
+  if (peg) return { doseToken: 'ADM 17GM', routeToken: enteralRoute, abnormalities, isApap, apapLimitToken, ...peg };
 
   if (/\b(?:VAGINALLY|PV)\b/.test(upperProse)) {
     const amount = upperProse.match(/^INSERT\s+(\d+(?:\.\d+)?)\s*(?:GRAMS?|GMS?|G)\b/);
@@ -195,6 +205,12 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
       siteToken, abnormalities, isApap, apapLimitToken };
   }
 
+  if (/\bSPRAYS?\b/.test(upperProse)) {
+    const spray = upperProse.match(/^(?:ADMINISTER\s+|USE\s+|GIVE\s+)?([12])\s+SPRAYS?\s+(?:IN|INTO)\s+(?:BOTH|EACH)\s+NOSTRILS?\b/);
+    if (!spray || oral || /\b(?:NOT|EXCEPT|AVOID)\b/.test(upperProse)) return manualResult('Unverified Nasal Spray Dose or Site');
+    return { doseToken: `${spray[1]}SP`, routeToken: 'ENOS', abnormalities, isApap, apapLimitToken };
+  }
+
   // Unsupported explicit non-oral instructions must be retained, not forced into the oral fallback.
   if (/\b(?:INSTILL|INSERT|APPLY|DROPS?|OPHTHALMIC|OTIC|NASAL|RECTAL(?:LY)?|VAGINAL(?:LY)?|SUPPOSITORY)\b/.test(`${upperDrug} ${upperProse}`)) {
     return manualResult('Unsupported Non-oral Formulation');
@@ -233,7 +249,7 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
     const count = countMatch ? countMatch[1] : '1';
     return {
       doseToken: `${count}P`,
-      routeToken: 'INH',
+      routeToken: oral ? 'PO' : 'BY INHALATION',
       abnormalities,
       isApap,
       apapLimitToken
@@ -242,6 +258,11 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
 
   // Injectable volume and target dose calculation
   if (upperDrug.includes('INJ') || upperProse.includes('INJECT') || upperProse.includes('SUBCUTANEOUS')) {
+    const units = upperProse.match(/^INJECT\s+(\d+(?:\.\d+)?)\s+UNITS?\b/);
+    if (units && Number(units[1]) > 0 && /\bSUBCUTANEOUS(?:LY)?\b/.test(upperProse)) {
+      return { doseToken: `INJ ${Number(units[1])} UN`, routeToken: 'SQ', abnormalities, isApap, apapLimitToken };
+    }
+
     const strengthMatch = upperDrug.match(/(\d+(?:\.\d+)?)\s*MG\s*\/\s*(\d+(?:\.\d+)?)\s*ML/);
     const mgMatch = upperProse.match(/(\d+(?:\.\d+)?)\s*MG/);
     const mlMatch = upperProse.match(/(\d+(?:\.\d+)?)\s*ML/);
@@ -327,7 +348,7 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
 
   if (isLiquid) {
     const mlMatch = upperProse.match(/(?<![\d./-])\b(\d+(?:\.\d+)?)\s*(?:ML|MILLILITERS?)\b/);
-    if (!mlMatch || !/\b(?:BY\s+MOUTH|PO|ORALLY|ORAL)\b/.test(upperProse)) return manualResult('Unspecified Liquid Dose or Route');
+    if (!mlMatch || (!tubeRoute && !/\b(?:BY\s+MOUTH|PO|ORALLY|ORAL)\b/.test(upperProse))) return manualResult('Unspecified Liquid Dose or Route');
     const vol = mlMatch ? parseFloat(mlMatch[1]) : 0;
     if (vol <= 0 || /\b\d+(?:\.\d+)?\s*(?:-|TO|OR)\s*\d+(?:\.\d+)?\s*ML\b/.test(upperProse)) return manualResult('Invalid or Variable Liquid Dose');
     const strengthMatch = upperDrug.match(/(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))?\s*(MEQ|MG|GM|MCG)\s*\/\s*(\d+(?:\.\d+)?)?\s*ML/);
@@ -357,7 +378,7 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
 
     return {
       doseToken,
-      routeToken: 'PO',
+      routeToken: enteralRoute,
       abnormalities,
       isApap,
       apapLimitToken
@@ -524,7 +545,10 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
 }
 
 export function calculateDoseAndVolume(drugName: string, rawProse: string): DoseCalculationResult {
-  const result = calculateDoseAndVolumeInternal(drugName, rawProse);
+  let result = calculateDoseAndVolumeInternal(drugName, rawProse);
+  if (/\b(?:ODT|ORALLY DISINTEGRATING|TABLET DISINTEGRATING)\b/i.test(drugName) && result.routeToken === 'PO' && /^\d+(?:\/\d+)?T\b/.test(result.doseToken)) {
+    result = { ...result, doseToken: `DIS ${result.doseToken}` };
+  }
   traceLogger.debug('clinical', 'doseCalculator', 'Calculated dose and route tokens', {
     drugName,
     doseToken: result.doseToken,

@@ -162,7 +162,7 @@ export function ReviewSession({ children }: { children: ReactNode }) {
           rawProse: o.directions,
           defaultSigTemplate: o.defaultSig,
           sourceFormat: 'manual_text',
-        });
+        }, { exclusions: policy.exclusions });
         if (clinical.subOrders.length > 1) {
           const allApproved = clinical.subOrders.every(sub => Boolean(o.subOrderApprovals?.[sub.id]));
           const allCopied = allApproved && clinical.subOrders.every(sub => Boolean(o.subOrderCopied?.[sub.id]));
@@ -216,7 +216,7 @@ export function ReviewSession({ children }: { children: ReactNode }) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(`Failed to save order queue to storage: ${msg}`);
     });
-  }, [orders, isHydrated]);
+  }, [orders, isHydrated, policy.exclusions]);
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {

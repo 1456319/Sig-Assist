@@ -1,3 +1,4 @@
+import { useReviewSession } from '../hooks/use-review-session';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   TriangleAlert, ChevronDown, ChevronRight, Zap, RefreshCw, CheckCircle2,
@@ -145,6 +146,7 @@ function WorkbenchReview({ result, source }: { result: ParseResult; source: stri
 }
 
 export function WorkbenchView() {
+  const { exclusions, policyRevision } = useReviewSession();
   const [inputMode, setInputMode] = useState<InputMode>('freetext');
   const [rawInput, setRawInput] = useState('');
   const [dictionary, setDictionary] = useState<SigDictionaryEntry[]>([]);
@@ -192,11 +194,11 @@ export function WorkbenchView() {
   const clinicalResult = useMemo((): ClinicalSigResult | null => {
     if (!clinicalInbound) return null;
     try {
-      return translateClinicalSig(clinicalInbound);
+      return translateClinicalSig(clinicalInbound, { exclusions });
     } catch {
       return null;
     }
-  }, [clinicalInbound]);
+  }, [clinicalInbound, exclusions]);
 
   const effectiveResult = useMemo(() => {
     if (!result) return null;
@@ -421,7 +423,7 @@ export function WorkbenchView() {
                   traceId={clinicalInbound?.traceId || clinicalResult?.traceId}
                 />
               ) : effectiveResult ? (
-                <WorkbenchReview key={`${inputMode}:${rawInput}:${effectiveResult.finalSig}`} result={effectiveResult} source={source} />
+                <WorkbenchReview key={`${inputMode}:${rawInput}:${drugName}:${defaultSig}`} result={effectiveResult} source={source} />
               ) : (
                 <p className="text-sm text-muted-foreground">Enter original directions to prepare a draft for review.</p>
               )}
@@ -432,7 +434,7 @@ export function WorkbenchView() {
                 drugName={drugName || clinicalInbound?.drugName || 'UNKNOWN DRUG'}
                 rawProse={clinicalInbound?.rawProse || rawInput}
                 generatedSig={clinicalResult?.primarySig || result?.finalSig || ''}
-                context={{ source: 'workbench', traceId: clinicalResult?.traceId,
+                context={{ source: 'workbench', exclusions, policyRevision, traceId: clinicalResult?.traceId,
                   defaultSigTemplate: clinicalInbound?.defaultSigTemplate,
                   abnormalities: clinicalResult?.abnormalities,
                   subOrders: clinicalResult?.subOrders.map(sub => ({ id: sub.id, label: sub.label, suggestedSig: sub.suggestedSig })) }}

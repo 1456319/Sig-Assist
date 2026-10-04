@@ -1,6 +1,7 @@
 import { indicationSpan, resolveIndicationToken } from './indicationEngine';
 import { normalizeNumericDirections } from './numericDirections';
 import { SIG_CODE_REFERENCE } from './sigCodeReference';
+import { hourlySchedule } from './hourlySchedule';
 
 /** Lossless phrase substitution: unknown dose, units, qualifiers and actions stay visible. */
 export function translateRecognizedPhrases(rawProse: string): string {
@@ -10,13 +11,16 @@ export function translateRecognizedPhrases(rawProse: string): string {
   const span = indicationSpan(prose);
   const translate = (text: string) => text
     .replace(/\bBY\s+MOUTH\b|\bORALLY\b/g, 'PO')
+    .replace(/\b(?:VIA|PER|THROUGH)\s+(PEG|G|J|NG)[ -]?TUBE\b/g, (_, tube: string) => ({ PEG: 'PEGT', G: 'GT', J: 'JT', NG: 'NG' })[tube]!)
+    .replace(/\bIN THE EVENING\b/g, 'QPM')
+    .replace(/\bSUBCUTANEOUSLY\b/g, 'SQ')
     .replace(/\bSUBLINGUALLY\b/g, 'SL')
     .replace(/\bVAGINALLY\b/g, 'PV')
     .replace(/\bRECTALLY\b/g, 'PR')
     .replace(/\bTOPICALLY\b/g, 'TPCL')
     .replace(/\b(?:VIA|USING)\s+(?:A\s+)?NEBULI[ZS]ER\b/g, 'NEB')
     .replace(/\bEVERY\s+OTHER\s+DAY\b/g, 'QOD')
-    .replace(/\bEVERY\s+(\d+)\s*(?:HOURS?|HRS?)\b/g, (original, n: string) => Number(n) > 0 ? `Q${n}H` : original)
+    .replace(/\bEVERY\s+(\d+)\s*(?:HOURS?|HRS?)\b/g, (original, n: string) => Number(n) > 0 ? hourlySchedule(n) : original)
     .replace(/\b(?:4\s+TIMES\s+(?:A|PER|EACH)\s+DAY|FOUR TIMES DAILY)\b/g, 'QID')
     .replace(/\b(?:3\s+TIMES\s+(?:A|PER|EACH)\s+DAY|THREE TIMES DAILY)\b/g, 'TID')
     .replace(/\b(?:2\s+TIMES\s+(?:A|PER|EACH)\s+DAY|TWICE\s+(?:DAILY|A DAY))\b/g, 'BID')

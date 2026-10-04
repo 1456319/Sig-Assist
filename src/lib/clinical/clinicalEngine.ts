@@ -8,21 +8,24 @@ import { splitSupplementalDirections, uppercaseDirections } from './instructionC
 import { translateRecognizedPhrases } from './partialTranslation';
 import { mergeRepeatedSolidDirections } from './repeatedDirections';
 import { splitMixedTabletDose } from './paxitFractionalDose';
+import { applyOutputCodePolicy } from './outputCodePolicy';
 
 function assembleSig(
   drugName: string,
   rawProse: string,
   defaultTemplate?: string,
-  preferences?: TechnicianPreferences,
+  preferences?: Partial<TechnicianPreferences>,
   fallbackIndication?: string
 ): { sig: string; abnormalities: AbnormalityFinding[] } {
   const repeated = mergeRepeatedSolidDirections(drugName, rawProse);
   rawProse = repeated.prose;
-  const clauses = splitSupplementalDirections(rawProse);
   const doseRes = calculateDoseAndVolume(drugName, rawProse);
-  const preparationTemplate = defaultTemplate?.trim() || doseRes.preparationTemplate;
+  const clauses = splitSupplementalDirections(doseRes.scheduleProse || rawProse);
+  const preparationTemplate = doseRes.preparationWasExplicit ? doseRes.preparationTemplate : defaultTemplate?.trim() || doseRes.preparationTemplate;
   const freqRes = resolveFrequencyAndSchedule(clauses.primary, preparationTemplate);
   const allAbnormalities = [...doseRes.abnormalities, ...freqRes.abnormalities];
+  if (/\bNAUSEA AND VOMITING\b/i.test(rawProse)) allAbnormalities.push({ id: 'site_fnv_alias', tier: 'applied_correction', title: 'Site Nausea/Vomiting Code Applied',
+    message: 'FNV replaces nausea and vomiting under the reported site packaging convention. The root expansion says nausea OR vomiting; verify the source indication.', correction: 'NAUSEA AND VOMITING → FNV', trigger: rawProse });
   if (repeated.merged) allAbnormalities.push({ id: 'duplicate_solid_direction', tier: 'applied_correction', title: 'Duplicate Direction Removed',
     message: 'A matching repeated dose, route and interval was consolidated. Additional morning, empty-stomach and dose-count instructions were preserved.', trigger: rawProse });
 
@@ -31,12 +34,12 @@ function assembleSig(
       message: 'The provided template says DISSOLVE. Product labeling states that the granules do not dissolve; verify the preparation wording with the pharmacist.', trigger: preparationTemplate });
   }
 
-  if (!defaultTemplate?.trim() && doseRes.preparationTemplate) {
+  if (doseRes.preparationTemplate && (!defaultTemplate?.trim() || doseRes.preparationWasExplicit)) {
     const packet = doseRes.preparationTemplate.includes('PACKET');
     allAbnormalities.push({ id: 'peg_packet_preparation', tier: 'applied_correction', title: packet ? 'PEG Packet Preparation Added' : 'PEG Powder Preparation Added',
-      message: 'Preparation instructions were added from the PEG 17 g template. Verify the container and Framework Preview Sig before copying.',
+      message: doseRes.preparationWasExplicit ? 'The source mixing amount and liquid were retained in the PEG 17 g preparation. Verify the container and route.' : 'Preparation instructions were added from the PEG 17 g template. Verify the container, route and Framework Preview Sig before copying.',
       correction: doseRes.preparationTemplate,
-      trigger: `Recognized PEG 17 g oral ${packet ? 'packet' : 'bulk powder'} dose; no source mixing instructions. Institutional 8 oz water template; PEG 3350 labeling permits 4–8 oz beverage.` });
+      trigger: doseRes.preparationWasExplicit ? 'Explicit source dilution retained.' : `Recognized PEG 17 g enteral ${packet ? 'packet' : 'bulk powder'} dose; no source mixing instructions. Institutional 8 oz water template; PEG 3350 labeling permits 4–8 oz beverage.` });
   }
 
   if (!freqRes.slidingScaleString && (doseRes.requiresManualTranslation || freqRes.requiresManualTranslation || !doseRes.doseToken || (!freqRes.frequencyToken && !freqRes.blendedTemplate && !freqRes.prnToken))) {
@@ -48,6 +51,7 @@ function assembleSig(
 
   const finish = (sig: string) => {
     if (clauses.supplemental) {
+      if (doseRes.apapLimitToken && sig.split(/\s+/).includes(doseRes.apapLimitToken) && /^(?:DO NOT|NOT TO) EXCEED\s*\d[\d,]*(?:\.\d+)?\s*(?:MG|GMS?|GRAMS?|G)\s+OF\s+(?:ACETAMINOPHEN|TYLENOL|APAP)\s+(?:IN|PER)\s+(?:A\s+)?24\s*(?:HOURS?|HRS?|HR|H)(?:\s+PERIOD)?[.;]?$/i.test(clauses.supplemental.trim())) return sig;
       const repeat = clauses.supplemental.toUpperCase().trim();
       const simpleEyeRepeat = /^(?:APPLY|INSTILL)\s+(?:\d+|ONE|TWO)\s+DROPS?\s+(?:(?:EVERY MORNING|IN THE MORNING|DAILY)\s+(?:IN|TO)\s+(?:THE\s+)?(?:LEFT|RIGHT|BOTH|EACH)\s+EYES?|(?:IN|TO)\s+(?:THE\s+)?(?:LEFT|RIGHT|BOTH|EACH)\s+EYES?\s+(?:EVERY MORNING|IN THE MORNING|DAILY))[.;]?$/;
       if (simpleEyeRepeat.test(repeat)) {
@@ -148,7 +152,7 @@ function cleanFirstClause(sig: string, isTitration: boolean): string {
   return cleaned;
 }
 
-export function translateClinicalSig(inbound: InboundOrder, preferences?: TechnicianPreferences): ClinicalSigResult {
+function translateClinicalSigInternal(inbound: InboundOrder, preferences?: Partial<TechnicianPreferences>): ClinicalSigResult {
   const traceId =
     inbound.traceId ||
     (inbound.id ? `TRC_${inbound.id}` : undefined) ||
@@ -303,9 +307,30 @@ export function translateClinicalSig(inbound: InboundOrder, preferences?: Techni
   }
 }
 
+// Apply output restrictions after every assembly path, including templates,
+// retained wording and all Paxit cards. Source directions remain unchanged.
+export function translateClinicalSig(inbound: InboundOrder, preferences?: Partial<TechnicianPreferences>): ClinicalSigResult {
+  const result = translateClinicalSigInternal(inbound, preferences);
+  const finalize = (sig: string) => {
+    const policy = applyOutputCodePolicy(sig, preferences?.exclusions);
+    const findings: AbnormalityFinding[] = [];
+    if (policy.changes.length) findings.push({ id: 'output_code_replacement', tier: 'applied_correction', title: 'Rejected Codes Replaced',
+      message: 'Packaging restrictions and saved exclusions were applied to the suggestion. Verify the expanded instructions.', correction: policy.changes.join('; ') });
+    if (policy.unresolved.length) findings.push({ id: 'unresolved_output_exclusion', tier: 'uncorrected_gap', title: 'Excluded SIG Requires Manual Translation',
+      message: 'No permitted expansion is available. The suggestion was withheld; use the original directions to enter a complete corrected SIG.', trigger: policy.unresolved.join(', ') });
+    return { ...policy, findings };
+  };
+  const primary = finalize(result.primarySig);
+  const subOrders = result.subOrders.map(sub => {
+    const final = finalize(sub.suggestedSig);
+    return { ...sub, suggestedSig: final.sig, abnormalities: [...sub.abnormalities, ...final.findings] };
+  });
+  return { ...result, primarySig: primary.sig, subOrders, abnormalities: [...result.abnormalities, ...primary.findings] };
+}
+
 const clinicalSigCache = new Map<string, ClinicalSigResult>();
 
-export function getCachedClinicalSig(inbound: InboundOrder, preferences?: TechnicianPreferences): ClinicalSigResult {
+export function getCachedClinicalSig(inbound: InboundOrder, preferences?: Partial<TechnicianPreferences>): ClinicalSigResult {
   const key = JSON.stringify([inbound, preferences]);
   const cached = clinicalSigCache.get(key);
   if (cached) {

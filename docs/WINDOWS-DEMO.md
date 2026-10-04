@@ -62,7 +62,7 @@ technician review; this package does not establish clinical accuracy.
 Use the app alongside the normal order-entry process. Manually enter approved,
 de-identified directions and medication/strength in **Workbench**, or add an
 order in **Order Queue** with anonymous references, or use the read-only intake
-pilot in the connector guide. Framework insertion is not implemented;
+pilot in the connector guide. Reviewed Framework SIG transfer is described in [the desktop guide](FRAMEWORK-DESKTOP.md);
 the app does not replace routine
 technician/pharmacist checks.
 
@@ -74,7 +74,7 @@ technician/pharmacist checks.
    or preferred code in **Notes / Rationale**. Notes alone are allowed when the
    expected answer is not yet established. Click **Save Discrepancy Report**.
 4. Confirm that the saved report count increases. **Export discrepancy cases**
-   downloads every saved case from the current storage destination as JSON.
+   downloads the active cases from the current storage destination as JSON.
    This control is also available in Workbench and Settings.
 5. Export after each session, before changing folders, replacing the HTML at a
    different path, or clearing browser data. Keep the exported files; reports
@@ -85,7 +85,7 @@ correction, notes, timestamp, source build fingerprint, default template,
 abnormalities, and generated split-card context when available. Queue reports
 also include edited split-card drafts and review preference context. Older
 reports are included in exports even when they lack the new metadata.
-The count and success message appear only after storage accepts the write.
+**Archive current reports** starts a fresh active list while keeping earlier reports saved. Use **Export archived reports** to export older cases or **Restore archived reports** to bring them back. New active exports omit archived cases, preventing repeated reports in each session. The count and success message appear only after storage accepts the write.
 Clearing the order queue does not clear discrepancy reports. Browser storage
 can be cleared by policy or by the user; the exported JSON is the portable record.
 
@@ -94,6 +94,8 @@ Remove patient identifiers from directions and notes before sharing a case file.
 A saved correction is a proposed expected answer for investigation; saving it
 neither approves an order nor updates translation rules. Reviewed examples can
 later become regression tests to check each parser fix.
+
+See [the October 4 translator update](TRANSLATOR-2026-10-04.md) for rejected packaging codes and generation-time exclusions.
 
 ## Build the same package from source
 

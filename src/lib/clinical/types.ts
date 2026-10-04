@@ -37,6 +37,7 @@ export interface ClinicalSigResult {
 }
 
 export interface DiscrepancyReport {
+  readonly archivedAt?: string;
   readonly id: string;
   readonly timestamp: string;
   readonly pon: string;
@@ -63,6 +64,7 @@ export interface DiscrepancyReport {
 export interface SigExclusionPreference {
   readonly kind: 'code' | 'sig';
   readonly value: string;
+  readonly replacement?: string;
 }
 
 export interface TechnicianPreferences {
