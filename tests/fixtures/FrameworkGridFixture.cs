@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Automation.Peers;
@@ -25,18 +26,30 @@ public class DetailGrid : FrameworkElement {
     public string Folder, Pon;
     public bool ScrollOnly, FailScroll, RawOnly, Empty, NoAnchor, IndexedVisible, PointOnly, PointConnected, Ready = true;
     public bool AutoScrollNull, DelayedIndex;
+    public bool AccessibilityTest, ScreenReaderRequired, AccessibilityFault;
     public int RequestedRow = -1, PonRow = -1;
     public int IndexedRow = -1;
     public int RowCount = 80;
     public int Start, ScrollCalls, GetCalls;
     public DetailGridPeer Peer;
     DispatcherTimer renderTimer;
+    DispatcherTimer accessibilityTimer;
+    public bool CellsUnavailable { get { return Empty || !Ready || (ScreenReaderRequired && !ScreenReader.Get()); } }
     public DetailGrid(string folder, string pon, bool scrollOnly) {
         Folder = folder; Pon = pon; ScrollOnly = scrollOnly; Width = 440; Height = 100;
         Start = scrollOnly ? 10 : 0;
         AutomationProperties.SetAutomationId(this, "ERxGrid");
         renderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(450) };
         renderTimer.Tick += delegate { renderTimer.Stop(); Ready = true; if (Peer != null) Peer.Refresh(); };
+        bool lastUnavailable = false;
+        accessibilityTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+        accessibilityTimer.Tick += delegate {
+            if (!AccessibilityTest) return;
+            if (File.Exists(Path.Combine(Folder, "lose-cells"))) ScreenReaderRequired = true;
+            bool unavailable = CellsUnavailable;
+            if (unavailable != lastUnavailable) { lastUnavailable = unavailable; if (Peer != null) Peer.Refresh(); }
+        };
+        accessibilityTimer.Start();
     }
     public void Rendering() { IndexedRow = -1; PointConnected = false; if (!RawOnly && !DelayedIndex) return; Ready = false; renderTimer.Stop(); renderTimer.Start(); }
     public void Save() { File.WriteAllText(Path.Combine(Folder, "state"), Start + "," + ScrollCalls + "," + GetCalls); }
@@ -55,7 +68,7 @@ public class DetailGridPeer : FrameworkElementAutomationPeer, IGridProvider, ISc
     protected override bool IsOffscreenCore() { return false; }
     protected override List<AutomationPeer> GetChildrenCore() {
         var result = new List<AutomationPeer>();
-        if (grid.Empty || !grid.Ready) return result;
+        if (grid.CellsUnavailable) return result;
         if (grid.PointOnly && !grid.PointConnected) return result;
         if (grid.IndexedVisible) {
             if (grid.IndexedRow >= 0) { result.Add(cells[grid.IndexedRow, 0]); result.Add(cells[grid.IndexedRow, 1]); }
@@ -68,6 +81,7 @@ public class DetailGridPeer : FrameworkElementAutomationPeer, IGridProvider, ISc
         return result;
     }
     public override object GetPattern(PatternInterface pattern) {
+        if (pattern == PatternInterface.Scroll && grid.AccessibilityFault && ScreenReader.Get()) throw new InvalidOperationException("Synthetic provider failed during recovery");
         if (pattern == PatternInterface.Grid || pattern == PatternInterface.Scroll) return this;
         return base.GetPattern(pattern);
     }
@@ -83,7 +97,7 @@ public class DetailGridPeer : FrameworkElementAutomationPeer, IGridProvider, ISc
             if (grid.AutoScrollNull || !grid.Ready) return null;
             GetChildren();
         }
-        if (grid.RawOnly || grid.Empty || grid.PointOnly) return null;
+        if (grid.RawOnly || grid.CellsUnavailable || grid.PointOnly) return null;
         if (row < 0 || row >= grid.RowCount || column < 0 || column > 1) throw new ArgumentOutOfRangeException();
         if (grid.IndexedVisible) {
             if (row < grid.Start || row >= grid.Start + 30) return null;
@@ -146,12 +160,24 @@ public class CellPeer : FrameworkElementAutomationPeer, IValueProvider {
     public string Value { get { return TextValue; } }
     public void SetValue(string value) { throw new InvalidOperationException("Read only"); }
 }
+public static class ScreenReader {
+    [DllImport("user32.dll", EntryPoint = "SystemParametersInfoW", SetLastError = true)]
+    static extern bool GetParameter(uint action, uint parameter, out int value, uint flags);
+    [DllImport("user32.dll", EntryPoint = "SystemParametersInfoW", SetLastError = true)]
+    static extern bool SetParameter(uint action, uint parameter, IntPtr value, uint flags);
+    public static bool Get() { int value; if (!GetParameter(0x46, 0, out value, 0)) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error()); return value != 0; }
+    public static void Set(bool value) { if (!SetParameter(0x47, value ? 1u : 0u, IntPtr.Zero, 2)) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error()); }
+}
 public static class Fixture {
     static TextBox TextField(string name, string value) {
         var field = new TextBox { Text = value, Width = 400, Height = 25 };
         AutomationProperties.SetName(field, name); return field;
     }
     [STAThread] public static void Main(string[] args) {
+        if (args.Length == 2 && args[0] == "--screen-reader") {
+            if (args[1] != "get") ScreenReader.Set(args[1] == "on");
+            Console.WriteLine(ScreenReader.Get() ? "on" : "off"); return;
+        }
         var folder = args[0]; var role = args[1]; var mode = args.Length > 2 ? args[2] : "grid";
         var app = new Application();
         var window = new Window { Title = "Synthetic Framework " + role, Width = 500, Height = 400 };
@@ -163,6 +189,12 @@ public static class Fixture {
             grid = new DetailGrid(folder, role == "open-second" ? "SYNTHETIC-SECOND" : "SYNTHETIC-OPEN", mode != "grid");
             grid.FailScroll = mode == "fail"; grid.RawOnly = mode == "raw-delay"; grid.Empty = mode == "empty" || mode == "point-overlay"; grid.NoAnchor = mode == "noanchor";
             grid.IndexedVisible = mode == "indexed-visible"; grid.PointOnly = mode == "point-only" || mode == "point-narrow";
+            if (mode.StartsWith("accessibility")) {
+                grid.AccessibilityTest = true;
+                grid.ScreenReaderRequired = mode != "accessibility-lost";
+                grid.AccessibilityFault = mode == "accessibility-fault";
+                grid.RowCount = 95; grid.Start = 65;
+            }
             if (grid.PointOnly) { grid.Height = 300; window.Height = 500; }
             if (mode == "point-narrow") { grid.Width = 260; window.Width = 320; }
             if (grid.RawOnly || grid.Empty) grid.RowCount = 106;

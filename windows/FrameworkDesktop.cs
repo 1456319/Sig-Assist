@@ -44,6 +44,108 @@ public sealed class GridInfo {
     public List<string> issues = new List<string>();
     public List<GridViewport> viewports = new List<GridViewport>();
     public List<object> ponCandidates = new List<object>();
+    public AccessibilityRecovery accessibility = new AccessibilityRecovery();
+}
+public sealed class AccessibilityRecovery {
+    public string status = "not-needed", cleanup = "not-needed", error = "", refreshedGridId = "", focus = "not-requested";
+    public bool? before, active, after;
+    public bool rowsRecovered;
+}
+// DevExpress may discard its UIA peers unless the Windows screen-reader flag is
+// active. A separate, short-lived owner restores the flag even if this reader is
+// killed by the connector timeout. No registry persistence or Narrator launch.
+sealed class AccessibilityLease : IDisposable {
+    [DllImport("user32.dll", EntryPoint = "SystemParametersInfoW", SetLastError = true)]
+    static extern bool GetParameter(uint action, uint parameter, out int value, uint flags);
+    [DllImport("user32.dll", EntryPoint = "SystemParametersInfoW", SetLastError = true)]
+    static extern bool SetParameter(uint action, uint parameter, IntPtr value, uint flags);
+    static readonly JavaScriptSerializer Json = new JavaScriptSerializer();
+    Process guard;
+    AccessibilityRecovery info;
+    static bool Get() {
+        int value;
+        if (!GetParameter(0x46, 0, out value, 0)) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+        return value != 0;
+    }
+    static void Set(bool value) {
+        // SPIF_SENDCHANGE, deliberately WITHOUT SPIF_UPDATEINIFILE.
+        if (!SetParameter(0x47, value ? 1u : 0u, IntPtr.Zero, 2)) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+    }
+    public static int Own(int pid, string started) {
+        var state = new AccessibilityRecovery { status = "unavailable" };
+        bool owned = false, changed = false;
+        using (var mutex = new System.Threading.Mutex(false, @"Local\SigAssist.FrameworkDesktop.Accessibility." + Process.GetCurrentProcess().SessionId)) {
+            try {
+                using (var parent = Process.GetProcessById(pid)) {
+                    if (parent.SessionId != Process.GetCurrentProcess().SessionId || parent.StartTime.ToUniversalTime().Ticks.ToString() != started)
+                        throw new InvalidOperationException("Accessibility lease parent was replaced.");
+                    try { owned = mutex.WaitOne(0); } catch (System.Threading.AbandonedMutexException) { owned = true; }
+                    if (!owned) { state.status = "busy"; throw new InvalidOperationException("Another Sig-Assist accessibility recovery is running."); }
+                    state.before = Get();
+                    if (state.before == false) { changed = true; Set(true); }
+                    state.active = Get();
+                    if (state.active != true) throw new InvalidOperationException("Windows did not enable accessibility support.");
+                    state.status = changed ? "enabled-temporarily" : "already-enabled";
+                    state.cleanup = changed ? "pending" : "unchanged";
+                    Console.WriteLine(Json.Serialize(state)); Console.Out.Flush();
+                    // Console.In's synchronized reader can implement ReadLineAsync
+                    // synchronously on .NET Framework. Keep EOF waiting off the
+                    // watchdog thread so a killed/hung parent still releases us.
+                    using (var stop = new System.Threading.ManualResetEvent(false)) {
+                        var input = new System.Threading.Thread(delegate() {
+                            try { Console.In.ReadLine(); } catch { }
+                            finally { try { stop.Set(); } catch (ObjectDisposedException) { } }
+                        }) { IsBackground = true };
+                        input.Start(); var clock = Stopwatch.StartNew();
+                        while (!stop.WaitOne(100) && !parent.HasExited && clock.ElapsedMilliseconds < 40000) { }
+                    }
+                }
+            } catch (Exception error) { state.error = error.GetType().Name + ": " + error.Message; }
+            finally {
+                try {
+                    if (changed) Set(false);
+                    if (owned) state.after = Get();
+                    state.cleanup = changed ? (state.after == state.before ? "restored" : "restore-failed") : "unchanged";
+                } catch (Exception error) { state.cleanup = "restore-failed"; state.error += " " + error.GetType().Name + ": " + error.Message; }
+                if (owned) mutex.ReleaseMutex();
+                Console.WriteLine(Json.Serialize(state)); Console.Out.Flush();
+            }
+        }
+        return 0;
+    }
+    public static AccessibilityLease Start(AccessibilityRecovery info) {
+        var lease = new AccessibilityLease { info = info };
+        try {
+            using (var parent = Process.GetCurrentProcess()) {
+                lease.guard = Process.Start(new ProcessStartInfo(parent.MainModule.FileName,
+                    "--accessibility-lease " + parent.Id + " " + parent.StartTime.ToUniversalTime().Ticks) {
+                    UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardOutput = true
+                });
+            }
+            var ready = lease.guard.StandardOutput.ReadLineAsync();
+            if (!ready.Wait(4000)) throw new TimeoutException("Accessibility recovery did not become ready.");
+            var state = Json.Deserialize<AccessibilityRecovery>(ready.Result);
+            if (state == null) throw new InvalidOperationException("Accessibility recovery returned no status.");
+            info.status = state.status; info.before = state.before; info.active = state.active;
+            info.after = state.after; info.cleanup = state.cleanup; info.error = state.error;
+        } catch (Exception error) { info.status = "unavailable"; info.error = error.GetType().Name + ": " + error.Message; }
+        return lease;
+    }
+    public void Dispose() {
+        if (guard == null) return;
+        try {
+            guard.StandardInput.Close(); // EOF also releases the lease.
+            var ended = guard.StandardOutput.ReadToEndAsync();
+            if (!ended.Wait(3000)) { info.cleanup = "guardian-pending"; return; }
+            var line = ended.Result.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
+            if (line != null) {
+                var state = Json.Deserialize<AccessibilityRecovery>(line);
+                info.after = state.after; info.cleanup = state.cleanup;
+                if (state.error != "") info.error = state.error;
+            }
+        } catch (Exception error) { info.cleanup = "guardian-pending"; info.error += " " + error.GetType().Name + ": " + error.Message; }
+        finally { guard.Dispose(); }
+    }
 }
 public sealed class GridViewport {
     public string stage, view, error = "";
@@ -67,7 +169,7 @@ sealed class ScanNode {
 }
 public sealed class DesktopSnapshot {
     public string format = "sig-assist-framework-desktop";
-    public int schemaVersion = 6;
+    public int schemaVersion = 7;
     public string scanMode;
     public int windowsScanned;
     public EntryWindow entryWindow;
@@ -223,7 +325,7 @@ public static class FrameworkDesktop {
         var budget = Stopwatch.StartNew();
         foreach (var window in result.windows.Where(w => w.openErx)) {
             foreach (var grid in window.controls.Where(c => c.inOpenErx && !c.hidden && c.enabled && c.type == "ControlType.DataGrid" && c.automationId == "ERxGrid")) {
-                window.grids.Add(ReadGrid(grid, expandGrids, positionReview, budget, window.handle));
+                window.grids.Add(ReadGrid(grid, expandGrids, positionReview, budget, window));
             }
         }
         if (result.windows.Count == 0) {
@@ -518,9 +620,39 @@ public static class FrameworkDesktop {
             info.reviewPosition = scroll.Current.VerticalScrollPercent >= 99.9 ? "bottom" : "unconfirmed";
         } catch (Exception error) { info.reviewPosition = "unconfirmed"; info.issues.Add("Could not leave the details at the bottom: " + error.GetType().Name); }
     }
-    static GridInfo ReadGrid(ControlInfo control, bool expand, bool positionReview, Stopwatch budget, int handle) {
+    static AutomationElement RefreshGrid(WindowInfo window) {
+        // Reacquire only inside the remembered top-level window. UIA peers can
+        // have new runtime IDs after a provider rebuild; don't reuse the old one
+        // or accept hidden wizard pages/triage grids with the same automation ID.
+        using (var process = Process.GetProcessById(window.pid)) {
+            if (process.StartTime.ToUniversalTime().Ticks.ToString() != window.started) throw new InvalidOperationException("Entry process was replaced during recovery.");
+        }
+        var root = AutomationElement.FromHandle(new IntPtr(window.handle));
+        if (root == null || root.Current.ProcessId != window.pid || Id(root) != window.id || root.Current.IsOffscreen)
+            throw new InvalidOperationException("Entry window changed during recovery.");
+        var matches = new List<AutomationElement>();
+        var candidates = root.FindAll(TreeScope.Descendants, new AndCondition(
+            new PropertyCondition(AutomationElement.AutomationIdProperty, "ERxGrid"),
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.DataGrid)));
+        foreach (AutomationElement candidate in candidates) {
+            var next = candidate; bool open = false, reachedRoot = false;
+            for (int depth = 0; next != null && depth < 32; depth++) {
+                var item = Read(next);
+                if (item == null || item.offscreen || !item.enabled || next.Current.ProcessId != window.pid || item.className == "ERxTriageManagerView") break;
+                open |= OpenView(item);
+                if (item.id == window.id) { reachedRoot = true; break; }
+                next = TreeWalker.ControlViewWalker.GetParent(next);
+            }
+            if (open && reachedRoot) matches.Add(candidate);
+        }
+        if (matches.Count != 1) throw new InvalidOperationException("Recovery found " + matches.Count + " visible E-Rx detail grids in the entry window. Keep only the intended detail screen open.");
+        return matches[0];
+    }
+    static GridInfo ReadGrid(ControlInfo control, bool expand, bool positionReview, Stopwatch budget, WindowInfo window) {
         var info = new GridInfo { id = control.id, expanded = expand };
         ScrollPattern scroll = null;
+        AccessibilityLease lease = null;
+        int handle = window.handle;
         int readDeadline = Math.Min(26000, (int)budget.ElapsedMilliseconds + 22000);
         int reviewDeadline = Math.Min(34000, readDeadline + 8000);
         try {
@@ -531,11 +663,31 @@ public static class FrameworkDesktop {
             scroll = GridScroll(control.element);
             CaptureRows(control.element, info, scroll, "initial", budget, readDeadline, expand); info.initialRows = info.rows.Count;
             if (!expand) return info;
-            if (info.initialRows == 0) {
+            if (info.initialRows == 0 && info.rowCount > 0 && info.columnCount == 2) {
+                // Only an empty provider needs this fallback; normal fast scans
+                // don't change accessibility settings or start an extra process.
+                lease = AccessibilityLease.Start(info.accessibility);
+                if (info.accessibility.active == true) {
+                    info.method += " + accessibility refresh";
+                    info.activation = SetForegroundWindow(new IntPtr(handle)) ? "foreground-request-accepted" : "foreground-request-denied";
+                    Pause(budget, readDeadline, 350);
+                    control.element = RefreshGrid(window);
+                    info.accessibility.refreshedGridId = Id(control.element);
+                    try {
+                        if (control.element.Current.IsKeyboardFocusable) { control.element.SetFocus(); info.accessibility.focus = "requested"; }
+                        else info.accessibility.focus = "not-focusable";
+                    } catch (Exception error) { info.accessibility.focus = "unavailable: " + error.GetType().Name; }
+                    scroll = GridScroll(control.element);
+                    grid = control.element.TryGetCurrentPattern(GridPattern.Pattern, out pattern) ? (GridPattern)pattern : null;
+                    if (grid != null) { info.rowCount = grid.Current.RowCount; info.columnCount = grid.Current.ColumnCount; }
+                    CaptureRows(control.element, info, scroll, "accessibility-refresh", budget, readDeadline, true);
+                }
+            }
+            if (info.rows.Count == 0) {
                 info.method += " + viewport recovery";
                 RecoverViewport(control.element, info, scroll, "initial-recovery", budget, readDeadline, handle);
             }
-            if (!HasPon(info) && info.initialRows > 0 && grid != null && info.columnCount == 2) {
+            if (!HasPon(info) && info.rows.Count > 0 && grid != null && info.columnCount == 2) {
                 info.method += " + GridPattern + refreshed accessibility snapshots";
                 int consecutiveFailures = 0;
                 for (int row = 0; row < Math.Min(info.rowCount, 512) && !HasPon(info) && budget.ElapsedMilliseconds < readDeadline; row++) {
@@ -581,6 +733,12 @@ public static class FrameworkDesktop {
                 catch (Exception error) { info.issues.Add("Review-position unavailable: " + error.GetType().Name); }
             }
             try { if (scroll != null) info.finalVerticalPercent = scroll.Current.VerticalScrollPercent; } catch { }
+            if (lease != null) {
+                info.accessibility.rowsRecovered = info.rows.Count > 0 && info.accessibility.active == true;
+                lease.Dispose();
+                if (info.accessibility.cleanup == "restore-failed" || info.accessibility.cleanup == "guardian-pending")
+                    info.issues.Add("Temporary accessibility setting cleanup: " + info.accessibility.cleanup + ". " + info.accessibility.error);
+            }
             info.complete = CompleteGrid(info);
             info.ponFound = HasPon(info);
             info.ponCandidates = info.rows.Where(r => PonTitle(r.title)).Select(r => (object)new { index = r.index, title = r.title, value = r.value,
@@ -606,7 +764,8 @@ public static class FrameworkDesktop {
         if (pons.Length > 1) warnings.Add("Multiple PONs detected: " + String.Join(", ", pons) + ". Match the intended order before sending.");
         if (snapshot.windows.Any(w => w.incomplete)) warnings.Add("Some Framework controls could not be read. Verify the destination in Framework.");
         if (open.Any(w => w.grids.Any(g => g.expanded && !g.ponFound && !g.complete))) warnings.Add("The PON could not be read from an open E-Rx detail grid. Export desktop diagnostics if the order is missing.");
-        if (open.Any(w => w.grids.Any(g => g.expanded && g.rows.Count == 0 && g.rowCount > 0))) warnings.Add("The selected E-Rx grid reports rows but exposes no readable cells. Try Choose entry window and keep Framework in front until reading finishes, then download the PON detection report.");
+        if (open.Any(w => w.grids.Any(g => g.expanded && g.rows.Count == 0 && g.rowCount > 0))) warnings.Add("The entry window was found, but Framework is not exposing its E-Rx cells after automatic recovery. Close and reopen the E-Rx detail screen in that same entry window, then detect again. If it persists, download the PON detection report.");
+        if (open.Any(w => w.grids.Any(g => g.accessibility.cleanup == "restore-failed" || g.accessibility.cleanup == "guardian-pending"))) warnings.Add("The temporary accessibility setting's restoration could not be confirmed. Export desktop diagnostics.");
         var positions = open.SelectMany(w => w.grids).Where(g => g.expanded).Select(g => g.reviewPosition).ToArray();
         string viewportStatus = positions.Contains("rxfill-visible") ? "Framework details left at RxFill Indicator / All Fill Statuses. Check the SIG and administration times there."
             : positions.Contains("bottom") ? "Framework details left at the bottom. RxFill Indicator / All Fill Statuses could not be read; scroll up to it if needed."
@@ -689,6 +848,7 @@ public static class FrameworkDesktop {
     public static int Main(string[] args) {
         Console.InputEncoding = Encoding.UTF8; Console.OutputEncoding = new UTF8Encoding(false);
         try {
+            if (args.Length == 3 && args[0] == "--accessibility-lease") return AccessibilityLease.Own(Int32.Parse(args[1]), args[2]);
             // Only the synthetic Windows test runner uses this argument. The connector never passes it.
             string testProcess = args.Length == 2 && args[0] == "--test-process" ? args[1] : null;
             var input = Map(Json.DeserializeObject(Console.In.ReadToEnd()));

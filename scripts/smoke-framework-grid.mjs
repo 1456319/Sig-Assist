@@ -1,6 +1,7 @@
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtemp, mkdir, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
+import { createInterface } from 'node:readline';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
@@ -9,6 +10,8 @@ const exec = promisify(execFile);
 if (process.platform !== 'win32') throw new Error('This smoke test needs Windows UI Automation.');
 const folder = await mkdtemp(path.join(tmpdir(), 'sig-grid-'));
 const apps = new Set();
+const guards = new Set();
+let restoreAccessibility;
 async function until(predicate) {
   const end = Date.now() + 10000;
   while (Date.now() < end) { try { if (await predicate()) return; } catch { /* starting */ } await new Promise(resolve => setTimeout(resolve, 100)); }
@@ -25,6 +28,9 @@ try {
   await exec(path.join(framework, 'csc.exe'), ['/nologo', '/target:winexe', `/out:${exe}`,
     ...['PresentationFramework', 'PresentationCore', 'WindowsBase', 'UIAutomationTypes', 'UIAutomationProvider'].map(name => `/reference:${path.join(framework, 'WPF', `${name}.dll`)}`),
     '/reference:System.Xaml.dll', path.resolve('tests', 'fixtures', 'FrameworkGridFixture.cs')]);
+  const accessibility = async mode => (await exec(exe, ['--screen-reader', mode])).stdout.trim();
+  const originalAccessibility = await accessibility('get');
+  restoreAccessibility = () => accessibility(originalAccessibility);
   async function launch(name, role, mode = 'grid') {
     const dir = path.join(folder, name); await mkdir(dir);
     const app = spawn(exe, [dir, role, mode], { stdio: 'ignore' }); apps.add(app);
@@ -53,6 +59,7 @@ try {
   assert.equal(grid.reviewPosition, 'unchanged'); assert.equal(grid.anchorVisible, false);
   assert.equal((await readFile(path.join(opened.dir, 'state'), 'utf8')).split(',')[1], '0');
   assert.ok(!direct.warnings.some(w => w.includes('could not be read')));
+  assert.equal(grid.accessibility.status, 'not-needed');
   const positioned = await run({ action: 'detect', positionReview: true, entryWindow: direct.entryWindow });
   assert.equal(positioned.diagnostics.scanMode, 'remembered-entry'); assert.equal(positioned.diagnostics.windowsScanned, 1);
   assert.equal(positioned.diagnostics.windows.find(w => w.openErx).grids[0].reviewPosition, 'rxfill-visible');
@@ -156,8 +163,66 @@ try {
   assert.ok(movedGrid.viewports.some(v => v.view === 'indexed-viewport' && v.viewportRestore === 'restored'), summary(moved));
   assert.ok(movedGrid.viewports.filter(v => v.view === 'indexed-viewport').every(v => v.probes <= 3), summary(moved));
   assert.equal(movedGrid.finalVerticalPercent, 100, summary(moved));
+  // A provider that stops exposing cells in the SAME remembered window. This
+  // reproduces the reported failure instead of merely testing a different window.
+  await stop(opened.app); await accessibility('off');
+  opened = await launch('accessibility-lost', 'open', 'accessibility-lost');
+  const healthy = await run({ action: 'detect' });
+  assert.equal(healthy.pon, 'SYNTHETIC-OPEN', summary(healthy));
+  assert.equal(healthy.diagnostics.windows[0].grids[0].accessibility.status, 'not-needed');
+  await writeFile(path.join(opened.dir, 'lose-cells'), 'simulate discarded provider peers');
+  // The fixture polls for the trigger; its old viewport must become empty first.
+  await new Promise(resolve => setTimeout(resolve, 250));
+  const unrelated = await launch('unrelated-during-recovery', 'open-second');
+  const unrelatedBefore = await readFile(path.join(unrelated.dir, 'state'), 'utf8');
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const recovered = await run({ action: 'detect', entryWindow: healthy.entryWindow });
+    assert.equal(recovered.pon, 'SYNTHETIC-OPEN', summary(recovered));
+    assert.equal(recovered.diagnostics.windowsScanned, 1);
+    assert.deepEqual(recovered.diagnostics.windows.map(w => w.pid), [opened.app.pid]);
+    const recoveredGrid = recovered.diagnostics.windows[0].grids[0];
+    assert.equal(recoveredGrid.initialRows, 0, summary(recovered));
+    assert.equal(recoveredGrid.accessibility.status, 'enabled-temporarily', summary(recovered));
+    assert.equal(recoveredGrid.accessibility.rowsRecovered, true);
+    assert.equal(recoveredGrid.accessibility.cleanup, 'restored', summary(recovered));
+    assert.equal(recoveredGrid.accessibility.before, false); assert.equal(recoveredGrid.accessibility.after, false);
+    assert.ok(recoveredGrid.accessibility.refreshedGridId);
+    assert.equal(await accessibility('get'), 'off');
+    assert.equal(await readFile(path.join(unrelated.dir, 'state'), 'utf8'), unrelatedBefore);
+  }
+  await stop(unrelated.app); await stop(opened.app);
+  opened = await launch('accessibility-fault', 'open', 'accessibility-fault');
+  const faulted = await run({ action: 'detect' });
+  assert.deepEqual(faulted.pons, [], summary(faulted));
+  assert.equal(faulted.diagnostics.windows[0].grids[0].accessibility.cleanup, 'restored', summary(faulted));
+  assert.equal(await accessibility('get'), 'off');
+  // The owner must preserve a pre-existing screen-reader flag even when an
+  // empty provider never recovers, and must restore after abrupt reader death.
+  await stop(opened.app); await accessibility('on');
+  opened = await launch('already-accessible-empty', 'open', 'empty');
+  const enabled = await run({ action: 'detect' });
+  assert.deepEqual(enabled.pons, [], summary(enabled));
+  const enabledRecovery = enabled.diagnostics.windows[0].grids[0].accessibility;
+  assert.equal(enabledRecovery.status, 'already-enabled'); assert.equal(enabledRecovery.cleanup, 'unchanged');
+  assert.equal(await accessibility('get'), 'on');
+  assert.ok(enabled.warnings.some(w => w.includes('Close and reopen the E-Rx detail screen')));
+  await accessibility('off');
+  const owner = spawn(helper, ['--accessibility-lease', String(opened.app.pid), enabled.entryWindow.started], { stdio: ['pipe', 'pipe', 'inherit'] });
+  guards.add(owner);
+  const ownerLines = createInterface({ input: owner.stdout })[Symbol.asyncIterator]();
+  const ownerExit = new Promise((resolve, reject) => { owner.on('error', reject); owner.on('exit', code => code === 0 ? resolve() : reject(new Error(`Accessibility owner exited ${code}`))); });
+  const ready = JSON.parse((await ownerLines.next()).value);
+  assert.equal(ready.status, 'enabled-temporarily'); assert.equal(await accessibility('get'), 'on');
+  // Leave its input pipe OPEN: the watchdog, not EOF, must detect the killed parent.
+  await stop(opened.app);
+  const cleaned = JSON.parse((await ownerLines.next()).value);
+  assert.equal(cleaned.cleanup, 'restored'); await ownerExit; guards.delete(owner);
+  assert.equal(await accessibility('get'), 'off');
   console.log('Multi-instance UIA passed: remembered-window-only detection, diagnostics and sending; unrelated open E-Rx ignored; stale/closed window handling; PON-first indexed/scroll/raw reads and optional review positioning.');
+  console.log('Empty-cell recovery passed: discarded peers in a remembered window, repeat detection, unrelated instances untouched, provider failure cleanup, existing accessibility state preserved, killed-parent cleanup.');
 } finally {
+  for (const guard of guards) { guard.stdin.end(); await new Promise(resolve => { guard.once('exit', resolve); setTimeout(resolve, 5000); }); }
   for (const app of apps) await stop(app);
+  if (restoreAccessibility) await restoreAccessibility();
   await rm(folder, { recursive: true, force: true, maxRetries: 8, retryDelay: 150 });
 }
