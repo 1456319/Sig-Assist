@@ -65,7 +65,10 @@ public class DetailGridPeer : FrameworkElementAutomationPeer, IGridProvider, ISc
     }
     protected override string GetClassNameCore() { return ""; }
     protected override AutomationControlType GetAutomationControlTypeCore() { return AutomationControlType.DataGrid; }
-    protected override bool IsOffscreenCore() { return false; }
+    // Simulate the detail screen disappearing between its initial read and the
+    // recovery refresh. Throwing from GetPattern merely removes that pattern;
+    // other successful read methods can (correctly) still find its PON.
+    protected override bool IsOffscreenCore() { return grid.AccessibilityFault && ScreenReader.Get(); }
     protected override List<AutomationPeer> GetChildrenCore() {
         var result = new List<AutomationPeer>();
         if (grid.CellsUnavailable) return result;
@@ -81,7 +84,6 @@ public class DetailGridPeer : FrameworkElementAutomationPeer, IGridProvider, ISc
         return result;
     }
     public override object GetPattern(PatternInterface pattern) {
-        if (pattern == PatternInterface.Scroll && grid.AccessibilityFault && ScreenReader.Get()) throw new InvalidOperationException("Synthetic provider failed during recovery");
         if (pattern == PatternInterface.Grid || pattern == PatternInterface.Scroll) return this;
         return base.GetPattern(pattern);
     }

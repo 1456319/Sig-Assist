@@ -194,6 +194,7 @@ try {
   opened = await launch('accessibility-fault', 'open', 'accessibility-fault');
   const faulted = await run({ action: 'detect' });
   assert.deepEqual(faulted.pons, [], summary(faulted));
+  assert.ok(faulted.diagnostics.windows[0].grids[0].issues.some(issue => issue.includes('Recovery found 0 visible')), summary(faulted));
   assert.equal(faulted.diagnostics.windows[0].grids[0].accessibility.cleanup, 'restored', summary(faulted));
   assert.equal(await accessibility('get'), 'off');
   // The owner must preserve a pre-existing screen-reader flag even when an

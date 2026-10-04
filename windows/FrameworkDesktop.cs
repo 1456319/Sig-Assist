@@ -143,6 +143,10 @@ sealed class AccessibilityLease : IDisposable {
                 info.after = state.after; info.cleanup = state.cleanup;
                 if (state.error != "") info.error = state.error;
             }
+            if (info.cleanup == "pending") {
+                info.cleanup = "restore-failed";
+                info.error = "The accessibility owner exited without confirming restoration.";
+            }
         } catch (Exception error) { info.cleanup = "guardian-pending"; info.error += " " + error.GetType().Name + ": " + error.Message; }
         finally { guard.Dispose(); }
     }
