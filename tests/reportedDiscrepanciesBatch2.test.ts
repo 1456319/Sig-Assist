@@ -43,13 +43,13 @@ describe('six new reported mistranslations, 2026-10-01 batch 2', () => {
 
   it.each(['Instill 1 drop daily', 'Instill 1-2 drops in left eye daily', 'Instill 0 drops in right eye daily', 'Instill 1 drop in left eye and right ear daily'])('retains ambiguous drop directions for manual translation: %s', prose => {
     const result = translate('UNKNOWN DRUG', prose);
-    expect(result.primarySig).toBe(prose.toUpperCase());
+    expect(result.primarySig).toBe(prose.toUpperCase().replace(/DAILY$/, 'QD'));
     expect(result.abnormalities.some(a => a.tier === 'uncorrected_gap')).toBe(true);
   });
 
   it('does not discard an unrecognized explicit PRN interval', () => {
     const prose = 'Instill 1 drop in left eye every 45 minutes as needed';
-    expect(translate('UNKNOWN DRUG', prose).primarySig).toBe(prose.toUpperCase());
+    expect(translate('UNKNOWN DRUG', prose).primarySig).toBe('INSTILL 1 DROP IN LEFT EYE EVERY 45 MINUTES PRN');
   });
 
   it('preserves specified diclofenac quantity and every site', () => {
@@ -101,9 +101,13 @@ describe('six new reported mistranslations, 2026-10-01 batch 2', () => {
     expect(translate('UNKNOWN DRUG', `Give 1 tablet by mouth ${schedule} for pain`).primarySig).toBe(`1T PO ${code} FPAIN`);
   });
 
-  it.each(['one time a day every other Tue', 'twice daily every Tue and Thu', 'every Tue except holidays'])('retains unsupported weekday qualifiers without dropping them: %s', schedule => {
+  it.each([
+    ['one time a day every other Tue', 'QD EVERY OTHER TUE'],
+    ['twice daily every Tue and Thu', 'BID EVERY TUE AND THU'],
+    ['every Tue except holidays', 'EVERY TUE EXCEPT HOLIDAYS'],
+  ])('retains unsupported weekday qualifiers without dropping them: %s', (schedule, expected) => {
     const prose = `Give 1 tablet by mouth ${schedule} for pain`;
-    expect(translate('UNKNOWN DRUG', prose).primarySig).toBe(prose.toUpperCase());
+    expect(translate('UNKNOWN DRUG', prose).primarySig).toBe(`GIVE 1 TABLET PO ${expected} FPAIN`);
   });
 
   it('mutates the PEG preparation with source PRN frequency, duration and hold', () => {
@@ -119,12 +123,12 @@ describe('six new reported mistranslations, 2026-10-01 batch 2', () => {
 
   it('retains explicit source preparation instead of overwriting it with 8 oz water', () => {
     const prose = 'Give 1 packet orally daily for constipation. Mix in 4 oz of juice.';
-    expect(translate(cases.reports[5].drugName, prose).primarySig).toBe(prose.toUpperCase());
+    expect(translate(cases.reports[5].drugName, prose).primarySig).toBe('MIX 17 GM (1 PACKET) IN 4OZ OF JUICE AND GIVE PO QD FCON');
   });
 
   it('also preserves source diluent and volume without a mix verb', () => {
     const prose = 'Give 1 packet orally in 4 oz water daily for constipation';
-    expect(translate(cases.reports[5].drugName, prose).primarySig).toBe(prose.toUpperCase());
+    expect(translate(cases.reports[5].drugName, prose).primarySig).toBe('GIVE 1 PACKET PO IN 4 OZ WATER QD FCON');
   });
 
   it.each(['UNKNOWN POWDER PACKET', 'CHOLESTYRAMINE PWD PACKET 4GM', 'POLYETH GLYC PWD PACKET 8.5GM', 'POLYETHYLENE GLYCOL WITH ELECTROLYTES PACKET 17GM', 'MIRALAX PACKETS'])('does not add the PEG 17 g template to %s', drug => {

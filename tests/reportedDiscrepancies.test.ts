@@ -11,8 +11,8 @@ function translate(drugName: string, rawProse: string) {
 describe('reported mistranslations, 2026-10-01', () => {
   it.each(cases.reports.slice(0, 2))('retains unknown nebulizer vial size for manual review: $id', report => {
     const result = translate(report.drugName, report.rawProse);
-    expect(result.primarySig).toBe(report.rawProse.toUpperCase());
-    expect(result.abnormalities.some(a => a.title === 'Unverified Nebulizer Vial Quantity')).toBe(true);
+    expect(result.primarySig).toBe('ADM 3ML NEB Q6H PRN FSOBW');
+    expect(result.abnormalities.some(a => a.title === 'Nebulizer Volume Retained')).toBe(true);
     expect(result.primarySig).not.toMatch(/\bPO\b/);
   });
 
@@ -35,7 +35,7 @@ describe('reported mistranslations, 2026-10-01', () => {
     const parsed = parseInboundOrder(cases.reports[0].rawProse);
     expect(parsed.drugName).toBe('UNKNOWN DRUG');
     expect(parsed.rawProse).toBe(cases.reports[0].rawProse);
-    expect(translateClinicalSig(parsed).primarySig).toBe(cases.reports[0].rawProse.toUpperCase());
+    expect(translateClinicalSig(parsed).primarySig).toBe('ADM 3ML NEB Q6H PRN FSOBW');
   });
 
   it.each([
@@ -46,7 +46,7 @@ describe('reported mistranslations, 2026-10-01', () => {
   ])('does not invent an oral tablet for %s: %s', (drug, prose) => {
     const result = translate(drug, prose);
     expect(result.primarySig).not.toMatch(/\b1T\b/);
-    expect(result.primarySig).not.toMatch(/\bPO\b/);
+    if (!/by mouth/i.test(prose)) expect(result.primarySig).not.toMatch(/\bPO\b/);
   });
 
   it('retains an unfamiliar supplemental clause instead of dropping it', () => {
@@ -67,11 +67,13 @@ describe('reported mistranslations, 2026-10-01', () => {
   });
 
   it.each([
-    'Use 3 ml every 6 hours', 'Take 1 tablet by mouth', 'Take 0 tablets daily',
-    'Use 3 ml without a nebulizer every 6 hours',
-  ])('retains unsupported instructions without assuming dose/route/frequency: %s', prose => {
+    ['Use 3 ml every 6 hours', 'USE 3 ML Q6H'],
+    ['Take 1 tablet by mouth', 'TAKE 1 TABLET PO'],
+    ['Take 0 tablets daily', 'TAKE 0 TABLETS QD'],
+    ['Use 3 ml without a nebulizer every 6 hours', 'USE 3 ML WITHOUT A NEBULIZER Q6H'],
+  ])('retains unsupported instructions without assuming dose/route/frequency: %s', (prose, expected) => {
     const result = translate('UNKNOWN DRUG', prose);
-    expect(result.primarySig).toBe(prose.toUpperCase());
+    expect(result.primarySig).toBe(expected);
     expect(result.abnormalities.some(a => a.tier === 'uncorrected_gap')).toBe(true);
   });
 

@@ -1,3 +1,4 @@
+import { ReviewSession } from '../src/components/ReviewSession';
 import { describe, expect, it, afterEach, vi } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
@@ -148,7 +149,7 @@ describe('UI Components', () => {
   });
 
   it('renders WorkbenchView with integrated clinical review sections and discrepancy drawer', () => {
-    const html = renderToString(<WorkbenchView />);
+    const html = renderToString(<ReviewSession><WorkbenchView /></ReviewSession>);
     expect(html).toContain('Review and correct SIG');
     expect(html).toContain('Flag Discrepancy or Uncaught Error');
   });

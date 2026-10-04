@@ -39,7 +39,9 @@ describe('24 exported discrepancy records, 2026-10-01 batch 3', () => {
     ['EXAMPLE TAB 5-325MG', 'Give 5 mg by mouth daily'],
     ['EXAMPLE TAB 5MG', 'Give 3 mg by mouth daily'],
   ])('retains an unverified strength-to-quantity conversion: %s', (drug, prose) => {
-    expect(translate(drug, prose).primarySig).toBe(prose.toUpperCase());
+    const result = translate(drug, prose);
+    expect(result.primarySig).toBe(prose.toUpperCase().replace('BY MOUTH DAILY', 'PO QD'));
+    expect(result.abnormalities.some(a => a.id === 'partial_translation')).toBe(true);
   });
 
   it('retains a supported frequency after an indication while protecting diagnosis words', () => {
@@ -62,11 +64,11 @@ describe('24 exported discrepancy records, 2026-10-01 batch 3', () => {
   });
 
   it.each([
-    ['UNKNOWN DRUG', 'Use 3 ml via nebulizer daily'],
-    ['IPRATROPIUM/ALBUTEROL INH SOLN', 'Inhale 3 ml daily'],
-    ['47335075649 - IPRATROPIUM/ALBUTEROL INH SOLN', 'Inhale 1.5 ml daily'],
-  ])('does not assume a vial size or whole-vial dose: %s', (drug, prose) => {
-    expect(translate(drug, prose).primarySig).toBe(prose.toUpperCase());
+    ['UNKNOWN DRUG', 'Use 3 ml via nebulizer daily', 'ADM 3ML NEB QD'],
+    ['IPRATROPIUM/ALBUTEROL INH SOLN', 'Inhale 3 ml daily', 'INHALE 3 ML QD'],
+    ['47335075649 - IPRATROPIUM/ALBUTEROL INH SOLN', 'Inhale 1.5 ml daily', 'INHALE 1.5 ML QD'],
+  ])('does not assume a vial size or whole-vial dose: %s', (drug, prose, expected) => {
+    expect(translate(drug, prose).primarySig).toBe(expected);
   });
 
   it('accepts an explicit one-vial nebulizer dose without a volume assumption', () => {
@@ -80,7 +82,9 @@ describe('24 exported discrepancy records, 2026-10-01 batch 3', () => {
 
   it.each(['1.5 weeks', '2-3 weeks', '5 weeks', '0 days'])('retains an unsupported duration for review: %s', duration => {
     const prose = `Give 1 tablet daily for GERD for ${duration}`;
-    expect(translate('UNKNOWN DRUG', prose).primarySig).toBe(prose.toUpperCase());
+    const result = translate('UNKNOWN DRUG', prose);
+    expect(result.primarySig).toBe(`GIVE 1 TABLET QD FGERD FOR ${duration.toUpperCase()}`);
+    expect(result.abnormalities.some(a => a.tier === 'potential_error')).toBe(true);
   });
 
   it('preserves the plus-threshold dose and its actual notification recipient', () => {
@@ -105,7 +109,7 @@ describe('24 exported discrepancy records, 2026-10-01 batch 3', () => {
 
   it.each(['5 days', '4 weeks'])('retains an unmarked course interval for review: %s', duration => {
     const prose = `Give 1 tablet daily ${duration}`;
-    expect(translate('UNKNOWN DRUG', prose).primarySig).toBe(prose.toUpperCase());
+    expect(translate('UNKNOWN DRUG', prose).primarySig).toBe(`GIVE 1 TABLET QD ${duration.toUpperCase()}`);
   });
 
   it('keeps the source deadline and preparation details on a single-dose order', () => {

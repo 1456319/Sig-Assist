@@ -31,7 +31,7 @@ try {
   assert.equal(await page.getByLabel('Final SIG · editable, uppercase').inputValue(), '1T PO BID FOR EXAMPLE SYMPTOMS');
   await page.getByText('0900, 2100', { exact: true }).waitFor();
   await page.getByLabel('Final SIG · editable, uppercase').fill('1T PO BID TECHNICIAN EDIT');
-  await page.getByRole('checkbox').check();
+  await page.getByRole('checkbox', { name: /I matched the order and checked/ }).check();
   await page.getByLabel('Import Iguana capture').setInputFiles({ name: 'synthetic.har', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(fourLogHar())) });
   await page.getByText(/Capture imported: 4 logs · 0 added · 2 duplicates/).waitFor();
   assert.equal(await page.getByLabel('Final SIG · editable, uppercase').inputValue(), '1T PO BID TECHNICIAN EDIT');

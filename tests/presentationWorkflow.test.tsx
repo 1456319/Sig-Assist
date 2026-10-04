@@ -35,7 +35,7 @@ describe('presentation workflow', () => {
     expect(draft.value).toBe('1T PO BID X7D');
     expect(copy.disabled).toBe(true);
     fireEvent.change(draft, { target: { value: '1t po bid x7d with food' } });
-    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('checkbox', { name: /I matched the order and checked/ }));
     fireEvent.click(copy);
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('1T PO BID X7D WITH FOOD'));
     fireEvent.click(screen.getByRole('button', { name: 'Revise source' }));

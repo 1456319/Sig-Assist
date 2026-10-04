@@ -113,3 +113,54 @@ it('clears every Workbench entry and draft while retaining the saved discrepancy
   expect(screen.queryByRole('button', { name: 'Copy reviewed SIG' })).toBeNull();
   expect((await exportDiscrepancyCases()).reports).toEqual(before.reports);
 });
+
+const archivalCase = (id: string) => ({ id, timestamp: '2026-10-04', pon: 'MANUAL_ENTRY', drugName: 'Synthetic', rawProse: 'Original directions', generatedSig: 'DRAFT', technicianSig: 'CORRECTED', notes: 'Preserve this evidence', flaggedForRph: false });
+
+it('archives the current list, keeps a fresh active export and restores original reports after reload', async () => {
+  const adapter = getCitrixStorageAdapter();
+  const old = archivalCase('old');
+  await adapter.appendDiscrepancy(old, { immediate: true });
+  const host = render(<DiscrepancyArchive />);
+  await screen.findByText('1 saved discrepancy reports');
+  fireEvent.click(screen.getByRole('button', { name: 'Archive current reports' }));
+  await screen.findByText('0 saved discrepancy reports');
+  await screen.findByText('1 archived reports');
+  expect((await exportDiscrepancyCases('archived')).reports[0]).toMatchObject({ ...old, archivedAt: expect.any(String) });
+  await expect(exportDiscrepancyCases()).rejects.toThrow('No discrepancy reports');
+  host.unmount();
+  _resetCitrixStorageAdapterForTesting();
+  const fresh = archivalCase('fresh');
+  await getCitrixStorageAdapter().appendDiscrepancy(fresh, { immediate: true });
+  expect((await exportDiscrepancyCases()).reports).toEqual([fresh]);
+  render(<DiscrepancyArchive />);
+  await screen.findByText('1 archived reports');
+  fireEvent.click(screen.getByRole('button', { name: 'Restore archived reports' }));
+  await screen.findByText('2 saved discrepancy reports');
+  expect((await exportDiscrepancyCases()).reports).toEqual([old, fresh]);
+});
+
+it('serializes concurrent saves and archives without losing or archiving new reports', async () => {
+  const adapter = getCitrixStorageAdapter();
+  const old = archivalCase('old'); const fresh = archivalCase('fresh');
+  await adapter.appendDiscrepancy(old, { immediate: true });
+  await Promise.all([
+    adapter.appendDiscrepancy(fresh, { immediate: true }),
+    adapter.setDiscrepanciesArchived(['old'], true),
+  ]);
+  expect((await exportDiscrepancyCases()).reports).toEqual([fresh]);
+  expect((await exportDiscrepancyCases('all')).caseCount).toBe(2);
+});
+
+it('does not clear the list or lose report evidence when an archive write fails', async () => {
+  const adapter = getCitrixStorageAdapter();
+  const old = archivalCase('old');
+  await adapter.appendDiscrepancy(old, { immediate: true });
+  render(<DiscrepancyArchive />);
+  await screen.findByText('1 saved discrepancy reports');
+  const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('storage full'); });
+  fireEvent.click(screen.getByRole('button', { name: 'Archive current reports' }));
+  await waitFor(() => expect(write).toHaveBeenCalled());
+  await waitFor(() => expect((screen.getByRole('button', { name: 'Archive current reports' }) as HTMLButtonElement).disabled).toBe(false));
+  expect(screen.queryByText('1 archived reports')).toBeNull();
+  expect((await adapter.readDiscrepancies())).toEqual([old]);
+});

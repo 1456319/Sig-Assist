@@ -1,20 +1,24 @@
 import { SIG_CODE_REFERENCE } from './sigCodeReference';
+import { REJECTED_OUTPUT_CODES } from './outputCodePolicy';
 
 const referenceIndications: Record<string, string> = {};
 for (const [code, expansion] of Object.entries(SIG_CODE_REFERENCE)) {
-  if (expansion.startsWith('FOR ') && !referenceIndications[expansion.slice(4)]) referenceIndications[expansion.slice(4)] = code;
+  if (!(code in REJECTED_OUTPUT_CODES) && expansion.startsWith('FOR ') && !referenceIndications[expansion.slice(4)]) referenceIndications[expansion.slice(4)] = code;
 }
 
 // Match complete phrases, preserving qualifiers and conjunctions. Existing
 // institutional aliases choose among synonymous codes in the root reference.
 export const INDICATION_MAP: Record<string, string> = {
   ...referenceIndications,
-  GERD: 'FGERD', SUPPLEMENT: 'FSU', DM: 'FDM', DM2: 'FDM2',
+  GERD: 'FGERD', SUPPLEMENT: 'FSU', SUPPLEMENTATION: 'FSU', DM: 'FDM', DM2: 'FDM2',
   'TYPE 2 DIABETES': 'FDM2', BPH: 'FBPH', HYPOTHYROIDISM: 'FHYT',
   'GI PROPHYLAXIS': 'FGIP', COUGH: 'FCOU', HTN: 'FHTN', CONSTIPATION: 'FCON',
   'DVT PREVENTION': 'FDVTP', 'BLOOD CLOT PREVENTION': 'FBCP', PAIN: 'FPAIN',
   'SHORTNESS OF BREATH OR WHEEZING': 'FSOBW', 'SOB OR WHEEZING': 'FSOBW',
-  AFIB: 'FAFIB',
+  SOB: 'FSOB',
+  AFIB: 'FAFIB', T1DM: 'FDM1', PNA: 'FPNE', NAUSEA: 'FNAU',
+  'NAUSEA AND VOMITING': 'FNV', // Reported site packaging convention; shown as a correction.
+
 };
 
 // X 2 DAYS in the FBM codes describes the triggering condition, not the
@@ -39,25 +43,35 @@ function removeDiagnosisCodes(value: string): string {
 
 export function resolveIndicationToken(indication?: string): string | undefined {
   if (!indication) return undefined;
-  const cleaned = removeDiagnosisCodes(indication.toUpperCase().trim().replace(/^FOR\s+/, ''))
-    .replace(/[.;,]+$/, '').trim();
+  const cleaned = removeDiagnosisCodes(indication.toUpperCase().trim().replace(/^(?:FOR(?:\s+INDICATIONS\s+OF)?|RELATED\s+TO)\s+/, ''))
+    .replace(/[.;,]+$/, '').trim()
+    .replace(/^PAIN FOR (.+ PAIN\b)/, '$1')
+    .replace(/^HEART HEALTHY$/, 'HEART HEALTH');
   if (!cleaned) return undefined;
   if (INDICATION_MAP[cleaned]) return INDICATION_MAP[cleaned];
   if (Object.values(INDICATION_MAP).includes(cleaned)) return cleaned;
-  const clauses = cleaned.split(/\s+(AND|OR)\s+/);
-  if (clauses.length > 1 && clauses.some((c, i) => i % 2 === 0 && INDICATION_MAP[c])) {
-    return clauses.map((clause, i) => i % 2 ? clause : INDICATION_MAP[clause] || `FOR ${clause}`).join(' ');
+  // Prefer a complete compound indication (e.g. nausea OR vomiting) before
+  // splitting individual symptoms. The site-approved FNV alias above is explicit.
+  for (const separator of cleaned.matchAll(/\s+(?:AND|OR)\s+/g)) {
+    const left = cleaned.slice(0, separator.index);
+    const right = cleaned.slice(separator.index! + separator[0].length);
+    if (INDICATION_MAP[right]) return `${resolveIndicationToken(left)}${separator[0]}${INDICATION_MAP[right]}`;
+    if (INDICATION_MAP[left]) return `${INDICATION_MAP[left]}${separator[0]}${resolveIndicationToken(right)}`;
   }
-  return `FOR ${cleaned}`;
+  const clauses = cleaned.split(/(\s+AND\s+|\s+OR\s+|\s*\/\s*)/);
+  if (clauses.length > 1 && clauses.some((c, i) => i % 2 === 0 && INDICATION_MAP[c])) {
+    return clauses.map((clause, i) => i % 2 ? clause : INDICATION_MAP[clause] || `FOR ${clause}`).join('');
+  }
+  return `FOR ${cleaned.replace(/\bSORETHROAT\b/g, 'SORE THROAT')}`;
 }
 
 // Only explicit directives qualify here. A diagnosis such as DAILY EYE
 // DISCOMFORT cannot supply a missing frequency.
-const TRAILING_SCHEDULE = /\b(?:(?:\d+|ONE|TWO|THREE|FOUR)\s+TIMES?\s+(?:A|PER|EACH)\s+DAY|TWICE\s+DAILY|EVERY\s+(?:\d+\s+HOURS?|MORNING)|IN\s+THE\s+(?:MORNING|EVENING)|(?:TAKE\s+)?BEFORE\s+MEALS|BEFORE\s+BREAKFAST|AFTER\s+DINNER|AS\s+NEEDED|PRN)\b/i;
+const TRAILING_SCHEDULE = /\b(?:(?:\d+|ONE|TWO|THREE|FOUR)\s+TIMES?\s+(?:A|PER|EACH)\s+DAY|TWICE\s+DAILY|EVERY\s+(?:\d+\s+HOURS?|MORNING)|IN\s+THE\s+(?:MORNING|EVENING)|(?:TAKE\s+)?BEFORE\s+MEALS|AT\s+BEDTIME|BEFORE\s+BREAKFAST|AFTER\s+DINNER|WITH\s+MEALS|ON\s+AN?\s+EMPTY\s+STOMACH|AS\s+NEEDED|PRN)\b/i;
 
 function indicationStart(prose: string): number | undefined {
   const upper = prose.toUpperCase();
-  for (const match of upper.matchAll(/\bFOR\s+/g)) {
+  for (const match of upper.matchAll(/\b(?:FOR|RELATED\s+TO)\s+/g)) {
     if (match.index === undefined || /\bHOLD\s*$/.test(upper.slice(0, match.index))) continue;
     const tail = upper.slice(match.index + match[0].length);
     if (/^(?:(?:UP\s+TO\s+)?\d|HOLD\b|SBP\b|HEART\s+RATE\b)/.test(tail)) continue;
@@ -66,13 +80,19 @@ function indicationStart(prose: string): number | undefined {
   return undefined;
 }
 
-export function extractIndicationToken(prose: string): string | undefined {
-  prose = protectIndicationDurations(prose);
+export function indicationSpan(prose: string): { start: number; end: number } | undefined {
   const start = indicationStart(prose);
   if (start === undefined) return undefined;
-  const indication = prose.slice(start).replace(/^FOR\s+/i, '')
-    .split(/\b(?:HOLD\s+(?:IF|FOR|WHEN)|(?:FOR\s+(?:UP\s+TO\s+)?|X\s*)\d[\d./ -]*\s*(?:DAYS?|D\b|WEEKS?|WK\b|MONTHS?|HOURS?)|THEN\s+(?:STOP|DISCONTINUE)|SWISH\s+AND\s+(?:SWALLOW|SPIT))\b/i)[0].trim();
-  return resolveIndicationToken(indication.split(TRAILING_SCHEDULE)[0]);
+  const tail = prose.slice(start);
+  const clinicalEnd = tail.search(/\b(?:HOLD\s+(?:IF|FOR|WHEN)|(?:FOR\s+(?:UP\s+TO\s+)?|X\s*)\d[\d./ -]*\s*(?:DAYS?|D\b|WEEKS?|WK\b|MONTHS?|HOURS?|DOSES?|ADMINISTRATIONS?)|THEN\s+(?:STOP|DISCONTINUE)|UNTIL\s+FINISHED|SWISH\s+AND\s+(?:SWALLOW|SPIT))\b/i);
+  const scheduleEnd = tail.search(TRAILING_SCHEDULE);
+  return { start, end: start + Math.min(...[tail.length, clinicalEnd, scheduleEnd].filter(n => n >= 0)) };
+}
+
+export function extractIndicationToken(prose: string): string | undefined {
+  prose = protectIndicationDurations(prose);
+  const span = indicationSpan(prose);
+  return span ? resolveIndicationToken(prose.slice(span.start, span.end)) : undefined;
 }
 
 export function administrationScheduleProse(prose: string): string {

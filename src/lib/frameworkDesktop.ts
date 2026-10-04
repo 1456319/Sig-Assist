@@ -5,6 +5,12 @@ export interface FrameworkDetection {
   expiresAt?: number;
   pon?: string;
   pons?: string[];
+  instances?: number;
+  openErxWindows?: number;
+  viewportStatus?: string;
+  entryWindow?: { title: string; pid: number };
+  scanMode?: string;
+  windowSelectionRequired?: boolean;
   warnings?: string[];
   fields?: Partial<Record<'sig' | 'times', { label: string; currentValue: string }>>;
   diagnostics?: unknown;
@@ -16,7 +22,7 @@ export interface FrameworkDetection {
 export async function frameworkDesktop(action: 'detect' | 'inspect' | 'target' | 'send', body: Record<string, unknown> = {}): Promise<FrameworkDetection> {
   if (!['http:', 'https:'].includes(location.protocol)) throw new Error('Launch Start-Iguana-Connector.bat in the same Windows/Citrix session as Framework.');
   const response = await fetch(`/connector/desktop/${action}`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(50000),
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(65000),
   });
   if (!response.ok) throw new Error(response.status === 404 ? 'This connector is older than the page. Close it and start the connector from the new ZIP.' : `Desktop connector returned HTTP ${response.status}.`);
   return response.json();

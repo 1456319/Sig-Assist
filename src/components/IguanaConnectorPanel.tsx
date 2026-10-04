@@ -21,7 +21,7 @@ export function IguanaConnectorPanel({ onSelect, searchQuery, onSearchChange, on
   onLookupStart: () => void;
   onDesktopDetected?: (result?: FrameworkDetection) => void;
 }) {
-  const { orders, setOrders, ready } = useReviewSession();
+  const { orders, setOrders, ready, exclusions } = useReviewSession();
   const latestOrders = useRef(orders); latestOrders.current = orders;
   const select = useRef(onSelect); select.current = onSelect;
   const [diagnostics] = useState(() => new ConnectorDiagnostics());
@@ -57,7 +57,7 @@ export function IguanaConnectorPanel({ onSelect, searchQuery, onSearchChange, on
     const result = ingestScriptEvents(before, events, source => translateClinicalSig({
       id: orderKey(source), pon: source.pon, drugName: source.drug, rawProse: source.directions,
       sourceFormat: 'ncpdp_xml', traceId: `IGUANA_${source.iguana?.messageId}`,
-    }).primarySig, diagnostics.emit);
+    }, { exclusions }).primarySig, diagnostics.emit);
     const decodeFailures = (diagnostics.counts['decode.failed'] ?? 0) - failedBefore;
     result.summary.quarantined += decodeFailures;
     if (decodeFailures) diagnostics.emit('error', 'intake.decode.quarantine', 'Undecodable source logs need investigation', { logs: decodeFailures });
@@ -70,7 +70,7 @@ export function IguanaConnectorPanel({ onSelect, searchQuery, onSearchChange, on
     }
     if (result.summary.quarantined) toast.error(`${result.summary.quarantined} intake events need investigation. Export connector diagnostics.`);
     return result;
-  }, [capture, diagnostics, setOrders]);
+  }, [capture, diagnostics, setOrders, exclusions]);
 
   const runQuery = useCallback(async (lookup?: { query: string; days?: number }) => {
     if (active.current) return;

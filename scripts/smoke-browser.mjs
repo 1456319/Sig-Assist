@@ -50,7 +50,7 @@ try {
   await page.getByRole('button', { name: 'Save Discrepancy Report', exact: true }).click();
   await page.getByText('1 saved discrepancy reports', { exact: true }).waitFor();
   await page.getByRole('button', { name: 'Close Feedback', exact: true }).click();
-  await page.getByRole('checkbox').check();
+  await page.getByRole('checkbox', { name: /I matched the order and checked/ }).check();
   await copy.click();
   if (fileMode) {
     // Require the user-click write to succeed before granting read access to verify it.
@@ -70,7 +70,7 @@ try {
   await page.getByRole('button', { name: 'Save Discrepancy Report', exact: true }).click();
   await page.getByText('2 saved discrepancy reports', { exact: true }).waitFor();
   await page.getByRole('button', { name: 'Close Feedback', exact: true }).click();
-  await page.getByRole('checkbox').first().check();
+  await page.getByRole('checkbox', { name: 'Reviewed and approved for FrameworkLTC', exact: true }).first().check();
   const splitCopy = page.getByRole('button', { name: 'Copy Reviewed SIG (Order 1 of 2)', exact: true });
   await splitCopy.click();
   assert.equal(await page.evaluate(() => navigator.clipboard.readText()), '2T PO QAM WITH FOOD');
@@ -114,7 +114,7 @@ try {
   const drug = page.getByPlaceholder('e.g. Lisinopril 10mg');
   const template = page.getByPlaceholder('e.g. Take 1 tablet daily');
   const notices = {
-    0: 'Unverified Nebulizer Vial Quantity', 4: 'Missing Frequency',
+    0: 'Nebulizer Volume Retained', 4: 'Missing Frequency',
     5: 'Diclofenac Site/Dose Requires Verification', 9: 'PEG Packet Preparation Added',
     10: 'Duplicate Direction Removed', 15: 'Pantoprazole Preparation Requires Review',
     20: 'Nebulizer Vial Quantity Calculated', 22: 'Insulin Unit Typo Normalized',
@@ -130,10 +130,91 @@ try {
     if (notices[index]) await page.getByText(`[${notices[index]}]`, { exact: false }).waitFor();
     const reviewedCopy = page.getByRole('button', { name: 'Copy reviewed SIG', exact: true });
     assert.equal(await reviewedCopy.isDisabled(), true);
-    await page.getByRole('checkbox').check();
+    await page.getByRole('checkbox', { name: /I matched the order and checked/ }).check();
     await reviewedCopy.click();
     assert.equal(await page.evaluate(() => navigator.clipboard.readText()), replayExpected[index]);
   }
+  const octoberCases = JSON.parse(await readFile(path.join(root, 'tests/fixtures/reported-discrepancies-2026-10-03.json'), 'utf8'));
+  const octoberExpected = JSON.parse(await readFile(path.join(root, 'tests/fixtures/reported-discrepancies-2026-10-03-expected.json'), 'utf8'));
+  const octoberNotices = { 1: 'Liquid Concentration Missing', 5: 'Partial Translation', 6: 'Nebulizer Vial Quantity Calculated', 8: 'Duplicate Direction Removed', 11: 'Duplicate Direction Removed', 15: 'PEG Powder Preparation Added' };
+  for (const [index, report] of octoberCases.entries()) {
+    await page.getByRole('button', { name: 'Clear all fields', exact: true }).click();
+    await drug.fill(report.drugName);
+    await directions.fill(report.rawProse);
+    if (index === 0) {
+      const expectedCards = [
+        '1T PO QD FOR SCHIZOAFFECTIVE DISORDER. TAW FRACTIONAL-TABLET DOSE (TD 7.5MG)',
+        '1/2T (2.5MG) PO QD FOR SCHIZOAFFECTIVE DISORDER. TAW WHOLE-TABLET DOSE (TD 7.5MG)',
+      ];
+      for (const [part, expected] of expectedCards.entries()) {
+        const label = `Order ${part + 1} of 2`;
+        await page.waitForFunction(value => [...document.querySelectorAll('textarea')].some(field => field.value === value), expected);
+        assert.equal(await page.getByLabel(`Draft SIG (${label})`).inputValue(), expected);
+        const partCopy = page.getByRole('button', { name: `Copy Reviewed SIG (${label})`, exact: true });
+        assert.equal(await partCopy.isDisabled(), true);
+        await page.getByRole('checkbox', { name: 'Reviewed and approved for FrameworkLTC', exact: true }).nth(part).check();
+        await partCopy.click();
+        assert.equal(await page.evaluate(() => navigator.clipboard.readText()), expected);
+      }
+    } else {
+      await page.waitForFunction(value => [...document.querySelectorAll('textarea')].some(field => field.value === value), octoberExpected[index]);
+      assert.equal(await page.getByLabel('Final SIG · editable, uppercase').inputValue(), octoberExpected[index]);
+      if (octoberNotices[index]) await page.getByText(`[${octoberNotices[index]}`, { exact: false }).waitFor();
+      const reviewedCopy = page.getByRole('button', { name: 'Copy reviewed SIG', exact: true });
+      assert.equal(await reviewedCopy.isDisabled(), true);
+      await page.getByRole('checkbox', { name: /I matched the order and checked/ }).check();
+      await reviewedCopy.click();
+      assert.equal(await page.evaluate(() => navigator.clipboard.readText()), octoberExpected[index]);
+    }
+  }
+  const latestCases = JSON.parse(await readFile(path.join(root, 'tests/fixtures/reported-discrepancies-2026-10-04.json'), 'utf8'));
+  const latestExpected = JSON.parse(await readFile(path.join(root, 'tests/fixtures/reported-discrepancies-2026-10-04-expected.json'), 'utf8'));
+  const replayed = new Set(octoberCases.map(c => JSON.stringify([c.drugName, c.rawProse])));
+  let newReplays = 0;
+  for (const [index, report] of latestCases.entries()) {
+    const key = JSON.stringify([report.drugName, report.rawProse]);
+    if (replayed.has(key)) continue;
+    replayed.add(key); newReplays++;
+    await page.getByRole('button', { name: 'Clear all fields', exact: true }).click();
+    await drug.fill(report.drugName);
+    await directions.fill(report.rawProse);
+    await page.waitForFunction(value => [...document.querySelectorAll('textarea')].some(field => field.value === value), latestExpected[index]);
+    assert.equal(await draft.inputValue(), latestExpected[index]);
+    assert.doesNotMatch(await draft.inputValue(), /\b(?:INH|FNA|FVOM|Q23H|PNA)\b/);
+    await page.getByRole('checkbox', { name: /I matched the order and checked/ }).check();
+    await copy.click();
+    assert.equal(await page.evaluate(() => navigator.clipboard.readText()), latestExpected[index]);
+  }
+  // Restrictions change suggestions immediately and persist without overwriting an edited draft.
+  await page.getByRole('button', { name: 'Clear all fields', exact: true }).click();
+  await drug.fill('EXAMPLE TAB');
+  await directions.fill('Give 1 tablet by mouth daily');
+  await page.getByText('Saved exclusions (0)', { exact: true }).click();
+  await page.getByLabel('SIG code to exclude', { exact: true }).fill('QD');
+  await page.getByRole('button', { name: 'Exclude code', exact: true }).click();
+  await page.waitForFunction(() => [...document.querySelectorAll('textarea')].some(field => field.value === '1T PO ONE TIME A DAY'));
+  await draft.fill('1T PO ONE TIME A DAY WITH FOOD');
+  await page.getByLabel('SIG code to exclude', { exact: true }).fill('PO');
+  await page.getByRole('button', { name: 'Exclude code', exact: true }).click();
+  await page.getByText('1T BY MOUTH ONE TIME A DAY', { exact: true }).first().waitFor();
+  assert.equal(await draft.inputValue(), '1T PO ONE TIME A DAY WITH FOOD');
+  assert.equal(await copy.isDisabled(), true);
+  await page.getByRole('button', { name: 'Use calculated suggestion' }).click();
+  await draft.fill('1T PO Q23H');
+  assert.equal(await page.getByRole('checkbox', { name: /I matched the order and checked/ }).isDisabled(), true);
+  await page.getByText(/Remove rejected packaging code/).waitFor();
+  assert.equal(await copy.isDisabled(), true);
+  await page.getByRole('button', { name: 'Archive current reports' }).click();
+  await page.getByText('0 saved discrepancy reports', { exact: true }).waitFor();
+  await page.getByText('2 archived reports', { exact: true }).waitFor();
+  const archiveDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export archived reports' }).click();
+  const archived = JSON.parse(await readFile(await (await archiveDownload).path(), 'utf8'));
+  assert.equal(archived.caseCount, 2);
+  assert.ok(archived.reports.every(r => r.archivedAt));
+  assert.equal(archived.reports[0].rawProse, bundle.reports[0].rawProse);
+  await page.getByRole('button', { name: 'Restore archived reports' }).click();
+  await page.getByText('2 saved discrepancy reports', { exact: true }).waitFor();
   // Clear source, profile, template, editable draft and approval together;
   // saved reports remain in the separate archive.
   await template.fill('GIVE 1 PACKET PO');
@@ -144,7 +225,7 @@ try {
   await page.getByText('2 saved discrepancy reports', { exact: true }).waitFor();
   assert.deepEqual(externalRequests, []);
   assert.deepEqual(errors, []);
-  console.log(`PASS (${fileMode ? 'direct file, no server' : 'HTTP'}): offline UI, clipboard, review/revision/cancellation gating, saved queue and case export, all 24 reported cases replayed through Workbench and actual clipboard with review notices, Clear all fields preserves the saved archive, zero external requests or browser errors.`);
+  console.log(`PASS (${fileMode ? 'direct file, no server' : 'HTTP'}): offline UI, clipboard, review/revision/cancellation gating, saved queue and case export, all ${41 + newReplays} reported cases replayed through Workbench and actual clipboard with review notices and whole/fractional tablet cards, code restrictions applied during generation and copy, reversible report archiving, Clear all fields preserves the saved archive, zero external requests or browser errors.`);
 } finally {
   if (browser) await browser.close();
   if (server) {

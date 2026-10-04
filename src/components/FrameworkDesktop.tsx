@@ -8,18 +8,20 @@ export function FrameworkDetect({ disabled, onStart, onDetected }: { disabled: b
   const [status, setStatus] = useState('Open the E-Rx in Framework, then detect it here.');
   const [evidence, setEvidence] = useState<unknown>();
   const [found, setFound] = useState<FrameworkDetection>();
-  async function detect(inspect = false) {
+  const [positionReview, setPositionReview] = useState(false);
+  async function detect(inspect = false, chooseWindow = false) {
     setBusy(true); setEvidence(undefined); setFound(undefined);
     if (!inspect) onStart();
-    setStatus('Reading Framework in this Windows session…');
+    setStatus(chooseWindow ? 'Click inside the Framework window you use for E-Rx entry within 8 seconds, then keep it in front until reading finishes. Sig-Assist will remember that window.' : 'Reading the E-Rx entry window… Framework may come forward if its grid needs a direct accessibility read.');
     try {
-      const result = await frameworkDesktop(inspect ? 'inspect' : 'detect');
+      const result = await frameworkDesktop(inspect ? 'inspect' : 'detect', inspect ? {} : { positionReview, ...(chooseWindow ? { chooseWindow: true } : {}) });
       setEvidence(result.diagnostics);
       if (!result.ok) { setStatus(result.error || 'Framework could not be detected.'); return; }
-      if (inspect) { downloadDesktopDiagnostics(result.diagnostics); setStatus('Desktop diagnostics saved. They contain visible order information.'); }
+      if (inspect) { downloadDesktopDiagnostics(result.diagnostics); setStatus('Desktop diagnostics saved. They contain order information.'); }
       else {
         setFound(result); onDetected(result);
-        setStatus(result.pon ? `Detected PON ${result.pon}. Select the matching E-Rx below.` : result.pons?.length ? `${result.pons.length} PONs detected. Choose which one to find; sending remains available after review.` : 'No labelled PON was exposed. Use the search below; you can still choose a Framework field and send after review.');
+        const instances = result.entryWindow ? 'Using the remembered Framework entry window. ' : result.instances === undefined ? '' : `${result.instances} Framework instance${result.instances === 1 ? '' : 's'}; ${result.openErxWindows ?? 0} open E-Rx window${result.openErxWindows === 1 ? '' : 's'}. `;
+        setStatus(instances + (result.pon ? `Detected PON ${result.pon}. Select the matching E-Rx below.` : result.pons?.length ? `${result.pons.length} PONs detected. Choose which one to find; sending remains available after review.` : result.openErxWindows ? 'The open E-Rx was found, but its PON could not be read. Export desktop diagnostics or use the search below; sending remains available after review.' : 'No open E-Rx with a readable PON was found. Open the E-Rx wizard and detect again, or use the search below.'));
       }
     } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
     finally { setBusy(false); }
@@ -27,13 +29,18 @@ export function FrameworkDetect({ disabled, onStart, onDetected }: { disabled: b
   return <div className="rounded-md border border-primary/40 p-3 space-y-2">
     <div className="flex flex-wrap items-center gap-2">
       <button type="button" className={`${reviewButtonClass} bg-primary text-primary-foreground`} disabled={disabled || busy} onClick={() => void detect()}>Detect open E-Rx</button>
+      <button type="button" className={reviewButtonClass} disabled={disabled || busy} onClick={() => void detect(false, true)}>Choose entry window</button>
       <span className="text-xs text-muted-foreground">Windows desktop integration · pilot</span>
     </div>
     <p className="text-sm" role="status">{status}</p>
+    {!!evidence && !found?.pon && <button type="button" className={reviewButtonClass} disabled={busy} onClick={() => downloadDesktopDiagnostics(evidence)}>Download PON detection report</button>}
+    {found?.entryWindow && <p className="text-xs text-muted-foreground">Entry window: {found.entryWindow.title}. Other Framework windows are ignored.</p>}
+    {found?.viewportStatus && <p className="text-sm" role="status">{found.viewportStatus}</p>}
     {found?.warnings?.filter(warning => !warning.startsWith('Multiple PONs')).map(warning => <p key={warning} role="status" className="text-sm text-amber-600 dark:text-amber-400">{warning}</p>)}
     {(found?.pons?.length ?? 0) > 1 && <div role="alert" className="text-sm text-amber-600 dark:text-amber-400 space-y-2"><p>Multiple PONs detected. Check the intended order.</p><div className="flex flex-wrap gap-2">{found!.pons!.map(pon => <button type="button" className={reviewButtonClass} key={pon} disabled={disabled || busy} onClick={() => onDetected({ ...found!, pon })}>Find PON {pon}</button>)}</div></div>}
     <details><summary className="text-xs cursor-pointer">Framework detection help</summary>
-      <p className="text-xs text-muted-foreground my-2">Run the connector inside the same Windows/Citrix session as Framework. Detection depends on the fields that this Framework screen exposes. If it cannot find the order, keep that screen open and export desktop diagnostics. The export includes order text; share it with your diagnostic report.</p>
+      <p className="text-xs text-muted-foreground my-2">Run the connector inside the same Windows/Citrix session as Framework. On the first detection, bring your E-Rx entry window forward before returning here. Sig-Assist remembers the first entry window it finds while the connector stays open. Subsequent detections and diagnostics read only that window, even when other Framework instances have E-Rxs open. Choose entry window lets you select or switch it explicitly. Detection stops at the PON; Iguana supplies the directions and administration times. If the PON cannot be read, export desktop diagnostics. The export includes order text.</p>
+      <label className="flex gap-2 text-xs my-2"><input type="checkbox" checked={positionReview} disabled={disabled || busy} onChange={event => setPositionReview(event.target.checked)} />Also position Framework at the SIG/admin-times section (slower). It looks for RxFill Indicator / All Fill Statuses, otherwise leaves the details at the bottom.</label>
       <button type="button" className={reviewButtonClass} disabled={disabled || busy} onClick={() => evidence ? downloadDesktopDiagnostics(evidence) : void detect(true)}>Export desktop diagnostics</button>
     </details>
   </div>;

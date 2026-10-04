@@ -37,6 +37,7 @@ export interface CitrixStorageAdapter {
   writeQueue(orders: StoredQueueOrder[], options?: { immediate?: boolean; debounceMs?: number }): Promise<void>;
   readDiscrepancies(options?: { bypassPending?: boolean }): Promise<DiscrepancyReport[]>;
   appendDiscrepancy(report: DiscrepancyReport, options?: { immediate?: boolean; debounceMs?: number }): Promise<void>;
+  setDiscrepanciesArchived(ids: string[], archived: boolean): Promise<void>;
   readPreferences(options?: { bypassPending?: boolean }): Promise<TechnicianPreferences>;
   writePreferences(prefs: TechnicianPreferences, options?: { immediate?: boolean; debounceMs?: number }): Promise<void>;
   appendTraceLogs(events: TraceEvent[]): Promise<{ destination: 'file_system' | 'browser_cache'; destinationId: string; recordsSaved: number }>;
@@ -379,6 +380,27 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
     const currentOp = this.discrepancyAppendChain.then(runAppend, runAppend);
     this.discrepancyAppendChain = currentOp.catch(() => {});
     return currentOp;
+  }
+
+  async setDiscrepanciesArchived(ids: string[], archived: boolean): Promise<void> {
+    const selected = new Set(ids);
+    const runArchive = async () => {
+      // Share the append chain: a new report saved while archiving cannot be lost
+      // or accidentally archived with the selected snapshot.
+      const reports = await this.readDiscrepancies();
+      const timestamp = new Date().toISOString();
+      const updated = reports.map(report => {
+        if (!selected.has(report.id)) return report;
+        if (archived) return { ...report, archivedAt: report.archivedAt || timestamp };
+        const restored = { ...report };
+        delete (restored as { archivedAt?: string }).archivedAt;
+        return restored;
+      });
+      await this.commitWrite('discrepancies.json', 'citrix_storage_discrepancies', updated, []);
+    };
+    const operation = this.discrepancyAppendChain.then(runArchive, runArchive);
+    this.discrepancyAppendChain = operation.catch(() => {});
+    return operation;
   }
 
   async readPreferences(options?: { bypassPending?: boolean }): Promise<TechnicianPreferences> {
