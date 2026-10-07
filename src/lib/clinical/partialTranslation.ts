@@ -18,6 +18,7 @@ export function translateRecognizedPhrases(rawProse: string): string {
     .replace(/\bVAGINALLY\b/g, 'PV')
     .replace(/\bRECTALLY\b/g, 'PR')
     .replace(/\bTOPICALLY\b/g, 'TPCL')
+    .replace(/\b(?:EVERY|EACH) SHIFT\b/g, 'QS')
     .replace(/\b(?:VIA|USING)\s+(?:A\s+)?NEBULI[ZS]ER\b/g, 'NEB')
     .replace(/\bEVERY\s+OTHER\s+DAY\b/g, 'QOD')
     .replace(/\bEVERY\s+(\d+)\s*(?:HOURS?|HRS?)\b/g, (original, n: string) => Number(n) > 0 ? hourlySchedule(n) : original)

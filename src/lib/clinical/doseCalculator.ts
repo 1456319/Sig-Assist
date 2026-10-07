@@ -104,13 +104,14 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
     const volume = upperProse.match(/(?<![\d./-])\b(\d+(?:\.\d+)?)\s*(?:ML|MILLILITERS?)\b/);
     const verifiedCombinationVial = /\b(?:47335075649|47335075652|47335-756-(?:49|52))\b/.test(upperDrug)
       && /\bIPRATROPIUM\b/.test(upperDrug) && /\bALBUTEROL\b/.test(upperDrug);
+    const combination3ml = /^IPRATROPIUM[ -]ALBUTEROL\s+(?:INHALATION\s+)?(?:SOLUTION|SOLN)\s+0\.5\s*-\s*2\.5\s*(?:\(3\)\s*)?MG\s*\/\s*3\s*ML$/.test(upperDrug);
     const albuterolUnitDose = /\bALBUTEROL\b/.test(upperDrug) && /\b(?:INH|INHALATION)\b/.test(upperDrug)
       && /(?<![\d.])0\.083\s*%/.test(upperDrug) && !/\b(?:IPRATROPIUM|WITH|AND)\b|[+/]/.test(upperDrug);
-    const verified3mlVial = verifiedCombinationVial || albuterolUnitDose;
+    const verified3mlVial = verifiedCombinationVial || combination3ml || albuterolUnitDose;
     if (volume && Number(volume[1]) === 3 && verified3mlVial) {
       abnormalities.push({ id: 'nebulizer_vial_conversion', tier: 'applied_correction', title: 'Nebulizer Vial Quantity Calculated',
         message: 'The source volume was converted to one vial using the verified product presentation. Verify the selected NDC before copying.',
-        correction: '3ML = 1V; route NEB', trigger: albuterolUnitDose ? 'Albuterol 0.083% inhalation solution: labeled 3 mL unit-dose presentation; verify selected product' : 'NDC 47335-756-49/52: 3 mL unit-dose vial for nebulizer use' });
+        correction: '3ML = 1V; route NEB', trigger: albuterolUnitDose ? 'Albuterol 0.083% inhalation solution: labeled 3 mL unit-dose presentation; verify selected product' : combination3ml ? 'Ipratropium/albuterol 0.5 mg/2.5 mg per 3 mL unit-dose presentation; verify selected product' : 'NDC 47335-756-49/52: 3 mL unit-dose vial for nebulizer use' });
       return { doseToken: '1V', routeToken: 'NEB', abnormalities, isApap, apapLimitToken };
     }
     if (volume && Number(volume[1]) > 0 && nebulizer && !/\b(?:MIX|DILUTE|ADD)\b/.test(upperProse)) {
@@ -150,6 +151,13 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
   const peg = resolvePegPreparation(upperDrug, fullProse, oral || !!tubeRoute ? enteralRoute : undefined);
   if (peg) return { doseToken: 'ADM 17GM', routeToken: enteralRoute, abnormalities, isApap, apapLimitToken, ...peg };
 
+  if (/\bENEMA\b/.test(upperDrug)) {
+    const count = upperProse.match(/^(?:INSERT|GIVE|ADMINISTER)\s+(\d+)\s+(?:APPLICATION|ENEMA|BOTTLE)\b/);
+    if (!count || count[1] !== '1' || !/\b(?:RECTALLY|PR)\b/.test(upperProse) || oral
+        || /\b(?:NOT|EXCEPT|AVOID)\b/.test(upperProse)) return manualResult('Unverified Enema Dose or Route');
+    return { doseToken: '1E', routeToken: 'PR', abnormalities, isApap, apapLimitToken };
+  }
+
   if (/\b(?:VAGINALLY|PV)\b/.test(upperProse)) {
     const amount = upperProse.match(/^INSERT\s+(\d+(?:\.\d+)?)\s*(?:GRAMS?|GMS?|G)\b/);
     if (!amount || Number(amount[1]) <= 0 || oral || /\b(?:TOPICALLY|RECTALLY)\b/.test(upperProse)) return manualResult('Unverified Vaginal Dose or Route');
@@ -170,8 +178,20 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
 
   const topicalAmount = upperProse.match(/\b(?:APPLY|AP)\s+(?:TO\s+)?(\d+(?:\.\d+)?)\s*(?:GMS?|GRAMS?|G)\b/);
   const siteProse = topicalAmount ? upperProse.slice(topicalAmount.index! + topicalAmount[0].length) : upperProse;
-  const topicalSite = siteProse.match(/\bTO\s+(?:THE\s+)?([\s\S]+?)(?=\s+(?:TOPICALLY|TPCL|EVERY|EACH|DAILY|TWICE|THREE|FOUR|\d+\s+TIMES|BID|TID|QID|QD|FOR|AS\s+NEEDED)\b|[.;]|$)/);
+  const topicalSite = siteProse.match(/\bTO\s+(?:THE\s+)?([\s\S]+?)(?=\s+(?:TOPICALLY|TPCL|EVERY|EACH|DAILY|TWICE|THREE|FOUR|\d+\s+TIMES?|IN THE MORNING|AT BEDTIME|Q\d+H|BID|TID|QID|QD|QAM|QHS|FOR|AS\s+NEEDED)\b|[.;]|$)/);
   const siteToken = topicalSite ? `TO ${topicalSite[1].trim().replace(/\bLEFT\b/g, 'LT').replace(/\bRIGHT\b/g, 'RT')}` : undefined;
+
+  // Patches must precede generic topical products and the unsupported APPLY guard.
+  if (/\bPATCH(?:ES)?\b/.test(upperDrug)) {
+    const count = upperProse.match(/^APPLY\s+(\d+)\s+PATCH(?:ES)?\b/);
+    const defaultLidocaine = /\bLIDOCAINE\b/.test(upperDrug) && /^APPLY TO\b/.test(upperProse);
+    if ((!count && !defaultLidocaine) || (count && Number(count[1]) <= 0) || oral
+        || /\b(?:NOT|EXCEPT|AVOID)\b/.test(upperProse)) return manualResult('Unverified Patch Dose or Route');
+    if (!count) abnormalities.push({ id: 'lidocaine_patch_quantity', tier: 'applied_correction', title: 'Lidocaine Patch Quantity Added',
+      message: 'One patch was added using the reported site default. Verify the prescribed quantity before copying.', correction: 'Unspecified patch quantity → 1 patch', trigger: rawProse });
+    const quantity = count ? Number(count[1]) : 1;
+    return { doseToken: quantity === 1 ? '1PA' : `APPLY ${quantity} PATCHES`, routeToken: 'TPCL', siteToken, abnormalities, isApap, apapLimitToken };
+  }
 
   // Existing institutional diclofenac 1% defaults remain visible as additions.
   // Explicit quantities always win; preserve the complete anatomical site.
@@ -258,9 +278,30 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
 
   // Injectable volume and target dose calculation
   if (upperDrug.includes('INJ') || upperProse.includes('INJECT') || upperProse.includes('SUBCUTANEOUS')) {
+    const routes = [
+      /\b(?:INTRAMUSCULAR(?:LY)?|IM)\b/.test(upperProse) ? 'IM' : '',
+      /\b(?:SUBCUTANEOUS(?:LY)?|SQ|SC)\b/.test(upperProse) ? 'SQ' : '',
+      /\b(?:INTRAVENOUS(?:LY)?|IV)\b/.test(upperProse) ? 'IV' : '',
+    ].filter(Boolean);
+    if (routes.length !== 1 || /\b(?:NOT|AVOID|INTRATHECAL(?:LY)?|INTRADERMAL(?:LY)?)\b/.test(upperProse)) return manualResult('Unverified Injection Route');
+    const routeToken = routes[0];
+    // All scale doses are resolved by frequencyEngine; do not emit a bare INJ.
+    if (/\bSLIDING SCALE\b/.test(upperProse)) return { doseToken: '', routeToken, abnormalities, isApap, apapLimitToken };
     const units = upperProse.match(/^INJECT\s+(\d+(?:\.\d+)?)\s+UNITS?\b/);
-    if (units && Number(units[1]) > 0 && /\bSUBCUTANEOUS(?:LY)?\b/.test(upperProse)) {
-      return { doseToken: `INJ ${Number(units[1])} UN`, routeToken: 'SQ', abnormalities, isApap, apapLimitToken };
+    if (units && Number(units[1]) > 0) {
+      return { doseToken: `INJ ${Number(units[1])} UN`, routeToken, abnormalities, isApap, apapLimitToken };
+    }
+
+    const gramDose = upperProse.match(/^INJECT\s+(\d+(?:\.\d+)?)\s*(?:GRAMS?|GMS?|G)\b/);
+    if (gramDose && Number(gramDose[1]) > 0) {
+      if (/\bERTAPENEM\b/.test(upperDrug) && Number(gramDose[1]) === 1 && /\b1\s*(?:GM|G)\b/.test(upperDrug) && routeToken === 'IM') {
+        if (/\b(?:MIX|DILUTE|RECONSTITUTE|LIDOCAINE|WATER|SALINE)\b/.test(fullProse)) return manualResult('Explicit Injection Preparation Requires Review');
+        abnormalities.push({ id: 'ertapenem_im_preparation', tier: 'applied_correction', title: 'Ertapenem IM Preparation Added',
+          message: 'The reported site template adds 3.2 mL lidocaine 1% and multiple injection sites for the 1 g IM dose. Verify preparation, diluent suitability and sites with the pharmacist. This template applies only to IM administration.',
+          correction: '1GM (MIX W/3.2ML LIDOCAINE 1%) IM (IN MULTIPLE SITES)', trigger: drugName });
+        return { doseToken: 'INJECT 1GM (MIX W/3.2ML LIDOCAINE 1%)', routeToken: 'IM (IN MULTIPLE SITES)', abnormalities, isApap, apapLimitToken };
+      }
+      return { doseToken: `INJ ${Number(gramDose[1])}GM`, routeToken, abnormalities, isApap, apapLimitToken };
     }
 
     const strengthMatch = upperDrug.match(/(\d+(?:\.\d+)?)\s*MG\s*\/\s*(\d+(?:\.\d+)?)\s*ML/);
@@ -288,23 +329,11 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
     const volStr = vol > 0 ? (Number.isInteger(vol) ? `${vol}ML` : `${parseFloat(vol.toFixed(3))}ML`) : (mlMatch ? `${mlMatch[1]}ML` : '');
     const mgStr = mg > 0 ? (Number.isInteger(mg) ? `${mg}MG` : `${parseFloat(mg.toFixed(3))}MG`) : '';
     const doseToken = volStr && mgStr ? `INJ ${volStr} (${mgStr})` : (volStr ? `INJ ${volStr}` : `INJ ${mgStr}`);
+    if (!volStr && !mgStr) return manualResult('Unverified Injection Dose');
 
     return {
       doseToken,
-      routeToken: /\b(?:INTRAMUSCULAR|IM)\b/i.test(upperProse) ? 'IM' : 'SQ',
-      abnormalities,
-      isApap,
-      apapLimitToken
-    };
-  }
-
-  // Transdermal patch
-  if (upperDrug.includes('PATCH') || upperProse.includes('PATCH') || upperProse.includes('TRANSDERMAL')) {
-    const countMatch = upperProse.match(/(\d+)\s*PATCH/);
-    const count = countMatch ? countMatch[1] : '1';
-    return {
-      doseToken: `${count}PA`,
-      routeToken: 'TRANSDERMALLY',
+      routeToken,
       abnormalities,
       isApap,
       apapLimitToken

@@ -23,6 +23,7 @@ export interface FrequencyScheduleResult {
 
 function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?: string): FrequencyScheduleResult {
   let upper = normalizeNumericDirections(splitSupplementalDirections(rawProse).primary)
+    .replace(/\b(?:AS NEEDED|PRN)\s+FOR\s+(QD|BID|TID|QID|Q\d+H)\s+PRN\s+FOR\b/g, '$1 PRN FOR')
     .replace(/\bDAY\(S\)/g, 'DAYS')
     .replace(/\b(?:VIA|USING|WITH)\s+(?:A\s+)?NEBULI[ZS]ER\b/g, '').trim();
   const abnormalities: AbnormalityFinding[] = [];
@@ -43,6 +44,11 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
 
   // Sliding scale insulin check
   if (upper.includes('SLIDING SCALE')) {
+    // Keep named-recipient notifications verbatim, including their phone number
+    // and threshold. Only detach a fully understood terminal notification.
+    const namedCall = '(?:CALL|NOTIFY)\\s+DR\\.?\\s+[A-Z][A-Z.\' -]*?\\s+AT\\s+\\d{3}[ .-]\\d{3}[ .-]\\d{4}';
+    const terminalCall = upper.match(new RegExp(`\\b${namedCall}\\s+WITH ALL (?:BLOOD )?GLUCOSE LEVELS (?:GREATER THAN|LESS THAN) \\d+[.]?$`));
+    if (terminalCall) upper = upper.slice(0, terminalCall.index).trim();
     if (/\b\d+\s+UNIS\b/.test(upper)) {
       upper = upper.replace(/\bUNIS\b/g, 'UNITS');
       abnormalities.push({ id: 'insulin_unit_typo', tier: 'applied_correction', title: 'Insulin Unit Typo Normalized',
@@ -82,7 +88,9 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
       const low = parseInt(bMatch[1], 10);
       const high = parseInt(bMatch[2], 10);
       const units = parseInt(bMatch[3], 10);
-      segments.push({ sortKey: low, text: `${low}-${high}=${units}U` });
+      const tail = upper.slice(bMatch.index + bMatch[0].length);
+      const notification = tail.match(new RegExp(`^\\s+(${namedCall})(?=\\s*[,;]|\\s*$)`));
+      segments.push({ sortKey: low, text: `${low}-${high}=${units}U${notification ? ` ${notification[1]}` : ''}` });
       translatedMarkers.add(bMatch.index);
     }
 
@@ -131,7 +139,7 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     // Unknown <= thresholds or unsupported doses must retain the complete scale.
     const markers = [...upper.matchAll(/\b\d+\s*-\s*\d+\s*=|\b\d+\s*\+\s*=|(?:[<>]\s*(?:(?:OR\s*)?=)?|(?:GREATER|LESS) THAN(?: OR EQUAL TO)?)\s*\d+/g)];
     const sourceNotifications = [...upper.matchAll(/\b(?:NOTIFY|NOTIFIED|CALL)\b/g)].length;
-    const capturedNotifications = segments.filter(s => s.text.includes('CALL ')).length;
+    const capturedNotifications = segments.filter(s => /\b(?:CALL|NOTIFY)\b/.test(s.text)).length;
     const hasMealSchedule = /\b(?:BEFORE MEALS|AC|ACHS)\b/.test(upper);
     if (!segments.length || !hasMealSchedule || unrecognizedNotification || sourceNotifications > capturedNotifications || markers.some(m => !translatedMarkers.has(m.index!))) {
       abnormalities.push({ id: 'incomplete_sliding_scale', tier: 'uncorrected_gap', title: 'Incomplete Sliding Scale',
@@ -141,9 +149,10 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     segments.sort((a, b) => a.sortKey - b.sortKey);
     const scaleDuration = resolveDuration(upper);
     if (scaleDuration.unsupported) return { frequencyToken: '', abnormalities: [...abnormalities, ...scaleDuration.abnormalities], requiresManualTranslation: true };
-    const lastIndication = upper.match(/\bFOR\s+((?:T1DM|DM2?|TYPE [12] DIABETES))\s*$/)?.[0];
+    const lastIndication = upper.match(/\bFOR\s+((?:T1DM|DMII|DM2?|TYPE [12] DIABETES))\s*$/)?.[0];
     const route = /\bSUBCUTANEOUS(?:LY)?\b/.test(upper) ? 'SQ' : '';
-    const slidingScaleString = [prefix, segments.map(s => s.text).join(';'), route, scaleDuration.token, lastIndication ? extractIndicationToken(lastIndication) : ''].filter(Boolean).join(' ');
+    const scale = [prefix, segments.map(s => s.text).join(';'), route, scaleDuration.token, lastIndication ? extractIndicationToken(lastIndication) : ''].filter(Boolean).join(' ');
+    const slidingScaleString = terminalCall ? `${scale}. ${terminalCall[0]}` : scale;
 
     return {
       frequencyToken: prefix,
@@ -226,6 +235,8 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     if (/\bAT BEDTIME\b/.test(scheduleProse)) frequencyToken += ' AT BEDTIME';
   } else if (shift) {
     frequencyToken = `QD (DURING ${shift[1]} SHIFT)`;
+  } else if (/\b(?:EVERY|EACH) SHIFT\b/.test(scheduleProse)) {
+    frequencyToken = 'QS';
   } else if (/\b(?:EVERY OTHER DAY|EVERY 2 DAYS|QOD|QDQ2D)\b/.test(scheduleProse)) {
     if (/\b(?:[2-9] TIMES|TWICE|BID|TID|QID|Q\d+H)\b|\bMORNING\b.*\bBEDTIME\b/.test(scheduleProse)) {
       abnormalities.push({ id: 'complex_alternate_day_schedule', tier: 'uncorrected_gap', title: 'Alternate-Day Schedule Requires Review',

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useId } from 'react';
+import React, { useState, useRef, useEffect, useId, useLayoutEffect } from 'react';
 import { getCitrixStorageAdapter } from '../lib/citrixStorage';
 import { MessageSquarePlus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -56,12 +56,8 @@ export const DiscrepancyPanel: React.FC<DiscrepancyPanelProps> = ({
     };
   }, []);
 
-  useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 50);
-    }
+  useLayoutEffect(() => {
+    if (isOpen) inputRef.current?.focus();
   }, [isOpen]);
 
 

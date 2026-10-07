@@ -47,6 +47,8 @@ try {
   await page.getByRole('button', { name: /Flag Discrepancy/ }).click();
   assert.equal(await page.getByLabel('Technician Preferred / Corrected SIG:').inputValue(), '1T PO BID X7D WITH FOOD');
   await page.getByLabel('Notes / Rationale:').fill('Synthetic example: compare edited draft with original output.');
+  assert.equal(await page.getByLabel('Technician Preferred / Corrected SIG:').inputValue(), '1T PO BID X7D WITH FOOD');
+  assert.equal(await page.getByLabel('Notes / Rationale:').inputValue(), 'Synthetic example: compare edited draft with original output.');
   await page.getByRole('button', { name: 'Save Discrepancy Report', exact: true }).click();
   await page.getByText('1 saved discrepancy reports', { exact: true }).waitFor();
   await page.getByRole('button', { name: 'Close Feedback', exact: true }).click();
@@ -113,6 +115,8 @@ try {
   const directions = page.getByPlaceholder(/Enter free text SIG/);
   const drug = page.getByPlaceholder('e.g. Lisinopril 10mg');
   const template = page.getByPlaceholder('e.g. Take 1 tablet daily');
+  // Activate Clear with the keyboard during rapid replay: hovering a copy toast
+  // pauses its dismissal timer and can obscure the next mouse target.
   const notices = {
     0: 'Nebulizer Volume Retained', 4: 'Missing Frequency',
     5: 'Diclofenac Site/Dose Requires Verification', 9: 'PEG Packet Preparation Added',
@@ -121,7 +125,7 @@ try {
   };
   assert.equal(reported.reports.length, replayExpected.length);
   for (const [index, report] of reported.reports.entries()) {
-    await page.getByRole('button', { name: 'Clear all fields', exact: true }).click();
+    await page.getByRole('button', { name: 'Clear all fields', exact: true }).press('Enter');
     await drug.fill(index < 2 ? '' : report.drugName);
     await template.fill(report.context?.defaultSigTemplate || '');
     await directions.fill(report.rawProse);
@@ -138,7 +142,7 @@ try {
   const octoberExpected = JSON.parse(await readFile(path.join(root, 'tests/fixtures/reported-discrepancies-2026-10-03-expected.json'), 'utf8'));
   const octoberNotices = { 1: 'Liquid Concentration Missing', 5: 'Partial Translation', 6: 'Nebulizer Vial Quantity Calculated', 8: 'Duplicate Direction Removed', 11: 'Duplicate Direction Removed', 15: 'PEG Powder Preparation Added' };
   for (const [index, report] of octoberCases.entries()) {
-    await page.getByRole('button', { name: 'Clear all fields', exact: true }).click();
+    await page.getByRole('button', { name: 'Clear all fields', exact: true }).press('Enter');
     await drug.fill(report.drugName);
     await directions.fill(report.rawProse);
     if (index === 0) {
@@ -175,7 +179,7 @@ try {
     const key = JSON.stringify([report.drugName, report.rawProse]);
     if (replayed.has(key)) continue;
     replayed.add(key); newReplays++;
-    await page.getByRole('button', { name: 'Clear all fields', exact: true }).click();
+    await page.getByRole('button', { name: 'Clear all fields', exact: true }).press('Enter');
     await drug.fill(report.drugName);
     await directions.fill(report.rawProse);
     await page.waitForFunction(value => [...document.querySelectorAll('textarea')].some(field => field.value === value), latestExpected[index]);
@@ -185,8 +189,24 @@ try {
     await copy.click();
     assert.equal(await page.evaluate(() => navigator.clipboard.readText()), latestExpected[index]);
   }
+  const activeCases = JSON.parse(await readFile(path.join(root, 'tests/fixtures/reported-discrepancies-2026-10-06.json'), 'utf8'));
+  const activeExpected = JSON.parse(await readFile(path.join(root, 'tests/fixtures/reported-discrepancies-2026-10-06-expected.json'), 'utf8'));
+  const activeNotices = { 2: 'Lidocaine Patch Quantity Added', 5: 'Ertapenem IM Preparation Added', 6: 'Patch Application and Removal Separated', 7: 'Nebulizer Vial Quantity Calculated', 10: 'PEG Packet Preparation Added' };
+  for (const [index, report] of activeCases.entries()) {
+    await page.getByRole('button', { name: 'Clear all fields', exact: true }).press('Enter');
+    await drug.fill(report.drugName);
+    await directions.fill(report.rawProse);
+    await page.waitForFunction(value => [...document.querySelectorAll('textarea')].some(field => field.value === value), activeExpected[index]);
+    assert.equal(await draft.inputValue(), activeExpected[index]);
+    if (activeNotices[index]) await page.getByText(`[${activeNotices[index]}]`, { exact: false }).waitFor();
+    assert.equal(await copy.isDisabled(), true);
+    await page.getByRole('checkbox', { name: /I matched the order and checked/ }).check();
+    await copy.click();
+    assert.equal(await page.evaluate(() => navigator.clipboard.readText()), activeExpected[index]);
+    newReplays++;
+  }
   // Restrictions change suggestions immediately and persist without overwriting an edited draft.
-  await page.getByRole('button', { name: 'Clear all fields', exact: true }).click();
+  await page.getByRole('button', { name: 'Clear all fields', exact: true }).press('Enter');
   await drug.fill('EXAMPLE TAB');
   await directions.fill('Give 1 tablet by mouth daily');
   await page.getByText('Saved exclusions (0)', { exact: true }).click();
@@ -218,7 +238,7 @@ try {
   // Clear source, profile, template, editable draft and approval together;
   // saved reports remain in the separate archive.
   await template.fill('GIVE 1 PACKET PO');
-  await page.getByRole('button', { name: 'Clear all fields', exact: true }).click();
+  await page.getByRole('button', { name: 'Clear all fields', exact: true }).press('Enter');
   for (const field of [drug, template, directions]) assert.equal(await field.inputValue(), '');
   assert.equal(await page.getByLabel('Final SIG · editable, uppercase').count(), 0);
   assert.equal(await page.getByRole('button', { name: 'Copy reviewed SIG', exact: true }).count(), 0);

@@ -1,0 +1,67 @@
+[
+  {
+    "case": 1,
+    "drugName": "Atorvastatin Calcium Oral Tablet 80 MG",
+    "rawProse": "Give 1 tablet by mouth at bedtime for HLD"
+  },
+  {
+    "case": 2,
+    "drugName": "Insulin Aspart FlexPen Subcutaneous Solution Pen-injector 100 UNIT/ML",
+    "rawProse": "Inject as per sliding scale: if 201 - 250 = 4 Units; 251 - 300 = 6 units; 301 - 350 = 8 units; 351 - 400 = 10 units; 401 - 500 = 12 units Call Dr. Example at 202.555.0123, subcutaneously before meals for DMII Call Dr. Example at 202.555.0123 with all glucose levels greater than 400."
+  },
+  {
+    "case": 3,
+    "drugName": "Lidocaine Topical Patch 5 %",
+    "rawProse": "Apply to Right ribs on skin topically one time a day for Fracture ribs Leave patch on 12 hours and then off 12 hours before applying new patches.  and remove per schedule"
+  },
+  {
+    "case": 4,
+    "drugName": "Enema Bottle Miscellaneous",
+    "rawProse": "Insert 1 application rectally one time only for Severe Constipation for 1 Day Administer In house Enema x 1 dose."
+  },
+  {
+    "case": 5,
+    "drugName": "cloNIDine HCl Oral Tablet 0.1 MG",
+    "rawProse": "Give 1 tablet by mouth as needed for BID  PRN FOR SYSTOLIC GREATER THAN 160 MMHG"
+  },
+  {
+    "case": 6,
+    "drugName": "Ertapenem Sodium Injection Solution Reconstituted 1 GM",
+    "rawProse": "Inject 1 gram intramuscularly one time a day for pna for 10 Days"
+  },
+  {
+    "case": 7,
+    "drugName": "Lidocaine External Patch 4 %",
+    "rawProse": "Apply to left lower back topically two times a day for Pain Apply in AM, Remove at HS"
+  },
+  {
+    "case": 8,
+    "drugName": "Ipratropium-Albuterol Solution 0.5-2.5 (3) MG/3ML",
+    "rawProse": "3 ml inhale orally every 6 hours as needed for SOB or Wheezing via nebulizer"
+  },
+  {
+    "case": 9,
+    "drugName": "Ipratropium-Albuterol Solution 0.5-2.5 (3) MG/3ML",
+    "rawProse": "3 ml inhale orally every 8 hours for pneumonia"
+  },
+  {
+    "case": 10,
+    "drugName": "Nystatin Powder",
+    "rawProse": "Apply to abdominal, breast, groin topically every shift for Candida yeast"
+  },
+  {
+    "case": 11,
+    "drugName": "MiraLax Mix-In Pax Oral Packet",
+    "rawProse": "Give 1 packet by mouth every 24 hours as needed for constipation"
+  },
+  {
+    "case": 12,
+    "drugName": "Sevelamer Carbonate Oral Tablet 800 MG",
+    "rawProse": "Give 1 tablet by mouth two times a day for ckd"
+  },
+  {
+    "case": 13,
+    "drugName": "Polyethylene Glycol 3350 Oral Packet 17 GM",
+    "rawProse": "Give 1 packet by mouth two times a day for constipation mix with 6 ounces of juice or water"
+  }
+]

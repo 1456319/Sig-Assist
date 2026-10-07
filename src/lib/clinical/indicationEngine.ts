@@ -10,7 +10,8 @@ for (const [code, expansion] of Object.entries(SIG_CODE_REFERENCE)) {
 // institutional aliases choose among synonymous codes in the root reference.
 export const INDICATION_MAP: Record<string, string> = {
   ...referenceIndications,
-  GERD: 'FGERD', SUPPLEMENT: 'FSU', SUPPLEMENTATION: 'FSU', DM: 'FDM', DM2: 'FDM2',
+  GERD: 'FGERD', SUPPLEMENT: 'FSU', SUPPLEMENTATION: 'FSU', DM: 'FDM', DM2: 'FDM2', DMII: 'FDM2',
+  HLD: 'FHYL', CKD: 'FCKD',
   'TYPE 2 DIABETES': 'FDM2', BPH: 'FBPH', HYPOTHYROIDISM: 'FHYT',
   'GI PROPHYLAXIS': 'FGIP', COUGH: 'FCOU', HTN: 'FHTN', CONSTIPATION: 'FCON',
   'DVT PREVENTION': 'FDVTP', 'BLOOD CLOT PREVENTION': 'FBCP', PAIN: 'FPAIN',
@@ -46,7 +47,11 @@ export function resolveIndicationToken(indication?: string): string | undefined 
   const cleaned = removeDiagnosisCodes(indication.toUpperCase().trim().replace(/^(?:FOR(?:\s+INDICATIONS\s+OF)?|RELATED\s+TO)\s+/, ''))
     .replace(/[.;,]+$/, '').trim()
     .replace(/^PAIN FOR (.+ PAIN\b)/, '$1')
-    .replace(/^HEART HEALTHY$/, 'HEART HEALTH');
+    .replace(/^HEART HEALTHY$/, 'HEART HEALTH')
+    .replace(/\bSYSTOLIC(?: BLOOD PRESSURE)?\b/g, 'SBP')
+    .replace(/\bDIASTOLIC(?: BLOOD PRESSURE)?\b/g, 'DBP')
+    .replace(/\b(GREATER THAN OR EQUAL TO|LESS THAN OR EQUAL TO|GREATER THAN|LESS THAN)\s+(\d+)\s*(MMHG)?\b/g,
+      (_, comparison: string, value: string, unit?: string) => `${({ 'GREATER THAN OR EQUAL TO': '>=', 'LESS THAN OR EQUAL TO': '<=', 'GREATER THAN': '>', 'LESS THAN': '<' } as Record<string, string>)[comparison]}${value}${unit || ''}`);
   if (!cleaned) return undefined;
   if (INDICATION_MAP[cleaned]) return INDICATION_MAP[cleaned];
   if (Object.values(INDICATION_MAP).includes(cleaned)) return cleaned;
@@ -74,7 +79,7 @@ function indicationStart(prose: string): number | undefined {
   for (const match of upper.matchAll(/\b(?:FOR|RELATED\s+TO)\s+/g)) {
     if (match.index === undefined || /\bHOLD\s*$/.test(upper.slice(0, match.index))) continue;
     const tail = upper.slice(match.index + match[0].length);
-    if (/^(?:(?:UP\s+TO\s+)?\d|HOLD\b|SBP\b|HEART\s+RATE\b)/.test(tail)) continue;
+    if (/^(?:(?:UP\s+TO\s+)?\d|HOLD\b)/.test(tail)) continue;
     return match.index;
   }
   return undefined;

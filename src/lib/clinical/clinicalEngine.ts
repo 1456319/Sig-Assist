@@ -9,6 +9,7 @@ import { translateRecognizedPhrases } from './partialTranslation';
 import { mergeRepeatedSolidDirections } from './repeatedDirections';
 import { splitMixedTabletDose } from './paxitFractionalDose';
 import { applyOutputCodePolicy } from './outputCodePolicy';
+import { resolvePatchDirections } from './patchDirections';
 
 function assembleSig(
   drugName: string,
@@ -18,12 +19,13 @@ function assembleSig(
   fallbackIndication?: string
 ): { sig: string; abnormalities: AbnormalityFinding[] } {
   const repeated = mergeRepeatedSolidDirections(drugName, rawProse);
-  rawProse = repeated.prose;
+  const patch = resolvePatchDirections(drugName, repeated.prose);
+  rawProse = patch.prose;
   const doseRes = calculateDoseAndVolume(drugName, rawProse);
   const clauses = splitSupplementalDirections(doseRes.scheduleProse || rawProse);
   const preparationTemplate = doseRes.preparationWasExplicit ? doseRes.preparationTemplate : defaultTemplate?.trim() || doseRes.preparationTemplate;
   const freqRes = resolveFrequencyAndSchedule(clauses.primary, preparationTemplate);
-  const allAbnormalities = [...doseRes.abnormalities, ...freqRes.abnormalities];
+  const allAbnormalities = [...patch.abnormalities, ...doseRes.abnormalities, ...freqRes.abnormalities];
   if (/\bNAUSEA AND VOMITING\b/i.test(rawProse)) allAbnormalities.push({ id: 'site_fnv_alias', tier: 'applied_correction', title: 'Site Nausea/Vomiting Code Applied',
     message: 'FNV replaces nausea and vomiting under the reported site packaging convention. The root expansion says nausea OR vomiting; verify the source indication.', correction: 'NAUSEA AND VOMITING → FNV', trigger: rawProse });
   if (repeated.merged) allAbnormalities.push({ id: 'duplicate_solid_direction', tier: 'applied_correction', title: 'Duplicate Direction Removed',
@@ -42,14 +44,16 @@ function assembleSig(
       trigger: doseRes.preparationWasExplicit ? 'Explicit source dilution retained.' : `Recognized PEG 17 g enteral ${packet ? 'packet' : 'bulk powder'} dose; no source mixing instructions. Institutional 8 oz water template; PEG 3350 labeling permits 4–8 oz beverage.` });
   }
 
-  if (!freqRes.slidingScaleString && (doseRes.requiresManualTranslation || freqRes.requiresManualTranslation || !doseRes.doseToken || (!freqRes.frequencyToken && !freqRes.blendedTemplate && !freqRes.prnToken))) {
-    const partial = translateRecognizedPhrases(rawProse);
-    if (partial !== uppercaseDirections(rawProse)) allAbnormalities.push({ id: 'partial_translation', tier: 'uncorrected_gap', title: 'Partial Translation — Review Retained Wording',
+  if (!freqRes.slidingScaleString && (patch.requiresManualTranslation || doseRes.requiresManualTranslation || freqRes.requiresManualTranslation || !doseRes.doseToken || (!freqRes.frequencyToken && !freqRes.blendedTemplate && !freqRes.prnToken))) {
+    const retainedProse = patch.suffix ? repeated.prose : rawProse;
+    const partial = translateRecognizedPhrases(retainedProse);
+    if (partial !== uppercaseDirections(retainedProse)) allAbnormalities.push({ id: 'partial_translation', tier: 'uncorrected_gap', title: 'Partial Translation — Review Retained Wording',
       message: 'Recognized directions were abbreviated. Unrecognized dose, formulation, schedule or instructions remain in the Sig for technician review.', trigger: rawProse });
     return { sig: partial, abnormalities: allAbnormalities };
   }
 
   const finish = (sig: string) => {
+    if (patch.suffix) sig = `${sig} ${patch.suffix}`;
     if (clauses.supplemental) {
       if (doseRes.apapLimitToken && sig.split(/\s+/).includes(doseRes.apapLimitToken) && /^(?:DO NOT|NOT TO) EXCEED\s*\d[\d,]*(?:\.\d+)?\s*(?:MG|GMS?|GRAMS?|G)\s+OF\s+(?:ACETAMINOPHEN|TYLENOL|APAP)\s+(?:IN|PER)\s+(?:A\s+)?24\s*(?:HOURS?|HRS?|HR|H)(?:\s+PERIOD)?[.;]?$/i.test(clauses.supplemental.trim())) return sig;
       const repeat = clauses.supplemental.toUpperCase().trim();

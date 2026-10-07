@@ -19,6 +19,22 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+it('keeps focus in Notes when a technician moves there immediately after opening feedback', () => {
+  vi.useFakeTimers();
+  try {
+    render(<DiscrepancyPanel pon="CASE-FOCUS" drugName="Synthetic drug" rawProse="Original directions" generatedSig="1T PO QD" currentDraft="1T PO QD" onDiscrepancySaved={() => undefined} />);
+    fireEvent.click(screen.getByRole('button', { name: /Flag Discrepancy/ }));
+    const notes = screen.getByLabelText('Notes / Rationale:');
+    notes.focus();
+    fireEvent.change(notes, { target: { value: 'Clarify this condition.' } });
+    vi.runOnlyPendingTimers();
+    expect(document.activeElement).toBe(notes);
+    expect((screen.getByLabelText('Technician Preferred / Corrected SIG:') as HTMLTextAreaElement).value).toBe('1T PO QD');
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it('captures the original and edited Queue SIG separately, persists after reload, and exports all cases without changing review', async () => {
   const ui = <ReviewSession><OrderQueueView /></ReviewSession>;
   let host = render(ui);

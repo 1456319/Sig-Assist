@@ -19,6 +19,8 @@ prototype supports manual PON matching and captured/read-only SCRIPT intake;
 live site access and clinical parser validation remain outstanding. See [the MVP implementation and handoff notes](docs/MVP-REVIEW-QUEUE.md)
 for workflow details, corrected-HAR findings, limitations and next steps.
 
+The [October 6 translator update](docs/TRANSLATOR-2026-10-06.md) covers the 13 new discrepancy reports, including injection routes, blood-pressure conditions, lidocaine patch removal, nebulizer vials and PEG preparation.
+
 This build supports **read-only Iguana intake**. **Import HAR / log XML** in Order Queue reads captured NewRx details without replaying requests. For live polling, run **Start-Iguana-Connector.bat** (checks for Node.js 22.12+ and downloads a verified user-only runtime if missing; no administrator access or PowerShell), configure MessageBroker and a server-time window, then **Fetch once** and **Export connector diagnostics**. See [the connector guide](docs/IGUANA-CONNECTOR.md) for field mappings, verbose debugging and remaining live checks. Actual site access, Framework queue/route matching, site dictionary qualification and Citrix copy/paste still need verification. Iguana is never modified. Rebuild the portable page with `npm run build:demo` and the ZIP with `python scripts/package-demo.py`; CI checks the committed build against source and tests the Windows workflow.
 
 Long-Term Care Facilities and Assisted Living Facilities depend on closed-door pharmacies.. These pharmacies are dedicated only to the needs needs of these facilities 24-hours a day, and so must meet these needs totally and successfully meet them every single day. Typically, the process is thus:

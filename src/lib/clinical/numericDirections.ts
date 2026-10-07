@@ -5,7 +5,7 @@ const numbers: Record<string, number> = {
   NINETEEN: 19, TWENTY: 20, THIRTY: 30, FORTY: 40, FIFTY: 50, SIXTY: 60,
 };
 const words = Object.keys(numbers).join('|');
-const units = '(?:TABLETS?|TABS?|CAPSULES?|CAPS?|LOZENGES?|DROPS?|GTT|SUPPOSITORIES|SUPPOSITORY|PACKETS?|VIALS?|PUFFS?|GRAMS?|GMS?|MG|MCG|MEQ|ML|MILLILITERS?|UNITS?|HOURS?|HRS?|DAYS?|WEEKS?|MONTHS?|TIMES?|DOSES?)';
+const units = '(?:TABLETS?|TABS?|CAPSULES?|CAPS?|LOZENGES?|DROPS?|GTT|SUPPOSITORIES|SUPPOSITORY|PACKETS?|PATCH(?:ES)?|APPLICATIONS?|ENEMAS?|VIALS?|PUFFS?|GRAMS?|GMS?|MG|MCG|MEQ|ML|MILLILITERS?|UNITS?|HOURS?|HRS?|DAYS?|WEEKS?|MONTHS?|TIMES?|DOSES?)';
 
 /** Normalize numbers only beside dose/schedule units, never inside diagnoses. */
 export function normalizeNumericDirections(prose: string): string {

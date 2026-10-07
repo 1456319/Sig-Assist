@@ -2,6 +2,8 @@
 export function splitSupplementalDirections(rawProse: string): { primary: string; supplemental?: string } {
   // Every action within an insulin scale belongs to that scale.
   if (/\bSLIDING SCALE\b/i.test(rawProse)) return { primary: rawProse.trim() };
+  const inHouse = /\bADMINISTER\s+IN[ -]HOUSE\s+ENEMA\b/i.exec(rawProse);
+  if (inHouse?.index) return { primary: rawProse.slice(0, inHouse.index).trim(), supplemental: rawProse.slice(inHouse.index).trim() };
   const actions = /\b(?:MAY\s+(?:GIVE|TAKE|ADMINISTER|USE|APPLY)|(?:DO\s+NOT|NOT\s+TO)\s+EXCEED|(?:MAXIMUM|MAX)\s+(?:OF\s+)?(?=\d)|(?:TAKE|GIVE|ADMINISTER)\s+(?=\d|ONE\b|TWO\b)|FOR\s+UP\s+TO\s+\d+\s+DOSES\b|APPLY\b|WORK\s+(?:IT\s+)?IN\b|ALLOW\s+(?:IT\s+)?TO\s+SIT\b|LEAVE\s+(?:IT\s+)?(?:ON|IN)\b|RINSE\b|CAN\s+SHAMPOO\b|FOLLOW\s+(?:THE\s+)?(?:TAR|MAR)\b|DRINK\s+WITH\b)/gi;
   for (const match of rawProse.matchAll(actions)) {
     if (match.index === undefined || match.index === 0 || !rawProse.slice(0, match.index).trim()) continue;
