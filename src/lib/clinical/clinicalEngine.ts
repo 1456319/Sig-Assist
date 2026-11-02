@@ -80,9 +80,9 @@ function assembleSig(
   let effectiveDoseToken = doseRes.doseToken;
   if (preferences?.drugCodeOverrides) {
     const upperDrug = drugName.toUpperCase();
-    for (const [key, overrideCode] of Object.entries(preferences.drugCodeOverrides)) {
+    for (const key in preferences.drugCodeOverrides) {
       if (upperDrug.includes(key.toUpperCase())) {
-        effectiveDoseToken = overrideCode;
+        effectiveDoseToken = preferences.drugCodeOverrides[key];
         break;
       }
     }
@@ -259,8 +259,20 @@ function translateClinicalSigInternal(inbound: InboundOrder, preferences?: Parti
     // Case C: Standard single order (including non-split controlled substances)
     const compiled = assembleSig(inbound.drugName, inbound.rawProse, inbound.defaultSigTemplate, preferences, inbound.indication);
     const abnormalities = [...compiled.abnormalities];
+
+    let hasOverride = false;
+    if (!paxitEval.isControlled && !inbound.defaultSigTemplate && preferences?.drugCodeOverrides) {
+      const upperDrug = inbound.drugName.toUpperCase();
+      for (const key in preferences.drugCodeOverrides) {
+        if (upperDrug.includes(key.toUpperCase())) {
+          hasOverride = true;
+          break;
+        }
+      }
+    }
+
     const mixed = !paxitEval.isControlled && !inbound.defaultSigTemplate
-      && !Object.keys(preferences?.drugCodeOverrides || {}).some(key => inbound.drugName.toUpperCase().includes(key.toUpperCase()))
+      && !hasOverride
       ? splitMixedTabletDose(inbound.drugName, inbound.rawProse) : undefined;
     if (mixed && !abnormalities.some(a => a.tier === 'uncorrected_gap' || a.tier === 'potential_error')) {
       const finding: AbnormalityFinding = { id: `paxit_fractional_split_${inbound.id}`, tier: 'applied_correction', title: 'Paxit Whole/Fractional Tablet Split',
