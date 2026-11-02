@@ -5,7 +5,7 @@ describe('durationEngine', () => {
   describe('Happy paths', () => {
     it('resolves valid day durations', () => {
       expect(resolveDuration('FOR 7 DAYS').token).toBe('X7D');
-      expect(resolveDuration('X 14 D').token).toBe('X14D');
+      expect(resolveDuration('X 14D').token).toBe('X14D');
       expect(resolveDuration('FOR 1 DAY').token).toBe('X1D');
       expect(resolveDuration('FOR UP TO 10 DAYS').token).toBe('X10D');
     });

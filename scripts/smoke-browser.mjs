@@ -55,7 +55,7 @@ try {
   if (fileMode) {
     // Require the user-click write to succeed before granting read access to verify it.
     await page.getByText('Reviewed SIG copied. Match the PON and preview it in Framework.', { exact: true }).waitFor();
-    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']); await delay(500);
   }
   assert.equal(await page.evaluate(() => navigator.clipboard.readText()), '1T PO BID X7D WITH FOOD');
   await page.getByRole('button', { name: 'Revise source', exact: true }).click();
