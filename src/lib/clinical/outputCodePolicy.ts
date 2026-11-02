@@ -22,6 +22,8 @@ export function rejectedOutputMatches(sig: string): string[] {
   return Object.keys(REJECTED_OUTPUT_CODES).filter(code => tokenPattern(code, true).test(normalized(sig)));
 }
 
+const PRECOMPUTED_REJECTED_RULES = Object.entries(REJECTED_OUTPUT_CODES).map(([code, rule]) => ({ code, replacement: rule.replacement as string, hard: true }));
+
 export function applyOutputCodePolicy(sig: string, exclusions: readonly SigExclusionPreference[] = []): {
   sig: string; changes: string[]; unresolved: string[];
 } {
@@ -32,7 +34,7 @@ export function applyOutputCodePolicy(sig: string, exclusions: readonly SigExclu
     changes.add('FNA/FVOM → FNV (site packaging convention)'); return 'FNV';
   });
   const rules = [
-    ...Object.entries(REJECTED_OUTPUT_CODES).map(([code, rule]) => ({ code, replacement: rule.replacement as string, hard: true })),
+    ...PRECOMPUTED_REJECTED_RULES,
     ...exclusions.filter(e => e.kind === 'code' && normalized(e.value) && !(normalized(e.value) in REJECTED_OUTPUT_CODES))
       .map(e => ({ code: normalized(e.value), replacement: normalized(e.replacement || SIG_CODE_REFERENCE[normalized(e.value)] || ''), hard: false })),
   ];
