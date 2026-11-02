@@ -81,9 +81,11 @@ function assembleSig(
   if (preferences?.drugCodeOverrides) {
     const upperDrug = drugName.toUpperCase();
     for (const key in preferences.drugCodeOverrides) {
-      if (upperDrug.includes(key.toUpperCase())) {
-        effectiveDoseToken = preferences.drugCodeOverrides[key];
-        break;
+      if (Object.prototype.hasOwnProperty.call(preferences.drugCodeOverrides, key)) {
+        if (upperDrug.includes(key.toUpperCase())) {
+          effectiveDoseToken = preferences.drugCodeOverrides[key];
+          break;
+        }
       }
     }
   }
@@ -264,9 +266,11 @@ function translateClinicalSigInternal(inbound: InboundOrder, preferences?: Parti
     if (!paxitEval.isControlled && !inbound.defaultSigTemplate && preferences?.drugCodeOverrides) {
       const upperDrug = inbound.drugName.toUpperCase();
       for (const key in preferences.drugCodeOverrides) {
-        if (upperDrug.includes(key.toUpperCase())) {
-          hasOverride = true;
-          break;
+        if (Object.prototype.hasOwnProperty.call(preferences.drugCodeOverrides, key)) {
+          if (upperDrug.includes(key.toUpperCase())) {
+            hasOverride = true;
+            break;
+          }
         }
       }
     }
