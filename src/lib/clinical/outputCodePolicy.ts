@@ -13,11 +13,20 @@ export const REJECTED_OUTPUT_CODES = {
 } as const;
 
 const normalized = (s: string) => s.trim().toUpperCase().replace(/\s+/g, ' ');
+
+const tokenPatternCache = new Map<string, string>();
 function tokenPattern(code: string, hard = false): RegExp {
-  const escaped = code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const chars = hard ? 'A-Z0-9' : 'A-Z0-9/';
-  return new RegExp(`(^|[^${chars}])${escaped}(?=$|[^${chars}])`, 'g');
+  const key = `${hard ? 'H' : 'S'}:${code}`;
+  let cachedStr = tokenPatternCache.get(key);
+  if (!cachedStr) {
+    const escaped = code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const chars = hard ? 'A-Z0-9' : 'A-Z0-9/';
+    cachedStr = `(^|[^${chars}])${escaped}(?=$|[^${chars}])`;
+    tokenPatternCache.set(key, cachedStr);
+  }
+  return new RegExp(cachedStr, 'g');
 }
+
 export function rejectedOutputMatches(sig: string): string[] {
   return Object.keys(REJECTED_OUTPUT_CODES).filter(code => tokenPattern(code, true).test(normalized(sig)));
 }
