@@ -52,7 +52,9 @@ export function resolveTreatmentOrder(drugName: string, rawProse: string): Treat
   const siteMatch1 = upperProse.match(
     /\b(?:APPLY\s+(?:TOPICALLY\s+)?TO)\s+(?:THE\s+)?([\s\S]+?)(?=\s+(?:TOPICALLY|TPCL|EVERY|EACH|DAILY|TWICE|THREE|FOUR|\d+\s+TIMES|BID|TID|QID|QD|FOR|AS\s+NEEDED|THEN|CLEANSE|PAT\s+DRY|LEAVE\s+OPEN|LEAVE\s+OTA|COVER|WRAP|AND\s+(?:LEAVE|CLEANSE|PAT|APPLY|COVER|WRAP))\b|[.;]|$)/i
   );
-  const siteMatch2 = upperProse.match(/\bCLEANSE\s+(?:THE\s+)?([A-Z0-9 /-]+?)\s+(?:WITH|W\/)\b/i);
+  const siteMatch2 = upperProse.match(
+    /\bCLEANSE\s+(?:(?:THE\s+)?(?:WOUND|SITE|SKIN)\s+(?:ON|AT|IN|OF)\s+(?:THE\s+)?)?([A-Z0-9 /-]+?)\s+(?:WITH|W\/)\b/i
+  );
   const siteMatch3 = upperProse.match(/\bTO\s+(?:THE\s+)?([A-Z0-9 /-]+?):/i);
 
   if (siteMatch1 && siteMatch1[1].trim()) {
@@ -64,7 +66,15 @@ export function resolveTreatmentOrder(drugName: string, rawProse: string): Treat
   }
 
   if (site) {
-    site = site.replace(/\bLEFT\b/g, 'LT').replace(/\bRIGHT\b/g, 'RT').replace(/^[.,;:\s]+|[.,;:\s]+$/g, '').trim();
+    site = site
+      .replace(/\bBILATERAL\b/g, 'BIL')
+      .replace(/\bB\/L\b/g, 'BIL')
+      .replace(/\bLEFT\b/g, 'LT')
+      .replace(/\bRIGHT\b/g, 'RT')
+      .replace(/\s+AND\s+/g, '/')
+      .replace(/^[.,;:\s]+|[.,;:\s]+$/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   // 2. Cleanser extraction:
@@ -74,7 +84,7 @@ export function resolveTreatmentOrder(drugName: string, rawProse: string): Treat
   );
   if (cleanseMatch) {
     cleanser = cleanseMatch[1].trim();
-  } else if (/\bWITH\s+WOUND\s+CLEANSER\b/i.test(upperProse)) {
+  } else if (/\bWITH\s+WOUND\s+CLEANSER\b/i.test(upperProse) || /\b(?:WITH|W\/)\s+VASHE\b/i.test(upperProse)) {
     cleanser = 'WOUND CLEANSER';
   } else if (/\bWITH\s+(?:SOAP\s+(?:AND|&)\s+WATER)\b/i.test(upperProse)) {
     cleanser = 'SOAP AND WATER';
@@ -87,7 +97,7 @@ export function resolveTreatmentOrder(drugName: string, rawProse: string): Treat
       cleanser = 'NORMAL SALINE';
     } else if (/\b(?:SOAP\s+(?:AND|&)\s+WATER)\b/i.test(cleanser)) {
       cleanser = 'SOAP AND WATER';
-    } else if (/\b(?:WOUND\s+CLEANSER)\b/i.test(cleanser)) {
+    } else if (/\b(?:WOUND\s+CLEANSER|VASHE)\b/i.test(cleanser)) {
       cleanser = 'WOUND CLEANSER';
     }
   }
@@ -105,7 +115,7 @@ export function resolveTreatmentOrder(drugName: string, rawProse: string): Treat
       applyMatch &&
       applyMatch[1].trim() &&
       !/^(?:THE\s+)?(?:SACRUM|WOUND|SITE|AFFECTED\s+AREA)\b/i.test(applyMatch[1].trim()) &&
-      !/^(?:TOPICALLY|TPCL|TO\b|A\s+THIN\s+LAYER|THIN\s+LAYER|LIBERALLY|SPARINGLY|GENEROUSLY|EVENLY|AS\s+DIRECTED)\b/i.test(applyMatch[1].trim())
+      !/^(?:TOPICALLY|TPCL|TO\b|A\s+THIN\s+LAYER|THIN\s+LAYER|LIBERALLY|SPARINGLY|GENEROUSLY|EVENLY|AS\s+DIRECTED|OINTMENT|CREAM|PASTE|LOTION|GEL|BARRIER|MEDICATION)\b/i.test(applyMatch[1].trim())
     ) {
       applyDrug = applyMatch[1].trim();
     } else if (!isDressingOrSupply) {
@@ -211,6 +221,15 @@ export function resolveTreatmentOrder(drugName: string, rawProse: string): Treat
     }
 
     if (full.length > 199) {
+      full = full.replace(/\bWITH\b/g, 'W/');
+      full = full.replace(/\bPRESSURE\s+INJURY\b/g, 'PI');
+      full = full.replace(/\bPRESSURE\s+ULCER\b/g, 'PU');
+      full = full.replace(/\bSURROUNDING\b/g, 'SURR');
+      full = full.replace(/\bEXTREMITIES\b/g, 'EXTS');
+      full = full.replace(/\bEXTREMITY\b/g, 'EXT');
+    }
+
+    if (full.length > 199) {
       abnormalities.push({
         id: 'treatment_order_length_exceeded',
         tier: 'potential_error',
@@ -218,6 +237,7 @@ export function resolveTreatmentOrder(drugName: string, rawProse: string): Treat
         message: `The formatted treatment order is ${full.length} characters long and exceeds FrameworkLTC's 199-character limit. Manual technician condensation required.`,
         trigger: full
       });
+      full = full.slice(0, 199);
     }
 
     return full;

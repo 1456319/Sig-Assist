@@ -82,9 +82,9 @@ describe('Wound care treatment orders and routine/PRN splitting', () => {
   });
 
   it('progressively condenses treatment orders exceeding 199 characters', () => {
-    // Generate a long site description to push uncondensed length over 199
+    // Generate a long site description to push uncondensed length over 199 even after slash normalization
     const longSite =
-      'POSTERIOR SACRAL PRESSURE INJURY AND EXTENSIVE PERIANAL EXCORIATION WITH ADJACENT GLUTEAL CLEFTS AND SURROUNDING PERIWOUND ERYTHEMA AND INDURATION';
+      'POSTERIOR SACRAL PRESSURE INJURY AND EXTENSIVE PERIANAL EXCORIATION WITH ADJACENT GLUTEAL CLEFTS AND SURROUNDING PERIWOUND ERYTHEMA AND INDURATION WITH DEEP TISSUE INVOLVEMENT';
     const raw = `Apply to ${longSite} topically every shift Cleanse with soap and water, pat dry, then leave open to air`;
     const result = translate('Zinc Oxide Topical Paste 20 %', raw);
 
@@ -133,5 +133,29 @@ describe('Wound care treatment orders and routine/PRN splitting', () => {
     const res = translate('Zinc Oxide Topical Paste 20 %', raw);
     expect(res.primarySig).toBe('TO SACRUM:APPLY ZINC OXIDE QS');
     expect(res.primarySig).not.toContain('THEN APPLY');
+  });
+
+  it('normalizes bilateral, left/right and conjunction AND between anatomical areas (scavenged from PR #35)', () => {
+    const rawProse =
+      'Apply to bil buttock and left lower back wound topically every shift and prn. Cleanse with wound cleanser, pat dry';
+    const res = translate('Extra Protective Ointment', rawProse);
+
+    const expected1 = 'TO BIL BUTTOCK/LT LOWER BACK WOUND:CLEANSE W/WOUND CLEANSER,PAT DRY,THEN APPLY EXTRA PROTECTIVE QS';
+    const expected2 = 'TO BIL BUTTOCK/LT LOWER BACK WOUND:CLEANSE W/WOUND CLEANSER,PAT DRY,THEN APPLY EXTRA PROTECTIVE PRN';
+
+    expect(res.primarySig).toBe(`${expected1} **SPLIT** ${expected2}`);
+    expect(res.subOrders).toHaveLength(2);
+    expect(res.subOrders[0].suggestedSig).toBe(expected1);
+    expect(res.subOrders[1].suggestedSig).toBe(expected2);
+  });
+
+  it('handles "cleanse wound on <site>" and Vashe wound cleanser (scavenged from PR #35)', () => {
+    const rawNs = 'Cleanse wound on right forearm with normal saline, pat dry, apply ointment twice daily';
+    const resNs = translate('Triple Antibiotic Ointment', rawNs);
+    expect(resNs.primarySig).toBe('TO RT FOREARM:CLEANSE W/NORMAL SALINE,PAT DRY,THEN APPLY TRIPLE ANTIBIOTIC BID');
+
+    const rawVashe = 'Cleanse sacrum with Vashe, pat dry, apply zinc oxide every shift';
+    const resVashe = translate('Zinc Oxide Topical Paste 20 %', rawVashe);
+    expect(resVashe.primarySig).toBe('TO SACRUM:CLEANSE W/WOUND CLEANSER,PAT DRY,THEN APPLY ZINC OXIDE QS');
   });
 });
