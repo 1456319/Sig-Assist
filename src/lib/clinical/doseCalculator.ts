@@ -148,7 +148,7 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
   const enteralRoute = tubeRoute || 'PO';
   const solidRoute = tubeRoute || (sublingual ? oral ? 'PO/SL' : 'SL' : 'PO');
   const peg = resolvePegPreparation(upperDrug, fullProse, oral || !!tubeRoute ? enteralRoute : undefined);
-  if (peg) return { doseToken: 'ADM 17GM', routeToken: enteralRoute, abnormalities, isApap, apapLimitToken, ...peg };
+  if (peg) return { doseToken: peg.preparationTemplate.includes('PACKET') ? '1PKT' : 'ADM 17GM', routeToken: enteralRoute, abnormalities, isApap, apapLimitToken, ...peg };
 
   if (/\b(?:VAGINALLY|PV)\b/.test(upperProse)) {
     const amount = upperProse.match(/^INSERT\s+(\d+(?:\.\d+)?)\s*(?:GRAMS?|GMS?|G)\b/);
