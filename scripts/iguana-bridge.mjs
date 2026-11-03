@@ -1,7 +1,8 @@
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile, access } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
+import { inflateRawSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
@@ -13,6 +14,45 @@ const bridgeBuildId = createHash('sha256').update(readFileSync(fileURLToPath(imp
 const service = 'sig-assist-iguana-connector';
 const log = (stage, details) => console.log(JSON.stringify({ time: new Date().toISOString(), stage, ...details }));
 
+export function defaultHtmlPath() {
+  return process.env.SIG_ASSIST_HTML_PATH || path.join(here, '../windows-demo/index.html');
+}
+
+function extractZipEntry(zipPath, targetFilename) {
+  try {
+    const buf = readFileSync(zipPath);
+    const eocdSig = Buffer.from([0x50, 0x4b, 0x05, 0x06]);
+    const eocdOffset = buf.lastIndexOf(eocdSig);
+    if (eocdOffset === -1) return null;
+    const cdOffset = buf.readUInt32LE(eocdOffset + 16);
+    const cdEntries = buf.readUInt16LE(eocdOffset + 10);
+    let pos = cdOffset;
+    for (let i = 0; i < cdEntries; i++) {
+      if (buf.readUInt32LE(pos) !== 0x02014b50) break;
+      const compression = buf.readUInt16LE(pos + 10);
+      const compressedSize = buf.readUInt32LE(pos + 20);
+      const nameLen = buf.readUInt16LE(pos + 28);
+      const extraLen = buf.readUInt16LE(pos + 30);
+      const commentLen = buf.readUInt16LE(pos + 32);
+      const localHeaderOffset = buf.readUInt32LE(pos + 42);
+      const name = buf.toString('utf8', pos + 46, pos + 46 + nameLen);
+      pos += 46 + nameLen + extraLen + commentLen;
+      if (name === targetFilename) {
+        const localNameLen = buf.readUInt16LE(localHeaderOffset + 26);
+        const localExtraLen = buf.readUInt16LE(localHeaderOffset + 28);
+        const dataOffset = localHeaderOffset + 30 + localNameLen + localExtraLen;
+        const compData = buf.subarray(dataOffset, dataOffset + compressedSize);
+        if (compression === 0) return compData.toString('utf8');
+        if (compression === 8) return inflateRawSync(compData).toString('utf8');
+        return null;
+      }
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 const escapeHtml = value => String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
 async function portablePage(htmlPath) {
   try {
@@ -20,6 +60,22 @@ async function portablePage(htmlPath) {
     const ok = /<div\b[^>]*\bid=["']root["']/i.test(html) && /<script\b[^>]*type=["']module["'][^>]*>/i.test(html) && !/<(?:script|link)\b[^>]*(?:src|href)\s*=/i.test(html);
     return { html, profile: { ok, path: path.resolve(htmlPath), bytes: Buffer.byteLength(html), sha256: createHash('sha256').update(html).digest('hex'), ...(ok ? {} : { error: 'This index.html is not the standalone build. It references source files or separate assets that this connector cannot serve.' }) } };
   } catch (error) {
+    if (error.code === 'ENOENT') {
+      const isDemoPath = /windows-demo[\\/]index\.html$/i.test(htmlPath) || htmlPath === defaultHtmlPath();
+      const zipCandidates = isDemoPath
+        ? [path.join(path.dirname(htmlPath), 'Sig-Assist-Windows-Demo.zip'), path.join(here, '../windows-demo/Sig-Assist-Windows-Demo.zip'), path.join(here, 'Sig-Assist-Windows-Demo.zip')]
+        : [path.join(path.dirname(htmlPath), 'Sig-Assist-Windows-Demo.zip')];
+      for (const zipCandidate of zipCandidates) {
+        const extracted = extractZipEntry(zipCandidate, 'index.html');
+        if (extracted) {
+          const ok = /<div\b[^>]*\bid=["']root["']/i.test(extracted) && /<script\b[^>]*type=["']module["'][^>]*>/i.test(extracted) && !/<(?:script|link)\b[^>]*(?:src|href)\s*=/i.test(extracted);
+          if (ok) {
+            try { await writeFile(htmlPath, extracted); } catch { /* ignore if destination directory is read-only */ }
+            return { html: extracted, profile: { ok: true, path: path.resolve(htmlPath), bytes: Buffer.byteLength(extracted), sha256: createHash('sha256').update(extracted).digest('hex'), recoveredFrom: zipCandidate } };
+          }
+        }
+      }
+    }
     return { profile: { ok: false, path: path.resolve(htmlPath), error: `Portable index.html could not be read (${error.code ?? 'READ_ERROR'}).` } };
   }
 }
@@ -58,7 +114,7 @@ async function limitedText(stream, limit) {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-export function createBridge({ htmlPath = path.join(here, '../windows-demo/index.html'), fetchImpl = fetch, timeoutMs = 20000, startup = {}, desktop = createDesktopSession() } = {}) {
+export function createBridge({ htmlPath = defaultHtmlPath(), fetchImpl = fetch, timeoutMs = 20000, startup = {}, desktop = createDesktopSession() } = {}) {
   return createServer(async (request, response) => {
     const send = (status, object) => { response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(JSON.stringify(object)); };
     if (request.method === 'GET' && ['/connector/health', '/connector/diagnostics'].includes(request.url)) {
@@ -130,7 +186,7 @@ async function matchingBridge(port, pageSha256) {
 }
 // A second launch must neither stop an unrelated listener nor open an old build.
 // Reuse a matching bridge; otherwise search nearby ports, then let Windows pick.
-export async function startBridge({ port = 4190, htmlPath = path.join(here, '../windows-demo/index.html'), onNotice = console.log } = {}) {
+export async function startBridge({ port = 4190, htmlPath = defaultHtmlPath(), onNotice = console.log } = {}) {
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('SIG_ASSIST_CONNECTOR_PORT must be an integer from 0 to 65535.');
   const { profile } = await portablePage(htmlPath);
   const candidates = port === 0 ? [0] : [...Array.from({ length: Math.min(20, 65536 - port) }, (_, i) => port + i), 0];
@@ -156,9 +212,25 @@ export async function startBridge({ port = 4190, htmlPath = path.join(here, '../
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.SIG_ASSIST_CONNECTOR_PORT ?? 4190);
-  const packaged = path.join(here, 'index.html');
-  let htmlPath;
-  try { await readFile(packaged); htmlPath = packaged; } catch { htmlPath = path.join(here, '../windows-demo/index.html'); }
+  const htmlFlag = process.argv.indexOf('--html') >= 0 ? process.argv[process.argv.indexOf('--html') + 1] : undefined;
+  const pageFlag = process.argv.indexOf('--page') >= 0 ? process.argv[process.argv.indexOf('--page') + 1] : undefined;
+  let htmlPath = process.env.SIG_ASSIST_HTML_PATH || htmlFlag || pageFlag;
+  if (!htmlPath) {
+    const candidates = [
+      path.join(here, 'index.html'),
+      path.join(here, '../windows-demo/index.html'),
+      path.join(process.cwd(), 'index.html'),
+      path.join(process.cwd(), 'windows-demo', 'index.html'),
+    ];
+    for (const candidate of candidates) {
+      try {
+        await access(candidate);
+        htmlPath = candidate;
+        break;
+      } catch { /* try next candidate */ }
+    }
+  }
+  if (!htmlPath) htmlPath = defaultHtmlPath();
   try {
     const { profile } = await portablePage(htmlPath);
     log('startup.page', { bridgeBuildId, runtime: process.version, ...profile });
