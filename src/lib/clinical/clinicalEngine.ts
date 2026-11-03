@@ -10,6 +10,7 @@ import { mergeRepeatedSolidDirections } from './repeatedDirections';
 import { splitMixedTabletDose } from './paxitFractionalDose';
 import { applyOutputCodePolicy } from './outputCodePolicy';
 import { resolveTreatmentOrder } from './treatmentOrderEngine';
+import { resolveLidocainePatch } from './lidocainePatch';
 
 function assembleSig(
   drugName: string,
@@ -171,6 +172,41 @@ function translateClinicalSigInternal(inbound: InboundOrder, preferences?: Parti
       drugName: inbound.drugName,
       rawProseLength: inbound.rawProse.length
     }, undefined, traceId);
+
+    const lidocaineEval = resolveLidocainePatch(
+      inbound.drugName,
+      inbound.rawProse,
+      inbound.indication
+    );
+    if (lidocaineEval) {
+      traceLogger.info('clinical', 'clinicalEngine', 'Resolved Lidocaine patch order', {
+        sig: lidocaineEval.sig,
+      });
+      const policy = applyOutputCodePolicy(lidocaineEval.sig, preferences?.exclusions);
+      const findings = [...lidocaineEval.abnormalities];
+      if (policy.changes.length) {
+        findings.push({
+          id: 'applied_output_exclusions',
+          tier: 'applied_correction',
+          title: 'Packaging Restrictions Applied',
+          message: 'Packaging restrictions and saved exclusions were applied to the suggestion. Verify the expanded instructions.',
+          correction: policy.changes.join('; '),
+        });
+      }
+      return {
+        primarySig: policy.sig,
+        subOrders: [
+          {
+            id: `${inbound.id}_single`,
+            label: 'Order 1 of 1',
+            suggestedSig: policy.sig,
+            abnormalities: findings,
+          },
+        ],
+        abnormalities: findings,
+        traceId,
+      };
+    }
 
     const treatmentEval = resolveTreatmentOrder(inbound.drugName, inbound.rawProse);
     if (treatmentEval) {
