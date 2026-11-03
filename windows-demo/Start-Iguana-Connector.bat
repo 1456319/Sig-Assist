@@ -70,9 +70,9 @@ echo Using Node.js: "%SIG_NODE%"
 if /i "%~1"=="--check" goto check_ok
 if not exist "%~dp0index.html" if exist "%~dp0Sig-Assist-Windows-Demo.zip" (
     echo Restoring prebuilt index.html from Sig-Assist-Windows-Demo.zip...
-    tar.exe -xf "%~dp0Sig-Assist-Windows-Demo.zip" -C "%~dp0" index.html >nul 2>nul
+    tar.exe -xf "%~dp0Sig-Assist-Windows-Demo.zip" index.html >nul 2>nul
 )
-if exist "%~dp0index.html" set "SIG_ASSIST_HTML_PATH=%~dp0index.html"
+set "SIG_ASSIST_HTML_PATH=%~dp0index.html"
 set "SIG_BRIDGE=%~dp0iguana-bridge.mjs"
 if not exist "%SIG_BRIDGE%" set "SIG_BRIDGE=%~dp0..\scripts\iguana-bridge.mjs"
 if not exist "%SIG_BRIDGE%" goto missing_bridge

@@ -2,13 +2,13 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { mkdtemp, writeFile, rm, copyFile } from 'node:fs/promises';
+import { mkdtemp, writeFile, readFile, rm, copyFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 // Runtime script deliberately uses no package dependencies.
 // @ts-expect-error JavaScript bridge is tested in its native Node runtime.
-import { createBridge, makeQuery, startBridge } from '../scripts/iguana-bridge.mjs';
+import { createBridge, makeQuery, startBridge, defaultHtmlPath } from '../scripts/iguana-bridge.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -162,6 +162,19 @@ describe('local read-only bridge', () => {
     const health = await (await fetch(new URL('/connector/health', result.url))).json();
     expect(health.page.ok).toBe(true);
     expect(health.page.bytes).toBeGreaterThan(0);
+    expect(await readFile(missingHtmlPath, 'utf8')).toContain('id="root"');
+  });
+  it('resolves defaultHtmlPath with or without SIG_ASSIST_HTML_PATH', () => {
+    const previous = process.env.SIG_ASSIST_HTML_PATH;
+    try {
+      delete process.env.SIG_ASSIST_HTML_PATH;
+      expect(defaultHtmlPath()).toContain('index.html');
+      process.env.SIG_ASSIST_HTML_PATH = '/custom/path/index.html';
+      expect(defaultHtmlPath()).toBe('/custom/path/index.html');
+    } finally {
+      if (previous === undefined) delete process.env.SIG_ASSIST_HTML_PATH;
+      else process.env.SIG_ASSIST_HTML_PATH = previous;
+    }
   });
   it('honors SIG_ASSIST_HTML_PATH environment variable', async () => {
     const htmlPath = await pageFile(portableHtml);

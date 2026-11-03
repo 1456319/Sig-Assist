@@ -15,7 +15,10 @@ const service = 'sig-assist-iguana-connector';
 const log = (stage, details) => console.log(JSON.stringify({ time: new Date().toISOString(), stage, ...details }));
 
 export function defaultHtmlPath() {
-  return process.env.SIG_ASSIST_HTML_PATH || path.join(here, '../windows-demo/index.html');
+  if (process.env.SIG_ASSIST_HTML_PATH) return process.env.SIG_ASSIST_HTML_PATH;
+  return path.basename(here) === 'scripts'
+    ? path.join(here, '../windows-demo/index.html')
+    : path.join(here, 'index.html');
 }
 
 function extractZipEntry(zipPath, targetFilename) {
@@ -37,7 +40,8 @@ function extractZipEntry(zipPath, targetFilename) {
       const localHeaderOffset = buf.readUInt32LE(pos + 42);
       const name = buf.toString('utf8', pos + 46, pos + 46 + nameLen);
       pos += 46 + nameLen + extraLen + commentLen;
-      if (name === targetFilename) {
+      if (name === targetFilename || name === `./${targetFilename}` || name.endsWith(`/${targetFilename}`)) {
+        if (buf.readUInt32LE(localHeaderOffset) !== 0x04034b50) return null;
         const localNameLen = buf.readUInt16LE(localHeaderOffset + 26);
         const localExtraLen = buf.readUInt16LE(localHeaderOffset + 28);
         const dataOffset = localHeaderOffset + 30 + localNameLen + localExtraLen;
@@ -214,7 +218,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const port = Number(process.env.SIG_ASSIST_CONNECTOR_PORT ?? 4190);
   const htmlFlag = process.argv.indexOf('--html') >= 0 ? process.argv[process.argv.indexOf('--html') + 1] : undefined;
   const pageFlag = process.argv.indexOf('--page') >= 0 ? process.argv[process.argv.indexOf('--page') + 1] : undefined;
-  let htmlPath = process.env.SIG_ASSIST_HTML_PATH || htmlFlag || pageFlag;
+  let htmlPath = (htmlFlag && !htmlFlag.startsWith('--') ? htmlFlag : undefined)
+    || (pageFlag && !pageFlag.startsWith('--') ? pageFlag : undefined)
+    || process.env.SIG_ASSIST_HTML_PATH;
   if (!htmlPath) {
     const candidates = [
       path.join(here, 'index.html'),
