@@ -6,10 +6,10 @@ describe('matchesOrderQuery', () => {
   const sampleOrder: OrderSource = {
     facility: 'Oak Ridge Senior Living',
     patientRef: 'RES-98214-DOE',
-    pon: 'PON-2026-1004',
+    pon: 'PON-2026-1004-X',
     drug: 'Metoprolol Tartrate 25mg Tab',
-    directions: 'Give 1 tablet by mouth daily in the morning',
-    defaultSig: '1T PO QAM',
+    directions: 'Give 1 tablet by mouth daily in the morning with dinner',
+    defaultSig: '1T PO QAM DINNER',
   };
 
   it('matches empty query or whitespace-only query for any order', () => {
@@ -19,8 +19,8 @@ describe('matchesOrderQuery', () => {
   });
 
   it('matches exact field values regardless of casing', () => {
-    expect(matchesOrderQuery(sampleOrder, 'PON-2026-1004')).toBe(true);
-    expect(matchesOrderQuery(sampleOrder, 'pon-2026-1004')).toBe(true);
+    expect(matchesOrderQuery(sampleOrder, 'PON-2026-1004-X')).toBe(true);
+    expect(matchesOrderQuery(sampleOrder, 'pon-2026-1004-x')).toBe(true);
     expect(matchesOrderQuery(sampleOrder, 'OAK RIDGE SENIOR LIVING')).toBe(true);
     expect(matchesOrderQuery(sampleOrder, 'res-98214-doe')).toBe(true);
     expect(matchesOrderQuery(sampleOrder, 'metoprolol tartrate 25mg tab')).toBe(true);
@@ -53,6 +53,24 @@ describe('matchesOrderQuery', () => {
     // Searches are intentionally scoped to facility, patientRef, pon, drug
     expect(matchesOrderQuery(sampleOrder, 'tablet by mouth')).toBe(false);
     expect(matchesOrderQuery(sampleOrder, '1T PO QAM')).toBe(false);
-    expect(matchesOrderQuery(sampleOrder, 'morning')).toBe(false);
+    expect(matchesOrderQuery(sampleOrder, 'dinner')).toBe(false);
+  });
+
+  it('handles orders with empty strings in searchable fields without throwing', () => {
+    const emptyFieldsOrder: OrderSource = {
+      facility: '',
+      patientRef: '',
+      pon: '',
+      drug: '',
+      directions: 'take daily',
+    };
+
+    expect(matchesOrderQuery(emptyFieldsOrder, '')).toBe(true);
+    expect(matchesOrderQuery(emptyFieldsOrder, 'test')).toBe(false);
+  });
+
+  it('matches special characters present in fields', () => {
+    expect(matchesOrderQuery(sampleOrder, '-')).toBe(true);
+    expect(matchesOrderQuery(sampleOrder, 'PON-2026-1004-X')).toBe(true);
   });
 });

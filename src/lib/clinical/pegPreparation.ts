@@ -7,9 +7,11 @@ export function resolvePegPreparation(drug: string, prose: string, route?: strin
   if (!route || !/\b(?:GLYCOLAX|MIRALAX|POLYETH\s+GLYC|POLYETHYLENE\s+GLYCOL)\b/i.test(identity)
       || /\b(?:ELECTROLYTES?|SODIUM|POTASSIUM|SULFATE|CHLORIDE|ASCORBIC|WITH|AND)\b|[-+/]/i.test(identity)) return;
 
+  const cleanProse = prose.replace(/\*+/g, ' ').replace(/\s+/g, ' ').trim();
+
   const drugHasPacket = /\b(?:PACKETS?|PKT)\b/i.test(drug);
-  const proseHasPacket = /\b(?:PACKETS?|PKT)\b/i.test(prose);
-  const proseHasCap = /\b(?:CAPS?|CAPFULS?|SEE INSIDE CAP)\b/i.test(prose);
+  const proseHasPacket = /\b(?:PACKETS?|PKT)\b/i.test(cleanProse);
+  const proseHasCap = /\b(?:CAPS?|CAPFULS?|SEE INSIDE CAP)\b/i.test(cleanProse);
 
   // If no formulation is specified in drug, look for "PACKET" or "CAP" in SIG.
   // If not specified in SIG, default to 238-gram bulk jar (packet = false).
@@ -17,19 +19,19 @@ export function resolvePegPreparation(drug: string, prose: string, route?: strin
 
   if (packet) {
     if (drugHasPacket && !/\b17(?:\.0+)?\s*(?:GM|GRAMS?|G)\b/i.test(drug)) return;
-    if (!/^(?:GIVE|TAKE|ADMINISTER)\s+1\s+PACKET\b/i.test(prose)) return;
+    if (!/^(?:GIVE|TAKE|ADMINISTER)\s+1\s+PACKET\b/i.test(cleanProse)) return;
   } else {
-    if (!/^(?:GIVE|TAKE|ADMINISTER)\s+(?:17(?:\.0+)?\s*(?:GRAMS?|GMS?|G)|(?:1\s+)?(?:CAPFULS?|CAPS?)|1\s+SCOOP)\b/i.test(prose)) return;
+    if (!/^(?:GIVE|TAKE|ADMINISTER)\s+(?:17(?:\.0+)?\s*(?:GRAMS?|GMS?|G)|(?:1\s+)?(?:CAPFULS?|CAPS?)|1\s+SCOOP)\b/i.test(cleanProse)) return;
   }
 
-  const mixVol = prose.match(/\b(?:MIX|DISSOLVE|STIR)\s+(?:WITH|IN|INTO)\s+(?:(?:A\s+)?MINIMUM\s+OF\s+)?(4\s*(?:-|TO)\s*8|[4-8])\s*(?:OZ|OUNCES?|FL\s*OZ|FLUID\s*OUNCES?)\s*(?:OF\s+)?((?:[A-Z-]+(?:\s+[A-Z-]+)*\s+)?(?:WATER|JUICE|LIQUID|BEVERAGE))\b/i);
-  const mixNoVol = !mixVol ? prose.match(/\b(?:MIX|DISSOLVE|STIR)\s+(?:WITH|IN|INTO)\s*(?:OF\s+)?(?!\d|\b(?:A\s+)?(?:MINIMUM|MAXIMUM|FEW|SEVERAL|COUPLE)\b)(?:(?:A\s+)?(?:GLASS|CUP)\s+(?:OF\s+)?)?((?:[A-Z-]+(?:\s+[A-Z-]+)*\s+)?(?:WATER|JUICE|LIQUID|BEVERAGE))\b/i) : null;
-  const inLiquid = !mixVol && !mixNoVol ? prose.match(/\bIN LIQUID\b/i) : null;
+  const mixVol = cleanProse.match(/\b(?:MIX|DISSOLVE|STIR)\s+(?:WITH|IN|INTO)\s+(?:(?:A\s+)?MINIMUM\s+OF\s+)?(4\s*(?:-|TO)\s*8|[4-8])\s*(?:OZ|OUNCES?|FL\s*OZ|FLUID\s*OUNCES?)\s*(?:OF\s+)?((?:[A-Z-]+(?:\s+[A-Z-]+)*\s+)?(?:WATER|JUICE|LIQUID|BEVERAGE))\b/i);
+  const mixNoVol = !mixVol ? cleanProse.match(/\b(?:MIX|DISSOLVE|STIR)\s+(?:WITH|IN|INTO)\s*(?:OF\s+)?(?!\d|\b(?:A\s+)?(?:MINIMUM|MAXIMUM|FEW|SEVERAL|COUPLE)\b)(?:(?:A\s+)?(?:GLASS|CUP)\s+(?:OF\s+)?)?((?:[A-Z-]+(?:\s+[A-Z-]+)*\s+)?(?:WATER|JUICE|LIQUID|BEVERAGE))\b/i) : null;
+  const inLiquid = !mixVol && !mixNoVol ? cleanProse.match(/\bIN LIQUID\b/i) : null;
 
   const explicit = mixVol || mixNoVol || inLiquid;
-  let scheduleProse = prose;
+  let scheduleProse = cleanProse;
   if (explicit) {
-    scheduleProse = prose.replace(explicit[0], '').replace(/\s+/g, ' ').trim();
+    scheduleProse = cleanProse.replace(explicit[0], '').replace(/\s+/g, ' ').trim();
     scheduleProse = scheduleProse.replace(/\bAND\s+(?=IN THE MORNING|EVERY|DAILY|BID|TID|QID|QAM|QPM|QHS|AS NEEDED|PRN|FOR)\b/i, '');
     scheduleProse = scheduleProse.replace(/^(?:AND\s+)+/i, '').replace(/(?:\s+AND)+$/i, '').trim();
     scheduleProse = scheduleProse.replace(/^[.,;:\s]+|[.,;:\s]+$/g, '').trim();

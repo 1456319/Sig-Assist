@@ -12,6 +12,8 @@ export function translateRecognizedPhrases(rawProse: string): string {
   const translate = (text: string) => text
     .replace(/\bBY\s+MOUTH\b|\bORALLY\b/g, 'PO')
     .replace(/\b(?:VIA|PER|THROUGH)\s+(PEG|G|J|NG)[ -]?TUBE\b/g, (_, tube: string) => ({ PEG: 'PEGT', G: 'GT', J: 'JT', NG: 'NG' })[tube]!)
+    .replace(/\b(?:AT\s+BEDTIME|BEDTIME)\b/g, 'QHS')
+    .replace(/\b(?:IN\s+THE\s+MORNING|EVERY\s+MORNING)\b/g, 'QAM')
     .replace(/\bIN THE EVENING\b/g, 'QPM')
     .replace(/\bSUBCUTANEOUSLY\b/g, 'SQ')
     .replace(/\bSUBLINGUALLY\b/g, 'SL')
