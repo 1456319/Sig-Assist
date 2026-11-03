@@ -15,6 +15,18 @@ describe('clinicalEngine TESTS.txt validation', () => {
     expect(res.primarySig).toBe('1PKT PO QD FSU');
   });
 
+  it('mutates PEG 3350 bulk jar base template with non-carbonated liquid and morning schedule', () => {
+    const raw = `Polyethylene Glycol 3350 Powder\nUSER ENTRY:Give 17 gram by mouth in the morning for Constipation **Mix in 4-8oz of non-carbonated liquid**`;
+    const res = translateClinicalSig(parseInboundOrder(raw));
+    expect(res.primarySig).toBe('MIX 17 GM (SEE INSIDE CAP) IN 4-8OZ OF NON-CARBONATED LIQUID AND GIVE PO QAM FCON');
+  });
+
+  it('infers jar formulation for Miralax when no formulation is specified in drug or prose', () => {
+    const raw = `MIRALAX\nUSER ENTRY:Give 17 gram by mouth daily for Constipation`;
+    const res = translateClinicalSig(parseInboundOrder(raw));
+    expect(res.primarySig).toBe('MIX 17 GM (SEE INSIDE CAP) IN 8OZ OF WATER AND GIVE PO QD FCON');
+  });
+
   it('passes Case 3: Humalog Sliding Scale', () => {
     const raw = `3)HumaLOG (LISPRO) KWIKPEN 100U/ML\nUSER ENTRY:Inject as per sliding scale: if 181 - 200 = 1 unit < 70 follow hypoglycemic protocol; 201 - 250 = 2 unit; 251 - 300 = 3 units; 301 - 350 = 4 units > 350 = 5 units, subcutaneously before meals for DM`;
     const res = translateClinicalSig(parseInboundOrder(raw));
