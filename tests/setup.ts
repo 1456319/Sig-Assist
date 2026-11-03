@@ -1,54 +1,72 @@
-// Ensure localStorage is cleanly defined across Node runtime environments and jsdom
-if (typeof window === 'undefined' || typeof localStorage === 'undefined' || typeof localStorage.clear !== 'function') {
-  const store = new Map<string, string>();
+// Ensure Storage and localStorage are cleanly defined across all Node and jsdom test environments.
+class MockStorage implements Storage {
+  private store = new Map<string, string>();
 
-  if (typeof Storage !== 'undefined') {
-    try {
-      if (!Storage.prototype.getItem) Storage.prototype.getItem = function(key: string) { return store.get(key) ?? null; };
-      if (!Storage.prototype.setItem) Storage.prototype.setItem = function(key: string, value: string) { store.set(key, String(value)); };
-      if (!Storage.prototype.removeItem) Storage.prototype.removeItem = function(key: string) { store.delete(key); };
-      if (!Storage.prototype.clear) Storage.prototype.clear = function() { store.clear(); };
-      if (!Storage.prototype.key) Storage.prototype.key = function(index: number) { return Array.from(store.keys())[index] ?? null; };
-      const desc = Object.getOwnPropertyDescriptor(Storage.prototype, 'length');
-      if (!desc || desc.configurable) {
-        Object.defineProperty(Storage.prototype, 'length', {
-          get: function() { return store.size; },
-          configurable: true,
-        });
-      }
-    } catch {
-      // Ignore if Storage.prototype is sealed or non-configurable in some Node versions
-    }
+  getItem(key: string): string | null {
+    return this.store.get(key) ?? null;
   }
 
-  const mockStorage = typeof Storage !== 'undefined' ? Object.create(Storage.prototype) : {
-    getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => store.set(key, String(value)),
-    removeItem: (key: string) => store.delete(key),
-    clear: () => store.clear(),
-    key: (index: number) => Array.from(store.keys())[index] ?? null,
-    get length() { return store.size; }
-  };
+  setItem(key: string, value: string): void {
+    this.store.set(key, String(value));
+  }
 
+  removeItem(key: string): void {
+    this.store.delete(key);
+  }
+
+  clear(): void {
+    this.store.clear();
+  }
+
+  key(index: number): string | null {
+    return Array.from(this.store.keys())[index] ?? null;
+  }
+
+  get length(): number {
+    return this.store.size;
+  }
+}
+
+const mockInstance = new MockStorage();
+
+try {
+  Object.defineProperty(globalThis, 'Storage', {
+    value: MockStorage,
+    writable: true,
+    configurable: true,
+  });
+} catch {
+  (globalThis as unknown as { Storage: unknown }).Storage = MockStorage;
+}
+
+try {
+  Object.defineProperty(globalThis, 'localStorage', {
+    value: mockInstance,
+    writable: true,
+    configurable: true,
+  });
+} catch {
+  (globalThis as unknown as { localStorage: unknown }).localStorage = mockInstance;
+}
+
+if (typeof window !== 'undefined') {
   try {
-    Object.defineProperty(globalThis, 'localStorage', {
-      value: mockStorage,
+    Object.defineProperty(window, 'Storage', {
+      value: MockStorage,
       writable: true,
       configurable: true,
     });
   } catch {
-    (globalThis as unknown as { localStorage: unknown }).localStorage = mockStorage;
+    (window as unknown as { Storage: unknown }).Storage = MockStorage;
   }
 
-  if (typeof window !== 'undefined') {
-    try {
-      Object.defineProperty(window, 'localStorage', {
-        value: mockStorage,
-        writable: true,
-        configurable: true,
-      });
-    } catch {
-      (window as unknown as { localStorage: unknown }).localStorage = mockStorage;
-    }
+  try {
+    Object.defineProperty(window, 'localStorage', {
+      value: mockInstance,
+      writable: true,
+      configurable: true,
+    });
+  } catch {
+    (window as unknown as { localStorage: unknown }).localStorage = mockInstance;
   }
 }
