@@ -41,7 +41,10 @@ function parseCountToken(token: string): number {
 
 function quantityFromStrength(drug: string, prose: string): { count: number; label: string; total: string } | undefined {
   if (/[-/+]/.test(drug) || !/\b(?:BY MOUTH|ORALLY|PO)\b/.test(prose)) return undefined;
-  const strengths = [...drug.matchAll(/(?<![\d.])(\d+(?:\.\d+)?)\s*(MCG|MEQ|MG|GM|G)\b/g)];
+  const normalizedDrug = drug
+    .replace(/(\d+(?:\.\d+)?)\s*\([^)]*\)\s*(MCG|MEQ|MG|GM|G)\b/gi, '$1 $2')
+    .replace(/\([^)]*(?:FE|IRON|CA|CALCIUM|ELEMENTAL)[^)]*\)/gi, '');
+  const strengths = [...normalizedDrug.matchAll(/(?<![\d.])(\d+(?:\.\d+)?)\s*(MCG|MEQ|MG|GM|G)\b/g)];
   const dose = prose.match(/\b(?:GIVE|TAKE|ADMINISTER)\s+(\d+(?:\.\d+)?)\s*(MCG|MEQ|MG|GM|G)\b/);
   if (strengths.length !== 1 || !dose) return undefined;
   const strength = strengths[0];

@@ -155,4 +155,11 @@ describe('doseCalculator', () => {
     expect(res.requiresManualTranslation).toBe(true);
     expect(res.abnormalities.some(a => a.tier === 'uncorrected_gap' && a.title === 'Unspecified Dose Quantity')).toBe(true);
   });
+
+  it('calculates dose for tablets with parenthetical elemental equivalents like Ferrous Sulfate 325 (65 Fe) MG', () => {
+    const res = calculateDoseAndVolume('Ferrous Sulfate Oral Tablet 325 (65 Fe) MG', 'Give 325 mg orally in the morning');
+    expect(res.doseToken).toBe('1T');
+    expect(res.routeToken).toBe('PO');
+    expect(res.abnormalities.some(a => a.tier === 'uncorrected_gap')).toBe(false);
+  });
 });
