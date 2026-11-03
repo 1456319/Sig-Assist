@@ -9,6 +9,8 @@ import { translateRecognizedPhrases } from './partialTranslation';
 import { mergeRepeatedSolidDirections } from './repeatedDirections';
 import { splitMixedTabletDose } from './paxitFractionalDose';
 import { applyOutputCodePolicy } from './outputCodePolicy';
+import { resolveTreatmentOrder } from './treatmentOrderEngine';
+import { resolveLidocainePatch } from './lidocainePatch';
 
 function assembleSig(
   drugName: string,
@@ -80,10 +82,12 @@ function assembleSig(
   let effectiveDoseToken = doseRes.doseToken;
   if (preferences?.drugCodeOverrides) {
     const upperDrug = drugName.toUpperCase();
-    for (const [key, overrideCode] of Object.entries(preferences.drugCodeOverrides)) {
-      if (upperDrug.includes(key.toUpperCase())) {
-        effectiveDoseToken = overrideCode;
-        break;
+    for (const key in preferences.drugCodeOverrides) {
+      if (Object.prototype.hasOwnProperty.call(preferences.drugCodeOverrides, key)) {
+        if (upperDrug.includes(key.toUpperCase())) {
+          effectiveDoseToken = preferences.drugCodeOverrides[key];
+          break;
+        }
       }
     }
   }
@@ -168,6 +172,101 @@ function translateClinicalSigInternal(inbound: InboundOrder, preferences?: Parti
       drugName: inbound.drugName,
       rawProseLength: inbound.rawProse.length
     }, undefined, traceId);
+
+    const lidocaineEval = resolveLidocainePatch(
+      inbound.drugName,
+      inbound.rawProse,
+      inbound.indication
+    );
+    if (lidocaineEval) {
+      traceLogger.info('clinical', 'clinicalEngine', 'Resolved Lidocaine patch order', {
+        sig: lidocaineEval.sig,
+      });
+      const policy = applyOutputCodePolicy(lidocaineEval.sig, preferences?.exclusions);
+      const findings = [...lidocaineEval.abnormalities];
+      if (policy.changes.length) {
+        findings.push({
+          id: 'applied_output_exclusions',
+          tier: 'applied_correction',
+          title: 'Packaging Restrictions Applied',
+          message: 'Packaging restrictions and saved exclusions were applied to the suggestion. Verify the expanded instructions.',
+          correction: policy.changes.join('; '),
+        });
+      }
+      return {
+        primarySig: policy.sig,
+        subOrders: [
+          {
+            id: `${inbound.id}_single`,
+            label: 'Order 1 of 1',
+            suggestedSig: policy.sig,
+            abnormalities: findings,
+          },
+        ],
+        abnormalities: findings,
+        traceId,
+      };
+    }
+
+    const treatmentEval = resolveTreatmentOrder(inbound.drugName, inbound.rawProse);
+    if (treatmentEval) {
+      if (treatmentEval.isSplit && treatmentEval.splitParts.length >= 2) {
+        const subOrders: SubOrderResult[] = treatmentEval.splitParts.map((part, index) => ({
+          id: `${inbound.id}_split_${index + 1}`,
+          label: part.label,
+          suggestedSig: part.sig,
+          abnormalities: part.abnormalities
+        }));
+        const allAbnormalities: AbnormalityFinding[] = [
+          ...treatmentEval.abnormalities,
+          ...subOrders.flatMap(s => s.abnormalities),
+          {
+            id: `treatment_order_split_${inbound.id}`,
+            tier: 'applied_correction',
+            title: 'Treatment Order Routine and PRN Split',
+            message: 'The treatment order directions contain both a scheduled routine application and a PRN application. Split into independent routine and PRN orders for FrameworkLTC entry.',
+            correction: `Split 1: ${subOrders[0].suggestedSig} | Split 2: ${subOrders[1].suggestedSig}`,
+            trigger: inbound.rawProse
+          }
+        ];
+        const unifiedSig = `${subOrders[0].suggestedSig} **SPLIT** ${subOrders[1].suggestedSig}`;
+        traceLogger.info('clinical', 'clinicalEngine', 'Formulated split sub-orders for treatment order', {
+          primarySig: unifiedSig,
+          subOrdersCount: subOrders.length,
+          abnormalitiesCount: allAbnormalities.length
+        }, undefined, traceId);
+        return {
+          primarySig: unifiedSig,
+          subOrders,
+          abnormalities: allAbnormalities,
+          traceId
+        };
+      }
+
+      // Single treatment order
+      const abnormalities: AbnormalityFinding[] = [
+        ...treatmentEval.abnormalities,
+        {
+          id: `treatment_order_${inbound.id}`,
+          tier: 'applied_correction',
+          title: 'Wound Care Treatment Order Formatted',
+          message: 'Treatment directions formatted with condensed procedural syntax to satisfy the 199-character limit.',
+          correction: treatmentEval.singleSig!,
+          trigger: inbound.rawProse
+        }
+      ];
+      return {
+        primarySig: treatmentEval.singleSig!,
+        subOrders: [{
+          id: `${inbound.id}_single`,
+          label: 'Order 1 of 1',
+          suggestedSig: treatmentEval.singleSig!,
+          abnormalities
+        }],
+        abnormalities,
+        traceId
+      };
+    }
 
     const paxitEval = evaluatePaxitPackaging(inbound.drugName, inbound.rawProse);
 
@@ -259,8 +358,21 @@ function translateClinicalSigInternal(inbound: InboundOrder, preferences?: Parti
     // Case C: Standard single order (including non-split controlled substances)
     const compiled = assembleSig(inbound.drugName, inbound.rawProse, inbound.defaultSigTemplate, preferences, inbound.indication);
     const abnormalities = [...compiled.abnormalities];
+    let hasOverride = false;
+    if (!paxitEval.isControlled && !inbound.defaultSigTemplate && preferences?.drugCodeOverrides) {
+      const upperDrug = inbound.drugName.toUpperCase();
+      for (const key in preferences.drugCodeOverrides) {
+        if (Object.prototype.hasOwnProperty.call(preferences.drugCodeOverrides, key)) {
+          if (upperDrug.includes(key.toUpperCase())) {
+            hasOverride = true;
+            break;
+          }
+        }
+      }
+    }
+
     const mixed = !paxitEval.isControlled && !inbound.defaultSigTemplate
-      && !Object.keys(preferences?.drugCodeOverrides || {}).some(key => inbound.drugName.toUpperCase().includes(key.toUpperCase()))
+      && !hasOverride
       ? splitMixedTabletDose(inbound.drugName, inbound.rawProse) : undefined;
     if (mixed && !abnormalities.some(a => a.tier === 'uncorrected_gap' || a.tier === 'potential_error')) {
       const finding: AbnormalityFinding = { id: `paxit_fractional_split_${inbound.id}`, tier: 'applied_correction', title: 'Paxit Whole/Fractional Tablet Split',

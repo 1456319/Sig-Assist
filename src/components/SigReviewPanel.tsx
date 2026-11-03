@@ -87,9 +87,9 @@ export function SigReviewPanel({ source, suggestion, draft, approved, unavailabl
       <p className="text-xs text-muted-foreground my-2">Preferences are shared by the queue and workbench and saved in browser cache or your connected folder. Suggestions replace excluded codes with your replacement or their verified dictionary expansion. Unknown codes need a replacement or manual translation. Existing edited drafts are retained for review. Use Undo to remove a saved exclusion.</p>
       <p className="text-xs my-2">Built-in packaging restrictions (always enforced): {Object.keys(REJECTED_OUTPUT_CODES).join(", ")}. These are the restrictions reported so far, not a complete vendor list.</p>
       <div className="flex flex-wrap gap-2">
-        <input aria-label="SIG code to exclude" value={code} onChange={event => setCode(event.target.value.toUpperCase())} className={reviewInputClass} placeholder="Code, e.g. QD" />
-        <input aria-label="Replacement for excluded code" value={replacement} onChange={event => setReplacement(event.target.value.toUpperCase())} className={reviewInputClass} placeholder="Replacement (optional if in dictionary)" />
-        <button className={reviewButtonClass} disabled={!code.trim() || /\s/.test(code.trim())} onClick={() => exclude({ kind: 'code', value: code, replacement: replacement.trim() || undefined })}>Exclude code</button>
+        <input aria-label="SIG code to exclude" value={code} onChange={event => setCode(event.target.value.toUpperCase())} className={reviewInputClass} placeholder="Code or phrase, e.g. QD, 3 ML" />
+        <input aria-label="Replacement for excluded code" value={replacement} onChange={event => setReplacement(event.target.value.toUpperCase())} className={reviewInputClass} placeholder="Replacement (e.g. 1 VIAL or dictionary code)" />
+        <button className={reviewButtonClass} disabled={!code.trim()} onClick={() => exclude({ kind: 'code', value: code, replacement: replacement.trim() || undefined })}>Exclude code</button>
       </div>
       <ul className="mt-2 space-y-2">{exclusions.map((item, index) => <li key={`${item.kind}:${item.value}`} className="flex items-center justify-between gap-3 text-sm">
         <span className="break-all">{item.kind === 'code' ? 'Code' : 'SIG'}: {item.value}{item.replacement ? ` → ${item.replacement}` : ''}</span>

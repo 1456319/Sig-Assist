@@ -260,11 +260,15 @@ export function RuleBuilderView() {
   useEffect(() => { load(); }, [load]);
 
   const handleSave = async (data: TechRuleInsert) => {
-    const payload = editId ? { ...data, id: editId } : data;
-    await upsertTechRule(payload);
-    toast.success(editId ? 'Rule updated' : 'Rule created');
-    setEditId(null);
-    await load();
+    try {
+      const payload = editId ? { ...data, id: editId } : data;
+      await upsertTechRule(payload);
+      toast.success(editId ? 'Rule updated' : 'Rule created');
+      setEditId(null);
+      await load();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save rule');
+    }
   };
 
   const handleDelete = async (rule: TechRule) => {

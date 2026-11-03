@@ -7,20 +7,6 @@ import {
 } from '../src/lib/citrixStorage';
 import { DiscrepancyReport, TechnicianPreferences } from '../src/lib/clinical/types';
 
-// In Node 22+ environments without a browser DOM, ensure localStorage is cleanly defined without experimental warnings
-if (typeof window === 'undefined' || typeof localStorage === 'undefined' || !localStorage.clear) {
-  const store = new Map<string, string>();
-  Object.defineProperty(globalThis, 'localStorage', {
-    value: {
-      getItem: (key: string) => store.get(key) ?? null,
-      setItem: (key: string, value: string) => store.set(key, String(value)),
-      removeItem: (key: string) => store.delete(key),
-      clear: () => store.clear(),
-    },
-    writable: true,
-    configurable: true,
-  });
-}
 
 function createMockDirectoryHandle() {
   const files = new Map<string, string>();

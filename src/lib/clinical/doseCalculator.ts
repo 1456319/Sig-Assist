@@ -41,7 +41,10 @@ function parseCountToken(token: string): number {
 
 function quantityFromStrength(drug: string, prose: string): { count: number; label: string; total: string } | undefined {
   if (/[-/+]/.test(drug) || !/\b(?:BY MOUTH|ORALLY|PO)\b/.test(prose)) return undefined;
-  const strengths = [...drug.matchAll(/(?<![\d.])(\d+(?:\.\d+)?)\s*(MCG|MEQ|MG|GM|G)\b/g)];
+  const normalizedDrug = drug
+    .replace(/(\d+(?:\.\d+)?)\s*\([^)]*\)\s*(MCG|MEQ|MG|GM|G)\b/gi, '$1 $2')
+    .replace(/\([^)]*(?:FE|IRON|CA|CALCIUM|ELEMENTAL)[^)]*\)/gi, '');
+  const strengths = [...normalizedDrug.matchAll(/(?<![\d.])(\d+(?:\.\d+)?)\s*(MCG|MEQ|MG|GM|G)\b/g)];
   const dose = prose.match(/\b(?:GIVE|TAKE|ADMINISTER)\s+(\d+(?:\.\d+)?)\s*(MCG|MEQ|MG|GM|G)\b/);
   if (strengths.length !== 1 || !dose) return undefined;
   const strength = strengths[0];
@@ -148,7 +151,7 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
   const enteralRoute = tubeRoute || 'PO';
   const solidRoute = tubeRoute || (sublingual ? oral ? 'PO/SL' : 'SL' : 'PO');
   const peg = resolvePegPreparation(upperDrug, fullProse, oral || !!tubeRoute ? enteralRoute : undefined);
-  if (peg) return { doseToken: 'ADM 17GM', routeToken: enteralRoute, abnormalities, isApap, apapLimitToken, ...peg };
+  if (peg) return { doseToken: peg.preparationTemplate.includes('PACKET') ? '1PKT' : 'ADM 17GM', routeToken: enteralRoute, abnormalities, isApap, apapLimitToken, ...peg };
 
   if (/\b(?:VAGINALLY|PV)\b/.test(upperProse)) {
     const amount = upperProse.match(/^INSERT\s+(\d+(?:\.\d+)?)\s*(?:GRAMS?|GMS?|G)\b/);

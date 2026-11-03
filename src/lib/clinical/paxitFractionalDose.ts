@@ -7,7 +7,7 @@ export function splitMixedTabletDose(drugName: string, prose: string): { parts: 
   const count = normalized.match(/^(?:GIVE|TAKE)\s+(1\.(?:25|5|75)|1[ -](?:1\/4|1\/2|3\/4))\s+(?:TABLETS?|TABS?)\s+(?:BY MOUTH|ORALLY|PO)\s+/);
   if (!count || /\b(?:THEN|MAY|TAKE|GIVE|ADMINISTER)\b|\bAND\s+\d/.test(normalized.slice(count[0].length))
       || /\b(?:TABLETS?|TABS?)\b/.test(normalized.slice(count[0].length))) return undefined;
-  const strengths = [...drugName.toUpperCase().matchAll(/(\d+(?:\.\d+)?)\s*(MG|MCG|GM)\b/g)];
+  const strengths = [...drugName.toUpperCase().matchAll(/(\d*\.?\d+)\s*(MG|MCG|GM)\b/g)];
   if (strengths.length !== 1 || Number(strengths[0][1]) <= 0) return undefined;
   const fraction = count[1].includes('/') ? count[1].slice(2).split('/').map(Number) : undefined;
   const quantity = fraction ? 1 + fraction[0] / fraction[1] : Number(count[1]);

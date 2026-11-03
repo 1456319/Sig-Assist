@@ -37,7 +37,7 @@ function Test-BrowserLauncher([string]$Launcher, [string]$ExpectedMarker = 'Preb
 
 try {
     New-Item -ItemType Directory -Path $demo, $legacy, $incomplete, (Join-Path $source 'windows') -Force | Out-Null
-    Copy-Item (Join-Path $root 'start-windows.bat'), (Join-Path $root 'preview-windows.bat') $source
+    Copy-Item (Join-Path $root 'start-windows.bat'), (Join-Path $root 'preview-windows.bat'), (Join-Path $root 'start-iguana-connector.bat') $source
     foreach ($filename in @('Start-Sig-Assist.bat', 'Start-Iguana-Connector.bat', 'Serve-Demo.ps1', 'index.html')) {
         Copy-Item (Join-Path $root "windows-demo/$filename") $demo
     }
@@ -56,6 +56,7 @@ try {
     Test-BrowserLauncher "$unc\source folder !\windows-demo\Start-Iguana-Connector.bat" 'Using Node.js:'
     Test-BrowserLauncher "$unc\source folder !\start-windows.bat"
     Test-BrowserLauncher "$unc\source folder !\preview-windows.bat"
+    Test-BrowserLauncher "$unc\source folder !\start-iguana-connector.bat" 'Using Node.js:'
     Test-BrowserLauncher "$unc\source folder !\windows\Start-Sig-Assist.cmd"
     Test-BrowserLauncher "$unc\source folder !\windows-demo\Start-Sig-Assist.cmd"
     Test-BrowserLauncher "$unc\legacy folder !\Start-Sig-Assist.cmd"
