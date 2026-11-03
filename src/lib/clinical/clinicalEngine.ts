@@ -9,6 +9,7 @@ import { translateRecognizedPhrases } from './partialTranslation';
 import { mergeRepeatedSolidDirections } from './repeatedDirections';
 import { splitMixedTabletDose } from './paxitFractionalDose';
 import { applyOutputCodePolicy } from './outputCodePolicy';
+import { isTreatmentOrder, processTreatmentOrder } from './treatmentEngine';
 
 function assembleSig(
   drugName: string,
@@ -170,6 +171,30 @@ function translateClinicalSigInternal(inbound: InboundOrder, preferences?: Parti
       drugName: inbound.drugName,
       rawProseLength: inbound.rawProse.length
     }, undefined, traceId);
+
+    // Case 0: Treatment orders (wound care, cleansing, dressings, leave open to air)
+    if (isTreatmentOrder(inbound.drugName, inbound.rawProse)) {
+      const treatmentRes = processTreatmentOrder(inbound.drugName, inbound.rawProse);
+      const subOrders: SubOrderResult[] = treatmentRes.subOrders.map((sub, idx) => ({
+        id: treatmentRes.subOrders.length > 1 ? `${inbound.id}_split_${idx + 1}` : `${inbound.id}_single`,
+        label: sub.label,
+        suggestedSig: sub.sig,
+        abnormalities: treatmentRes.abnormalities
+      }));
+
+      traceLogger.info('clinical', 'clinicalEngine', 'Formulated treatment order clinical SIG', {
+        primarySig: treatmentRes.primarySig,
+        subOrdersCount: subOrders.length,
+        abnormalitiesCount: treatmentRes.abnormalities.length
+      }, undefined, traceId);
+
+      return {
+        primarySig: treatmentRes.primarySig,
+        subOrders,
+        abnormalities: treatmentRes.abnormalities,
+        traceId
+      };
+    }
 
     const paxitEval = evaluatePaxitPackaging(inbound.drugName, inbound.rawProse);
 
