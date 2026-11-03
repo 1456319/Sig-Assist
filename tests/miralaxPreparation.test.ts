@@ -25,6 +25,24 @@ describe('Miralax and PEG 3350 preparation and mutation', () => {
     expect(result.abnormalities.some(a => a.id.startsWith('abn_manual'))).toBe(false);
   });
 
+  it('handles markdown bold asterisks in dilution directions', () => {
+    const result = translate(
+      'Polyethylene Glycol 3350 Powder',
+      'Give 17 gram by mouth in the morning for Constipation **Mix in 4-8oz of non-carbonated liquid**'
+    );
+    expect(result.primarySig).toBe(
+      'MIX 17 GM (SEE INSIDE CAP) IN 4-8OZ OF NON-CARBONATED LIQUID AND GIVE PO QAM FCON'
+    );
+  });
+
+  it('infers jar formulation for Miralax when no formulation is specified in drug or prose', () => {
+    const result = translate(
+      'MIRALAX',
+      'Give 17 gram by mouth daily for Constipation'
+    );
+    expect(result.primarySig).toBe('MIX 17 GM (SEE INSIDE CAP) IN 8OZ OF WATER AND GIVE PO QD FCON');
+  });
+
   it('defaults to 238g jar (SEE INSIDE CAP) when no formulation is specified in drug or sig', () => {
     const result = translate(
       'Polyethylene Glycol 3350 Powder',
