@@ -45,4 +45,11 @@ describe('packaging restrictions across generation and review', () => {
   it('keeps custom route exclusions atomic for established PO/SL combined codes', () => {
     expect(applyOutputCodePolicy('1T PO/SL QD', [{ kind: 'code', value: 'PO' }]).sig).toBe('1T PO/SL QD');
   });
+  it('supports multi-word exclusions with spaces (e.g. 3 ML -> 1 VIAL)', () => {
+    const result = applyOutputCodePolicy('GIVE 3 ML PO QD', [
+      { kind: 'code', value: '3 ML', replacement: '1 VIAL' },
+    ]);
+    expect(result.sig).toBe('GIVE 1 VIAL PO QD');
+    expect(result.changes).toContain('3 ML → 1 VIAL');
+  });
 });
