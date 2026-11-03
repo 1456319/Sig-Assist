@@ -9,6 +9,7 @@ import { translateRecognizedPhrases } from './partialTranslation';
 import { mergeRepeatedSolidDirections } from './repeatedDirections';
 import { splitMixedTabletDose } from './paxitFractionalDose';
 import { applyOutputCodePolicy } from './outputCodePolicy';
+import { resolveTreatmentOrder } from './treatmentOrderEngine';
 
 function assembleSig(
   drugName: string,
@@ -170,6 +171,66 @@ function translateClinicalSigInternal(inbound: InboundOrder, preferences?: Parti
       drugName: inbound.drugName,
       rawProseLength: inbound.rawProse.length
     }, undefined, traceId);
+
+    const treatmentEval = resolveTreatmentOrder(inbound.drugName, inbound.rawProse);
+    if (treatmentEval) {
+      if (treatmentEval.isSplit && treatmentEval.splitParts.length >= 2) {
+        const subOrders: SubOrderResult[] = treatmentEval.splitParts.map((part, index) => ({
+          id: `${inbound.id}_split_${index + 1}`,
+          label: part.label,
+          suggestedSig: part.sig,
+          abnormalities: part.abnormalities
+        }));
+        const allAbnormalities: AbnormalityFinding[] = [
+          ...treatmentEval.abnormalities,
+          ...subOrders.flatMap(s => s.abnormalities),
+          {
+            id: `treatment_order_split_${inbound.id}`,
+            tier: 'applied_correction',
+            title: 'Treatment Order Routine and PRN Split',
+            message: 'The treatment order directions contain both a scheduled routine application and a PRN application. Split into independent routine and PRN orders for FrameworkLTC entry.',
+            correction: `Split 1: ${subOrders[0].suggestedSig} | Split 2: ${subOrders[1].suggestedSig}`,
+            trigger: inbound.rawProse
+          }
+        ];
+        const unifiedSig = `${subOrders[0].suggestedSig} **SPLIT** ${subOrders[1].suggestedSig}`;
+        traceLogger.info('clinical', 'clinicalEngine', 'Formulated split sub-orders for treatment order', {
+          primarySig: unifiedSig,
+          subOrdersCount: subOrders.length,
+          abnormalitiesCount: allAbnormalities.length
+        }, undefined, traceId);
+        return {
+          primarySig: unifiedSig,
+          subOrders,
+          abnormalities: allAbnormalities,
+          traceId
+        };
+      }
+
+      // Single treatment order
+      const abnormalities: AbnormalityFinding[] = [
+        ...treatmentEval.abnormalities,
+        {
+          id: `treatment_order_${inbound.id}`,
+          tier: 'applied_correction',
+          title: 'Wound Care Treatment Order Formatted',
+          message: 'Treatment directions formatted with condensed procedural syntax to satisfy the 199-character limit.',
+          correction: treatmentEval.singleSig!,
+          trigger: inbound.rawProse
+        }
+      ];
+      return {
+        primarySig: treatmentEval.singleSig!,
+        subOrders: [{
+          id: `${inbound.id}_single`,
+          label: 'Order 1 of 1',
+          suggestedSig: treatmentEval.singleSig!,
+          abnormalities
+        }],
+        abnormalities,
+        traceId
+      };
+    }
 
     const paxitEval = evaluatePaxitPackaging(inbound.drugName, inbound.rawProse);
 
