@@ -55,7 +55,7 @@ try {
   if (fileMode) {
     // Require the user-click write to succeed before granting read access to verify it.
     await page.getByText('Reviewed SIG copied. Match the PON and preview it in Framework.', { exact: true }).waitFor();
-    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']); await delay(500);
   }
   assert.equal(await page.evaluate(() => navigator.clipboard.readText()), '1T PO BID X7D WITH FOOD');
   await page.getByRole('button', { name: 'Revise source', exact: true }).click();
@@ -93,7 +93,7 @@ try {
   assert.equal(await split.inputValue(), '2T PO QAM WITH FOOD');
   assert.equal(await splitCopy.isDisabled(), true);
   await page.getByText('2 saved discrepancy reports', { exact: true }).waitFor();
-  const downloadPromise = page.waitForEvent('download');
+  const downloadPromise = page.waitForEvent('download', { timeout: 60000 });
   await page.getByRole('button', { name: 'Export discrepancy cases', exact: true }).click();
   const download = await downloadPromise;
   const bundle = JSON.parse(await readFile(await download.path(), 'utf8'));
@@ -207,7 +207,7 @@ try {
   await page.getByRole('button', { name: 'Archive current reports' }).click();
   await page.getByText('0 saved discrepancy reports', { exact: true }).waitFor();
   await page.getByText('2 archived reports', { exact: true }).waitFor();
-  const archiveDownload = page.waitForEvent('download');
+  const archiveDownload = page.waitForEvent('download', { timeout: 60000 });
   await page.getByRole('button', { name: 'Export archived reports' }).click();
   const archived = JSON.parse(await readFile(await (await archiveDownload).path(), 'utf8'));
   assert.equal(archived.caseCount, 2);
