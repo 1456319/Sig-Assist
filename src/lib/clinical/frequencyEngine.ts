@@ -241,8 +241,12 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     frequencyToken = 'QDA/B';
   } else if (scheduleProse.includes('AFTER DINNER')) {
     frequencyToken = scheduleProse.includes('IN THE EVENING') ? 'QDP/D IN THE EVENING' : 'QDP/D';
-  } else if (/\bBEFORE MEALS AND AT BEDTIME\b/.test(scheduleProse)) {
+  } else if (/\b(?:AFTER\s+(?:EACH\s+)?MEALS?\s+(?:AND|&)\s+(?:AT\s+)?BEDTIME|PCHS)\b/i.test(scheduleProse)) {
+    frequencyToken = 'PCHS';
+  } else if (/\b(?:BEFORE\s+(?:EACH\s+)?MEALS?\s+(?:AND|&)\s+(?:AT\s+)?BEDTIME|ACHS)\b/i.test(scheduleProse)) {
     frequencyToken = 'ACHS';
+  } else if (/\b(?:WITH\s+(?:EACH\s+)?MEALS?\s+(?:AND|&)\s+(?:AT\s+)?BEDTIME|WMHS)\b/i.test(scheduleProse)) {
+    frequencyToken = 'WMHS';
   } else if (scheduleProse.includes('AT BEDTIME') || /\bBEDTIME\b/i.test(scheduleProse) || /\bQHS\b/i.test(scheduleProse)) {
     frequencyToken = 'QHS';
   } else if (scheduleProse.includes('EVERY MORNING') || scheduleProse.includes('IN THE MORNING') || /\bQAM\b/i.test(scheduleProse)) {
@@ -264,7 +268,7 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     frequencyToken = 'QID';
   } else if (/\b(?:THREE|3) TIMES (?:A|PER|EACH) DAY\b|\bTID\b/.test(scheduleProse)) {
     frequencyToken = 'TID';
-  } else if (/\b(?:TWO|2) TIMES (?:A|PER|EACH) DAY\b|\bTWICE DAILY\b|\bBID\b/.test(scheduleProse)) {
+  } else if (/\b(?:TWO|2)\s+TIMES\s+(?:A|PER|EACH)\s+DAY\b|\bTWICE\s+(?:A\s+DAY|DAILY)\b|\bBID\b/i.test(scheduleProse)) {
     frequencyToken = 'BID';
   } else if (/\b(?:(?:ONE|1) TIME ONLY|ONCE ONLY|X1)\b/.test(scheduleProse)) {
     frequencyToken = /\bONLY\b/.test(scheduleProse) ? 'X1 ONLY' : 'X1';
@@ -272,18 +276,40 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     frequencyToken = 'QD';
   }
 
-  if (/\bBEFORE MEALS\b/.test(scheduleProse)) {
-    const mealCodes: Record<string, string> = { QD: 'QDAC', BID: 'BIDAC', TID: 'TIDAC', QID: 'QIDAC' };
-    if (mealCodes[frequencyToken] && SIG_CODE_REFERENCE[mealCodes[frequencyToken]]) frequencyToken = mealCodes[frequencyToken];
-    else if (!frequencyToken) {
-      frequencyToken = 'TIDAC';
-      abnormalities.push({ id: 'before_meals_schedule', tier: 'applied_correction', title: 'Before-Meals Schedule Applied',
-        message: 'Before meals was represented as TIDAC using the site convention. Verify three meals per day for this order.', correction: 'BEFORE MEALS → TIDAC', trigger: rawProse });
-    } else if (frequencyToken !== 'ACHS') frequencyToken += ' BEFORE MEALS';
+  if (/\bAFTER\s+(?:EACH\s+)?MEALS?\b|\bPC\b/i.test(scheduleProse)) {
+    if (frequencyToken !== 'PCHS') {
+      if (!frequencyToken || frequencyToken === 'TID') {
+        frequencyToken = 'PC';
+      } else {
+        frequencyToken = `${frequencyToken} PC`.trim();
+      }
+    }
+  } else if (/\bBEFORE\s+(?:EACH\s+)?MEALS?\b|\bAC\b/i.test(scheduleProse)) {
+    if (frequencyToken !== 'ACHS') {
+      const mealCodes: Record<string, string> = { QD: 'QDAC', BID: 'BIDAC', TID: 'TIDAC', QID: 'QIDAC' };
+      if (mealCodes[frequencyToken] && SIG_CODE_REFERENCE[mealCodes[frequencyToken]]) {
+        frequencyToken = mealCodes[frequencyToken];
+      } else if (!frequencyToken) {
+        frequencyToken = 'TIDAC';
+        abnormalities.push({
+          id: 'before_meals_schedule',
+          tier: 'applied_correction',
+          title: 'Before-Meals Schedule Applied',
+          message: 'Before meals was represented as TIDAC using the site convention. Verify three meals per day for this order.',
+          correction: 'BEFORE MEALS → TIDAC',
+          trigger: rawProse,
+        });
+      } else {
+        frequencyToken += ' BEFORE MEALS';
+      }
+    }
   }
-  if (frequencyToken && /\bWITH MEALS\b/.test(scheduleProse)) {
-    const code = ({ QD: 'WMQD', BID: 'WMBID', TID: 'WMTID' } as Record<string, string>)[frequencyToken];
-    frequencyToken = code && SIG_CODE_REFERENCE[code] ? code : `${frequencyToken} WM`.trim();
+
+  if (frequencyToken && (/\bWITH\s+(?:EACH\s+)?MEALS?\b/i.test(scheduleProse) || /\bWM\b/.test(scheduleProse))) {
+    if (frequencyToken !== 'WMHS') {
+      const code = ({ QD: 'WMQD', BID: 'WMBID', TID: 'WMTID' } as Record<string, string>)[frequencyToken];
+      frequencyToken = code && SIG_CODE_REFERENCE[code] ? code : `${frequencyToken} WM`.trim();
+    }
   }
   if (frequencyToken && /\bON AN? EMPTY STOMACH\b/.test(scheduleProse)) frequencyToken = `${frequencyToken} ON AN EMPTY STOMACH`.trim();
 

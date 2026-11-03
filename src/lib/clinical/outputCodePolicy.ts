@@ -1,4 +1,4 @@
-import { SIG_CODE_REFERENCE } from './sigCodeReference';
+import { SIG_CODE_REFERENCE, EQUIVALENT_SIG_CODES } from './sigCodeReference';
 import type { SigExclusionPreference } from './types';
 
 // Site-reported restrictions, not a claim of a complete vendor blacklist.
@@ -41,11 +41,42 @@ export function applyOutputCodePolicy(sig: string, exclusions: readonly SigExclu
   output = output.replace(/\bFNA\s+(?:AND|OR)\s+FVOM\b/g, () => {
     changes.add('FNA/FVOM → FNV (site packaging convention)'); return 'FNV';
   });
-  const rules = [
+
+  const excludedCodes = new Set(
+    exclusions.filter(e => e.kind === 'code').map(e => normalized(e.value))
+  );
+  const excludedSigs = new Set(
+    exclusions.filter(e => e.kind === 'sig').map(e => normalized(e.value))
+  );
+
+  const rules: { code: string; replacement: string; hard: boolean }[] = [
     ...PRECOMPUTED_REJECTED_RULES,
-    ...exclusions.filter(e => e.kind === 'code' && normalized(e.value) && !(normalized(e.value) in REJECTED_OUTPUT_CODES))
-      .map(e => ({ code: normalized(e.value), replacement: normalized(e.replacement || SIG_CODE_REFERENCE[normalized(e.value)] || ''), hard: false })),
   ];
+
+  for (const e of exclusions) {
+    if (e.kind !== 'code') continue;
+    const code = normalized(e.value);
+    if (!code || code in REJECTED_OUTPUT_CODES) continue;
+
+    if (e.replacement) {
+      rules.push({ code, replacement: normalized(e.replacement), hard: false });
+    } else {
+      // Find candidate equivalent codes
+      const equivalents = EQUIVALENT_SIG_CODES[code] || [code];
+      const nextCode = equivalents.find(
+        c => c !== code && !excludedCodes.has(c) && !(c in REJECTED_OUTPUT_CODES)
+      );
+
+      if (nextCode) {
+        rules.push({ code, replacement: nextCode, hard: false });
+      } else {
+        // If all codes are blacklisted, fallback to verbatim expansion
+        const verbatim = SIG_CODE_REFERENCE[code] || '';
+        rules.push({ code, replacement: verbatim, hard: false });
+      }
+    }
+  }
+
   // A replacement can itself be excluded. Iterate boundedly and suppress an
   // unresolved/cyclic suggestion instead of deleting a clinical instruction.
   for (let pass = 0; pass <= rules.length; pass++) {
@@ -62,7 +93,51 @@ export function applyOutputCodePolicy(sig: string, exclusions: readonly SigExclu
     }
     if (!changed) break;
   }
+
+  // 2. Handle excluded complete SIGs (e.g. technician selected "Never use this SIG")
+  if (excludedSigs.has(output) || excludedSigs.has(normalized(sig))) {
+    let alternateFound = false;
+
+    // Phase 1: Try alternate duplicate codes first
+    for (const [code, equivalents] of Object.entries(EQUIVALENT_SIG_CODES)) {
+      if (tokenPattern(code).test(output)) {
+        for (const alt of equivalents) {
+          if (alt === code || excludedCodes.has(alt) || alt in REJECTED_OUTPUT_CODES) continue;
+          const candidateSig = output.replace(tokenPattern(code), `$1${alt}`);
+          if (!excludedSigs.has(candidateSig)) {
+            changes.add(`${code} → ${alt} (alternate equivalent code for excluded SIG)`);
+            output = candidateSig;
+            alternateFound = true;
+            break;
+          }
+        }
+        if (alternateFound) break;
+      }
+    }
+
+    // Phase 2: If no alternate duplicate code works, try verbatim fallback
+    if (!alternateFound) {
+      for (const [code] of Object.entries(EQUIVALENT_SIG_CODES)) {
+        if (tokenPattern(code).test(output)) {
+          const verbatim = SIG_CODE_REFERENCE[code];
+          if (verbatim) {
+            const candidateSig = output.replace(tokenPattern(code), `$1${verbatim}`);
+            if (!excludedSigs.has(candidateSig)) {
+              changes.add(`${code} → ${verbatim} (verbatim fallback, all codes blacklisted)`);
+              output = candidateSig;
+              alternateFound = true;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    if (!alternateFound && (excludedSigs.has(output) || excludedSigs.has(normalized(sig)))) {
+      unresolved.add('excluded complete SIG');
+    }
+  }
+
   for (const rule of rules) if (tokenPattern(rule.code, rule.hard).test(output)) unresolved.add(rule.code);
-  if (exclusions.some(e => e.kind === 'sig' && [normalized(sig), output].includes(normalized(e.value)))) unresolved.add('excluded complete SIG');
   return { sig: unresolved.size ? '' : output, changes: [...changes], unresolved: [...unresolved] };
 }
