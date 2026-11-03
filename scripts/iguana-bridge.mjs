@@ -143,8 +143,8 @@ export async function startBridge({ port = 4190, htmlPath = path.join(here, '../
       if (startup.fallbackFrom) onNotice(`Port ${port} is occupied. Using port ${actualPort}. Saved browser cases stay at their original address; close your earlier Sig-Assist connector and relaunch to return there.`);
       return { server, reused: false, port: actualPort, url: `http://127.0.0.1:${actualPort}/` };
     } catch (error) {
-      if (error.code !== 'EADDRINUSE') throw error;
-      if (profile.ok && await matchingBridge(candidate, profile.sha256)) {
+      if (!['EADDRINUSE', 'EACCES'].includes(error.code)) throw error;
+      if (error.code === 'EADDRINUSE' && profile.ok && await matchingBridge(candidate, profile.sha256)) {
         onNotice(`Reusing the matching Sig-Assist connector already running on port ${candidate}. Keep its original console window open.`);
         return { server: null, reused: true, port: candidate, url: `http://127.0.0.1:${candidate}/` };
       }
