@@ -9,31 +9,21 @@ export function resolvePegPreparation(drug: string, prose: string, route?: strin
 
   const drugHasPacket = /\b(?:PACKETS?|PKT)\b/i.test(drug);
   const proseHasPacket = /\b(?:PACKETS?|PKT)\b/i.test(prose);
-  const proseHasCap = /\b(?:CAP|CAPS?|CAPFUL|SEE INSIDE CAP)\b/i.test(prose);
+  const proseHasCap = /\b(?:CAPS?|CAPFULS?|SEE INSIDE CAP)\b/i.test(prose);
 
-  // If no formulation is specified, look for "PACKET" or "CAP" in SIG to determine
-  // if jar or packet formulation is to be dispensed. If not specified in SIG,
-  // assume 238-gram jar is being dispensed (not packets).
-  let packet = false;
-  if (drugHasPacket) {
-    packet = true;
-  } else if (proseHasPacket) {
-    packet = true;
-  } else if (proseHasCap) {
-    packet = false;
-  } else {
-    packet = false;
-  }
+  // If no formulation is specified in drug, look for "PACKET" or "CAP" in SIG.
+  // If not specified in SIG, default to 238-gram bulk jar (packet = false).
+  const packet = drugHasPacket || (proseHasPacket && !proseHasCap);
 
   if (packet) {
     if (drugHasPacket && !/\b17(?:\.0+)?\s*(?:GM|GRAMS?|G)\b/i.test(drug)) return;
     if (!/^(?:GIVE|TAKE|ADMINISTER)\s+1\s+PACKET\b/i.test(prose)) return;
   } else {
-    if (!/^(?:GIVE|TAKE|ADMINISTER)\s+(?:17(?:\.0+)?\s*(?:GRAMS?|GMS?|G)|(?:1\s+)?(?:CAPFUL?|CAP)|1\s+SCOOP)\b/i.test(prose)) return;
+    if (!/^(?:GIVE|TAKE|ADMINISTER)\s+(?:17(?:\.0+)?\s*(?:GRAMS?|GMS?|G)|(?:1\s+)?(?:CAPFULS?|CAPS?)|1\s+SCOOP)\b/i.test(prose)) return;
   }
 
   const mixVol = prose.match(/\b(?:MIX|DISSOLVE|STIR)\s+(?:WITH|IN|INTO)\s+(?:(?:A\s+)?MINIMUM\s+OF\s+)?(4\s*(?:-|TO)\s*8|[4-8])\s*(?:OZ|OUNCES?|FL\s*OZ|FLUID\s*OUNCES?)\s*(?:OF\s+)?((?:[A-Z-]+(?:\s+[A-Z-]+)*\s+)?(?:WATER|JUICE|LIQUID|BEVERAGE))\b/i);
-  const mixNoVol = !mixVol ? prose.match(/\b(?:MIX|DISSOLVE|STIR)\s+(?:WITH|IN|INTO)\s*(?:OF\s+)?(?!\d|\b(?:A\s+)?(?:MINIMUM|MAXIMUM|FEW|SEVERAL|COUPLE)\b)((?:[A-Z-]+(?:\s+[A-Z-]+)*\s+)?(?:WATER|JUICE|LIQUID|BEVERAGE))\b/i) : null;
+  const mixNoVol = !mixVol ? prose.match(/\b(?:MIX|DISSOLVE|STIR)\s+(?:WITH|IN|INTO)\s*(?:OF\s+)?(?!\d|\b(?:A\s+)?(?:MINIMUM|MAXIMUM|FEW|SEVERAL|COUPLE)\b)(?:(?:A\s+)?(?:GLASS|CUP)\s+(?:OF\s+)?)?((?:[A-Z-]+(?:\s+[A-Z-]+)*\s+)?(?:WATER|JUICE|LIQUID|BEVERAGE))\b/i) : null;
   const inLiquid = !mixVol && !mixNoVol ? prose.match(/\bIN LIQUID\b/i) : null;
 
   const explicit = mixVol || mixNoVol || inLiquid;

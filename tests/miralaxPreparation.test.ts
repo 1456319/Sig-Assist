@@ -41,12 +41,18 @@ describe('Miralax and PEG 3350 preparation and mutation', () => {
     expect(result.primarySig).toBe('MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO QAM FCON');
   });
 
-  it('detects jar formulation when CAP is in the sig prose', () => {
-    const result = translate(
+  it('detects jar formulation when CAP or CAPFUL is in the sig prose', () => {
+    const r1 = translate(
       'Polyethylene Glycol 3350 Powder',
       'Give 1 capful by mouth daily for Constipation'
     );
-    expect(result.primarySig).toBe('MIX 17 GM (SEE INSIDE CAP) IN 8OZ OF WATER AND GIVE PO QD FCON');
+    expect(r1.primarySig).toBe('MIX 17 GM (SEE INSIDE CAP) IN 8OZ OF WATER AND GIVE PO QD FCON');
+
+    const r2 = translate(
+      'Polyethylene Glycol 3350 Powder',
+      'Give 1 cap by mouth daily for Constipation'
+    );
+    expect(r2.primarySig).toBe('MIX 17 GM (SEE INSIDE CAP) IN 8OZ OF WATER AND GIVE PO QD FCON');
   });
 
   it('mutates liquid and volume for various beverages', () => {
@@ -67,6 +73,12 @@ describe('Miralax and PEG 3350 preparation and mutation', () => {
       'Give 17 gram by mouth twice daily for constipation. Mix in non-carbonated liquid'
     );
     expect(r3.primarySig).toBe('MIX 17 GM (SEE INSIDE CAP) IN 8OZ OF NON-CARBONATED LIQUID AND GIVE PO BID FCON');
+
+    const r4 = translate(
+      'Polyethylene Glycol 3350 Powder',
+      'Give 17 gram by mouth daily for constipation. Mix in a glass of water'
+    );
+    expect(r4.primarySig).toBe('MIX 17 GM (SEE INSIDE CAP) IN 8OZ OF WATER AND GIVE PO QD FCON');
   });
 
   it('mutates enteral tube route correctly', () => {
