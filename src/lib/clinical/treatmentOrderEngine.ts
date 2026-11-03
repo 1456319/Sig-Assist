@@ -22,21 +22,35 @@ export function resolveTreatmentOrder(drugName: string, rawProse: string): Treat
   const upperProse = rawProse.toUpperCase().replace(/\*+/g, ' ').replace(/\s+/g, ' ').trim();
   const upperDrug = drugName.toUpperCase().trim();
 
+  // Exclude oral solid/liquid formulations and explicit oral administration instructions
+  const isOralDosageForm =
+    /\b(?:CAPSULE|CAP|TABLET|TAB|SUSPENSION|SYRUP|ELIXIR)\b/i.test(upperDrug) &&
+    !/\b(?:TOPICAL|POWDER\s+FOR\s+TOPICAL)\b/i.test(upperDrug);
+  const hasOralProse = /\b(?:BY\s+MOUTH|PO|SWALLOW|TAKE\s+\d+|TAKE\s+ONE|TAKE\s+TWO)\b/i.test(upperProse);
+
+  if (isOralDosageForm || hasOralProse) {
+    return undefined;
+  }
+
   // Must contain wound care / treatment order procedural markers
   const hasCleanse = /\bCLEANSE\b/i.test(upperProse);
   const hasPatDry = /\bPAT\s+DRY\b/i.test(upperProse);
   const hasLeaveOta = /\bLEAVE\s+(?:OPEN\s+TO\s+AIR|OTA)\b/i.test(upperProse);
-  const hasWoundCare = /\b(?:WOUND\s+CLEANSER|WOUND\s+CARE|WOUND\s+DRESSING)\b/i.test(upperProse);
-  const hasDressing = /\b(?:XEROFORM|KERLIX|GAUZE|WRAP)\b/i.test(upperProse);
+  const hasWoundCleanser = /\b(?:WOUND\s+CLEANSER|WOUND\s+DRESSING)\b/i.test(upperProse);
+  const hasDressingVerb = /\b(?:COVER|WRAP|DRESS)\s+(?:WITH|W\/)\b/i.test(upperProse);
+  const hasDressing = /\b(?:XEROFORM|KERLIX|GAUZE|WRAP|MEPILEX|TEGADERM)\b/i.test(upperProse);
+  const hasTopicalWoundTreatment =
+    /\b(?:APPLY\s+TOPICALLY|APPLY\s+TO)\b/i.test(upperProse) &&
+    /\b(?:WOUND|MASD|SACRUM|ULCER|PRESSURE\s+INJURY|PRESSURE\s+SORE)\b/i.test(upperProse);
 
-  if (!hasCleanse && !hasPatDry && !hasLeaveOta && !hasWoundCare) {
+  if (!hasCleanse && !hasPatDry && !hasLeaveOta && !hasWoundCleanser && !hasDressingVerb && !hasTopicalWoundTreatment) {
     return undefined;
   }
 
   // 1. Site extraction:
   let site = '';
   const siteMatch1 = upperProse.match(
-    /\b(?:APPLY\s+(?:TOPICALLY\s+)?TO)\s+(?:THE\s+)?([\s\S]+?)(?=\s+(?:TOPICALLY|TPCL|EVERY|EACH|DAILY|TWICE|THREE|FOUR|\d+\s+TIMES|BID|TID|QID|QD|FOR|AS\s+NEEDED|CLEANSE)\b|[.;]|$)/i
+    /\b(?:APPLY\s+(?:TOPICALLY\s+)?TO)\s+(?:THE\s+)?([\s\S]+?)(?=\s+(?:TOPICALLY|TPCL|EVERY|EACH|DAILY|TWICE|THREE|FOUR|\d+\s+TIMES|BID|TID|QID|QD|FOR|AS\s+NEEDED|THEN|CLEANSE|PAT\s+DRY|LEAVE\s+OPEN|LEAVE\s+OTA|COVER|WRAP|AND\s+(?:LEAVE|CLEANSE|PAT|APPLY|COVER|WRAP))\b|[.;]|$)/i
   );
   const siteMatch2 = upperProse.match(/\bCLEANSE\s+(?:THE\s+)?([A-Z0-9 /-]+?)\s+(?:WITH|W\/)\b/i);
   const siteMatch3 = upperProse.match(/\bTO\s+(?:THE\s+)?([A-Z0-9 /-]+?):/i);
@@ -85,13 +99,22 @@ export function resolveTreatmentOrder(drugName: string, rawProse: string): Treat
     const postCleanseIdx = upperProse.search(/\b(?:CLEANSE|PAT\s+DRY)\b/);
     const searchScope = postCleanseIdx >= 0 ? upperProse.slice(postCleanseIdx) : upperProse;
     const applyMatch = searchScope.match(
-      /\b(?:THEN\s+)?APPLY\s+([A-Z0-9 /-]+?)(?=\s+(?:EVERY|EACH|DAILY|TWICE|THREE|FOUR|Q[/-]|QS|QD|BID|TID|QID|QAM|QPM|QHS|PRN|AS\s+NEEDED|AND\s+PRN)\b|[.,;]|$)/i
+      /\b(?:THEN\s+)?APPLY\s+([A-Z0-9 /-]+?)(?=\s+(?:EVERY|EACH|DAILY|TWICE|THREE|FOUR|\d+\s+TIMES|Q[/-]|QS|QD|BID|TID|QID|QAM|QPM|QHS|PRN|AS\s+NEEDED|AND\s+PRN)\b|[.,;]|$)/i
     );
-    if (applyMatch && applyMatch[1].trim() && !/^(?:THE\s+)?(?:SACRUM|WOUND|SITE)\b/i.test(applyMatch[1].trim())) {
+    if (
+      applyMatch &&
+      applyMatch[1].trim() &&
+      !/^(?:THE\s+)?(?:SACRUM|WOUND|SITE|AFFECTED\s+AREA)\b/i.test(applyMatch[1].trim()) &&
+      !/^(?:TOPICALLY|TPCL|TO\b|A\s+THIN\s+LAYER|THIN\s+LAYER|LIBERALLY|SPARINGLY|GENEROUSLY|EVENLY|AS\s+DIRECTED)\b/i.test(applyMatch[1].trim())
+    ) {
       applyDrug = applyMatch[1].trim();
     } else if (!isDressingOrSupply) {
-      // Core drug from product name
-      applyDrug = upperDrug.replace(/\b(?:TOPICAL|PASTE|OINTMENT|CREAM|LOTION|GEL|SOLUTION|BARRIER|SPRAY|\d+%\s*.*).*$/i, '').trim();
+      // Core drug from product name, cleanly stripping topical forms and decimal percentages
+      applyDrug = upperDrug
+        .replace(/\b(?:TOPICAL|PASTE|OINTMENT|CREAM|LOTION|GEL|SOLUTION|BARRIER|SPRAY)\b/gi, '')
+        .replace(/(?:\d+(?:\.\d+)?\s*%|\b\d+\s*%).*$/i, '')
+        .replace(/\s+/g, ' ')
+        .trim();
     }
   }
 
@@ -107,6 +130,11 @@ export function resolveTreatmentOrder(drugName: string, rawProse: string): Treat
     if (dMatch) dressing = dMatch[1].trim();
   }
 
+  // Deduplicate if product is a dressing/supply and applyDrug matches dressing
+  if (isDressingOrSupply && applyDrug && dressing && (dressing.includes(applyDrug) || applyDrug.includes(dressing))) {
+    applyDrug = '';
+  }
+
   let wrap = '';
   const wrapMatch = upperProse.match(
     /\bWRAP\s+(?:WITH|W\/)\s*([A-Z0-9 /&-]+?)(?=\s*[,.;]|\s+(?:AND|THEN|EVERY|EACH|DAILY|ONCE|TWICE|THREE|FOUR|Q[/-]|QS|QD|BID|TID|QID|QOD|Q3D|QAM|QPM|QHS|PRN|AS\s+NEEDED)\b|$)/i
@@ -117,32 +145,34 @@ export function resolveTreatmentOrder(drugName: string, rawProse: string): Treat
 
   // 5. Schedules & Split detection:
   const hasShift = /\b(?:EVERY\s+SHIFT|Q[/-]?SHIFT|QS)\b/i.test(upperProse);
-  const hasDaily = /\b(?:DAILY|ONCE\s+(?:A\s+)?DAY|EVERY\s+DAY|QD)\b/i.test(upperProse);
-  const hasBid = /\b(?:TWICE\s+(?:DAILY|A\s+)?DAY|2\s+TIMES\s+(?:A|PER)\s+DAY|BID)\b/i.test(upperProse);
-  const hasTid = /\b(?:THREE\s+TIMES\s+(?:A|PER)\s+DAY|3\s+TIMES\s+(?:A|PER)\s+DAY|TID)\b/i.test(upperProse);
-  const hasQid = /\b(?:FOUR\s+TIMES\s+(?:A|PER)\s+DAY|4\s+TIMES\s+(?:A|PER)\s+DAY|QID)\b/i.test(upperProse);
-  const hasQhs = /\b(?:AT\s+BEDTIME|BEDTIME|QHS)\b/i.test(upperProse);
-  const hasQam = /\b(?:IN\s+THE\s+MORNING|EVERY\s+MORNING|QAM)\b/i.test(upperProse);
-  const hasQod = /\b(?:EVERY\s+OTHER\s+DAY|QOD)\b/i.test(upperProse);
+  const hasQid = /\b(?:FOUR\s+TIMES\s+(?:A\s+DAY|DAILY)|4\s+TIMES\s+(?:A|PER)\s+DAY|QID)\b/i.test(upperProse);
+  const hasTid = /\b(?:THREE\s+TIMES\s+(?:A\s+DAY|DAILY)|3\s+TIMES\s+(?:A|PER)\s+DAY|TID)\b/i.test(upperProse);
+  const hasBid = /\b(?:TWICE\s+(?:A\s+DAY|DAILY)|2\s+TIMES\s+(?:A|PER)\s+DAY|BID)\b/i.test(upperProse);
   const hasQ3d = /\b(?:EVERY\s+(?:3|THREE)\s+DAYS?|Q3D)\b/i.test(upperProse);
+  const hasQod = /\b(?:EVERY\s+OTHER\s+DAY|QOD)\b/i.test(upperProse);
   const hasBiw = /\b(?:TWICE\s+(?:A\s+)?WEEK|2\s+TIMES\s+(?:A|PER)\s+WEEK|BIW)\b/i.test(upperProse);
   const hasWeekly = /\b(?:WEEKLY|ONCE\s+(?:A\s+)?WEEK|QWEEK)\b/i.test(upperProse);
+  const hasQhs = /\b(?:AT\s+BEDTIME|BEDTIME|QHS)\b/i.test(upperProse);
+  const hasQam = /\b(?:IN\s+THE\s+MORNING|EVERY\s+MORNING|QAM)\b/i.test(upperProse);
+  const hasDaily = /\b(?:DAILY|ONCE\s+(?:A\s+)?DAY|EVERY\s+DAY|QD)\b/i.test(upperProse);
   const hasPrn = /\b(?:AS\s+NEEDED|PRN|AND\s+PRN)\b/i.test(upperProse);
 
+  // Multi-dose schedules evaluated before QD to prevent substring collision with DAILY
   const routineFreq = hasShift ? 'QS'
+    : hasQid ? 'QID'
+    : hasTid ? 'TID'
+    : hasBid ? 'BID'
     : hasQ3d ? 'Q3D'
     : hasQod ? 'QOD'
     : hasBiw ? 'BIW'
     : hasWeekly ? 'QWEEK'
-    : hasDaily ? 'QD'
-    : hasBid ? 'BID'
-    : hasTid ? 'TID'
-    : hasQid ? 'QID'
     : hasQhs ? 'QHS'
     : hasQam ? 'QAM'
+    : hasDaily ? 'QD'
     : '';
 
   const isSplit = Boolean(routineFreq && hasPrn);
+  const abnormalities: AbnormalityFinding[] = [];
 
   function formatSig(freqToken: string): string {
     const proceduralParts: string[] = [];
@@ -152,10 +182,11 @@ export function resolveTreatmentOrder(drugName: string, rawProse: string): Treat
     if (hasPatDry) {
       proceduralParts.push('PAT DRY');
     }
+    const thenPrefix = proceduralParts.length > 0 ? 'THEN ' : '';
     if (hasLeaveOta) {
-      proceduralParts.push('THEN LEAVE OPEN TO AIR');
+      proceduralParts.push(`${thenPrefix}LEAVE OPEN TO AIR`);
     } else if (applyDrug) {
-      proceduralParts.push(`THEN APPLY ${applyDrug}`);
+      proceduralParts.push(`${thenPrefix}APPLY ${applyDrug}`);
     }
     if (dressing) {
       proceduralParts.push(`COVER W/${dressing}`);
@@ -178,10 +209,19 @@ export function resolveTreatmentOrder(drugName: string, rawProse: string): Treat
       full = full.replace(/\bTHEN APPLY\b/g, 'APPLY');
       full = full.replace(/\bCOVER W\/\b/g, 'COVER:');
     }
+
+    if (full.length > 199) {
+      abnormalities.push({
+        id: 'treatment_order_length_exceeded',
+        tier: 'potential_error',
+        title: 'Treatment Sig Exceeds 199 Characters',
+        message: `The formatted treatment order is ${full.length} characters long and exceeds FrameworkLTC's 199-character limit. Manual technician condensation required.`,
+        trigger: full
+      });
+    }
+
     return full;
   }
-
-  const abnormalities: AbnormalityFinding[] = [];
 
   if (isSplit) {
     const splitParts: TreatmentSplitPart[] = [

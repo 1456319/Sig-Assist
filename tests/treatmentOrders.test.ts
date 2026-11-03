@@ -92,4 +92,46 @@ describe('Wound care treatment orders and routine/PRN splitting', () => {
     expect(result.primarySig).toContain('SOAP&WATER');
     expect(result.primarySig).toContain('LEAVE OTA');
   });
+
+  it('correctly maps multi-dose frequencies (BID, TID, QID) without collapsing to QD', () => {
+    const rawBid = 'Cleanse sacrum with wound cleanser, pat dry, apply zinc oxide twice daily';
+    const resBid = translate('Zinc Oxide Topical Paste 20 %', rawBid);
+    expect(resBid.primarySig).toBe('TO SACRUM:CLEANSE W/WOUND CLEANSER,PAT DRY,THEN APPLY ZINC OXIDE BID');
+
+    const rawTid = 'Cleanse sacrum with wound cleanser, pat dry, apply zinc oxide 3 times a day';
+    const resTid = translate('Zinc Oxide Topical Paste 20 %', rawTid);
+    expect(resTid.primarySig).toBe('TO SACRUM:CLEANSE W/WOUND CLEANSER,PAT DRY,THEN APPLY ZINC OXIDE TID');
+
+    const rawQid = 'Cleanse sacrum with wound cleanser, pat dry, apply zinc oxide four times daily';
+    const resQid = translate('Zinc Oxide Topical Paste 20 %', rawQid);
+    expect(resQid.primarySig).toBe('TO SACRUM:CLEANSE W/WOUND CLEANSER,PAT DRY,THEN APPLY ZINC OXIDE QID');
+  });
+
+  it('does NOT hijack oral systemic medications prescribed for wound care', () => {
+    const rawOral = 'Take 1 capsule by mouth daily for wound care';
+    const resOral = translate('Cephalexin 500 mg Capsule', rawOral);
+    expect(resOral.primarySig).not.toContain('THEN APPLY');
+    expect(resOral.primarySig).toContain('PO');
+  });
+
+  it('cleans decimal percentage strengths without leaving dangling decimal points', () => {
+    const raw = 'Cleanse left hip with soap and water, pat dry, apply hydrocortisone every shift';
+    const res = translate('Hydrocortisone 2.5% Cream', raw);
+    expect(res.primarySig).toBe('TO LT HIP:CLEANSE W/SOAP AND WATER,PAT DRY,THEN APPLY HYDROCORTISONE QS');
+    expect(res.primarySig).not.toContain('2.');
+  });
+
+  it('rejects instruction adverbs when extracting drug application name', () => {
+    const raw = 'Cleanse sacrum with wound cleanser, pat dry, apply a thin layer topically every shift';
+    const res = translate('Zinc Oxide Topical Paste 20 %', raw);
+    expect(res.primarySig).toBe('TO SACRUM:CLEANSE W/WOUND CLEANSER,PAT DRY,THEN APPLY ZINC OXIDE QS');
+    expect(res.primarySig).not.toContain('THIN LAYER');
+  });
+
+  it('does not prepend THEN when no preceding cleansing/pat-dry action is present', () => {
+    const raw = 'Apply to sacrum topically every shift for wound care';
+    const res = translate('Zinc Oxide Topical Paste 20 %', raw);
+    expect(res.primarySig).toBe('TO SACRUM:APPLY ZINC OXIDE QS');
+    expect(res.primarySig).not.toContain('THEN APPLY');
+  });
 });
