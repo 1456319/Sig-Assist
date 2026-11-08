@@ -208,9 +208,13 @@ export function ExpansionView() {
   useEffect(() => { load(); }, [load]);
 
   const handleSave = async (data: SigExpansionInsert & { id?: string }) => {
-    await upsertExpansion(data);
-    toast.success(data.id ? 'Expansion updated' : 'Expansion created');
-    await load();
+    try {
+      await upsertExpansion(data);
+      toast.success(data.id ? 'Expansion updated' : 'Expansion created');
+      await load();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save expansion');
+    }
   };
 
   const handleDelete = async (exp: SigExpansion) => {

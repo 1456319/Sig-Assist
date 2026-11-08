@@ -340,5 +340,20 @@ describe('clinicalEngine TESTS.txt validation', () => {
     expect(res.primarySig).toBe('2T (50MG) PO QAM AND 1T PO QHS SBP100');
     expect(res.abnormalities.some(a => a.title.includes('Hold Directive') || a.title.includes('Paxit Multi-Order Split'))).toBe(true);
   });
+
+  it('translates Ferrous Sulfate 325 (65 Fe) MG from discrepancy report disc_bdc8f120-63be-41fe-8bb8-12a0b9095d0c', () => {
+    const order = {
+      id: 'disc_bdc8f120-63be-41fe-8bb8-12a0b9095d0c',
+      pon: '12413827',
+      drugName: 'Ferrous Sulfate Oral Tablet 325 (65 Fe) MG',
+      rawProse: 'Give 325 mg orally in the morning',
+      sourceFormat: 'manual_text' as const
+    };
+    const res = translateClinicalSig(order);
+    expect(res.primarySig).toBe('1T PO QAM');
+    expect(res.subOrders).toHaveLength(1);
+    expect(res.subOrders[0].suggestedSig).toBe('1T PO QAM');
+    expect(res.abnormalities.some(a => a.tier === 'uncorrected_gap')).toBe(false);
+  });
 });
 

@@ -1,0 +1,4427 @@
+{
+  "format": "sig-assist-discrepancy-cases",
+  "schemaVersion": 1,
+  "exportedAt": "2026-10-29T07:32:04.981Z",
+  "redacted": false,
+  "caseCount": 30,
+  "reports": [
+    {
+      "id": "disc_33b0391f-54de-48a3-bda4-22cd2c267a4f",
+      "timestamp": "2026-10-29T02:33:52.577Z",
+      "pon": "12399106",
+      "drugName": "Simethicone Suspension 40 MG/0.6ML",
+      "rawProse": "Give 40 mg by mouth three times a day for Gas for 3 Days Put in 8oz water",
+      "generatedSig": "GIVE 40 MG PO TID FOR GAS X3D PUT IN 8OZ WATER",
+      "technicianSig": "GIVE 40 MG PO TID FOR GAS X3D PUT IN 8OZ WATER",
+      "notes": "SHOULD READ \"GIVE 0.6ML (40 MG) PO TID FOR GAS X3D PUT IN 8OZ WATER\"",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-5000206-05\",\"008198\",\"12399106\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "05df35710d0843a19a1b5f68befc9450",
+          "messageIds": [
+            "05df35710d0843a19a1b5f68befc9450"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-27T22:02:13Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "46287050630",
+          "strength": "40",
+          "dose": "40",
+          "doseUnit": "milligram",
+          "route": "oral route",
+          "frequency": "3 per day",
+          "administrationTimes": [
+            "0900",
+            "1300",
+            "1700"
+          ],
+          "startDate": "2026-10-28T13:00:00Z",
+          "effectiveDate": "2026-10-28T13:00:00Z",
+          "structuredIndication": "Unspecified",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "give"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "419582001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseQuantity": [
+              "40"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Text": [
+              "milligram"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Qualifier": [
+              "DoseUnitOfMeasure"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Code": [
+              "C28253"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "oral route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "26643006"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyNumericValue": [
+              "3"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Text": [
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Code": [
+              "258703001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationNumericValue": [
+              "3"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationText/Text": [
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationText/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationText/Code": [
+              "258703001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationClarifyingFreeText": [
+              "Gas"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261027-2572005556"
+        },
+        "policyRevision": 0,
+        "exclusions": [],
+        "abnormalities": [
+          {
+            "id": "abn_manual_1793241154401",
+            "tier": "uncorrected_gap",
+            "title": "Unspecified Liquid Dose or Route",
+            "message": "Dose or formulation needs review. Recognized directions may be abbreviated; unrecognized wording is retained without guessing a dose or dosage form.",
+            "trigger": "Give 40 mg by mouth three times a day for Gas for 3 Days Put in 8oz water"
+          },
+          {
+            "id": "partial_translation",
+            "tier": "uncorrected_gap",
+            "title": "Partial Translation — Review Retained Wording",
+            "message": "Recognized directions were abbreviated. Unrecognized dose, formulation, schedule or instructions remain in the Sig for technician review.",
+            "trigger": "Give 40 mg by mouth three times a day for Gas for 3 Days Put in 8oz water"
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-5000206-05\",\"008198\",\"12399106\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "GIVE 40 MG PO TID FOR GAS X3D PUT IN 8OZ WATER",
+            "draftSig": "GIVE 40 MG PO TID FOR GAS X3D PUT IN 8OZ WATER"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_47e97742-c0d7-40e2-8614-b1a8f6470820",
+      "timestamp": "2026-10-29T02:39:13.197Z",
+      "pon": "12398273",
+      "drugName": "Polyethylene Glycol Powder",
+      "rawProse": "Give 1 packet by mouth one time a day for constipation",
+      "generatedSig": "1PKT PO QD FCON",
+      "technicianSig": "MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO FCON",
+      "notes": "MUST BE MUTATION OF \"MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO\" (PACKETS INDICATED IN SIG)",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-5000206-05\",\"008629\",\"12398273\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "864f7e171ecc4effbfd6f8e4187fc679",
+          "messageIds": [
+            "864f7e171ecc4effbfd6f8e4187fc679"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-27T22:03:26Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "38779077801",
+          "dose": "1",
+          "doseUnit": "packet",
+          "route": "oral route",
+          "frequency": "1 per day",
+          "administrationTimes": [
+            "0900"
+          ],
+          "startDate": "2026-10-28T13:00:00Z",
+          "effectiveDate": "2026-10-28T13:00:00Z",
+          "structuredIndication": "constipation",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "give"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "419582001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseQuantity": [
+              "1"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Text": [
+              "packet"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Qualifier": [
+              "DoseUnitOfMeasure"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Code": [
+              "C48521"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "oral route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "26643006"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyNumericValue": [
+              "1"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Text": [
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Code": [
+              "258703001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "constipation"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "14760008"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261027-2574389954"
+        },
+        "policyRevision": 0,
+        "exclusions": [],
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-5000206-05\",\"008629\",\"12398273\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "1PKT PO QD FCON",
+            "draftSig": "1PKT PO QD FCON"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_14115190-b94b-4f48-b423-79d1da80f00f",
+      "timestamp": "2026-10-29T02:40:12.814Z",
+      "pon": "12398273",
+      "drugName": "Polyethylene Glycol Powder",
+      "rawProse": "Give 1 packet by mouth one time a day for constipation",
+      "generatedSig": "1PKT PO QD FCON",
+      "technicianSig": "MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO QD FCON",
+      "notes": "CORRECTION OF PREVIOUS SUBMITTION - ADDED \"QD\"",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-5000206-05\",\"008629\",\"12398273\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "864f7e171ecc4effbfd6f8e4187fc679",
+          "messageIds": [
+            "864f7e171ecc4effbfd6f8e4187fc679"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-27T22:03:26Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "38779077801",
+          "dose": "1",
+          "doseUnit": "packet",
+          "route": "oral route",
+          "frequency": "1 per day",
+          "administrationTimes": [
+            "0900"
+          ],
+          "startDate": "2026-10-28T13:00:00Z",
+          "effectiveDate": "2026-10-28T13:00:00Z",
+          "structuredIndication": "constipation",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "give"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "419582001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseQuantity": [
+              "1"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Text": [
+              "packet"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Qualifier": [
+              "DoseUnitOfMeasure"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Code": [
+              "C48521"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "oral route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "26643006"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyNumericValue": [
+              "1"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Text": [
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Code": [
+              "258703001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "constipation"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "14760008"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261027-2574389954"
+        },
+        "policyRevision": 0,
+        "exclusions": [],
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-5000206-05\",\"008629\",\"12398273\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "1PKT PO QD FCON",
+            "draftSig": "1PKT PO QD FCON"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_3e8ba7dc-38bb-411f-b9f2-e8969f99626e",
+      "timestamp": "2026-10-29T02:47:13.961Z",
+      "pon": "12399062",
+      "drugName": "Aspirin Oral Tablet Chewable 81 MG",
+      "rawProse": "Give 1 tablet by mouth two times a day for cad",
+      "generatedSig": "1T PO BID FOR CAD",
+      "technicianSig": "1T PO BID FCAD",
+      "notes": "*HIGHER PRIORITY DIAGNOSIS - SPELLS OUT THE CONDITION INSTEAD OF TRANSLATING TO \"FOR CAD\"",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-5000206-05\",\"008698\",\"12399062\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "3a225ef0414d41b9962108564610dea3",
+          "messageIds": [
+            "3a225ef0414d41b9962108564610dea3"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T04:36:50Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "57896091136",
+          "strength": "81",
+          "dose": "1",
+          "doseUnit": "tablet",
+          "route": "oral route",
+          "frequency": "2 per day",
+          "administrationTimes": [
+            "0900",
+            "1700"
+          ],
+          "startDate": "2026-10-28T13:00:00Z",
+          "effectiveDate": "2026-10-28T13:00:00Z",
+          "structuredIndication": "Unspecified",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "give"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "419582001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseQuantity": [
+              "1"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Text": [
+              "tablet"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Qualifier": [
+              "DoseUnitOfMeasure"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Code": [
+              "C48542"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "oral route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "26643006"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyNumericValue": [
+              "2"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Text": [
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Code": [
+              "258703001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationClarifyingFreeText": [
+              "cad"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-61480485"
+        },
+        "policyRevision": 0,
+        "exclusions": [],
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-5000206-05\",\"008698\",\"12399062\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "1T PO BID FOR CAD",
+            "draftSig": "1T PO BID FOR CAD"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_3b34a845-241b-4689-a62d-290996d2c7ee",
+      "timestamp": "2026-10-29T02:53:24.238Z",
+      "pon": "1273739",
+      "drugName": "Aspirin 81 Oral Tablet Chewable 81 MG",
+      "rawProse": "Give 81 mg by mouth one time a day related to CEREBRAL INFARCTION DUE TO UNSPECIFIED OCCLUSION OR STENOSIS OF UNSPECIFIED CEREBRAL ARTERY (I63.50)",
+      "generatedSig": "1T PO QD FOR CEREBRAL INFARCTION DUE TO UNSPECIFIED OCCLUSION OR STENOSIS OF UNSPECIFIED CEREBRAL ARTERY",
+      "technicianSig": "1CHT PO QD FOR CEREBRAL INFARCTION DUE TO UNSPECIFIED OCCLUSION OR STENOSIS OF UNSPECIFIED CEREBRAL ARTERY",
+      "notes": "*ONLY* IF PATIENT IS TAKING PO, 1T SHOULD BE ENTERED AS 1CHT",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-1504965669-01\",\"T31634\",\"1273739\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "fd16de14ae63456985672265eda7c4fe",
+          "messageIds": [
+            "fd16de14ae63456985672265eda7c4fe"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T18:27:43Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "11917016381",
+          "strength": "81",
+          "dose": "81",
+          "doseUnit": "milligram",
+          "route": "oral route",
+          "frequency": "1 per day",
+          "administrationTimes": [
+            "0800",
+            "1000"
+          ],
+          "startDate": "2026-10-29T12:00:00Z",
+          "effectiveDate": "2026-10-29T12:00:00Z",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "give"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "419582001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseQuantity": [
+              "81"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Text": [
+              "milligram"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Qualifier": [
+              "DoseUnitOfMeasure"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Code": [
+              "C28253"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "oral route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "26643006"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyNumericValue": [
+              "1"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Text": [
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Code": [
+              "258703001"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-1895206543"
+        },
+        "policyRevision": 1,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          }
+        ],
+        "abnormalities": [
+          {
+            "id": "solid_quantity_from_strength",
+            "tier": "applied_correction",
+            "title": "Oral Solid Quantity Calculated",
+            "message": "Dose quantity was calculated from the stated product strength. Verify the product and quantity before copying.",
+            "correction": "81MG = 1T",
+            "trigger": "Aspirin 81 Oral Tablet Chewable 81 MG"
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-1504965669-01\",\"T31634\",\"1273739\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "1T PO QD FOR CEREBRAL INFARCTION DUE TO UNSPECIFIED OCCLUSION OR STENOSIS OF UNSPECIFIED CEREBRAL ARTERY",
+            "draftSig": "1T PO QD FOR CEREBRAL INFARCTION DUE TO UNSPECIFIED OCCLUSION OR STENOSIS OF UNSPECIFIED CEREBRAL ARTERY"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_8d99d1ba-e81a-4f3a-bdba-f5f9b85ee64b",
+      "timestamp": "2026-10-29T02:59:24.297Z",
+      "pon": "1509858",
+      "drugName": "Mepilex AG Topical Pad 4",
+      "rawProse": "Apply to right leg topically every day shift every Mon, Wed, Fri for skin tear on right leg put on xeroform and then apply mepliex pad on right leg",
+      "generatedSig": "AP TPCL TO RT LEG QDDAY135 (DURING DAY SHIFT) FOR SKIN TEAR ON RIGHT LEG PUT ON XEROFORM AND. APPLY MEPLIEX PAD ON RIGHT LEG",
+      "technicianSig": "TO RT LEG: APP XEROFORM TPCL AND APPLY MEPLIEX PAD ON RIGHT LEG FOR SKIN TEAR QDDAY135 (DURING DAY SHIFT)",
+      "notes": "TREATMENT ORDERS MUST BEGIN WITH \"FOR [BODY PART]\". A TREATMENT ORDER CAN BE IDENTIFIED BY THE DRUG BEING A BANDAGE. *THIS MAYA BE HARD TO IMPLIMENT, SO EXPECT TREATMENTS TO APPEAR SEVERAL TIMES IN DISCREPANCY REPORTS. TECHNICIANS WILL FIX THEM AND REPORT AS APPROPRIATE*",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-1504969427-08\",\"008599974\",\"1509858\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "733bd737946348a2a1769c4ccf718edb",
+          "messageIds": [
+            "733bd737946348a2a1769c4ccf718edb"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T18:43:25Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "32430061203",
+          "strength": "4\"X4\"",
+          "route": "topical route",
+          "administrationTimes": [
+            "0700",
+            "1900"
+          ],
+          "startDate": "2026-10-30T11:00:00Z",
+          "effectiveDate": "2026-10-30T11:00:00Z",
+          "structuredIndication": "Unspecified",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "apply"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "417924000"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseClarifyingFreeText": [
+              "right leg"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "topical route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "6064005"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Text": [
+              "Unspecified",
+              "every week"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Qualifier": [
+              "SNOMED",
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Code": [
+              "10003008",
+              "14497002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingClarifyingFreeText": [
+              "every day shift",
+              "on Monday,Wednesday,Friday"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingNumericValue": [
+              "3"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingUnits/Text": [
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingUnits/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingUnits/Code": [
+              "258703001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationClarifyingFreeText": [
+              "skin tear on right leg"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-1953494353"
+        },
+        "policyRevision": 1,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          }
+        ],
+        "abnormalities": [
+          {
+            "id": "retained_supplemental_instructions",
+            "tier": "uncorrected_gap",
+            "title": "Additional Instructions Require Review",
+            "message": "Additional instructions were retained verbatim after the translated tokens. Verify every clause and Framework Preview Sig before copying.",
+            "trigger": "apply mepliex pad on right leg"
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-1504969427-08\",\"008599974\",\"1509858\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "AP TPCL TO RT LEG QDDAY135 (DURING DAY SHIFT) FOR SKIN TEAR ON RIGHT LEG PUT ON XEROFORM AND. APPLY MEPLIEX PAD ON RIGHT LEG",
+            "draftSig": "AP TPCL TO RT LEG QDDAY135 (DURING DAY SHIFT) FOR SKIN TEAR ON RIGHT LEG PUT ON XEROFORM AND. APPLY MEPLIEX PAD ON RIGHT LEG"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_8b54448d-77dd-47f0-8254-72a0d2fc1548",
+      "timestamp": "2026-10-29T03:09:30.968Z",
+      "pon": "1146702",
+      "drugName": "Tylenol Oral Tablet 325 MG",
+      "rawProse": "Give 2 tablet by mouth every 6 hours as needed for pain Do NOT exceed 3000mg/24h  AND  Give 2 tablet by mouth three times a day for Pain for 2 Weeks",
+      "generatedSig": "2T (650MG) PO Q6H PRN FPAIN. DO NOT EXCEED 3000MG/24H AND GIVE 2 TABLET BY MOUTH THREE TIMES A DAY FOR PAIN FOR 2 WEEKS",
+      "technicianSig": "2T (650MG) PO Q6H PRN FPAIN.",
+      "notes": "\"DO NOT EXCEED 3000MG/24H\" IN SIG REQUIRES DELETING THAT LINE AND ADDING \"3GME\" TO THE END OF THE SIG. SECOND PART OF SIG WAS DELETED DUE TO IT BEING A SPLIT - IGNORE \"AND\" AND EVERYTHING AFTER",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-494953772-1\",\"128359\",\"1146702\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "2a1b99c2174841a3a15083a5c21d4cfa",
+          "messageIds": [
+            "2a1b99c2174841a3a15083a5c21d4cfa"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T17:16:01Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "50580049660",
+          "strength": "325",
+          "dose": "2",
+          "doseUnit": "tablet",
+          "route": "oral route",
+          "administrationTimes": [
+            "0900",
+            "1400",
+            "2100"
+          ],
+          "startDate": "2026-10-28T18:00:00Z",
+          "effectiveDate": "2026-10-28T18:00:00Z",
+          "structuredIndication": "pain",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "give",
+              "give"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED",
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "419582001",
+              "419582001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseQuantity": [
+              "2",
+              "2"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Text": [
+              "tablet",
+              "tablet"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Qualifier": [
+              "DoseUnitOfMeasure",
+              "DoseUnitOfMeasure"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Code": [
+              "C48542",
+              "C48542"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "oral route",
+              "oral route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED",
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "26643006",
+              "26643006"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Interval/IntervalNumericValue": [
+              "6"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Interval/IntervalUnits/Text": [
+              "hour"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Interval/IntervalUnits/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Interval/IntervalUnits/Code": [
+              "258702006"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "as needed for",
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED",
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "420449005",
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "pain",
+              "pain"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED",
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "22253000",
+              "22253000"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyNumericValue": [
+              "3"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Text": [
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Code": [
+              "258703001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationNumericValue": [
+              "2"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationText/Text": [
+              "week"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationText/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationText/Code": [
+              "258705008"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-1629404651"
+        },
+        "policyRevision": 6,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          }
+        ],
+        "abnormalities": [
+          {
+            "id": "retained_supplemental_instructions",
+            "tier": "uncorrected_gap",
+            "title": "Additional Instructions Require Review",
+            "message": "Additional instructions were retained verbatim after the translated tokens. Verify every clause and Framework Preview Sig before copying.",
+            "trigger": "Do NOT exceed 3000mg/24h  AND  Give 2 tablet by mouth three times a day for Pain for 2 Weeks"
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-494953772-1\",\"128359\",\"1146702\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "2T (650MG) PO Q6H PRN FPAIN. DO NOT EXCEED 3000MG/24H AND GIVE 2 TABLET BY MOUTH THREE TIMES A DAY FOR PAIN FOR 2 WEEKS",
+            "draftSig": "2T (650MG) PO Q6H PRN FPAIN. DO NOT EXCEED 3000MG/24H AND GIVE 2 TABLET BY MOUTH THREE TIMES A DAY FOR PAIN FOR 2 WEEKS"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_6bab7162-85ff-4cdf-a44a-a4bba6388b00",
+      "timestamp": "2026-10-29T03:18:21.869Z",
+      "pon": "12401342",
+      "drugName": "Lidoderm Patch",
+      "rawProse": "Apply to left knee topically one time a day for Pain Management Apply Lidoderm patch 4%  AND  Apply to Lt knee topically one time a day for Pain management Remove Patch",
+      "generatedSig": "AP TPCL TO LT KNEE QD FOR PAIN MANAGEMENT. APPLY LIDODERM PATCH 4% AND APPLY TO LT KNEE TOPICALLY ONE TIME A DAY FOR PAIN MANAGEMENT REMOVE PATCH",
+      "technicianSig": "AP TPCL TO LT KNEE QD FOR PAIN MANAGEMENT AND REMOVE PER SCHEDULE 12ON",
+      "notes": "ALL LIDOCAIN PATCHES MUST HAVE \"AND REMOVE PER SCHEDULE 12ON\". IF THERE IS A SECOND SPLIT (INDICATED BY \"AND\"), REMOVE IT",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-5000206-05\",\"005676\",\"12401342\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "88af8aa0869a458fa136007f25c7d369",
+          "messageIds": [
+            "88af8aa0869a458fa136007f25c7d369"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T17:50:52Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "route": "topical route",
+          "frequency": "1 per day",
+          "administrationTimes": [
+            "0800",
+            "2000"
+          ],
+          "startDate": "2026-10-29T00:00:00Z",
+          "effectiveDate": "2026-10-29T00:00:00Z",
+          "structuredIndication": "Unspecified",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "apply",
+              "apply"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED",
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "417924000",
+              "417924000"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Text": [
+              "Unspecified",
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Qualifier": [
+              "SNOMED",
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Code": [
+              "10003008",
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseClarifyingFreeText": [
+              "left knee",
+              "Lt knee"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "topical route",
+              "topical route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED",
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "6064005",
+              "6064005"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyNumericValue": [
+              "1",
+              "1"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Text": [
+              "day",
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Qualifier": [
+              "SNOMED",
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Code": [
+              "258703001",
+              "258703001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for",
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED",
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002",
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "Unspecified",
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED",
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "10003008",
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationClarifyingFreeText": [
+              "Pain Management",
+              "Pain management"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-1762703023"
+        },
+        "policyRevision": 6,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          }
+        ],
+        "abnormalities": [
+          {
+            "id": "retained_supplemental_instructions",
+            "tier": "uncorrected_gap",
+            "title": "Additional Instructions Require Review",
+            "message": "Additional instructions were retained verbatim after the translated tokens. Verify every clause and Framework Preview Sig before copying.",
+            "trigger": "Apply Lidoderm patch 4%  AND  Apply to Lt knee topically one time a day for Pain management Remove Patch"
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-5000206-05\",\"005676\",\"12401342\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "AP TPCL TO LT KNEE QD FOR PAIN MANAGEMENT. APPLY LIDODERM PATCH 4% AND APPLY TO LT KNEE TOPICALLY ONE TIME A DAY FOR PAIN MANAGEMENT REMOVE PATCH",
+            "draftSig": "AP TPCL TO LT KNEE QD FOR PAIN MANAGEMENT. APPLY LIDODERM PATCH 4% AND APPLY TO LT KNEE TOPICALLY ONE TIME A DAY FOR PAIN MANAGEMENT REMOVE PATCH"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_0aaff341-5bee-4132-8672-bf7b1951e321",
+      "timestamp": "2026-10-29T03:21:39.231Z",
+      "pon": "12401330",
+      "drugName": "Nicotine Patch 24 Hour 21 MG/24HR",
+      "rawProse": "Apply 1 patch transdermally one time a day for Smoking Cessation for 30 Days  and remove per schedule",
+      "generatedSig": "APPLY 1 PATCH TRANSDERMALLY QD FOR SMOKING CESSATION X30D AND REMOVE PER SCHEDULE",
+      "technicianSig": "1PA TRANSDERMALLY QD FOR SMOKING CESSATION X30D AND REMOVE PER SCHEDULE",
+      "notes": "\"1 PATCH\" SHOULD TRANSLATE TO \"1PA\"",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-5000206-05\",\"008698\",\"12401330\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "3da3849ebc0c4a77b5013239f442b615",
+          "messageIds": [
+            "3da3849ebc0c4a77b5013239f442b615"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T19:07:52Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "00536589688",
+          "strength": "21",
+          "dose": "1",
+          "doseUnit": "patch",
+          "route": "transdermal route",
+          "frequency": "1 per day",
+          "administrationTimes": [
+            "1000"
+          ],
+          "startDate": "2026-10-29T14:00:00Z",
+          "effectiveDate": "2026-10-29T14:00:00Z",
+          "structuredIndication": "Unspecified",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "apply"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "417924000"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseQuantity": [
+              "1"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Text": [
+              "patch"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Qualifier": [
+              "DoseUnitOfMeasure"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Code": [
+              "C48524"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "transdermal route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "45890007"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyNumericValue": [
+              "1"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Text": [
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Code": [
+              "258703001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationNumericValue": [
+              "30"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationText/Text": [
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationText/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationText/Code": [
+              "258703001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationClarifyingFreeText": [
+              "Smoking Cessation"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-2048631687"
+        },
+        "policyRevision": 6,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          }
+        ],
+        "abnormalities": [
+          {
+            "id": "abn_manual_1793244048122",
+            "tier": "uncorrected_gap",
+            "title": "Unsupported Non-oral Formulation",
+            "message": "Dose or formulation needs review. Recognized directions may be abbreviated; unrecognized wording is retained without guessing a dose or dosage form.",
+            "trigger": "Apply 1 patch transdermally one time a day for Smoking Cessation for 30 Days  and remove per schedule"
+          },
+          {
+            "id": "partial_translation",
+            "tier": "uncorrected_gap",
+            "title": "Partial Translation — Review Retained Wording",
+            "message": "Recognized directions were abbreviated. Unrecognized dose, formulation, schedule or instructions remain in the Sig for technician review.",
+            "trigger": "Apply 1 patch transdermally one time a day for Smoking Cessation for 30 Days  and remove per schedule"
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-5000206-05\",\"008698\",\"12401330\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "APPLY 1 PATCH TRANSDERMALLY QD FOR SMOKING CESSATION X30D AND REMOVE PER SCHEDULE",
+            "draftSig": "APPLY 1 PATCH TRANSDERMALLY QD FOR SMOKING CESSATION X30D AND REMOVE PER SCHEDULE"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_bcd9be9b-ae57-48cf-8d87-06bf3900b74f",
+      "timestamp": "2026-10-29T03:23:09.064Z",
+      "pon": "12401552",
+      "drugName": "Lantus Subcutaneous Solution 100 UNIT/ML",
+      "rawProse": "Inject 20 unit subcutaneously two times a day for High blood sugar HOLD for BS <100 and notify provider",
+      "generatedSig": "INJ 20 UN SQ BID FOR HIGH BLOOD SUGAR (HOLD FOR BS <100 AND NOTIFY PROVIDER)",
+      "technicianSig": "INJ 20 UN SQ BID FOR HIGH BLOOD SUGAR (HOLD FOR BS <100 AND NOTIFY PROVIDER)",
+      "notes": "\"(HOLD FOR\" SHOULD TRANSLATE TO \"(H\". NOTICE THE \"FOR\" IS INCLUDED IN THE SIG.",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-5000206-01\",\"003510\",\"12401552\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "2f2a212908e745b9936614c1907cdae9",
+          "messageIds": [
+            "2f2a212908e745b9936614c1907cdae9"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T19:48:41Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "00088222033",
+          "strength": "100",
+          "dose": "20",
+          "doseUnit": "unit",
+          "route": "subcutaneous route",
+          "frequency": "2 per day",
+          "administrationTimes": [
+            "0900",
+            "2100"
+          ],
+          "startDate": "2026-10-29T01:00:00Z",
+          "effectiveDate": "2026-10-29T01:00:00Z",
+          "structuredIndication": "Unspecified",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "inject"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "422145002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseQuantity": [
+              "20"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Text": [
+              "unit"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Qualifier": [
+              "DoseUnitOfMeasure"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Code": [
+              "C44278"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "subcutaneous route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "34206005"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyNumericValue": [
+              "2"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Text": [
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Code": [
+              "258703001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationClarifyingFreeText": [
+              "High blood sugar"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-2202778009"
+        },
+        "policyRevision": 6,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          }
+        ],
+        "abnormalities": [
+          {
+            "id": "abn_hold_1793244126364",
+            "tier": "applied_correction",
+            "title": "Hold Directive Detected",
+            "message": "The generated Sig CONTAINS A CLINICAL HOLD PARAMETER.",
+            "correction": "Preserved hold parameter directive: (HOLD FOR BS <100 AND NOTIFY PROVIDER)",
+            "trigger": "Prescriber specified clinical hold condition"
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-5000206-01\",\"003510\",\"12401552\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "INJ 20 UN SQ BID FOR HIGH BLOOD SUGAR (HOLD FOR BS <100 AND NOTIFY PROVIDER)",
+            "draftSig": "INJ 20 UN SQ BID FOR HIGH BLOOD SUGAR (HOLD FOR BS <100 AND NOTIFY PROVIDER)"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_e16a9ad2-2edb-4fdb-a4cc-2540e10e7d8f",
+      "timestamp": "2026-10-29T03:28:58.684Z",
+      "pon": "12401933",
+      "drugName": "Santyl Topical Ointment 250 UNIT/GM",
+      "rawProse": "Apply to 2nd digit on right foot topically every day shift for wound care cleanse with wound cleanser, pat dry, apply santyl, and cover with bordered guaze.  AND  Apply to 2nd digit on right foot topically as needed for soiled/dislodged",
+      "generatedSig": "AP TPCL TO 2ND DIGIT ON RT FOOT QD (DURING DAY SHIFT) FOR WOUND CARE CLEANSE WITH WOUND CLEANSER, PAT DRY. APPLY SANTYL, AND COVER WITH BORDERED GUAZE. AND APPLY TO 2ND DIGIT ON RIGHT FOOT TOPICALLY AS NEEDED FOR SOILED/DISLODGED",
+      "technicianSig": "TO 2ND DIGIT ON RT FOOT:CLEANSE WITH WOUND CLEANSER,PAT DRY,APPLY SANTYL TOPICALLY&COVER W/BORDERED GAUZE QD (DURING DAY SHIT) **SPLIT** TO 2ND DIGIT ON RT FOOT:CHANGE TPCL PRN FOR SOILED/DISLODGED",
+      "notes": "TREATMENT ORDER. NOTICE WE DONT USE SIG CODES SINCE THESE TREATMENT ORDERS OFTEN EXCEED THE MAXIMUM 199 ALLOWED CHARACTERS.",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-5000206-01\",\"005956\",\"12401933\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "81a897225e1544d7b9964ce1aa1f8786",
+          "messageIds": [
+            "81a897225e1544d7b9964ce1aa1f8786"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T20:37:38Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "50484001090",
+          "strength": "250",
+          "route": "topical route",
+          "administrationTimes": [
+            "0700",
+            "1900"
+          ],
+          "startDate": "2026-10-28T20:45:00Z",
+          "effectiveDate": "2026-10-28T20:45:00Z",
+          "structuredIndication": "Unspecified",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "apply",
+              "apply"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED",
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "417924000",
+              "417924000"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Text": [
+              "Unspecified",
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Qualifier": [
+              "SNOMED",
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Code": [
+              "10003008",
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseClarifyingFreeText": [
+              "2nd digit on right foot",
+              "2nd digit on right foot"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "topical route",
+              "topical route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED",
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "6064005",
+              "6064005"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Text": [
+              "Unspecified",
+              "as required"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Qualifier": [
+              "SNOMED",
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Code": [
+              "10003008",
+              "225761000"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingClarifyingFreeText": [
+              "every day shift"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for",
+              "as needed for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED",
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002",
+              "420449005"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "Unspecified",
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED",
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "10003008",
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationClarifyingFreeText": [
+              "wound care",
+              "soiled/dislodged"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-2363791443"
+        },
+        "policyRevision": 6,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          }
+        ],
+        "abnormalities": [
+          {
+            "id": "retained_supplemental_instructions",
+            "tier": "uncorrected_gap",
+            "title": "Additional Instructions Require Review",
+            "message": "Additional instructions were retained verbatim after the translated tokens. Verify every clause and Framework Preview Sig before copying.",
+            "trigger": "apply santyl, and cover with bordered guaze.  AND  Apply to 2nd digit on right foot topically as needed for soiled/dislodged"
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-5000206-01\",\"005956\",\"12401933\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "AP TPCL TO 2ND DIGIT ON RT FOOT QD (DURING DAY SHIFT) FOR WOUND CARE CLEANSE WITH WOUND CLEANSER, PAT DRY. APPLY SANTYL, AND COVER WITH BORDERED GUAZE. AND APPLY TO 2ND DIGIT ON RIGHT FOOT TOPICALLY AS NEEDED FOR SOILED/DISLODGED",
+            "draftSig": "AP TPCL TO 2ND DIGIT ON RT FOOT QD (DURING DAY SHIFT) FOR WOUND CARE CLEANSE WITH WOUND CLEANSER, PAT DRY. APPLY SANTYL, AND COVER WITH BORDERED GUAZE. AND APPLY TO 2ND DIGIT ON RIGHT FOOT TOPICALLY AS NEEDED FOR SOILED/DISLODGED"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_3df003ec-4926-4764-9562-78afaea3ae8c",
+      "timestamp": "2026-10-29T03:52:10.186Z",
+      "pon": "1273443",
+      "drugName": "Potassium Chloride ER Oral Tablet Extended Release 20 MEQ",
+      "rawProse": "Give 2 tablet by mouth in the morning for low k with bumex",
+      "generatedSig": "2T PO QAM FOR LOW K WITH BUMEX",
+      "technicianSig": "2T (40MEQ) PO QAM FOR LOW K WITH BUMEX",
+      "notes": "MULTIPLE TABLETS PER DOSE MUST INCLUDE TARGET DOSE IN ()",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-1504965669-01\",\"T31550\",\"1273443\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "cbf195a8e00b4fb6bf4d3497ff559cb0",
+          "messageIds": [
+            "cbf195a8e00b4fb6bf4d3497ff559cb0"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-29T03:37:49Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "70436015301",
+          "strength": "20",
+          "dose": "2",
+          "doseUnit": "tablet",
+          "route": "oral route",
+          "administrationTimes": [
+            "0800",
+            "1000"
+          ],
+          "startDate": "2026-10-29T12:00:00Z",
+          "effectiveDate": "2026-10-29T12:00:00Z",
+          "structuredIndication": "Unspecified",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "give"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "419582001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseQuantity": [
+              "2"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Text": [
+              "tablet"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Qualifier": [
+              "DoseUnitOfMeasure"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Code": [
+              "C48542"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "oral route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "26643006"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Text": [
+              "morning"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Code": [
+              "73775008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationClarifyingFreeText": [
+              "low k with bumex"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-3267748026"
+        },
+        "policyRevision": 6,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          }
+        ],
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-1504965669-01\",\"T31550\",\"1273443\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "2T PO QAM FOR LOW K WITH BUMEX",
+            "draftSig": "2T PO QAM FOR LOW K WITH BUMEX"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_96ca0a27-8a10-42f4-94b7-219b29398a91",
+      "timestamp": "2026-10-29T04:26:49.840Z",
+      "pon": "1509367",
+      "drugName": "Lidocaine Pain Relief External Patch 4 %",
+      "rawProse": "Apply to lower back topically every 24 hours for back pain apply on in morning and take off at night  and remove per schedule",
+      "generatedSig": "AP TPCL TO LOWER BACK Q24H FOR BACK PAIN. APPLY ON IN MORNING AND TAKE OFF AT NIGHT AND REMOVE PER SCHEDULE",
+      "technicianSig": "1PA TPCL TO LOWER BACK Q24H FOR BACK PAIN. APPLY ON IN MORNING AND TAKE OFF AT NIGHT 12ON",
+      "notes": "MUST APPEND 12ON (LEAVING ON FOR >12 HOURS WILL CAUSE BURNS)",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-1504969427-13\",\"008774626\",\"1509367\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "59c62b16e8a145ad9e55373a55efc36e",
+          "messageIds": [
+            "59c62b16e8a145ad9e55373a55efc36e"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T14:58:05Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "00536120215",
+          "strength": "4",
+          "route": "topical route",
+          "administrationTimes": [
+            "0800"
+          ],
+          "startDate": "2026-10-29T12:00:00Z",
+          "effectiveDate": "2026-10-29T12:00:00Z",
+          "structuredIndication": "Unspecified",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "apply"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "417924000"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseClarifyingFreeText": [
+              "lower back"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "topical route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "6064005"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Interval/IntervalNumericValue": [
+              "24"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Interval/IntervalUnits/Text": [
+              "hour"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Interval/IntervalUnits/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Interval/IntervalUnits/Code": [
+              "258702006"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationClarifyingFreeText": [
+              "back pain"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-1166685219"
+        },
+        "policyRevision": 6,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          }
+        ],
+        "abnormalities": [
+          {
+            "id": "retained_supplemental_instructions",
+            "tier": "uncorrected_gap",
+            "title": "Additional Instructions Require Review",
+            "message": "Additional instructions were retained verbatim after the translated tokens. Verify every clause and Framework Preview Sig before copying.",
+            "trigger": "apply on in morning and take off at night  and remove per schedule"
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-1504969427-13\",\"008774626\",\"1509367\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "AP TPCL TO LOWER BACK Q24H FOR BACK PAIN. APPLY ON IN MORNING AND TAKE OFF AT NIGHT AND REMOVE PER SCHEDULE",
+            "draftSig": "AP TPCL TO LOWER BACK Q24H FOR BACK PAIN. APPLY ON IN MORNING AND TAKE OFF AT NIGHT AND REMOVE PER SCHEDULE"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_cb64fbf7-bd2f-4856-801a-6a6256c29ab8",
+      "timestamp": "2026-10-29T04:42:04.211Z",
+      "pon": "1509607",
+      "drugName": "Telmisartan Oral Tablet 80 MG",
+      "rawProse": "Give 1 tablet by mouth in the afternoon for HTN hold if sys <110",
+      "generatedSig": "GIVE 1 TABLET PO IN THE AFTERNOON FHTN HOLD IF SYS <110",
+      "technicianSig": "1T PO QD IN THE AFTERNOON FHTN HOLD IF SYS <110",
+      "notes": "\"GIVE 1 TABLET\" SHOULD TRANSLATE TO \"1T\". ALSO, QD MUST BE LOCATED IN THE SIG",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-1504969427-13\",\"008128852\",\"1509607\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "0d754279c594464cbd6368aaf318c47a",
+          "messageIds": [
+            "0d754279c594464cbd6368aaf318c47a"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T16:27:00Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "00378292277",
+          "strength": "80",
+          "dose": "1",
+          "doseUnit": "tablet",
+          "route": "oral route",
+          "administrationTimes": [
+            "1300",
+            "1400"
+          ],
+          "startDate": "2026-10-29T17:00:00Z",
+          "effectiveDate": "2026-10-29T17:00:00Z",
+          "structuredIndication": "Unspecified",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "give"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "419582001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseQuantity": [
+              "1"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Text": [
+              "tablet"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Qualifier": [
+              "DoseUnitOfMeasure"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Code": [
+              "C48542"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "oral route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "26643006"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Text": [
+              "afternoon"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Code": [
+              "422133006"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationClarifyingFreeText": [
+              "HTN"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-1468316020"
+        },
+        "policyRevision": 7,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          },
+          {
+            "kind": "sig",
+            "value": "GIVE 1 TABLET"
+          }
+        ],
+        "abnormalities": [
+          {
+            "id": "abn_hold_1793248851690",
+            "tier": "applied_correction",
+            "title": "Hold Directive Detected",
+            "message": "The generated Sig CONTAINS A CLINICAL HOLD PARAMETER.",
+            "correction": "Preserved hold parameter directive: (HOLD IF SYS <110)",
+            "trigger": "Prescriber specified clinical hold condition"
+          },
+          {
+            "id": "abn_freq_unrecognized_1793248851691",
+            "tier": "uncorrected_gap",
+            "title": "Missing Frequency",
+            "message": "No dosing interval was supplied. No QD or other scheduled frequency was added. Verify the frequency or PRN interval before copying.",
+            "trigger": "Give 1 tablet by mouth in the afternoon for HTN hold if sys <110"
+          },
+          {
+            "id": "partial_translation",
+            "tier": "uncorrected_gap",
+            "title": "Partial Translation — Review Retained Wording",
+            "message": "Recognized directions were abbreviated. Unrecognized dose, formulation, schedule or instructions remain in the Sig for technician review.",
+            "trigger": "Give 1 tablet by mouth in the afternoon for HTN hold if sys <110"
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-1504969427-13\",\"008128852\",\"1509607\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "GIVE 1 TABLET PO IN THE AFTERNOON FHTN HOLD IF SYS <110",
+            "draftSig": "GIVE 1 TABLET PO IN THE AFTERNOON FHTN HOLD IF SYS <110"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_62528b28-da18-453e-9918-2fc5003f1ccd",
+      "timestamp": "2026-10-29T04:42:59.995Z",
+      "pon": "1509607",
+      "drugName": "Telmisartan Oral Tablet 80 MG",
+      "rawProse": "Give 1 tablet by mouth in the afternoon for HTN hold if sys <110",
+      "generatedSig": "GIVE 1 TABLET PO IN THE AFTERNOON FHTN HOLD IF SYS <110",
+      "technicianSig": "1T PO QD IN THE AFTERNOON FHTN HOLD IF SYS <110",
+      "notes": "ALSO \"HOLD IF SYS <110\" SHOULD TRANSLATE TO \"(H SBP <110\"",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-1504969427-13\",\"008128852\",\"1509607\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "0d754279c594464cbd6368aaf318c47a",
+          "messageIds": [
+            "0d754279c594464cbd6368aaf318c47a"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T16:27:00Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "00378292277",
+          "strength": "80",
+          "dose": "1",
+          "doseUnit": "tablet",
+          "route": "oral route",
+          "administrationTimes": [
+            "1300",
+            "1400"
+          ],
+          "startDate": "2026-10-29T17:00:00Z",
+          "effectiveDate": "2026-10-29T17:00:00Z",
+          "structuredIndication": "Unspecified",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "give"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "419582001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseQuantity": [
+              "1"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Text": [
+              "tablet"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Qualifier": [
+              "DoseUnitOfMeasure"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Code": [
+              "C48542"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "oral route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "26643006"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Text": [
+              "afternoon"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Code": [
+              "422133006"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationClarifyingFreeText": [
+              "HTN"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-1468316020"
+        },
+        "policyRevision": 7,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          },
+          {
+            "kind": "sig",
+            "value": "GIVE 1 TABLET"
+          }
+        ],
+        "abnormalities": [
+          {
+            "id": "abn_hold_1793248851690",
+            "tier": "applied_correction",
+            "title": "Hold Directive Detected",
+            "message": "The generated Sig CONTAINS A CLINICAL HOLD PARAMETER.",
+            "correction": "Preserved hold parameter directive: (HOLD IF SYS <110)",
+            "trigger": "Prescriber specified clinical hold condition"
+          },
+          {
+            "id": "abn_freq_unrecognized_1793248851691",
+            "tier": "uncorrected_gap",
+            "title": "Missing Frequency",
+            "message": "No dosing interval was supplied. No QD or other scheduled frequency was added. Verify the frequency or PRN interval before copying.",
+            "trigger": "Give 1 tablet by mouth in the afternoon for HTN hold if sys <110"
+          },
+          {
+            "id": "partial_translation",
+            "tier": "uncorrected_gap",
+            "title": "Partial Translation — Review Retained Wording",
+            "message": "Recognized directions were abbreviated. Unrecognized dose, formulation, schedule or instructions remain in the Sig for technician review.",
+            "trigger": "Give 1 tablet by mouth in the afternoon for HTN hold if sys <110"
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-1504969427-13\",\"008128852\",\"1509607\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "GIVE 1 TABLET PO IN THE AFTERNOON FHTN HOLD IF SYS <110",
+            "draftSig": "GIVE 1 TABLET PO IN THE AFTERNOON FHTN HOLD IF SYS <110"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_0f6ad47c-a722-449d-be16-e0caa38da57d",
+      "timestamp": "2026-10-29T04:47:07.958Z",
+      "pon": "1509629",
+      "drugName": "oxyCODONE HCl Oral Tablet 5 MG",
+      "rawProse": "Give 2.5 mg by mouth three times a day for Chronic pain AND Give 2.5 mg by mouth every 4 hours as needed for Moderate to severe pain 4-10/10",
+      "generatedSig": "1/2T (2.5MG) PO TID FCHP. GIVE 2.5 MG BY MOUTH EVERY 4 HOURS AS NEEDED FOR MODERATE TO SEVERE PAIN 4-10/10",
+      "technicianSig": "1/2T (2.5MG) PO TID FCHP **SPLIT** 1/2T (2.5 MG) BY MOUTH EVERY 4 HOURS AS NEEDED FOR MODERATE TO SEVERE PAIN 4-10/10",
+      "notes": "CONTROLS MUST BE PROCESSED AS A SINGLE RX. USE **SPLIT** IF A CAPITOL \"AND\" SEPARATES A SCHEDULED AND PRN DOSE",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-1504969427-13\",\"001534989\",\"1509629\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "486968afa0a340e8b3cc0daf86d1ab45",
+          "messageIds": [
+            "486968afa0a340e8b3cc0daf86d1ab45"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T18:20:54Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "00406055201",
+          "strength": "5",
+          "dose": "2.5",
+          "doseUnit": "milligram",
+          "route": "oral route",
+          "frequency": "3 per day",
+          "administrationTimes": [
+            "0800",
+            "0900",
+            "1300",
+            "1400",
+            "2000",
+            "2100"
+          ],
+          "startDate": "2026-10-28T16:45:00Z",
+          "effectiveDate": "2026-10-28T16:45:00Z",
+          "structuredIndication": "Unspecified",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "give",
+              "give"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED",
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "419582001",
+              "419582001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseQuantity": [
+              "2.5",
+              "2.5"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Text": [
+              "milligram",
+              "milligram"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Qualifier": [
+              "DoseUnitOfMeasure",
+              "DoseUnitOfMeasure"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Code": [
+              "C28253",
+              "C28253"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "oral route",
+              "oral route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED",
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "26643006",
+              "26643006"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyNumericValue": [
+              "3"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Text": [
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Code": [
+              "258703001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for",
+              "as needed for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED",
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002",
+              "420449005"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "Unspecified",
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED",
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "10003008",
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationClarifyingFreeText": [
+              "Chronic pain",
+              "Moderate to severe pain 4-10/10"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Interval/IntervalNumericValue": [
+              "4"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Interval/IntervalUnits/Text": [
+              "hour"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Interval/IntervalUnits/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Interval/IntervalUnits/Code": [
+              "258702006"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-1868966823"
+        },
+        "policyRevision": 7,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          },
+          {
+            "kind": "sig",
+            "value": "GIVE 1 TABLET"
+          }
+        ],
+        "abnormalities": [
+          {
+            "id": "solid_quantity_from_strength",
+            "tier": "applied_correction",
+            "title": "Oral Solid Quantity Calculated",
+            "message": "Dose quantity was calculated from the stated product strength. Verify the product and quantity before copying.",
+            "correction": "2.5MG = 1/2T",
+            "trigger": "oxyCODONE HCl Oral Tablet 5 MG"
+          },
+          {
+            "id": "retained_supplemental_instructions",
+            "tier": "uncorrected_gap",
+            "title": "Additional Instructions Require Review",
+            "message": "Additional instructions were retained verbatim after the translated tokens. Verify every clause and Framework Preview Sig before copying.",
+            "trigger": "Give 2.5 mg by mouth every 4 hours as needed for Moderate to severe pain 4-10/10"
+          },
+          {
+            "id": "controlled_substance_single_order_[\"remedi_fw-1504969427-13\",\"001534989\",\"1509629\"]",
+            "tier": "applied_correction",
+            "title": "Controlled Substance — Single Order Required",
+            "message": "The generated Sig CONTAINS A PACKAGING & ORDER RESTRICTION.",
+            "correction": "Controlled substances cannot be split into multiple orders in FrameworkLTC. If quantity exceeds card capacity (60 count), FrameworkLTC will generate multiple labels/cards for this single order.",
+            "trigger": "Controlled substance (CII-CV) single order regulatory and packaging constraint"
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-1504969427-13\",\"001534989\",\"1509629\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "1/2T (2.5MG) PO TID FCHP. GIVE 2.5 MG BY MOUTH EVERY 4 HOURS AS NEEDED FOR MODERATE TO SEVERE PAIN 4-10/10",
+            "draftSig": "1/2T (2.5MG) PO TID FCHP. GIVE 2.5 MG BY MOUTH EVERY 4 HOURS AS NEEDED FOR MODERATE TO SEVERE PAIN 4-10/10"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_4d50f831-a6eb-44c0-9dd9-c042a8bdcdfa",
+      "timestamp": "2026-10-29T04:54:19.867Z",
+      "pon": "1509961",
+      "drugName": "Artificial Tear Ointment Ointment",
+      "rawProse": "Instill 0.25 inch in both eyes at bedtime for dry eyes",
+      "generatedSig": "AP TPCL QHS FDE",
+      "technicianSig": "AP1/4 TO EYELID MARGIN(S) OF BOTH EYES QHS FDE",
+      "notes": "USE SIG CODES!",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-1504969427-14\",\"001361780\",\"1509961\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "4e998bcdc5e1497091883f8655fa7638",
+          "messageIds": [
+            "4e998bcdc5e1497091883f8655fa7638"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T19:09:42Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "dose": "0.25",
+          "doseUnit": "inch",
+          "route": "ophthalmic route",
+          "administrationTimes": [
+            "2000",
+            "2100"
+          ],
+          "startDate": "2026-10-29T00:00:00Z",
+          "effectiveDate": "2026-10-29T00:00:00Z",
+          "structuredIndication": "Unspecified",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "instill"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "421538008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseQuantity": [
+              "0.25"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Text": [
+              "inch"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Qualifier": [
+              "DoseUnitOfMeasure"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Code": [
+              "C48500"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "ophthalmic route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "54485002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Text": [
+              "bedtime"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Code": [
+              "21029003"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationClarifyingFreeText": [
+              "dry eyes"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-2055525545"
+        },
+        "policyRevision": 7,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          },
+          {
+            "kind": "sig",
+            "value": "GIVE 1 TABLET"
+          }
+        ],
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-1504969427-14\",\"001361780\",\"1509961\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "AP TPCL QHS FDE",
+            "draftSig": "AP TPCL QHS FDE"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_6b2f7ecc-b288-44e2-b46b-91c5aafd2297",
+      "timestamp": "2026-10-29T05:06:42.859Z",
+      "pon": "1788463",
+      "drugName": "HumaLOG Injection Solution 100 UNIT/ML",
+      "rawProse": "Inject as per sliding scale: if 250 - 300 = 1 unit; 301 - 350 = 2 units; 351 - 400 = 3 units; 401+ = 6 units 401 and higher give  ^ units, subcutaneously three times a day for DM Do not use dexcom, use glucose meter",
+      "generatedSig": "INJECT AS PER SLIDING SCALE: IF 250 - 300 = 1 UNIT; 301 - 350 = 2 UNITS; 351 - 400 = 3 UNITS; 401+ = 6 UNITS 401 AND HIGHER GIVE ^ UNITS, SUBCUTANEOUSLY THREE TIMES A DAY FOR DM DO NOT USE DEXCOM, USE GLUCOSE METER",
+      "technicianSig": "CBS TID SS 250-300;301-350;351-400;401+. DO NOT USE DEXCOM, USE GLUCOSE METER",
+      "notes": "1) SLIDING SCALES MUST START WITH \"CBS [FREQUENCY] SS\"\n2) NOTICE NO SPACES IN \"250-300;301-350;351-400;401+\" - THIS IS TO KEEP THE CHARACTER COUNT BELOW THE MAXIMUM (200 CHARACTERS) LIKE TREATMENT ORDERS\n3) IN THE PARTICULAR SCRIPT, THE \"^\" WAS A TYPO FOR 6. I WOULDNT EXPECT THIS TO BE AUTOMATABLE",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-494954080-12\",\"771151\",\"1788463\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "7cad9c30e97944ea82a003f24b663810",
+          "messageIds": [
+            "7cad9c30e97944ea82a003f24b663810"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T22:06:19Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "00002751001",
+          "strength": "100",
+          "route": "subcutaneous route",
+          "frequency": "3 per day",
+          "administrationTimes": [
+            "0800",
+            "1600",
+            "2100"
+          ],
+          "startDate": "2026-10-29T01:00:00Z",
+          "effectiveDate": "2026-10-29T01:00:00Z",
+          "structuredIndication": "Unspecified",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "inject"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "422145002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "subcutaneous route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "34206005"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyNumericValue": [
+              "3"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Text": [
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Code": [
+              "258703001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationClarifyingFreeText": [
+              "DM"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-2624307984"
+        },
+        "policyRevision": 7,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          },
+          {
+            "kind": "sig",
+            "value": "GIVE 1 TABLET"
+          }
+        ],
+        "abnormalities": [
+          {
+            "id": "incomplete_sliding_scale",
+            "tier": "uncorrected_gap",
+            "title": "Incomplete Sliding Scale",
+            "message": "At least one scale band or notification could not be translated. Original directions were retained; no partial scale was proposed.",
+            "trigger": "Inject as per sliding scale: if 250 - 300 = 1 unit; 301 - 350 = 2 units; 351 - 400 = 3 units; 401+ = 6 units 401 and higher give  ^ units, subcutaneously three times a day for DM Do not use dexcom, use glucose meter"
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-494954080-12\",\"771151\",\"1788463\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "INJECT AS PER SLIDING SCALE: IF 250 - 300 = 1 UNIT; 301 - 350 = 2 UNITS; 351 - 400 = 3 UNITS; 401+ = 6 UNITS 401 AND HIGHER GIVE ^ UNITS, SUBCUTANEOUSLY THREE TIMES A DAY FOR DM DO NOT USE DEXCOM, USE GLUCOSE METER",
+            "draftSig": "INJECT AS PER SLIDING SCALE: IF 250 - 300 = 1 UNIT; 301 - 350 = 2 UNITS; 351 - 400 = 3 UNITS; 401+ = 6 UNITS 401 AND HIGHER GIVE ^ UNITS, SUBCUTANEOUSLY THREE TIMES A DAY FOR DM DO NOT USE DEXCOM, USE GLUCOSE METER"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_06d8ac4b-5918-4d1f-b14d-2f6a6b80d2dd",
+      "timestamp": "2026-10-29T05:08:11.539Z",
+      "pon": "1788463",
+      "drugName": "HumaLOG Injection Solution 100 UNIT/ML",
+      "rawProse": "Inject as per sliding scale: if 250 - 300 = 1 unit; 301 - 350 = 2 units; 351 - 400 = 3 units; 401+ = 6 units 401 and higher give  ^ units, subcutaneously three times a day for DM Do not use dexcom, use glucose meter",
+      "generatedSig": "INJECT AS PER SLIDING SCALE: IF 250 - 300 = 1 UNIT; 301 - 350 = 2 UNITS; 351 - 400 = 3 UNITS; 401+ = 6 UNITS 401 AND HIGHER GIVE ^ UNITS, SUBCUTANEOUSLY THREE TIMES A DAY FOR DM DO NOT USE DEXCOM, USE GLUCOSE METER",
+      "technicianSig": "CBS TID SS 250-300=1U;301-350=2U;351-400=3U;401+=6U. DO NOT USE DEXCOM, USE GLUCOSE METER",
+      "notes": "CORRECTION OF LAST DISCREPANCY - FORGOT TO INCLUDE UNITS",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-494954080-12\",\"771151\",\"1788463\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "7cad9c30e97944ea82a003f24b663810",
+          "messageIds": [
+            "7cad9c30e97944ea82a003f24b663810"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T22:06:19Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "00002751001",
+          "strength": "100",
+          "route": "subcutaneous route",
+          "frequency": "3 per day",
+          "administrationTimes": [
+            "0800",
+            "1600",
+            "2100"
+          ],
+          "startDate": "2026-10-29T01:00:00Z",
+          "effectiveDate": "2026-10-29T01:00:00Z",
+          "structuredIndication": "Unspecified",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "inject"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "422145002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "subcutaneous route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "34206005"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyNumericValue": [
+              "3"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Text": [
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Code": [
+              "258703001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationClarifyingFreeText": [
+              "DM"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-2624307984"
+        },
+        "policyRevision": 7,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          },
+          {
+            "kind": "sig",
+            "value": "GIVE 1 TABLET"
+          }
+        ],
+        "abnormalities": [
+          {
+            "id": "incomplete_sliding_scale",
+            "tier": "uncorrected_gap",
+            "title": "Incomplete Sliding Scale",
+            "message": "At least one scale band or notification could not be translated. Original directions were retained; no partial scale was proposed.",
+            "trigger": "Inject as per sliding scale: if 250 - 300 = 1 unit; 301 - 350 = 2 units; 351 - 400 = 3 units; 401+ = 6 units 401 and higher give  ^ units, subcutaneously three times a day for DM Do not use dexcom, use glucose meter"
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-494954080-12\",\"771151\",\"1788463\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "INJECT AS PER SLIDING SCALE: IF 250 - 300 = 1 UNIT; 301 - 350 = 2 UNITS; 351 - 400 = 3 UNITS; 401+ = 6 UNITS 401 AND HIGHER GIVE ^ UNITS, SUBCUTANEOUSLY THREE TIMES A DAY FOR DM DO NOT USE DEXCOM, USE GLUCOSE METER",
+            "draftSig": "INJECT AS PER SLIDING SCALE: IF 250 - 300 = 1 UNIT; 301 - 350 = 2 UNITS; 351 - 400 = 3 UNITS; 401+ = 6 UNITS 401 AND HIGHER GIVE ^ UNITS, SUBCUTANEOUSLY THREE TIMES A DAY FOR DM DO NOT USE DEXCOM, USE GLUCOSE METER"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_c30a34dc-087f-44e6-979c-2f4c584d106e",
+      "timestamp": "2026-10-29T05:58:48.884Z",
+      "pon": "12401274",
+      "drugName": "Tamsulosin HCl Capsule",
+      "rawProse": "Give 0.8 mg by mouth at bedtime for benign prostatic hyperplasia",
+      "generatedSig": "GIVE 0.8 MG PO AT BEDTIME FOR BENIGN PROSTATIC HYPERPLASIA",
+      "technicianSig": "2C (0.8MG) PO AT BEDTIME FOR BENIGN PROSTATIC HYPERPLASIA",
+      "notes": "MUST USE SIG CODE!",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-5000206-04\",\"004283\",\"12401274\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "a58bb885816c41d0af2231462f0d50fa",
+          "messageIds": [
+            "a58bb885816c41d0af2231462f0d50fa"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T22:33:53Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "dose": "0.8",
+          "doseUnit": "milligram",
+          "route": "oral route",
+          "administrationTimes": [
+            "2000"
+          ],
+          "startDate": "2026-10-29T00:00:00Z",
+          "effectiveDate": "2026-10-29T00:00:00Z",
+          "structuredIndication": "Unspecified",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "give"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "419582001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseQuantity": [
+              "0.8"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Text": [
+              "milligram"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Qualifier": [
+              "DoseUnitOfMeasure"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Code": [
+              "C28253"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "oral route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "26643006"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Text": [
+              "bedtime"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Code": [
+              "21029003"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationClarifyingFreeText": [
+              "benign prostatic hyperplasia"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-2684293419"
+        },
+        "policyRevision": 7,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          },
+          {
+            "kind": "sig",
+            "value": "GIVE 1 TABLET"
+          }
+        ],
+        "abnormalities": [
+          {
+            "id": "abn_manual_1793253502417",
+            "tier": "uncorrected_gap",
+            "title": "Unverified Oral Solid Quantity",
+            "message": "Dose or formulation needs review. Recognized directions may be abbreviated; unrecognized wording is retained without guessing a dose or dosage form.",
+            "trigger": "Give 0.8 mg by mouth at bedtime for benign prostatic hyperplasia"
+          },
+          {
+            "id": "partial_translation",
+            "tier": "uncorrected_gap",
+            "title": "Partial Translation — Review Retained Wording",
+            "message": "Recognized directions were abbreviated. Unrecognized dose, formulation, schedule or instructions remain in the Sig for technician review.",
+            "trigger": "Give 0.8 mg by mouth at bedtime for benign prostatic hyperplasia"
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-5000206-04\",\"004283\",\"12401274\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "GIVE 0.8 MG PO AT BEDTIME FOR BENIGN PROSTATIC HYPERPLASIA",
+            "draftSig": "GIVE 0.8 MG PO AT BEDTIME FOR BENIGN PROSTATIC HYPERPLASIA"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_c1360de1-c92e-44ec-b692-fa3b49dce871",
+      "timestamp": "2026-10-29T05:59:37.660Z",
+      "pon": "12401274",
+      "drugName": "Tamsulosin HCl Capsule",
+      "rawProse": "Give 0.8 mg by mouth at bedtime for benign prostatic hyperplasia",
+      "generatedSig": "GIVE 0.8 MG PO AT BEDTIME FOR BENIGN PROSTATIC HYPERPLASIA",
+      "technicianSig": "2C (0.8MG) PO QHS FBPH",
+      "notes": "MUST USE SIG CODES!",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-5000206-04\",\"004283\",\"12401274\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "a58bb885816c41d0af2231462f0d50fa",
+          "messageIds": [
+            "a58bb885816c41d0af2231462f0d50fa"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T22:33:53Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "dose": "0.8",
+          "doseUnit": "milligram",
+          "route": "oral route",
+          "administrationTimes": [
+            "2000"
+          ],
+          "startDate": "2026-10-29T00:00:00Z",
+          "effectiveDate": "2026-10-29T00:00:00Z",
+          "structuredIndication": "Unspecified",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "give"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "419582001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseQuantity": [
+              "0.8"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Text": [
+              "milligram"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Qualifier": [
+              "DoseUnitOfMeasure"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Code": [
+              "C28253"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "oral route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "26643006"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Text": [
+              "bedtime"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Code": [
+              "21029003"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationClarifyingFreeText": [
+              "benign prostatic hyperplasia"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-2684293419"
+        },
+        "policyRevision": 7,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          },
+          {
+            "kind": "sig",
+            "value": "GIVE 1 TABLET"
+          }
+        ],
+        "abnormalities": [
+          {
+            "id": "abn_manual_1793253502417",
+            "tier": "uncorrected_gap",
+            "title": "Unverified Oral Solid Quantity",
+            "message": "Dose or formulation needs review. Recognized directions may be abbreviated; unrecognized wording is retained without guessing a dose or dosage form.",
+            "trigger": "Give 0.8 mg by mouth at bedtime for benign prostatic hyperplasia"
+          },
+          {
+            "id": "partial_translation",
+            "tier": "uncorrected_gap",
+            "title": "Partial Translation — Review Retained Wording",
+            "message": "Recognized directions were abbreviated. Unrecognized dose, formulation, schedule or instructions remain in the Sig for technician review.",
+            "trigger": "Give 0.8 mg by mouth at bedtime for benign prostatic hyperplasia"
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-5000206-04\",\"004283\",\"12401274\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "GIVE 0.8 MG PO AT BEDTIME FOR BENIGN PROSTATIC HYPERPLASIA",
+            "draftSig": "GIVE 0.8 MG PO AT BEDTIME FOR BENIGN PROSTATIC HYPERPLASIA"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_54d747c3-9f8e-44e8-8ff5-be7a8bb48e09",
+      "timestamp": "2026-10-29T06:05:05.440Z",
+      "pon": "12400967",
+      "drugName": "MiraLax Oral Powder 17 GM/SCOOP",
+      "rawProse": "Give 1 scoop by mouth in the morning for Consitpation mixed in 8oz of water, juice, or milk",
+      "generatedSig": "GIVE 1 SCOOP PO IN THE MORNING FOR CONSITPATION MIXED IN 8OZ OF WATER, JUICE, OR MILK",
+      "technicianSig": "MIX 17 GM (SEE INSIDE CAP) IN 8OZ OF WATER,JUICE,OR MILK AND GIVE PO QAM FCON",
+      "notes": "MUST BE MUTATION OF \"MIX 17 GM (SEE INSIDE CAP) IN 8OZ OF WATER AND GIVE PO QD\"",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-5000206-04\",\"004283\",\"12400967\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "5822d3e2bc7a476ea8299c146482e7ca",
+          "messageIds": [
+            "5822d3e2bc7a476ea8299c146482e7ca"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T22:36:59Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "41100082073",
+          "strength": "17",
+          "dose": "1",
+          "doseUnit": "scoopful",
+          "route": "oral route",
+          "administrationTimes": [
+            "0800"
+          ],
+          "startDate": "2026-10-29T12:00:00Z",
+          "effectiveDate": "2026-10-29T12:00:00Z",
+          "structuredIndication": "Unspecified",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "give"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "419582001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseQuantity": [
+              "1"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Text": [
+              "scoopful"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Qualifier": [
+              "DoseUnitOfMeasure"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Code": [
+              "C48536"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "oral route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "26643006"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Text": [
+              "morning"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Code": [
+              "73775008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationClarifyingFreeText": [
+              "Consitpation"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-2691931632"
+        },
+        "policyRevision": 7,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          },
+          {
+            "kind": "sig",
+            "value": "GIVE 1 TABLET"
+          }
+        ],
+        "abnormalities": [
+          {
+            "id": "abn_manual_1793253845208",
+            "tier": "uncorrected_gap",
+            "title": "Unverified Powder Dose or Route",
+            "message": "Dose or formulation needs review. Recognized directions may be abbreviated; unrecognized wording is retained without guessing a dose or dosage form.",
+            "trigger": "Give 1 scoop by mouth in the morning for Consitpation mixed in 8oz of water, juice, or milk"
+          },
+          {
+            "id": "partial_translation",
+            "tier": "uncorrected_gap",
+            "title": "Partial Translation — Review Retained Wording",
+            "message": "Recognized directions were abbreviated. Unrecognized dose, formulation, schedule or instructions remain in the Sig for technician review.",
+            "trigger": "Give 1 scoop by mouth in the morning for Consitpation mixed in 8oz of water, juice, or milk"
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-5000206-04\",\"004283\",\"12400967\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "GIVE 1 SCOOP PO IN THE MORNING FOR CONSITPATION MIXED IN 8OZ OF WATER, JUICE, OR MILK",
+            "draftSig": "GIVE 1 SCOOP PO IN THE MORNING FOR CONSITPATION MIXED IN 8OZ OF WATER, JUICE, OR MILK"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_426a1ced-bc19-416f-b529-1eeb009d2b69",
+      "timestamp": "2026-10-29T06:07:35.250Z",
+      "pon": "12402156",
+      "drugName": "Lidocaine Pain Relief Topical Patch 4 %",
+      "rawProse": "Apply to Affected Area topically one time a day for Pain  and remove per schedule",
+      "generatedSig": "AP TPCL TO AFFECTED AREA QD FPAIN AND FOR REMOVE PER SCHEDULE",
+      "technicianSig": "AP TPCL TO AFFECTED AREA QD FPAIN AND FOR REMOVE PER SCHEDULE 12ON",
+      "notes": "APPEND 12ON",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-5000206-10\",\"016376\",\"12402156\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "9444019ba5fc41bf8c349736dccee458",
+          "messageIds": [
+            "9444019ba5fc41bf8c349736dccee458"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T23:06:06Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "00536120215",
+          "strength": "4",
+          "route": "topical route",
+          "frequency": "1 per day",
+          "administrationTimes": [
+            "0900"
+          ],
+          "startDate": "2026-10-29T13:00:00Z",
+          "effectiveDate": "2026-10-29T13:00:00Z",
+          "structuredIndication": "pain",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "apply"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "417924000"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseClarifyingFreeText": [
+              "Affected Area"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "topical route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "6064005"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyNumericValue": [
+              "1"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Text": [
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Code": [
+              "258703001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "pain"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "22253000"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-2768858848"
+        },
+        "policyRevision": 7,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          },
+          {
+            "kind": "sig",
+            "value": "GIVE 1 TABLET"
+          }
+        ],
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-5000206-10\",\"016376\",\"12402156\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "AP TPCL TO AFFECTED AREA QD FPAIN AND FOR REMOVE PER SCHEDULE",
+            "draftSig": "AP TPCL TO AFFECTED AREA QD FPAIN AND FOR REMOVE PER SCHEDULE"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_a724afde-51de-48bb-a5af-196b9ee957e6",
+      "timestamp": "2026-10-29T06:09:16.515Z",
+      "pon": "12402195",
+      "drugName": "Naloxone HCl Nasal Liquid 4 MG/0.1ML",
+      "rawProse": "1 spray in nostril as needed for Opioid Overdose for 14 Days If Pt does not respond or relapses into respiratory distress call 911. Give additional dose every 2-3 minutes.",
+      "generatedSig": "1 SPRAY IN NOSTRIL PRN FOR OPIOID OVERDOSE X14D IF PT DOES NOT RESPOND OR RELAPSES INTO RESPIRATORY DISTRESS CALL 911. GIVE ADDITIONAL DOSE EVERY 2-3 MINUTES.",
+      "technicianSig": "1SP ENOS PRN FOR OPIOID OVERDOSE X14D IF PT DOES NOT RESPOND OR RELAPSES INTO RESPIRATORY DISTRESS CALL 911. GIVE ADDITIONAL DOSE EVERY 2-3 MINUTES.",
+      "notes": "MUST USE SIG CODES!",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-5000206-10\",\"016376\",\"12402195\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "1df25a370f314a7a8196f618b0bca8a8",
+          "messageIds": [
+            "1df25a370f314a7a8196f618b0bca8a8"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T23:06:06Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "45802057884",
+          "strength": "4",
+          "dose": "1",
+          "doseUnit": "spray",
+          "route": "nasal route",
+          "administrationTimes": [],
+          "startDate": "2026-10-28T22:00:00Z",
+          "effectiveDate": "2026-10-28T22:00:00Z",
+          "structuredIndication": "Unspecified",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseQuantity": [
+              "1"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Text": [
+              "spray"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Qualifier": [
+              "DoseUnitOfMeasure"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Code": [
+              "C48537"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "nasal route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "46713006"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Text": [
+              "as required"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingEvent/Code": [
+              "225761000"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/AdministrationTiming/AdministrationTimingClarifyingFreeText": [
+              "If Pt does not respond or relapses into respiratory distress call 911. Give additional dose every 2-3 minutes."
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationNumericValue": [
+              "14"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationText/Text": [
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationText/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationText/Code": [
+              "258703001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "as needed for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "420449005"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationClarifyingFreeText": [
+              "Opioid Overdose"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-2769175981"
+        },
+        "policyRevision": 7,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          },
+          {
+            "kind": "sig",
+            "value": "GIVE 1 TABLET"
+          }
+        ],
+        "abnormalities": [
+          {
+            "id": "abn_manual_1793254111770",
+            "tier": "uncorrected_gap",
+            "title": "Unverified Nasal Spray Dose or Site",
+            "message": "Dose or formulation needs review. Recognized directions may be abbreviated; unrecognized wording is retained without guessing a dose or dosage form.",
+            "trigger": "1 spray in nostril as needed for Opioid Overdose for 14 Days If Pt does not respond or relapses into respiratory distress call 911. Give additional dose every 2-3 minutes."
+          },
+          {
+            "id": "abn_freq_unrecognized_1793254111770",
+            "tier": "uncorrected_gap",
+            "title": "Missing Frequency",
+            "message": "No dosing interval was supplied. No QD or other scheduled frequency was added. Verify the frequency or PRN interval before copying.",
+            "trigger": "1 spray in nostril as needed for Opioid Overdose for 14 Days If Pt does not respond or relapses into respiratory distress call 911. Give additional dose every 2-3 minutes."
+          },
+          {
+            "id": "partial_translation",
+            "tier": "uncorrected_gap",
+            "title": "Partial Translation — Review Retained Wording",
+            "message": "Recognized directions were abbreviated. Unrecognized dose, formulation, schedule or instructions remain in the Sig for technician review.",
+            "trigger": "1 spray in nostril as needed for Opioid Overdose for 14 Days If Pt does not respond or relapses into respiratory distress call 911. Give additional dose every 2-3 minutes."
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-5000206-10\",\"016376\",\"12402195\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "1 SPRAY IN NOSTRIL PRN FOR OPIOID OVERDOSE X14D IF PT DOES NOT RESPOND OR RELAPSES INTO RESPIRATORY DISTRESS CALL 911. GIVE ADDITIONAL DOSE EVERY 2-3 MINUTES.",
+            "draftSig": "1 SPRAY IN NOSTRIL PRN FOR OPIOID OVERDOSE X14D IF PT DOES NOT RESPOND OR RELAPSES INTO RESPIRATORY DISTRESS CALL 911. GIVE ADDITIONAL DOSE EVERY 2-3 MINUTES."
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_73d6585e-290e-4c48-a850-d6faf82065ad",
+      "timestamp": "2026-10-29T06:13:23.590Z",
+      "pon": "12401989",
+      "drugName": "MiraLax Oral Packet 17 GM",
+      "rawProse": "Give 1 packet by mouth every 24 hours as needed for Constipation for 14 Days Mix 1 packet in 4 to 8 ounces of Liquid and drink daily as needed for constipation. Discontinue once BM returns.",
+      "generatedSig": "GIVE 1 PACKET PO Q24H PRN FCON X14D MIX 1 PACKET IN 4 TO 8 OUNCES OF LIQUID AND DRINK QD PRN FOR CONSTIPATION. DISCONTINUE ONCE BM RETURNS.",
+      "technicianSig": "MIX 17 GM (1 PACKET) IN 4-8OZ OF LIQUID AND GIVE PO Q24H PRN FCON. DISCONTINUE ONCE BM RETURNS",
+      "notes": "Must be mutation of \"MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO\"",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-5000206-10\",\"016376\",\"12401989\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "64b30f506e7f462e86401a05170aa055",
+          "messageIds": [
+            "64b30f506e7f462e86401a05170aa055"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T23:06:07Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "11523726808",
+          "strength": "17",
+          "dose": "1",
+          "doseUnit": "packet",
+          "route": "oral route",
+          "administrationTimes": [],
+          "startDate": "2026-10-28T22:00:00Z",
+          "effectiveDate": "2026-10-28T22:00:00Z",
+          "structuredIndication": "constipation",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "give"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "419582001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseQuantity": [
+              "1"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Text": [
+              "packet"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Qualifier": [
+              "DoseUnitOfMeasure"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Code": [
+              "C48521"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "oral route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "26643006"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Interval/IntervalNumericValue": [
+              "24"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Interval/IntervalUnits/Text": [
+              "hour"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Interval/IntervalUnits/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Interval/IntervalUnits/Code": [
+              "258702006"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationNumericValue": [
+              "14"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationText/Text": [
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationText/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationText/Code": [
+              "258703001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "as needed for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "420449005"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "constipation"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "14760008"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-2769371385"
+        },
+        "policyRevision": 7,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          },
+          {
+            "kind": "sig",
+            "value": "GIVE 1 TABLET"
+          }
+        ],
+        "abnormalities": [
+          {
+            "id": "abn_manual_1793254214077",
+            "tier": "uncorrected_gap",
+            "title": "Explicit Packet Preparation Requires Review",
+            "message": "Dose or formulation needs review. Recognized directions may be abbreviated; unrecognized wording is retained without guessing a dose or dosage form.",
+            "trigger": "Give 1 packet by mouth every 24 hours as needed for Constipation for 14 Days Mix 1 packet in 4 to 8 ounces of Liquid and drink daily as needed for constipation. Discontinue once BM returns."
+          },
+          {
+            "id": "partial_translation",
+            "tier": "uncorrected_gap",
+            "title": "Partial Translation — Review Retained Wording",
+            "message": "Recognized directions were abbreviated. Unrecognized dose, formulation, schedule or instructions remain in the Sig for technician review.",
+            "trigger": "Give 1 packet by mouth every 24 hours as needed for Constipation for 14 Days Mix 1 packet in 4 to 8 ounces of Liquid and drink daily as needed for constipation. Discontinue once BM returns."
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-5000206-10\",\"016376\",\"12401989\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "GIVE 1 PACKET PO Q24H PRN FCON X14D MIX 1 PACKET IN 4 TO 8 OUNCES OF LIQUID AND DRINK QD PRN FOR CONSTIPATION. DISCONTINUE ONCE BM RETURNS.",
+            "draftSig": "GIVE 1 PACKET PO Q24H PRN FCON X14D MIX 1 PACKET IN 4 TO 8 OUNCES OF LIQUID AND DRINK QD PRN FOR CONSTIPATION. DISCONTINUE ONCE BM RETURNS."
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_7b3706f0-5b5a-41fb-92f4-60b7bd682089",
+      "timestamp": "2026-10-29T06:27:33.078Z",
+      "pon": "12401931",
+      "drugName": "Lidocaine Topical Patch 4 %",
+      "rawProse": "Apply to Left Hip topically one time a day for Pain 3 patches onto the skin  and remove per schedule",
+      "generatedSig": "AP TPCL TO LT HIP QD FOR PAIN 3 PATCHES ONTO THE SKIN AND REMOVE PER SCHEDULE",
+      "technicianSig": "AP 3 PATCHES TPCL ON TO THE SKIN OF LT HIP AND REMOVE PER SCHEDULE 12ON",
+      "notes": "CORRECTED - LIDOCAINE PATCHES NEED WORK",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-5000206-10\",\"016376\",\"12401931\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "8054ec383a09487483abb9c1cdf48def",
+          "messageIds": [
+            "8054ec383a09487483abb9c1cdf48def"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T23:14:40Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "50488200401",
+          "strength": "4",
+          "route": "topical route",
+          "frequency": "1 per day",
+          "administrationTimes": [
+            "0900"
+          ],
+          "startDate": "2026-10-29T13:00:00Z",
+          "effectiveDate": "2026-10-29T13:00:00Z",
+          "structuredIndication": "pain",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "apply"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "417924000"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseClarifyingFreeText": [
+              "Left Hip"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "topical route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "6064005"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyNumericValue": [
+              "1"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Text": [
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Code": [
+              "258703001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "pain"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "22253000"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-2788334626"
+        },
+        "policyRevision": 7,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          },
+          {
+            "kind": "sig",
+            "value": "GIVE 1 TABLET"
+          }
+        ],
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-5000206-10\",\"016376\",\"12401931\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "AP TPCL TO LT HIP QD FOR PAIN 3 PATCHES ONTO THE SKIN AND REMOVE PER SCHEDULE",
+            "draftSig": "AP TPCL TO LT HIP QD FOR PAIN 3 PATCHES ONTO THE SKIN AND REMOVE PER SCHEDULE"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_207d9ada-263e-474f-ad93-fd95fe794afc",
+      "timestamp": "2026-10-29T06:28:21.439Z",
+      "pon": "12401931",
+      "drugName": "Lidocaine Topical Patch 4 %",
+      "rawProse": "Apply to Left Hip topically one time a day for Pain 3 patches onto the skin  and remove per schedule",
+      "generatedSig": "AP TPCL TO LT HIP QD FOR PAIN 3 PATCHES ONTO THE SKIN AND REMOVE PER SCHEDULE",
+      "technicianSig": "AP 3 PATCHES TPCL ON TO THE SKIN OF LT HIP QD AND REMOVE PER SCHEDULE 12ON",
+      "notes": "ADDED \"QD\"",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-5000206-10\",\"016376\",\"12401931\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "8054ec383a09487483abb9c1cdf48def",
+          "messageIds": [
+            "8054ec383a09487483abb9c1cdf48def"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T23:14:40Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "50488200401",
+          "strength": "4",
+          "route": "topical route",
+          "frequency": "1 per day",
+          "administrationTimes": [
+            "0900"
+          ],
+          "startDate": "2026-10-29T13:00:00Z",
+          "effectiveDate": "2026-10-29T13:00:00Z",
+          "structuredIndication": "pain",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "apply"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "417924000"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseAmount/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseClarifyingFreeText": [
+              "Left Hip"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "topical route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "6064005"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyNumericValue": [
+              "1"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Text": [
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Code": [
+              "258703001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "pain"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "22253000"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-2788334626"
+        },
+        "policyRevision": 7,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          },
+          {
+            "kind": "sig",
+            "value": "GIVE 1 TABLET"
+          }
+        ],
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-5000206-10\",\"016376\",\"12401931\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "AP TPCL TO LT HIP QD FOR PAIN 3 PATCHES ONTO THE SKIN AND REMOVE PER SCHEDULE",
+            "draftSig": "AP TPCL TO LT HIP QD FOR PAIN 3 PATCHES ONTO THE SKIN AND REMOVE PER SCHEDULE"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_93498357-d5df-4353-9a95-0ebaddc93fe7",
+      "timestamp": "2026-10-29T06:33:03.186Z",
+      "pon": "12402179",
+      "drugName": "Allegra Allergy Oral Tablet",
+      "rawProse": "Give 1 tablet by mouth every 24 hours as needed for seasonal allergies for 14 Days Alternates with Claritin",
+      "generatedSig": "1T PO Q24H PRN FOR SEASONAL ALLERGIES X14D",
+      "technicianSig": "1T PO Q24H PRN FOR SEASONAL ALLERGIES X14D. ALTERNATE WITH CLARITIN",
+      "notes": "OMITTED VITAL INSTRUCTION",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-5000206-10\",\"016376\",\"12402179\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "22fa12086b834520b472aa051dbb8eaf",
+          "messageIds": [
+            "22fa12086b834520b472aa051dbb8eaf"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-28T23:17:11Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "dose": "1",
+          "doseUnit": "tablet",
+          "route": "oral route",
+          "administrationTimes": [],
+          "startDate": "2026-10-28T23:15:00Z",
+          "effectiveDate": "2026-10-28T23:15:00Z",
+          "structuredIndication": "seasonal allergy",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "give"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "419582001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseQuantity": [
+              "1"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Text": [
+              "tablet"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Qualifier": [
+              "DoseUnitOfMeasure"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Code": [
+              "C48542"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "oral route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "26643006"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Interval/IntervalNumericValue": [
+              "24"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Interval/IntervalUnits/Text": [
+              "hour"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Interval/IntervalUnits/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Interval/IntervalUnits/Code": [
+              "258702006"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationNumericValue": [
+              "14"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationText/Text": [
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationText/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationText/Code": [
+              "258703001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "as needed for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "420449005"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "seasonal allergy"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "444316004"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-2795985135"
+        },
+        "policyRevision": 7,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          },
+          {
+            "kind": "sig",
+            "value": "GIVE 1 TABLET"
+          }
+        ],
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-5000206-10\",\"016376\",\"12402179\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "1T PO Q24H PRN FOR SEASONAL ALLERGIES X14D",
+            "draftSig": "1T PO Q24H PRN FOR SEASONAL ALLERGIES X14D"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_d2c4f653-1d68-4240-93d2-54b79ae0456f",
+      "timestamp": "2026-10-29T06:44:58.917Z",
+      "pon": "12402248",
+      "drugName": "MiraLax Oral Powder 17 GM/SCOOP",
+      "rawProse": "Give 17 gram by mouth two times a day for BOWEL REGIMEN Mix with 4-8 oz liquidHold for loose stools",
+      "generatedSig": "GIVE 17 GRAM PO BID FOR BOWEL REGIMEN MIX WITH 4-8 OZ LIQUIDHOLD FOR LOOSE STOOLS",
+      "technicianSig": "MIX 17 GM (SEE INSIDE CAP) IN 4-8OZ OF LIQUID AND GIVE PO BID FOR BOWEL REGIMEN",
+      "notes": "MUST BE MUTATION OF \"MIX 17 GM (SEE INSIDE CAP) IN 8OZ OF WATER AND GIVE PO QD\"",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-5000206-11\",\"023886\",\"12402248\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "88b02b46aedd4b2787cfb2b362f3e692",
+          "messageIds": [
+            "88b02b46aedd4b2787cfb2b362f3e692"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-29T00:03:24Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "41100082073",
+          "strength": "17",
+          "dose": "17",
+          "doseUnit": "gram",
+          "route": "oral route",
+          "frequency": "2 per day",
+          "administrationTimes": [
+            "0900",
+            "1700"
+          ],
+          "startDate": "2026-10-29T13:00:00Z",
+          "effectiveDate": "2026-10-29T13:00:00Z",
+          "structuredIndication": "Unspecified",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Text": [
+              "give"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/DoseDeliveryMethod/Code": [
+              "419582001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseQuantity": [
+              "17"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Text": [
+              "gram"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Qualifier": [
+              "DoseUnitOfMeasure"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Code": [
+              "C48155"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "oral route"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "26643006"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyNumericValue": [
+              "2"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Text": [
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Code": [
+              "258703001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationClarifyingFreeText": [
+              "BOWEL REGIMEN"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-2895875650"
+        },
+        "policyRevision": 7,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          },
+          {
+            "kind": "sig",
+            "value": "GIVE 1 TABLET"
+          }
+        ],
+        "abnormalities": [
+          {
+            "id": "abn_manual_1793256231554",
+            "tier": "uncorrected_gap",
+            "title": "Explicit Powder Preparation Requires Review",
+            "message": "Dose or formulation needs review. Recognized directions may be abbreviated; unrecognized wording is retained without guessing a dose or dosage form.",
+            "trigger": "Give 17 gram by mouth two times a day for BOWEL REGIMEN Mix with 4-8 oz liquidHold for loose stools"
+          },
+          {
+            "id": "partial_translation",
+            "tier": "uncorrected_gap",
+            "title": "Partial Translation — Review Retained Wording",
+            "message": "Recognized directions were abbreviated. Unrecognized dose, formulation, schedule or instructions remain in the Sig for technician review.",
+            "trigger": "Give 17 gram by mouth two times a day for BOWEL REGIMEN Mix with 4-8 oz liquidHold for loose stools"
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-5000206-11\",\"023886\",\"12402248\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "GIVE 17 GRAM PO BID FOR BOWEL REGIMEN MIX WITH 4-8 OZ LIQUIDHOLD FOR LOOSE STOOLS",
+            "draftSig": "GIVE 17 GRAM PO BID FOR BOWEL REGIMEN MIX WITH 4-8 OZ LIQUIDHOLD FOR LOOSE STOOLS"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_e6470395-30da-4f91-a221-dc3f3c8ed0ab",
+      "timestamp": "2026-10-29T06:59:22.145Z",
+      "pon": "12402218",
+      "drugName": "Albuterol Sulfate Nebulization Solution (2.5 MG/3ML) 0.083%",
+      "rawProse": "3 ml inhale orally via nebulizer four times a day for Congestion for 7 Days",
+      "generatedSig": "ADM 3ML NEB QID X7D FCOG",
+      "technicianSig": "ADM 3ML NEB QID X7D FCOG",
+      "notes": "NEB IN SIG ALWAYS = 1V. 3ML WILL CAUSE THE MACHINE TO HOLD FOR DESCREPENCY BECAUSE NURSES WILL GIVE BY MOUTH",
+      "flaggedForRph": false,
+      "buildId": "6f9ebc8cb10f8e6a2be1ccd18eb0cee2b8b5a94501d4ed4653f84e5b7c304dfd",
+      "context": {
+        "source": "queue",
+        "traceId": "ORD_[\"remedi_fw-5000206-06\",\"008243\",\"12402218\"]_R1",
+        "revision": 1,
+        "iguana": {
+          "messageId": "fe7e43078658471295bb6312609c2f66",
+          "messageIds": [
+            "fe7e43078658471295bb6312609c2f66"
+          ],
+          "sender": "PointClickCare",
+          "recipient": "4841450",
+          "sentTime": "2026-10-29T00:19:47Z",
+          "scriptVersion": "20170715",
+          "patientRefType": "MedicalRecordIdentificationNumberEHR",
+          "ndc": "00487950103",
+          "strength": "(2.5 MG/3ML)",
+          "dose": "3",
+          "doseUnit": "milliliter",
+          "route": "Unspecified",
+          "frequency": "4 per day",
+          "administrationTimes": [
+            "0000",
+            "0600",
+            "1200",
+            "1800"
+          ],
+          "startDate": "2026-10-29T04:00:00Z",
+          "effectiveDate": "2026-10-29T04:00:00Z",
+          "structuredIndication": "Unspecified",
+          "instructionFacts": {
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseQuantity": [
+              "3"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Text": [
+              "milliliter"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Qualifier": [
+              "DoseUnitOfMeasure"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/Dosage/DoseUnitOfMeasure/Code": [
+              "C28254"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministration/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/DoseAdministration/RouteOfAdministrationClarifyingFreeText": [
+              "inhale orally via nebulizer"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyNumericValue": [
+              "4"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Text": [
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Frequency/FrequencyUnits/Code": [
+              "258703001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationNumericValue": [
+              "7"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationText/Text": [
+              "day"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationText/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/TimingAndDuration/Duration/DurationText/Code": [
+              "258703001"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Text": [
+              "for"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/IndicationPrecursor/Code": [
+              "86495002"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Text": [
+              "Unspecified"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Qualifier": [
+              "SNOMED"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationForUse/Indication/Code": [
+              "10003008"
+            ],
+            "Body/NewRx/MedicationPrescribed/Sig/Instruction/IndicationClarifyingFreeText": [
+              "Congestion"
+            ]
+          },
+          "channel": "MessageBroker",
+          "logId": "20261028-2925227384"
+        },
+        "policyRevision": 7,
+        "exclusions": [
+          {
+            "kind": "code",
+            "value": "FOR%20CAD",
+            "replacement": "FCAD"
+          },
+          {
+            "kind": "code",
+            "value": "RECURRENT"
+          },
+          {
+            "kind": "code",
+            "value": "UNSPECIFIED"
+          },
+          {
+            "kind": "sig",
+            "value": "WITHOUT ESOPHAGITIS"
+          },
+          {
+            "kind": "sig",
+            "value": "GIVE 1 TABLET"
+          }
+        ],
+        "abnormalities": [
+          {
+            "id": "nebulizer_volume_retained",
+            "tier": "uncorrected_gap",
+            "title": "Nebulizer Volume Retained",
+            "message": "The prescribed mL dose was retained. No vial count was assumed; verify the product presentation.",
+            "trigger": "3 ML"
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "[\"remedi_fw-5000206-06\",\"008243\",\"12402218\"]_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "ADM 3ML NEB QID X7D FCOG",
+            "draftSig": "ADM 3ML NEB QID X7D FCOG"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -222,9 +222,13 @@ export function DictionaryView() {
   };
 
   const handleSave = async (data: SigDictionaryInsert) => {
-    await upsertSigEntry(data);
-    toast.success(`SIG code "${data.sig_code}" saved`);
-    await load();
+    try {
+      await upsertSigEntry(data);
+      toast.success(`SIG code "${data.sig_code}" saved`);
+      await load();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save SIG entry');
+    }
   };
 
   const handleDelete = async (entry: SigDictionaryEntry) => {

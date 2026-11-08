@@ -1,0 +1,53 @@
+{
+  "format": "sig-assist-discrepancy-cases",
+  "schemaVersion": 1,
+  "exportedAt": "2026-10-01T06:32:18.708Z",
+  "redacted": false,
+  "caseCount": 4,
+  "reports": [
+    {
+      "id": "disc_1790833294068",
+      "timestamp": "2026-10-01T05:41:34.068Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "3 ml inhale orally every 6 hours as needed for SOB or Wheezing via nebulizer",
+      "rawProse": "3 ml inhale orally every 6 hours as needed for SOB or Wheezing via nebulizer",
+      "generatedSig": "ADM 3ML PO Q6H PRN FOR SOB OR WHEEZING VIA NEBULIZER",
+      "technicianSig": "",
+      "notes": "VIA NEBULIZER SHOULD COMPLETELY REPLACE PO",
+      "flaggedForRph": false
+    },
+    {
+      "id": "disc_1790833354221",
+      "timestamp": "2026-10-01T05:42:34.221Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "3 ml inhale orally every 6 hours as needed for SOB or Wheezing via nebulizer",
+      "rawProse": "3 ml inhale orally every 6 hours as needed for SOB or Wheezing via nebulizer",
+      "generatedSig": "ADM 3ML PO Q6H PRN FOR SOB OR WHEEZING VIA NEBULIZER",
+      "technicianSig": "ADM 3ML NEB Q6H PRN FOR SOB OR WHEEZING",
+      "notes": "\"FOR SOB OR WHEEZING\" COULD BE FSOBW (LOW PRIORIITY)",
+      "flaggedForRph": false
+    },
+    {
+      "id": "disc_1790835268424",
+      "timestamp": "2026-10-01T06:14:28.424Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "KETOCONAZOLE SHAMPOO 2%",
+      "rawProse": "Apply to scalp topically every evening shift every Sat for SEBORRHEA CAPITIS (L21.0) apply to scalp and work in and allow to sit for 5 minutes and then rinse.  Can shampoo/condition as normal afterwards",
+      "generatedSig": "1T PO QD",
+      "technicianSig": "AP TPCL TO SCALP QDDAY7 (DURING PM SHIT) FOR SEBORRHEA CAPITIS. APPLY TO SCALP AND WORK IN AND ALLOW TO SIT FOR 5 MINUTES, THEN RINSE. SHAMPOO/CONDITION AS NORMAL AFTER",
+      "notes": "*Complete sig translation failure* ",
+      "flaggedForRph": false
+    },
+    {
+      "id": "disc_1790835748494",
+      "timestamp": "2026-10-01T06:22:28.494Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "UNKNOWN DRUG",
+      "rawProse": "Give 1 tablet by mouth three times a day for Hip pain for 7 Days May give PRN dose with scheduled dose for total of 1000 mg, do not exceed more than 3000 mg of tylenol in 24 hr period",
+      "generatedSig": "1T PO TID PRN FPAIN X7D",
+      "technicianSig": "1T PO TID PRN FPAIN X7D. MAY GIVE PRN DOSE WITH SCHEDULED DOSE (TD 1000MG) 3GME",
+      "notes": "*CRITICAL* MISSED HALF OF SIG, BUT THE HALF IT TRIED IS RIGHT",
+      "flaggedForRph": false
+    }
+  ]
+}

@@ -45,7 +45,7 @@ export function DiscrepancyArchive() {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
       toast.success(`Exported ${bundle.caseCount} discrepancy reports.`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Case export failed.');

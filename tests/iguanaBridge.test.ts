@@ -2,12 +2,15 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, readFile, rm, copyFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 // Runtime script deliberately uses no package dependencies.
 // @ts-expect-error JavaScript bridge is tested in its native Node runtime.
-import { createBridge, makeQuery, startBridge } from '../scripts/iguana-bridge.mjs';
+import { createBridge, makeQuery, startBridge, defaultHtmlPath } from '../scripts/iguana-bridge.mjs';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
 
 const servers: Server[] = [];
 const folders: string[] = [];
@@ -143,6 +146,49 @@ describe('local read-only bridge', () => {
     const result = await start({ htmlPath: path.join(tmpdir(), 'sig-assist-nonexistent-file.html') });
     const response = await fetch(result.url); expect(response.status).toBe(500);
     expect(await response.text()).toContain('Extract the entire Windows Demo ZIP');
+  });
+  it('recovers index.html from an adjacent Sig-Assist-Windows-Demo.zip when index.html is missing on disk', async () => {
+    const folder = await mkdtemp(path.join(tmpdir(), 'sig-bridge-zip-'));
+    folders.push(folder);
+    const zipSource = path.join(here, '../windows-demo/Sig-Assist-Windows-Demo.zip');
+    const zipDest = path.join(folder, 'Sig-Assist-Windows-Demo.zip');
+    await copyFile(zipSource, zipDest);
+    const missingHtmlPath = path.join(folder, 'index.html');
+    const result = await start({ htmlPath: missingHtmlPath });
+    expect(result.port).toBeGreaterThan(0);
+    const response = await fetch(result.url);
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain('id="root"');
+    const health = await (await fetch(new URL('/connector/health', result.url))).json();
+    expect(health.page.ok).toBe(true);
+    expect(health.page.bytes).toBeGreaterThan(0);
+    expect(await readFile(missingHtmlPath, 'utf8')).toContain('id="root"');
+  });
+  it('resolves defaultHtmlPath with or without SIG_ASSIST_HTML_PATH', () => {
+    const previous = process.env.SIG_ASSIST_HTML_PATH;
+    try {
+      delete process.env.SIG_ASSIST_HTML_PATH;
+      expect(defaultHtmlPath()).toContain('index.html');
+      process.env.SIG_ASSIST_HTML_PATH = '/custom/path/index.html';
+      expect(defaultHtmlPath()).toBe('/custom/path/index.html');
+    } finally {
+      if (previous === undefined) delete process.env.SIG_ASSIST_HTML_PATH;
+      else process.env.SIG_ASSIST_HTML_PATH = previous;
+    }
+  });
+  it('honors SIG_ASSIST_HTML_PATH environment variable', async () => {
+    const htmlPath = await pageFile(portableHtml);
+    const previous = process.env.SIG_ASSIST_HTML_PATH;
+    process.env.SIG_ASSIST_HTML_PATH = htmlPath;
+    try {
+      const result = await start();
+      const health = await (await fetch(new URL('/connector/health', result.url))).json();
+      expect(health.page.ok).toBe(true);
+      expect(health.page.path).toBe(htmlPath);
+    } finally {
+      if (previous === undefined) delete process.env.SIG_ASSIST_HTML_PATH;
+      else process.env.SIG_ASSIST_HTML_PATH = previous;
+    }
   });
   it('rejects invalid configured ports clearly', async () => {
     for (const port of [-1, 65536, 4190.5, NaN]) await expect(start({ port })).rejects.toThrow('SIG_ASSIST_CONNECTOR_PORT');

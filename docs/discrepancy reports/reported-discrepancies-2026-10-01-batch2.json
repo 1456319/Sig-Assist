@@ -1,0 +1,108 @@
+{
+  "format": "sig-assist-discrepancy-cases",
+  "schemaVersion": 1,
+  "exportedAt": "2026-10-01T07:03:56.560Z",
+  "redacted": false,
+  "caseCount": 6,
+  "reports": [
+    {
+      "id": "disc_87f54283-6818-4726-b48c-f66bdc97cc3c",
+      "timestamp": "2026-10-01T06:39:19.472Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "UNKNOWN DRUG",
+      "rawProse": "Instill 1 drop in left eye as needed for Eye comfort Per optometrist",
+      "generatedSig": "1T PO QD PRN FOR EYE COMFORT PER OPTOMETRIST",
+      "technicianSig": "1G OS PRN FOR EYE DISCOMFORT PER OPTOMETRIST",
+      "notes": "*SEVERE* 1 DROP -> 1 TABLET AND LEFT EYE -> PO. ALSO, CANNOT INSERT QD IF FREQUENCY IS MISSING IN SIG. WITHOUT DRAWING ATTENTION TO IT. SOMETIMES, THAT MIGHT BE APPROPRIATE",
+      "flaggedForRph": false,
+      "buildId": "146677efd20a96eb1016a53a2829c78ab3545f72601ed402c945e7d114ca9273",
+      "context": {
+        "source": "workbench",
+        "traceId": "ORD_MUP5X5KW_MO7NWB",
+        "abnormalities": [],
+        "subOrders": [{ "id": "order_1790836679552_l52wv_single", "label": "Order 1 of 1", "suggestedSig": "1T PO QD PRN FOR EYE COMFORT PER OPTOMETRIST" }]
+      }
+    },
+    {
+      "id": "disc_639806eb-83c2-4391-94d4-6a53a847c5c4",
+      "timestamp": "2026-10-01T06:42:37.498Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "DICLOFENAC GEL 1%",
+      "rawProse": "Apply to neck, up to left ear topically four times a day for neck pain",
+      "generatedSig": "AP 2GM TPCL QID FPAIN",
+      "technicianSig": "AP 2GM TPCL TO NECK UP TO LT EAR QID FOR NECK PAIN",
+      "notes": "*SEVERE* MISSING AREAS OF APPLICATION. 2GM INSERTION IS CORRECT. ALSO, MUST TYPE OUT \"FOR NECK PAIN\" - FPAIN IS STRICKTY IF IT SAYS \"FOR PAIN\"",
+      "flaggedForRph": false,
+      "buildId": "146677efd20a96eb1016a53a2829c78ab3545f72601ed402c945e7d114ca9273",
+      "context": {
+        "source": "workbench", "traceId": "ORD_MUP60X2I_G0W6S2",
+        "abnormalities": [{ "id": "abn_diclo_1790836855146", "tier": "applied_correction", "title": "Diclofenac Dose Default Applied", "message": "The generated Sig CONTAINS A CORRECTION.", "correction": "Sig was generated with Qty/Dose = 2GM", "trigger": "Unspecified anatomical site for topical application" }],
+        "subOrders": [{ "id": "order_1790836855146_02f8q_single", "label": "Order 1 of 1", "suggestedSig": "AP 2GM TPCL QID FPAIN" }]
+      }
+    },
+    {
+      "id": "disc_5d3739cc-34c4-44c6-b0a8-8f35aeddd460",
+      "timestamp": "2026-10-01T06:45:50.068Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "ACETAMINOPHEN ES CPLT 500MG",
+      "rawProse": "Give 2 tablet by mouth every 8 hours as needed for Pain",
+      "generatedSig": "2T (1000MG) PO Q8H PRN FPAIN 3GM",
+      "technicianSig": "2T PO Q8H PRN FOR NECK PAIN 3GM",
+      "notes": "*MINOR* MISSED AREA OF APPLICATION. DIAGNOSIS ARE SAFE TO TYPE OUT FULLY WHEN IN DOUBT, JUST EXCLUDE IDC 10 CODES AND TRY TO USE PROPER GRAMMAR ",
+      "flaggedForRph": false,
+      "buildId": "146677efd20a96eb1016a53a2829c78ab3545f72601ed402c945e7d114ca9273",
+      "context": {
+        "source": "workbench", "traceId": "ORD_MUP64IBN_ES3Y21", "abnormalities": [],
+        "subOrders": [{ "id": "order_1790837022659_1egy3_single", "label": "Order 1 of 1", "suggestedSig": "2T (1000MG) PO Q8H PRN FPAIN 3GM" }]
+      }
+    },
+    {
+      "id": "disc_c32bde5d-08bb-4f9f-ac44-7c11a621b445",
+      "timestamp": "2026-10-01T06:58:39.020Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "methylPREDNISolone 4MG",
+      "rawProse": "Give 1 tablet by mouth one time a day every Tue, Thu, Sat, Sun for low thyroid hormone",
+      "generatedSig": "1T PO QD FOR LOW THYROID HORMONE",
+      "technicianSig": "1T PO QDDAY2467 FOR LOW THRYOID HORMONE",
+      "notes": "IGNORED DAYS OF WEEK",
+      "flaggedForRph": false,
+      "buildId": "146677efd20a96eb1016a53a2829c78ab3545f72601ed402c945e7d114ca9273",
+      "context": {
+        "source": "workbench", "traceId": "ORD_MUP6M9P9_27HEC4", "abnormalities": [],
+        "subOrders": [{ "id": "order_1790837851293_pmn9h_single", "label": "Order 1 of 1", "suggestedSig": "1T PO QD FOR LOW THYROID HORMONE" }]
+      }
+    },
+    {
+      "id": "disc_0767fcb2-70a9-4b86-bd0e-2344dde59fc4",
+      "timestamp": "2026-10-01T07:01:18.670Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "UNKNOWN DRUG",
+      "rawProse": "Give 1 tablet by mouth one time a day for blood clot prevention",
+      "generatedSig": "1T PO QD FOR BLOOD CLOT PREVENTION",
+      "technicianSig": "1T PO QD FBCP",
+      "notes": "*MINOR* FBCP INSTEAD OF  FOR BLOOD CLOT PREVENTION",
+      "flaggedForRph": false,
+      "buildId": "146677efd20a96eb1016a53a2829c78ab3545f72601ed402c945e7d114ca9273",
+      "context": {
+        "source": "workbench", "traceId": "ORD_MUP6Q9ZB_DVI8IO", "abnormalities": [],
+        "subOrders": [{ "id": "order_1790838038279_19k1t_single", "label": "Order 1 of 1", "suggestedSig": "1T PO QD FOR BLOOD CLOT PREVENTION" }]
+      }
+    },
+    {
+      "id": "disc_d12788c1-b7fd-43ac-a8e3-a2ec53037994",
+      "timestamp": "2026-10-01T07:03:38.847Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "POLYETH GLYC PWD PACKET (17GM)",
+      "rawProse": "Give 1 packet orally one time a day for constipation",
+      "generatedSig": "1PKT PO QD FCON",
+      "technicianSig": "",
+      "notes": "*MODERATE* FORGOT TO ADD \"MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO\" AND MUTATE IT",
+      "flaggedForRph": false,
+      "buildId": "146677efd20a96eb1016a53a2829c78ab3545f72601ed402c945e7d114ca9273",
+      "context": {
+        "source": "workbench", "traceId": "ORD_MUP6SVQO_EN2JMB", "abnormalities": [],
+        "subOrders": [{ "id": "order_1790838159792_vdh0y_single", "label": "Order 1 of 1", "suggestedSig": "1PKT PO QD FCON" }]
+      }
+    }
+  ]
+}

@@ -5,6 +5,7 @@ export const SIG_CODE_REFERENCE: Readonly<Record<string, string>> = {
   "10T": "10 TABLETS",
   "12C": "1 TO 2 CAPSULES",
   "12G": "ADMINISTER 1-2 DROPS",
+  "12ON": "(ON FOR 12 HOURS & OFF FOR 12 HOURS)",
   "12T": "1 TO 2 TABLETS",
   "1C": "1 CAPSULE",
   "1G": "ADMINISTER 1 DROP",
@@ -23,12 +24,17 @@ export const SIG_CODE_REFERENCE: Readonly<Record<string, string>> = {
   "3G": "ADMINISTER 3 DROPS",
   "3GM": "(USE CAUTION WITH APAP TOTAL DAILY DOSE GREATER THAN 3,000MG)",
   "3GME": "(DO NOT EXCEED APAP TOTAL DAILY DOSE GREATER THAN 3,000MG)",
+  "3GTT": "ADMINISTER 3 DROPS",
   "3T": "3 TABLETS",
   "4C": "4 CAPSULES",
   "4G": "ADMINISTER 4 DROPS",
+  "4GAPAP": "(USE CAUTION WITH APAP TOTAL DAILY DOSE GREATER THAN 3,000MG)",
+  "4GM": "(USE CAUTION WITH APAP TOTAL DAILY DOSE GREATER THAN 3,000MG)",
+  "4GTT": "ADMINISTER 4 DROPS",
   "4T": "4 TABLETS",
   "5C": "5 CAPSULES",
   "5G": "ADMINISTER 5 DROPS",
+  "5GTT": "ADMINISTER 5 DROPS",
   "5T": "5 TABLETS",
   "6C": "6 CAPSULES",
   "6G": "ADMINISTER 6 DROPS",
@@ -39,14 +45,27 @@ export const SIG_CODE_REFERENCE: Readonly<Record<string, string>> = {
   "8T": "8 TABLETS",
   "9C": "9 CAPSULES",
   "9T": "9 TABLETS",
+  "A/B": "ONE TIME A DAY BEFORE BREAKFAST",
+  "A/L": "ONE TIME A DAY BEFORE LUNCH",
+  "A/S": "ONE TIME A DAY BEFORE DINNER",
+  "AAA": "AFFECTED AREA:  APPLY",
+  "AATX": "AFFECTED AREA:  APPLY",
   "AC": "THREE TIMES A DAY BEFORE MEALS",
+  "ACB": "ONE TIME A DAY BEFORE BREAKFAST",
   "ACHS": "FOUR TIMES A DAY BEFORE MEALS AND AT BEDTIME",
+  "ACLU": "ONE TIME A DAY BEFORE LUNCH",
+  "ACS": "ONE TIME A DAY BEFORE DINNER",
   "AD": "INTO RIGHT EAR",
   "AL": "INTO LEFT EAR",
   "AP4GM": "APPLY 4GM",
+  "ASN": "AS NEEDED",
   "AU": "INTO EACH EAR",
   "BID": "TWO TIMES A DAY",
   "BIDAC": "TWO TIMES A DAY BEFORE MEALS",
+  "CQD": "ONCE A DAY",
+  "CQOD": "EVERY OTHER DAY",
+  "CWS&H": "CLEANSE WITH SOAP AND WATER",
+  "CWS&W": "CLEANSE WITH SOAP AND WATER",
   "DIS": "DISSOLVE",
   "ENOS": "INTO EACH NOSTRIL",
   "FAA": "FOR ANXIETY AND AGITATION",
@@ -166,6 +185,7 @@ export const SIG_CODE_REFERENCE: Readonly<Record<string, string>> = {
   "FRHE": "FOR RHEUMATOID ARTHRITIS",
   "FRLN": "FOR RESTLESSNESS",
   "FRSD": "FOR RESPIRATORY DISTRESS",
+  "FS1": "ONCE A DAY",
   "FSCH": "FOR SCHIZOPHRENIA",
   "FSEC": "FOR INCREASED SECRETIONS",
   "FSLP": "FOR SLEEP",
@@ -192,20 +212,35 @@ export const SIG_CODE_REFERENCE: Readonly<Record<string, string>> = {
   "INJ": "INJECT",
   "JT": "PER J-TUBE",
   "LOR1MG": "ADMINISTER 0.5 ML (1 MG)",
+  "LOR5": "ADMINISTER 0.5 ML (1 MG)",
+  "LQD": "ONCE A DAY",
   "LT": "LEFT",
   "NEB": "VIA NEBULIZER",
   "NG": "PER NG-TUBE",
   "NTE4": "(NOT TO EXCEED 4,000MG OF APAP PER DAY)",
   "OD": "IN RIGHT EYE",
+  "ON12": "(ON FOR 12 HOURS & OFF FOR 12 HOURS)",
+  "ON12OFF12": "(ON FOR 12 HOURS & OFF FOR 12 HOURS)",
   "OS": "IN LEFT EYE",
   "OU": "IN EACH EYE",
+  "P/B": "ONE TIME A DAY AFTER BREAKFAST",
+  "P/L": "ONE TIME A DAY AFTER LUNCH",
+  "P/S": "ONE TIME A DAY AFTER DINNER",
+  "PC": "THREE TIMES A DAY AFTER MEALS",
+  "PCB": "ONE TIME A DAY AFTER BREAKFAST",
+  "PCHS": "FOUR TIMES A DAY AFTER MEALS AND AT BEDTIME",
+  "PCLU": "ONE TIME A DAY AFTER LUNCH",
+  "PCS": "ONE TIME A DAY AFTER SUPPER",
   "PEGT": "PER PEG-TUBE",
   "PO": "BY MOUTH",
   "PO/SL": "BY MOUTH OR SUBLINGUALLY",
+  "PQD": "ONCE A DAY",
   "PR": "RECTALLY",
+  "PRN": "AS NEEDED",
   "PV": "VAGINALLY",
   "Q12H": "EVERY TWELVE HOURS",
   "Q1H": "EVERY ONE HOUR",
+  "Q1S": "ONCE A DAY",
   "Q23H": "EVERY 2 TO 3 HOURS",
   "Q24H": "EVERY TWENTY FOUR HOURS",
   "Q2H": "EVERY TWO HOURS",
@@ -223,6 +258,7 @@ export const SIG_CODE_REFERENCE: Readonly<Record<string, string>> = {
   "Q96H": "EVERY 96 HOURS",
   "QAM": "ONE TIME A DAY IN THE MORNING",
   "QD": "ONE TIME A DAY",
+  "QDINJ": "ONCE A DAY",
   "QDQ10D": "ONCE DAILY EVERY 10 DAYS",
   "QDQ11D": "ONCE DAILY EVERY 11 DAYS",
   "QDQ120D": "ONCE DAILY EVERY 120 DAYS",
@@ -259,11 +295,18 @@ export const SIG_CODE_REFERENCE: Readonly<Record<string, string>> = {
   "QDQ8D": "ONCE DAILY EVERY 8 DAYS",
   "QDQ90D": "ONCE DAILY EVERY 90 DAYS",
   "QDQ9D": "ONCE DAILY EVERY 9 DAYS",
+  "QDSITE": "ONCE A DAY",
   "QHS": "ONE TIME A DAY AT BEDTIME",
   "QID": "FOUR TIMES A DAY",
   "QOD": "EVERY OTHER DAY",
   "QPM": "ONE TIME A DAY IN THE EVENING",
+  "QS": "EVERY SHIFT",
+  "QSD": "EVERY SHIFT",
+  "QSHIFT": "EVERY SHIFT",
+  "REC": "RECTALLY",
   "RT": "RIGHT",
+  "SAS": "SWISH AND SWALLOW",
+  "SC": "SUBCUTANEOUSLY",
   "SL": "SUBLINGUALLY",
   "SQ": "SUBCUTANEOUSLY",
   "SSP": "SWISH AND SPIT",
@@ -271,9 +314,18 @@ export const SIG_CODE_REFERENCE: Readonly<Record<string, string>> = {
   "TAW": "TAKE ALONG WITH",
   "TID": "THREE TIMES A DAY",
   "TIDAC": "THREE TIMES A DAY BEFORE MEALS",
+  "TX1": "ONE TIME A DAY",
+  "TX2": "TWO TIMES A DAY",
+  "TX3": "THREE TIMES A DAY",
+  "TXPRN": "AS NEEDED",
+  "TXQD": "ONCE A DAY",
+  "TXQOD": "EVERY OTHER DAY",
+  "TXQS": "EVERY SHIFT",
   "UN": "UNITS",
+  "VAG": "VAGINALLY",
   "WM": "WITH MEALS",
   "WMBID": "TWO TIMES A DAY WITH MEALS",
+  "WMHS": "FOUR TIMES A DAY WITH MEALS AND AT BEDTIME",
   "WMQD": "ONCE A DAY WITH MEAL",
   "WMTID": "3 TIMES A DAY WITH MEALS",
   "X1": "X 1 DOSE",
@@ -319,4 +371,141 @@ export const SIG_CODE_REFERENCE: Readonly<Record<string, string>> = {
   "X90D": "X 90 DAYS",
   "X96H": "X 96 HOURS",
   "X9D": "X 9 DAYS"
+};
+
+export const EQUIVALENT_SIG_CODES: Readonly<Record<string, readonly string[]>> = {
+  "A/B": [
+    "A/B",
+    "ACB"
+  ],
+  "A/L": [
+    "A/L",
+    "ACLU"
+  ],
+  "A/S": [
+    "A/S",
+    "ACS"
+  ],
+  "AAA": [
+    "AAA",
+    "AATX"
+  ],
+  "AATX": [
+    "AAA",
+    "AATX"
+  ],
+  "AC": [
+    "AC",
+    "TIDAC"
+  ],
+  "ACB": [
+    "A/B",
+    "ACB"
+  ],
+  "ACHS": [
+    "ACHS"
+  ],
+  "ACLU": [
+    "A/L",
+    "ACLU"
+  ],
+  "ACS": [
+    "A/S",
+    "ACS"
+  ],
+  "ASN": [
+    "PRN",
+    "ASN"
+  ],
+  "CQOD": [
+    "QOD",
+    "CQOD"
+  ],
+  "CWS&H": [
+    "CWS&W",
+    "CWS&H"
+  ],
+  "CWS&W": [
+    "CWS&W",
+    "CWS&H"
+  ],
+  "P/B": [
+    "P/B",
+    "PCB"
+  ],
+  "P/L": [
+    "P/L",
+    "PCLU"
+  ],
+  "P/S": [
+    "P/S",
+    "PCS"
+  ],
+  "PC": [
+    "PC"
+  ],
+  "PCB": [
+    "P/B",
+    "PCB"
+  ],
+  "PCHS": [
+    "PCHS"
+  ],
+  "PCLU": [
+    "P/L",
+    "PCLU"
+  ],
+  "PCS": [
+    "P/S",
+    "PCS"
+  ],
+  "PRN": [
+    "PRN",
+    "ASN"
+  ],
+  "QOD": [
+    "QOD",
+    "CQOD"
+  ],
+  "QS": [
+    "QS",
+    "QSD",
+    "QSHIFT"
+  ],
+  "QSD": [
+    "QS",
+    "QSD",
+    "QSHIFT"
+  ],
+  "QSHIFT": [
+    "QS",
+    "QSD",
+    "QSHIFT"
+  ],
+  "SAS": [
+    "SSW",
+    "SAS"
+  ],
+  "SC": [
+    "SQ",
+    "SC"
+  ],
+  "SQ": [
+    "SQ",
+    "SC"
+  ],
+  "SSP": [
+    "SSP"
+  ],
+  "SSW": [
+    "SSW",
+    "SAS"
+  ],
+  "TIDAC": [
+    "AC",
+    "TIDAC"
+  ],
+  "WMHS": [
+    "WMHS"
+  ]
 };

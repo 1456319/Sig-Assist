@@ -1,0 +1,583 @@
+{
+  "format": "sig-assist-discrepancy-cases",
+  "schemaVersion": 1,
+  "exportedAt": "2026-10-01T09:31:43.647Z",
+  "redacted": false,
+  "caseCount": 24,
+  "reports": [
+    {
+      "id": "disc_1790833294068",
+      "timestamp": "2026-10-01T05:41:34.068Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "3 ml inhale orally every 6 hours as needed for SOB or Wheezing via nebulizer",
+      "rawProse": "3 ml inhale orally every 6 hours as needed for SOB or Wheezing via nebulizer",
+      "generatedSig": "ADM 3ML PO Q6H PRN FOR SOB OR WHEEZING VIA NEBULIZER",
+      "technicianSig": "",
+      "notes": "VIA NEBULIZER SHOULD COMPLETELY REPLACE PO",
+      "flaggedForRph": false
+    },
+    {
+      "id": "disc_1790833354221",
+      "timestamp": "2026-10-01T05:42:34.221Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "3 ml inhale orally every 6 hours as needed for SOB or Wheezing via nebulizer",
+      "rawProse": "3 ml inhale orally every 6 hours as needed for SOB or Wheezing via nebulizer",
+      "generatedSig": "ADM 3ML PO Q6H PRN FOR SOB OR WHEEZING VIA NEBULIZER",
+      "technicianSig": "ADM 3ML NEB Q6H PRN FOR SOB OR WHEEZING",
+      "notes": "\"FOR SOB OR WHEEZING\" COULD BE FSOBW (LOW PRIORIITY)",
+      "flaggedForRph": false
+    },
+    {
+      "id": "disc_1790835268424",
+      "timestamp": "2026-10-01T06:14:28.424Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "KETOCONAZOLE SHAMPOO 2%",
+      "rawProse": "Apply to scalp topically every evening shift every Sat for SEBORRHEA CAPITIS (L21.0) apply to scalp and work in and allow to sit for 5 minutes and then rinse.  Can shampoo/condition as normal afterwards",
+      "generatedSig": "1T PO QD",
+      "technicianSig": "AP TPCL TO SCALP QDDAY7 (DURING PM SHIT) FOR SEBORRHEA CAPITIS. APPLY TO SCALP AND WORK IN AND ALLOW TO SIT FOR 5 MINUTES, THEN RINSE. SHAMPOO/CONDITION AS NORMAL AFTER",
+      "notes": "*Complete sig translation failure* ",
+      "flaggedForRph": false
+    },
+    {
+      "id": "disc_1790835748494",
+      "timestamp": "2026-10-01T06:22:28.494Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "UNKNOWN DRUG",
+      "rawProse": "Give 1 tablet by mouth three times a day for Hip pain for 7 Days May give PRN dose with scheduled dose for total of 1000 mg, do not exceed more than 3000 mg of tylenol in 24 hr period",
+      "generatedSig": "1T PO TID PRN FPAIN X7D",
+      "technicianSig": "1T PO TID PRN FPAIN X7D. MAY GIVE PRN DOSE WITH SCHEDULED DOSE (TD 1000MG) 3GME",
+      "notes": "*CRITICAL* MISSED HALF OF SIG, BUT THE HALF IT TRIED IS RIGHT",
+      "flaggedForRph": false
+    },
+    {
+      "id": "disc_87f54283-6818-4726-b48c-f66bdc97cc3c",
+      "timestamp": "2026-10-01T06:39:19.472Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "UNKNOWN DRUG",
+      "rawProse": "Instill 1 drop in left eye as needed for Eye comfort Per optometrist",
+      "generatedSig": "1T PO QD PRN FOR EYE COMFORT PER OPTOMETRIST",
+      "technicianSig": "1G OS PRN FOR EYE DISCOMFORT PER OPTOMETRIST",
+      "notes": "*SEVERE* 1 DROP -> 1 TABLET AND LEFT EYE -> PO. ALSO, CANNOT INSERT QD IF FREQUENCY IS MISSING IN SIG. WITHOUT DRAWING ATTENTION TO IT. SOMETIMES, THAT MIGHT BE APPROPRIATE",
+      "flaggedForRph": false,
+      "buildId": "146677efd20a96eb1016a53a2829c78ab3545f72601ed402c945e7d114ca9273",
+      "context": {
+        "source": "workbench",
+        "traceId": "ORD_MUP5X5KW_MO7NWB",
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "order_1790836679552_l52wv_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "1T PO QD PRN FOR EYE COMFORT PER OPTOMETRIST"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_639806eb-83c2-4391-94d4-6a53a847c5c4",
+      "timestamp": "2026-10-01T06:42:37.498Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "DICLOFENAC GEL 1%",
+      "rawProse": "Apply to neck, up to left ear topically four times a day for neck pain",
+      "generatedSig": "AP 2GM TPCL QID FPAIN",
+      "technicianSig": "AP 2GM TPCL TO NECK UP TO LT EAR QID FOR NECK PAIN",
+      "notes": "*SEVERE* MISSING AREAS OF APPLICATION. 2GM INSERTION IS CORRECT. ALSO, MUST TYPE OUT \"FOR NECK PAIN\" - FPAIN IS STRICKTY IF IT SAYS \"FOR PAIN\"",
+      "flaggedForRph": false,
+      "buildId": "146677efd20a96eb1016a53a2829c78ab3545f72601ed402c945e7d114ca9273",
+      "context": {
+        "source": "workbench",
+        "traceId": "ORD_MUP60X2I_G0W6S2",
+        "abnormalities": [
+          {
+            "id": "abn_diclo_1790836855146",
+            "tier": "applied_correction",
+            "title": "Diclofenac Dose Default Applied",
+            "message": "The generated Sig CONTAINS A CORRECTION.",
+            "correction": "Sig was generated with Qty/Dose = 2GM",
+            "trigger": "Unspecified anatomical site for topical application"
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "order_1790836855146_02f8q_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "AP 2GM TPCL QID FPAIN"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_5d3739cc-34c4-44c6-b0a8-8f35aeddd460",
+      "timestamp": "2026-10-01T06:45:50.068Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "ACETAMINOPHEN ES CPLT 500MG",
+      "rawProse": "Give 2 tablet by mouth every 8 hours as needed for Pain",
+      "generatedSig": "2T (1000MG) PO Q8H PRN FPAIN 3GM",
+      "technicianSig": "2T PO Q8H PRN FOR NECK PAIN 3GM",
+      "notes": "*MINOR* MISSED AREA OF APPLICATION. DIAGNOSIS ARE SAFE TO TYPE OUT FULLY WHEN IN DOUBT, JUST EXCLUDE IDC 10 CODES AND TRY TO USE PROPER GRAMMAR ",
+      "flaggedForRph": false,
+      "buildId": "146677efd20a96eb1016a53a2829c78ab3545f72601ed402c945e7d114ca9273",
+      "context": {
+        "source": "workbench",
+        "traceId": "ORD_MUP64IBN_ES3Y21",
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "order_1790837022659_1egy3_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "2T (1000MG) PO Q8H PRN FPAIN 3GM"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_c32bde5d-08bb-4f9f-ac44-7c11a621b445",
+      "timestamp": "2026-10-01T06:58:39.020Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "methylPREDNISolone 4MG",
+      "rawProse": "Give 1 tablet by mouth one time a day every Tue, Thu, Sat, Sun for low thyroid hormone",
+      "generatedSig": "1T PO QD FOR LOW THYROID HORMONE",
+      "technicianSig": "1T PO QDDAY2467 FOR LOW THRYOID HORMONE",
+      "notes": "IGNORED DAYS OF WEEK",
+      "flaggedForRph": false,
+      "buildId": "146677efd20a96eb1016a53a2829c78ab3545f72601ed402c945e7d114ca9273",
+      "context": {
+        "source": "workbench",
+        "traceId": "ORD_MUP6M9P9_27HEC4",
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "order_1790837851293_pmn9h_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "1T PO QD FOR LOW THYROID HORMONE"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_0767fcb2-70a9-4b86-bd0e-2344dde59fc4",
+      "timestamp": "2026-10-01T07:01:18.670Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "UNKNOWN DRUG",
+      "rawProse": "Give 1 tablet by mouth one time a day for blood clot prevention",
+      "generatedSig": "1T PO QD FOR BLOOD CLOT PREVENTION",
+      "technicianSig": "1T PO QD FBCP",
+      "notes": "*MINOR* FBCP INSTEAD OF  FOR BLOOD CLOT PREVENTION",
+      "flaggedForRph": false,
+      "buildId": "146677efd20a96eb1016a53a2829c78ab3545f72601ed402c945e7d114ca9273",
+      "context": {
+        "source": "workbench",
+        "traceId": "ORD_MUP6Q9ZB_DVI8IO",
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "order_1790838038279_19k1t_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "1T PO QD FOR BLOOD CLOT PREVENTION"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_d12788c1-b7fd-43ac-a8e3-a2ec53037994",
+      "timestamp": "2026-10-01T07:03:38.847Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "POLYETH GLYC PWD PACKET (17GM)",
+      "rawProse": "Give 1 packet orally one time a day for constipation",
+      "generatedSig": "1PKT PO QD FCON",
+      "technicianSig": "",
+      "notes": "*MODERATE* FORGOT TO ADD \"MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO\" AND MUTATE IT",
+      "flaggedForRph": false,
+      "buildId": "146677efd20a96eb1016a53a2829c78ab3545f72601ed402c945e7d114ca9273",
+      "context": {
+        "source": "workbench",
+        "traceId": "ORD_MUP6SVQO_EN2JMB",
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "order_1790838159792_vdh0y_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "1PKT PO QD FCON"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_71d09092-8310-4a39-a7cf-38c8d190bdb8",
+      "timestamp": "2026-10-01T07:08:42.731Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "TIMOLOL-GFS OPTH GEL 0.5%",
+      "rawProse": "Instill 1 drop in right eye in the morning for pressure in the eye apply 1 drop every morning to right eye",
+      "generatedSig": "1T PO QAM FOR PRESSURE IN THE EYE APPLY 1 DROP EVERY MORNING TO RIGHT EYE",
+      "technicianSig": "1G OD QAM FOR PRESSURE IN THE EYE",
+      "notes": "SIG FOR \"RGHT EYE\" IS CRITICAL TO USE, OTHERWISE SOFTWARE WILL CALCULATE 0 DROPS PER DAY. USING THE SIG CODE OD TELL FRAMEWORK THAT 1 DROP (QTY) IS BEING USED IN THE RT EYE. ALSO, TRANSLATED DUPLICATE",
+      "flaggedForRph": false,
+      "buildId": "146677efd20a96eb1016a53a2829c78ab3545f72601ed402c945e7d114ca9273",
+      "context": {
+        "source": "workbench",
+        "traceId": "ORD_MUP6Y1BH_63CT2S",
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "order_1790838400301_feyvn_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "1T PO QAM FOR PRESSURE IN THE EYE APPLY 1 DROP EVERY MORNING TO RIGHT EYE"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_5da453ed-3f1a-4f58-848e-129a50a827ef",
+      "timestamp": "2026-10-01T07:15:24.335Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "POTASSIUM CL LIQ 20MEQ/15ML",
+      "rawProse": "Give 15 ml orally one time a day for supplement",
+      "generatedSig": "ADM 15ML PO QD FSU",
+      "technicianSig": "ADM 15ML (20MEQ) PO QD FSU",
+      "notes": "MEQ TOTAL DOSE SHOULD BE DISPLAYED NEXT TO QTY (NOT COMBO DRUG)",
+      "flaggedForRph": false,
+      "buildId": "146677efd20a96eb1016a53a2829c78ab3545f72601ed402c945e7d114ca9273",
+      "context": {
+        "source": "workbench",
+        "traceId": "ORD_MUP77UZ4_XUVLS8",
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "order_1790838858640_x9ozi_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "ADM 15ML PO QD FSU"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_05060424-91b3-43d1-b6c9-1f2a2541b1b5",
+      "timestamp": "2026-10-01T07:23:51.277Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "MUPIROCIN OINT 2%",
+      "rawProse": "Apply to sternum and upper back topically every day shift for Healing site for 14 Days follow TAR",
+      "generatedSig": "1T PO QD X14D",
+      "technicianSig": "AP TPCL TO STERNUM AND UPPER BACK TPCL QD (DURING DAY SHIT) X14D FOR HEALING SITE. FOLLOW TAR",
+      "notes": "MISSING \"FOLLOW TAR\" AT END. USED QD INSTEAD OF \"QD (DURING DAY SHIT)\" MISSED \"FOR HEALING SITE\". MISSED \"TO STERNUM AND UPPER BACK\" AND \"TPCL\"",
+      "flaggedForRph": false,
+      "buildId": "146677efd20a96eb1016a53a2829c78ab3545f72601ed402c945e7d114ca9273",
+      "context": {
+        "source": "workbench",
+        "traceId": "ORD_MUP7EWUX_0ELUAL",
+        "abnormalities": [
+          {
+            "id": "abn_dose_unspecified_1790839187673",
+            "tier": "potential_error",
+            "title": "Unspecified Dose Quantity",
+            "message": "Original directions omit a dosage count. Defaulted to 1 tablet/capsule for safety review.",
+            "trigger": "Apply to sternum and upper back topically every day shift for Healing site for 14 Days follow TAR"
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "order_1790839187673_6ftbq_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "1T PO QD X14D"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_e97d6ffa-7557-498e-8db2-6307b13f3c31",
+      "timestamp": "2026-10-01T08:02:20.277Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "prednisoLONE ACE OPTH SUSP 1%",
+      "rawProse": "Instill 1 drop in left eye three times a day for s/p cataract surgery x7 days for 7 Days",
+      "generatedSig": "ADM 0ML PO TID X7D",
+      "technicianSig": "1G OS TID X7D FOR S/P CATARACT SURGERY",
+      "notes": "NO SIG GENERATED",
+      "flaggedForRph": false,
+      "buildId": "146677efd20a96eb1016a53a2829c78ab3545f72601ed402c945e7d114ca9273",
+      "context": {
+        "source": "workbench",
+        "traceId": "ORD_MUP8WZG6_E307U8",
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "order_1790841710454_cu087_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "ADM 0ML PO TID X7D"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_156f1320-33b2-47a2-849f-128401723c2e",
+      "timestamp": "2026-10-01T08:06:19.856Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "NYSTATIN SUSP 100,000U/ML",
+      "rawProse": "Give 5 ml by mouth four times a day for thrush for 7 Days swish and swallow",
+      "generatedSig": "ADM 5ML PO QID X7D",
+      "technicianSig": "SSW 5ML PO QID FOR THRUSH X7D",
+      "notes": "LEFT OUT \"FOR THRUSH\" AND \"SWISH AND SWALLOW\" SHOULD HAVE REPLACED \"ADM\"",
+      "flaggedForRph": false,
+      "buildId": "146677efd20a96eb1016a53a2829c78ab3545f72601ed402c945e7d114ca9273",
+      "context": {
+        "source": "workbench",
+        "traceId": "ORD_MUP9243V_I4ZXKX",
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "order_1790841949771_vqttf_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "ADM 5ML PO QID X7D"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_d079bad0-5f4a-4700-92c2-d5eec91556e3",
+      "timestamp": "2026-10-01T08:32:16.113Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": " PANTOPRAZOLE PWD PACKET 40MG",
+      "rawProse": "Give 40 mg by mouth two times a day for GERD take before meals",
+      "generatedSig": "DISSOLVE 1 PACKET IN 5ML OF APPLE JUICE AND GIVE FGERD",
+      "technicianSig": "DISSOLVE 1 PACKET IN 5ML OF APPLE JUICE AND GIVE BIDAC FGERD",
+      "notes": "*VERY CLOSE* MISSED DAILY USE FREQUENCY \"BIDAC\"",
+      "flaggedForRph": false,
+      "buildId": "146677efd20a96eb1016a53a2829c78ab3545f72601ed402c945e7d114ca9273",
+      "context": {
+        "source": "workbench",
+        "traceId": "ORD_MUP9WUTB_RZJGRA",
+        "defaultSigTemplate": "DISSOLVE 1 PACKET IN 5ML OF APPLE JUICE AND GIVE",
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "order_1790843384063_wdonb_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "DISSOLVE 1 PACKET IN 5ML OF APPLE JUICE AND GIVE FGERD"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_a92f2672-c727-4b5b-a455-b0fb403f6d19",
+      "timestamp": "2026-10-01T08:32:53.585Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": " PANTOPRAZOLE PWD PACKET 40MG",
+      "rawProse": "Give 40 mg by mouth two times a day for GERD take before meals",
+      "generatedSig": "DISSOLVE 1 PACKET IN 5ML OF APPLE JUICE AND GIVE FGERD",
+      "technicianSig": "GENERAL NOTE: COULD USE A \"CLEAR ALL FIELDS\" BUTTON ON THIS SCREEN",
+      "notes": "",
+      "flaggedForRph": false,
+      "buildId": "146677efd20a96eb1016a53a2829c78ab3545f72601ed402c945e7d114ca9273",
+      "context": {
+        "source": "workbench",
+        "traceId": "ORD_MUP9WUTB_RZJGRA",
+        "defaultSigTemplate": "DISSOLVE 1 PACKET IN 5ML OF APPLE JUICE AND GIVE",
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "order_1790843384063_wdonb_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "DISSOLVE 1 PACKET IN 5ML OF APPLE JUICE AND GIVE FGERD"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_cd243c90-2ad6-4a25-9240-ae46f25e266b",
+      "timestamp": "2026-10-01T08:53:48.158Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "ELIQUIS TAB 2.5MG",
+      "rawProse": "Give 2.5 mg by mouth two times a day for afib",
+      "generatedSig": "ADM 0ML PO BID FOR AFIB",
+      "technicianSig": "1T PO BID FAFIB",
+      "notes": "TRANSLATED AS 0ML INSTEAD OF 1T.",
+      "flaggedForRph": false,
+      "buildId": "146677efd20a96eb1016a53a2829c78ab3545f72601ed402c945e7d114ca9273",
+      "context": {
+        "source": "workbench",
+        "traceId": "ORD_MUPAQQHI_240L2R",
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "order_1790844778134_9izec_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "ADM 0ML PO BID FOR AFIB"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_b85c411f-7dc9-45d6-a7fb-be0af482bbb6",
+      "timestamp": "2026-10-01T09:04:29.965Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "UNKNOWN DRUG",
+      "rawProse": "Give 1 capsule by mouth two times a day for neuropathy",
+      "generatedSig": "1C PO BID FOR NEUROPATHY",
+      "technicianSig": "FOR NEUROPATHY=FNEU",
+      "notes": "REFERENCE THE SIG CODE LIST FOR DIAGNOSTIC SIG CODES - WE SHOULD USE THEM IF THEY EXIST, BUT ARENT TERRIBLY IMPORTANT",
+      "flaggedForRph": false,
+      "buildId": "06fd37bcda15eb4775e60ec6fdd9e94125f3b8dde7bd07009058394b1bf40cbd",
+      "context": {
+        "source": "workbench",
+        "traceId": "ORD_MUPB4D2G_WE993P",
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "order_1790845413928_7rvjf_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "1C PO BID FOR NEUROPATHY"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_0ff66941-43a1-4703-8321-528cec05e230",
+      "timestamp": "2026-10-01T09:09:04.640Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "DICLOFENAC GEL 1%",
+      "rawProse": "Apply to 4 grams to knee and hand  topically as needed for pain 4 times a day as needed",
+      "generatedSig": "AP 2GM TPCL TO 4 GRAMS TO KNEE AND HAND PRN FOR PAIN 4 TIMES A DAY AS NEEDED",
+      "technicianSig": "AP4GM TPCL TO KNEE AND HAND QID PRN FPAIN",
+      "notes": "NONSENSICAL SIG - \"AP 2GM TPCL TO 4 GRAMS\" - SCRIPT CLEARLY INDICATES 4GRAMS TO KNEE AND 4GM TO HAND. ALSO INCORRECT ON LACK OF DAILY USE FREQ - SAYS 4 TIMES PER DAY",
+      "flaggedForRph": false,
+      "buildId": "06fd37bcda15eb4775e60ec6fdd9e94125f3b8dde7bd07009058394b1bf40cbd",
+      "context": {
+        "source": "workbench",
+        "traceId": "ORD_MUPB8KR3_70GSF6",
+        "abnormalities": [
+          {
+            "id": "abn_diclo_1790845610512",
+            "tier": "applied_correction",
+            "title": "Diclofenac Dose Default Applied",
+            "message": "The generated Sig CONTAINS A CORRECTION. Verify the added quantity before copying.",
+            "correction": "Added institutional dose default: AP 2GM",
+            "trigger": "TO 4 GRAMS TO KNEE AND HAND"
+          },
+          {
+            "id": "diclofenac_unverified_site",
+            "tier": "potential_error",
+            "title": "Diclofenac Site/Dose Requires Verification",
+            "message": "The application site is outside a single verified diclofenac dose category. Have the pharmacist verify the site and quantity; no labeled neck/ear dose was inferred.",
+            "trigger": "TO 4 GRAMS TO KNEE AND HAND"
+          },
+          {
+            "id": "abn_freq_unrecognized_1790845610512",
+            "tier": "uncorrected_gap",
+            "title": "Missing Frequency",
+            "message": "No dosing interval was supplied. No QD or other scheduled frequency was added. Verify the frequency or PRN interval before copying.",
+            "trigger": "Apply to 4 grams to knee and hand  topically as needed for pain 4 times a day as needed"
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "order_1790845610511_vtsgm_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "AP 2GM TPCL TO 4 GRAMS TO KNEE AND HAND PRN FOR PAIN 4 TIMES A DAY AS NEEDED"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_ea2763dd-79dd-4c4f-8b1e-d57cf845d3d4",
+      "timestamp": "2026-10-01T09:13:10.259Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "47335075649 - IPRATROPIUM/ALBUTEROL INH SOLN",
+      "rawProse": "3 ml inhale orally every 6 hours as needed for shortness of breath or wheezing",
+      "generatedSig": "ADM 3ML INH Q6H PRN FSOBW",
+      "technicianSig": "1V NEB Q6H PRN FSOBW",
+      "notes": "*CRITICAL* NEVER PUT QTY IN ML ON NEBULIZER ORDERS. 3ML SHOULD ALWAYS CONVERT TO \"1V\" OR 1 VIAL. ALSO STILL MISSING \"NEB\" SHORTCODE. nEVER INCLUDE INH IN NEB SIGS, JUST ADMINISTER ",
+      "flaggedForRph": false,
+      "buildId": "06fd37bcda15eb4775e60ec6fdd9e94125f3b8dde7bd07009058394b1bf40cbd",
+      "context": {
+        "source": "workbench",
+        "traceId": "ORD_MUPBDQT6_E8ALU2",
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "order_1790845851642_nji36_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "ADM 3ML INH Q6H PRN FSOBW"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_266940d1-5e23-4cbf-a97e-7f2e527e0231",
+      "timestamp": "2026-10-01T09:22:01.081Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "OMEPRAZOLE OTC TAB 20MG",
+      "rawProse": "Give 1 tablet by mouth one time a day for GERD and prophylaxis for 2 Weeks",
+      "generatedSig": "1T PO QD FOR GERD AND PROPHYLAXIS FOR 2 WEEKS",
+      "technicianSig": "1T PO QD FGERD AND PROPHYLAXIS X2WK",
+      "notes": "*CRITICAL* MUST USE \"X2WK\" FOR DURATION, OTHERWISE OUR MACHINE WILL DISPENSE THIS MEDICATION INDEFINITELY",
+      "flaggedForRph": false,
+      "buildId": "06fd37bcda15eb4775e60ec6fdd9e94125f3b8dde7bd07009058394b1bf40cbd",
+      "context": {
+        "source": "workbench",
+        "traceId": "ORD_MUPBQIGG_P7QHHU",
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "order_1790846447344_sc0ni_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "1T PO QD FOR GERD AND PROPHYLAXIS FOR 2 WEEKS"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_ae551d76-db1c-463c-a7ec-56e3ecaa04e1",
+      "timestamp": "2026-10-01T09:25:03.538Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "HumaLOG (LISPRO) INJ 100U/ML",
+      "rawProse": "Inject as per sliding scale: if 151 - 200 = 2 units; 201 - 250 = 4 unis; 251 - 300 = 6 units; 301 - 350 = 8 units; 351 - 400 = 10 units; 401+ = 12 units Notify NP/PA, subcutaneously before meals and at bedtime for DM",
+      "generatedSig": "CBS ACHS SS 151-200=2U;201-250=4U;251-300=6U;301-350=8U;351-400=10U",
+      "technicianSig": "CBS ACHS SS 151-200=2U;201-250=4U;251-300=6U;301-350=8U;351-400=10U;401+=12&CALL NP/PA",
+      "notes": "THIS WAS AN IMPRESSIVE ONE. JUST MISSED THE LAST PARAMETER - 401+=12&CALL NP/PA",
+      "flaggedForRph": false,
+      "buildId": "06fd37bcda15eb4775e60ec6fdd9e94125f3b8dde7bd07009058394b1bf40cbd",
+      "context": {
+        "source": "workbench",
+        "traceId": "ORD_MUPBU2P7_KR7NE5",
+        "abnormalities": [],
+        "subOrders": [
+          {
+            "id": "order_1790846613547_bycm9_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "CBS ACHS SS 151-200=2U;201-250=4U;251-300=6U;301-350=8U;351-400=10U"
+          }
+        ]
+      }
+    },
+    {
+      "id": "disc_e8785b61-c061-4598-ba91-7a858fc84326",
+      "timestamp": "2026-10-01T09:29:47.054Z",
+      "pon": "MANUAL_ENTRY",
+      "drugName": "SIMETHICONE ES CHEW 125MG",
+      "rawProse": "Give 2 tablet by mouth one time only for upcoming colonoscopy procedure per Dr. Long until 10/12/2026 15:00 drink with second bottle of gatorade",
+      "generatedSig": "GIVE 2 TABLET BY MOUTH ONE TIME ONLY FOR UPCOMING COLONOSCOPY PROCEDURE PER DR. LONG UNTIL 10/12/2026 15:00 DRINK WITH SECOND BOTTLE OF GATORADE",
+      "technicianSig": "2T (250MG) PO X1 ONLY FOR UPCOMING COLONOSCOPY PROCEDURE PER DR. LONG UNTIL 10/12/2026 15:00 DRINK WITH SECOND BOTTLE OF GATORADE",
+      "notes": "\"ONE TIME ONLY\" COUNTS AS A FREQUENCY. ALSO MISSED \"2T\" - REVIEW SIG CODE SHEET, THESE ARE BOTH THERE",
+      "flaggedForRph": false,
+      "buildId": "06fd37bcda15eb4775e60ec6fdd9e94125f3b8dde7bd07009058394b1bf40cbd",
+      "context": {
+        "source": "workbench",
+        "traceId": "ORD_MUPBY4CS_5A624O",
+        "abnormalities": [
+          {
+            "id": "abn_freq_unrecognized_1790846802317",
+            "tier": "uncorrected_gap",
+            "title": "Missing Frequency",
+            "message": "No dosing interval was supplied. No QD or other scheduled frequency was added. Verify the frequency or PRN interval before copying.",
+            "trigger": "Give 2 tablet by mouth one time only for upcoming colonoscopy procedure per Dr. Long until 10/12/2026 15:00 drink with second bottle of gatorade"
+          }
+        ],
+        "subOrders": [
+          {
+            "id": "order_1790846802316_g49m1_single",
+            "label": "Order 1 of 1",
+            "suggestedSig": "GIVE 2 TABLET BY MOUTH ONE TIME ONLY FOR UPCOMING COLONOSCOPY PROCEDURE PER DR. LONG UNTIL 10/12/2026 15:00 DRINK WITH SECOND BOTTLE OF GATORADE"
+          }
+        ]
+      }
+    }
+  ]
+}
