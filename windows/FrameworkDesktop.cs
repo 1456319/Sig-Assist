@@ -604,29 +604,23 @@ public static class FrameworkDesktop {
         // to the starting viewport. Only move this already identified detail grid.
         try {
             scroll.SetScrollPercent(ScrollPattern.NoScroll, 100);
-            Pause(budget, deadline, 250);
-            var visible = CaptureRows(element, info, scroll, "review-bottom", budget, deadline, true);
-            if (visible.Any(FillAnchor)) {
-                info.anchorVisible = true; info.reviewPosition = "rxfill-visible"; return;
-            }
+            Pause(budget, deadline, 500);
             for (int step = 0; step <= 24 && budget.ElapsedMilliseconds < deadline; step++) {
-                if (step > 0) {
-                    visible = CaptureRows(element, info, scroll, "review-" + step, budget, deadline, step == 1);
-                    if (visible.Any(FillAnchor)) {
-                        info.anchorVisible = true; info.reviewPosition = "rxfill-visible"; return;
-                    }
+                var visible = CaptureRows(element, info, scroll, "review-" + step, budget, deadline, step == 0);
+                if (visible.Any(FillAnchor)) {
+                    info.anchorVisible = true; info.reviewPosition = "rxfill-visible"; return;
                 }
                 double before = scroll.Current.VerticalScrollPercent;
                 if (before <= 0 || step == 24) break;
                 scroll.Scroll(ScrollAmount.NoAmount, ScrollAmount.SmallDecrement);
-                Pause(budget, deadline, 150);
+                Pause(budget, deadline, 500);
                 if (Math.Abs(scroll.Current.VerticalScrollPercent - before) < 0.001) break;
             }
         } catch (Exception error) { info.issues.Add("Review-position scan: " + error.GetType().Name + ": " + error.Message); }
         // If the anchor is absent/unreadable, bottom is an acceptable fallback.
         try {
             scroll.SetScrollPercent(ScrollPattern.NoScroll, 100);
-            Pause(budget, deadline, 200);
+            Pause(budget, deadline, 350);
             info.reviewPosition = scroll.Current.VerticalScrollPercent >= 99.9 ? "bottom" : "unconfirmed";
         } catch (Exception error) { info.reviewPosition = "unconfirmed"; info.issues.Add("Could not leave the details at the bottom: " + error.GetType().Name); }
     }
@@ -724,7 +718,7 @@ public static class FrameworkDesktop {
             if (!HasPon(info) && !CompleteGrid(info) && scroll != null && scroll.Current.VerticallyScrollable && budget.ElapsedMilliseconds < readDeadline) {
                 info.method += " + settled scroll";
                 scroll.SetScrollPercent(ScrollPattern.NoScroll, 0);
-                Pause(budget, readDeadline, 250);
+                Pause(budget, readDeadline, 350);
                 for (int page = 0; page < 40 && !HasPon(info) && budget.ElapsedMilliseconds < readDeadline; page++) {
                     var visible = CaptureRows(control.element, info, scroll, "page-" + page, budget, readDeadline, true); info.pages++;
                     if (visible.Count == 0 && !HasPon(info)) RecoverViewport(control.element, info, scroll, "page-" + page + "-recovery", budget, readDeadline, handle);
@@ -732,7 +726,7 @@ public static class FrameworkDesktop {
                     double before = scroll.Current.VerticalScrollPercent;
                     if (before >= 99.99) break;
                     scroll.Scroll(ScrollAmount.NoAmount, ScrollAmount.LargeIncrement);
-                    Pause(budget, readDeadline, 250);
+                    Pause(budget, readDeadline, 350);
                     if (Math.Abs(scroll.Current.VerticalScrollPercent - before) < 0.001) { info.issues.Add("Detail grid did not advance when scrolled."); break; }
                 }
             }
