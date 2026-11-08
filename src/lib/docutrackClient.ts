@@ -325,7 +325,7 @@ export const DocuTrackReportQueries = {
    * Find documents matching an Rx number or Prescriber Order Number.
    */
   findDocumentsByRx(rxNumber: string): string {
-    const clean = rxNumber.replace(/[';\\]/g, '').replace(/[%_\[\]]/g, '[$&]');
+    const clean = rxNumber.replace(/[';\\]/g, '').replace(/[%_[\]]/g, '[$&]');
     return `SELECT DocumentID, DocumentType, ReceivedDateTime, Status, AssociatedEntities FROM vwRPT_Documents WHERE AssociatedEntities LIKE '%${clean}%' ORDER BY ReceivedDateTime DESC;`;
   },
 

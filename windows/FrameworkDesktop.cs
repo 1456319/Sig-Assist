@@ -722,29 +722,18 @@ public static class FrameworkDesktop {
                 }
             }
             if (!HasPon(info) && !CompleteGrid(info) && scroll != null && scroll.Current.VerticallyScrollable && budget.ElapsedMilliseconds < readDeadline) {
-                // Fast-path probe: SCRIPT.NEWRXRequest.GetFields() appends PrescriberOrderNumber
-                // as the final field at the end of the collection, placing it at the bottom of ERxGrid.
-                try {
-                    scroll.SetScrollPercent(ScrollPattern.NoScroll, 100);
-                    Pause(budget, readDeadline, 200);
-                    CaptureRows(control.element, info, scroll, "bottom-probe", budget, readDeadline, true);
-                } catch { }
-                if (HasPon(info)) {
-                    info.method += " + fast bottom probe";
-                } else {
-                    info.method += " + settled scroll";
-                    scroll.SetScrollPercent(ScrollPattern.NoScroll, 0);
+                info.method += " + settled scroll";
+                scroll.SetScrollPercent(ScrollPattern.NoScroll, 0);
+                Pause(budget, readDeadline, 250);
+                for (int page = 0; page < 40 && !HasPon(info) && budget.ElapsedMilliseconds < readDeadline; page++) {
+                    var visible = CaptureRows(control.element, info, scroll, "page-" + page, budget, readDeadline, true); info.pages++;
+                    if (visible.Count == 0 && !HasPon(info)) RecoverViewport(control.element, info, scroll, "page-" + page + "-recovery", budget, readDeadline, handle);
+                    if (HasPon(info)) break;
+                    double before = scroll.Current.VerticalScrollPercent;
+                    if (before >= 99.99) break;
+                    scroll.Scroll(ScrollAmount.NoAmount, ScrollAmount.LargeIncrement);
                     Pause(budget, readDeadline, 250);
-                    for (int page = 0; page < 40 && !HasPon(info) && budget.ElapsedMilliseconds < readDeadline; page++) {
-                        var visible = CaptureRows(control.element, info, scroll, "page-" + page, budget, readDeadline, true); info.pages++;
-                        if (visible.Count == 0 && !HasPon(info)) RecoverViewport(control.element, info, scroll, "page-" + page + "-recovery", budget, readDeadline, handle);
-                        if (HasPon(info)) break;
-                        double before = scroll.Current.VerticalScrollPercent;
-                        if (before >= 99.99) break;
-                        scroll.Scroll(ScrollAmount.NoAmount, ScrollAmount.LargeIncrement);
-                        Pause(budget, readDeadline, 250);
-                        if (Math.Abs(scroll.Current.VerticalScrollPercent - before) < 0.001) { info.issues.Add("Detail grid did not advance when scrolled."); break; }
-                    }
+                    if (Math.Abs(scroll.Current.VerticalScrollPercent - before) < 0.001) { info.issues.Add("Detail grid did not advance when scrolled."); break; }
                 }
             }
         } catch (Exception error) { info.issues.Add("Detail grid inspection failed: " + error.GetType().Name + ": " + error.Message); }
