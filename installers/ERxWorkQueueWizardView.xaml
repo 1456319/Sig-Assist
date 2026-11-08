@@ -1,0 +1,293 @@
+<views:LtcUserControl x:Class="SoftWriters.FrameworkLtc.Views.Prescriptions.ERxWorkQueue.ERxWorkQueueWizardView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:views="clr-namespace:SoftWriters.FrameworkLtc.Views" xmlns:eRxWorkQueue="clr-namespace:SoftWriters.FrameworkLtc.Views.Prescriptions.ERxWorkQueue" xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:dxmvvm="http://schemas.devexpress.com/winfx/2008/xaml/mvvm" views:LtcForm.SaveSizeAndPosition="True" views:LtcForm.AllowMinimize="False" views:LtcForm.HideCloseButton="True" views:LtcForm.IsResizable="True" views:LtcForm.DefaultSize="600,550">
+  <views:LtcForm.Title>
+    <Binding>
+      <Ctor xmlns="https://github.com/icsharpcode/ILSpy">WizardTitle</Ctor>
+    </Binding>
+  </views:LtcForm.Title>
+  <FrameworkElement.MinWidth>
+    <Binding>
+      <Ctor xmlns="https://github.com/icsharpcode/ILSpy">MinWidth</Ctor>
+    </Binding>
+  </FrameworkElement.MinWidth>
+  <FrameworkElement.MinHeight>
+    <Binding>
+      <Ctor xmlns="https://github.com/icsharpcode/ILSpy">MinHeight</Ctor>
+    </Binding>
+  </FrameworkElement.MinHeight>
+  <FrameworkElement.Resources>
+    <ResourceDictionary>
+      <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+    </ResourceDictionary>
+  </FrameworkElement.Resources>
+  <interactivity:Interaction.Triggers xmlns:interactivity="clr-namespace:DevExpress.Mvvm.UI.Interactivity;assembly=DevExpress.Xpf.Core.v22.2">
+    <ui:EventToCommand xmlns:interactivity="clr-namespace:DevExpress.Mvvm.UI.Interactivity;assembly=DevExpress.Xpf.Core.v22.2" interactivity:EventTriggerBase.EventName="Loaded" xmlns:ui="clr-namespace:DevExpress.Mvvm.UI;assembly=DevExpress.Xpf.Core.v22.2">
+      <ui:EventToCommandBase.Command xmlns:ui="clr-namespace:DevExpress.Mvvm.UI;assembly=DevExpress.Xpf.Core.v22.2">
+        <Binding>
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">OnViewLoadedCommand</Ctor>
+        </Binding>
+      </ui:EventToCommandBase.Command>
+    </ui:EventToCommand>
+  </interactivity:Interaction.Triggers>
+  <UIElement.InputBindings>
+    <KeyBinding Key="Escape">
+      <InputBinding.Command>
+        <Binding>
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">EscapeCommand</Ctor>
+        </Binding>
+      </InputBinding.Command>
+    </KeyBinding>
+  </UIElement.InputBindings>
+  <Grid>
+    <UIElement.IsEnabled>
+      <Binding>
+        <Ctor xmlns="https://github.com/icsharpcode/ILSpy">IsEnabled</Ctor>
+      </Binding>
+    </UIElement.IsEnabled>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+    <eRxWorkQueue:ERxWorkQueueView Name="WorkQueueView" Grid.Row="0" FrameworkElement.VerticalAlignment="Stretch" FrameworkElement.HorizontalAlignment="Stretch">
+      <UIElement.Visibility>
+        <Binding Converter="{StaticResource BooleanToVisibilityConverter}">
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ShowViewFlag</Ctor>
+        </Binding>
+      </UIElement.Visibility>
+      <FrameworkElement.DataContext>
+        <Binding>
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">WorkQueueViewModel</Ctor>
+        </Binding>
+      </FrameworkElement.DataContext>
+      <!--Unknown connection ID: 1-->
+    </eRxWorkQueue:ERxWorkQueueView>
+    <eRxWorkQueue:ERxWorkQueuePatientOrdersView Name="PatientOrdersView" Grid.Row="0" FrameworkElement.VerticalAlignment="Stretch" FrameworkElement.HorizontalAlignment="Stretch">
+      <UIElement.Visibility>
+        <Binding Converter="{StaticResource BooleanToVisibilityConverter}">
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ShowViewFlag</Ctor>
+        </Binding>
+      </UIElement.Visibility>
+      <FrameworkElement.DataContext>
+        <Binding>
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">PatientOrdersViewModel</Ctor>
+        </Binding>
+      </FrameworkElement.DataContext>
+      <!--Unknown connection ID: 2-->
+    </eRxWorkQueue:ERxWorkQueuePatientOrdersView>
+    <eRxWorkQueue:ERxWorkQueuePatientSelectionView Name="PatientSelectionView" Grid.Row="0" FrameworkElement.VerticalAlignment="Stretch" FrameworkElement.HorizontalAlignment="Stretch">
+      <UIElement.Visibility>
+        <Binding Converter="{StaticResource BooleanToVisibilityConverter}">
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ShowViewFlag</Ctor>
+        </Binding>
+      </UIElement.Visibility>
+      <FrameworkElement.DataContext>
+        <Binding>
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">PatientSelectionViewModel</Ctor>
+        </Binding>
+      </FrameworkElement.DataContext>
+      <!--Unknown connection ID: 3-->
+    </eRxWorkQueue:ERxWorkQueuePatientSelectionView>
+    <eRxWorkQueue:ERxWorkQueueFacilitySelectionView Name="FacilitySelectionView" Grid.Row="0" FrameworkElement.VerticalAlignment="Stretch" FrameworkElement.HorizontalAlignment="Stretch">
+      <UIElement.Visibility>
+        <Binding Converter="{StaticResource BooleanToVisibilityConverter}">
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ShowViewFlag</Ctor>
+        </Binding>
+      </UIElement.Visibility>
+      <FrameworkElement.DataContext>
+        <Binding>
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">FacilitySelectionViewModel</Ctor>
+        </Binding>
+      </FrameworkElement.DataContext>
+      <!--Unknown connection ID: 4-->
+    </eRxWorkQueue:ERxWorkQueueFacilitySelectionView>
+    <eRxWorkQueue:ERxWorkQueueAdmitPatientView Name="AdmitPatientView" Grid.Row="0" FrameworkElement.VerticalAlignment="Stretch" FrameworkElement.HorizontalAlignment="Stretch">
+      <UIElement.Visibility>
+        <Binding Converter="{StaticResource BooleanToVisibilityConverter}">
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ShowViewFlag</Ctor>
+        </Binding>
+      </UIElement.Visibility>
+      <FrameworkElement.DataContext>
+        <Binding>
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">AdmitPatientViewModel</Ctor>
+        </Binding>
+      </FrameworkElement.DataContext>
+      <!--Unknown connection ID: 5-->
+    </eRxWorkQueue:ERxWorkQueueAdmitPatientView>
+    <eRxWorkQueue:ERxWorkQueueProductSelectionView Name="ProductSelectionView" Grid.Row="0" FrameworkElement.VerticalAlignment="Stretch" FrameworkElement.HorizontalAlignment="Stretch">
+      <UIElement.Visibility>
+        <Binding Converter="{StaticResource BooleanToVisibilityConverter}">
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ShowViewFlag</Ctor>
+        </Binding>
+      </UIElement.Visibility>
+      <FrameworkElement.DataContext>
+        <Binding>
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ProductSelectionViewModel</Ctor>
+        </Binding>
+      </FrameworkElement.DataContext>
+      <!--Unknown connection ID: 6-->
+    </eRxWorkQueue:ERxWorkQueueProductSelectionView>
+    <eRxWorkQueue:ERxWorkQueueOrderSelectionView Name="OrderSelectionView" Grid.Row="0" FrameworkElement.VerticalAlignment="Stretch" FrameworkElement.HorizontalAlignment="Stretch">
+      <UIElement.Visibility>
+        <Binding Converter="{StaticResource BooleanToVisibilityConverter}">
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ShowViewFlag</Ctor>
+        </Binding>
+      </UIElement.Visibility>
+      <FrameworkElement.DataContext>
+        <Binding>
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">OrderSelectionViewModel</Ctor>
+        </Binding>
+      </FrameworkElement.DataContext>
+      <!--Unknown connection ID: 7-->
+    </eRxWorkQueue:ERxWorkQueueOrderSelectionView>
+    <eRxWorkQueue:ERxWorkQueueChangePatientView Name="ChangePatientView" Grid.Row="0" FrameworkElement.VerticalAlignment="Stretch" FrameworkElement.HorizontalAlignment="Stretch">
+      <UIElement.Visibility>
+        <Binding Converter="{StaticResource BooleanToVisibilityConverter}">
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ShowViewFlag</Ctor>
+        </Binding>
+      </UIElement.Visibility>
+      <FrameworkElement.DataContext>
+        <Binding>
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ChangePatientViewModel</Ctor>
+        </Binding>
+      </FrameworkElement.DataContext>
+      <!--Unknown connection ID: 8-->
+    </eRxWorkQueue:ERxWorkQueueChangePatientView>
+    <eRxWorkQueue:ERxWorkQueueProductSelectionHL7View Name="ProductSelectionHL7View" Grid.Row="0" FrameworkElement.VerticalAlignment="Stretch" FrameworkElement.HorizontalAlignment="Stretch">
+      <UIElement.Visibility>
+        <Binding Converter="{StaticResource BooleanToVisibilityConverter}">
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ShowViewFlag</Ctor>
+        </Binding>
+      </UIElement.Visibility>
+      <FrameworkElement.DataContext>
+        <Binding>
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ProductSelectionViewModelHL7</Ctor>
+        </Binding>
+      </FrameworkElement.DataContext>
+      <!--Unknown connection ID: 9-->
+    </eRxWorkQueue:ERxWorkQueueProductSelectionHL7View>
+    <eRxWorkQueue:ERxWorkQueueGenericSubstitutionView Name="GenericSubstitutionView" Grid.Row="0" FrameworkElement.VerticalAlignment="Stretch" FrameworkElement.HorizontalAlignment="Stretch">
+      <UIElement.Visibility>
+        <Binding Converter="{StaticResource BooleanToVisibilityConverter}">
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ShowViewFlag</Ctor>
+        </Binding>
+      </UIElement.Visibility>
+      <FrameworkElement.DataContext>
+        <Binding>
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">GenericSubstitutionViewModel</Ctor>
+        </Binding>
+      </FrameworkElement.DataContext>
+      <!--Unknown connection ID: 10-->
+    </eRxWorkQueue:ERxWorkQueueGenericSubstitutionView>
+    <eRxWorkQueue:ERxWorkQueueGenericSubstitutionHL7View Name="GenericSubstitutionHL7View" Grid.Row="0" FrameworkElement.VerticalAlignment="Stretch" FrameworkElement.HorizontalAlignment="Stretch">
+      <UIElement.Visibility>
+        <Binding Converter="{StaticResource BooleanToVisibilityConverter}">
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ShowViewFlag</Ctor>
+        </Binding>
+      </UIElement.Visibility>
+      <FrameworkElement.DataContext>
+        <Binding>
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">GenericSubstitutionHL7ViewModel</Ctor>
+        </Binding>
+      </FrameworkElement.DataContext>
+      <!--Unknown connection ID: 11-->
+    </eRxWorkQueue:ERxWorkQueueGenericSubstitutionHL7View>
+    <eRxWorkQueue:ERxWorkQueueBiosimilarSubstitutionView Name="BiosimilarSubstitutionView" Grid.Row="0" FrameworkElement.VerticalAlignment="Stretch" FrameworkElement.HorizontalAlignment="Stretch">
+      <UIElement.Visibility>
+        <Binding Converter="{StaticResource BooleanToVisibilityConverter}">
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ShowViewFlag</Ctor>
+        </Binding>
+      </UIElement.Visibility>
+      <FrameworkElement.DataContext>
+        <Binding>
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">BiosimilarSubstitutionViewModel</Ctor>
+        </Binding>
+      </FrameworkElement.DataContext>
+      <!--Unknown connection ID: 12-->
+    </eRxWorkQueue:ERxWorkQueueBiosimilarSubstitutionView>
+    <eRxWorkQueue:ERxWorkQueueHouseStockView Name="HouseStockView" Grid.Row="0" FrameworkElement.VerticalAlignment="Stretch" FrameworkElement.HorizontalAlignment="Stretch">
+      <UIElement.Visibility>
+        <Binding Converter="{StaticResource BooleanToVisibilityConverter}">
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ShowViewFlag</Ctor>
+        </Binding>
+      </UIElement.Visibility>
+      <FrameworkElement.DataContext>
+        <Binding>
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">HouseStockViewModel</Ctor>
+        </Binding>
+      </FrameworkElement.DataContext>
+      <!--Unknown connection ID: 13-->
+    </eRxWorkQueue:ERxWorkQueueHouseStockView>
+    <eRxWorkQueue:ERxWorkQueueDirectionsView Name="DirectionsView" Grid.Row="0" FrameworkElement.VerticalAlignment="Stretch" FrameworkElement.HorizontalAlignment="Stretch">
+      <UIElement.Visibility>
+        <Binding Converter="{StaticResource BooleanToVisibilityConverter}">
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ShowViewFlag</Ctor>
+        </Binding>
+      </UIElement.Visibility>
+      <FrameworkElement.DataContext>
+        <Binding>
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">DirectionsViewModel</Ctor>
+        </Binding>
+      </FrameworkElement.DataContext>
+      <!--Unknown connection ID: 14-->
+    </eRxWorkQueue:ERxWorkQueueDirectionsView>
+    <Label Grid.Row="1" FrameworkElement.VerticalAlignment="Bottom" FrameworkElement.HorizontalAlignment="Left" FrameworkElement.Margin="10 0 0 10" Control.FontWeight="Bold">
+      <UIElement.Visibility>
+        <Binding Converter="{StaticResource BooleanToVisibilityConverter}">
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ClipLabelVisible</Ctor>
+        </Binding>
+      </UIElement.Visibility>
+      <ContentControl.Content>
+        <Binding>
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">WorkQueueViewModel.ClipLabel</Ctor>
+        </Binding>
+      </ContentControl.Content>
+    </Label>
+    <StackPanel Grid.Row="1" FrameworkElement.VerticalAlignment="Top" FrameworkElement.HorizontalAlignment="Center" Orientation="Horizontal">
+      <Button FrameworkElement.Style="{StaticResource GeneralButton}" FrameworkElement.Width="120" xmlns:automation="clr-namespace:System.Windows.Automation;assembly=PresentationCore" automation:AutomationProperties.Name="BackButton">
+        <ButtonBase.Command>
+          <Binding>
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">BackCommand</Ctor>
+          </Binding>
+        </ButtonBase.Command>
+        <UIElement.IsEnabled>
+          <Binding>
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">BackEnabled</Ctor>
+          </Binding>
+        </UIElement.IsEnabled>
+        <ContentControl.Content>
+          <Binding>
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">BackCommandText</Ctor>
+          </Binding>
+        </ContentControl.Content>
+      </Button>
+      <Button FrameworkElement.Style="{StaticResource GeneralButton}" FrameworkElement.Width="120" p10:AutomationProperties.Name="NextButton" xmlns:p10="clr-namespace:System.Windows.Automation;assembly=PresentationCore">
+        <ButtonBase.Command>
+          <Binding>
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">NextCommand</Ctor>
+          </Binding>
+        </ButtonBase.Command>
+        <UIElement.IsEnabled>
+          <Binding>
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">NextEnabled</Ctor>
+          </Binding>
+        </UIElement.IsEnabled>
+        <ContentControl.Content>
+          <Binding>
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">NextCommandText</Ctor>
+          </Binding>
+        </ContentControl.Content>
+      </Button>
+      <Button FrameworkElement.Style="{StaticResource GeneralButton}" IsCancel="True" FrameworkElement.Width="120" p10:AutomationProperties.Name="CancelButton" xmlns:p10="clr-namespace:System.Windows.Automation;assembly=PresentationCore">
+        <ButtonBase.Command>
+          <Binding>
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">CancelCommand</Ctor>
+          </Binding>
+        </ButtonBase.Command>
+        <ContentControl.Content>
+          <Binding>
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">CancelCommandText</Ctor>
+          </Binding>
+        </ContentControl.Content>
+      </Button>
+    </StackPanel>
+  </Grid>
+</views:LtcUserControl>

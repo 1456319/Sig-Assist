@@ -1,0 +1,322 @@
+<UserControl x:Class="SoftWriters.FrameworkLtc.Views.Shared.ERxGridView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid" xmlns:themes="http://schemas.devexpress.com/winfx/2008/xaml/grid/themekeys" xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity" xmlns:behaviors="clr-namespace:SoftWriters.FrameworkLtc.Infrastructure.Behaviors" xmlns:shared="clr-namespace:SoftWriters.FrameworkLtc.Views.Shared" xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors" xmlns:valueConverters="clr-namespace:SoftWriters.FrameworkLtc.Infrastructure.ValueConverters">
+  <FrameworkElement.Resources>
+    <ResourceDictionary>
+      <valueConverters:NonEmptyStringToBooleanConverter x:Key="NonEmptyStringToBooleanConverter" />
+    </ResourceDictionary>
+  </FrameworkElement.Resources>
+  <grid:GridControl xmlns:grid="clr-namespace:DevExpress.Xpf.Grid;assembly=DevExpress.Xpf.Grid.v22.2" Name="ERxGrid" xmlns:grid1="clr-namespace:DevExpress.Xpf.Grid;assembly=DevExpress.Xpf.Grid.v22.2.Core" grid1:DataControlBase.SelectionMode="None" Control.IsTabStop="True">
+    <grid1:DataControlBase.ItemsSource>
+      <Binding Path="ItemSource">
+        <Binding.RelativeSource>
+          <RelativeSource>
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">FindAncestor</Ctor>
+            <RelativeSource.AncestorType>
+              <x:TypeExtension>
+                <Ctor xmlns="https://github.com/icsharpcode/ILSpy">shared:ERxGridView</Ctor>
+              </x:TypeExtension>
+            </RelativeSource.AncestorType>
+          </RelativeSource>
+        </Binding.RelativeSource>
+      </Binding>
+    </grid1:DataControlBase.ItemsSource>
+    <interactivity:Interaction.Behaviors xmlns:interactivity="clr-namespace:System.Windows.Interactivity;assembly=System.Windows.Interactivity">
+      <behaviors:DxGridScrollToTopOnItemsSourceChangedBehavior />
+      <behaviors:DxGridScrollOnNavigationKeysBehavior />
+    </interactivity:Interaction.Behaviors>
+    <FrameworkElement.Resources>
+      <ResourceDictionary>
+        <Style x:Key="RowStyle">
+          <Style.TargetType>
+            <x:TypeExtension>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">grid:RowControl</Ctor>
+            </x:TypeExtension>
+          </Style.TargetType>
+          <Style.Triggers>
+            <DataTrigger Value="True">
+              <DataTrigger.Binding>
+                <Binding>
+                  <Ctor xmlns="https://github.com/icsharpcode/ILSpy">DataContext.IsEvenRow</Ctor>
+                </Binding>
+              </DataTrigger.Binding>
+              <Setter Property="Control.Background" Value="#FFD3D3D3" />
+            </DataTrigger>
+            <DataTrigger Value="False">
+              <DataTrigger.Binding>
+                <Binding>
+                  <Ctor xmlns="https://github.com/icsharpcode/ILSpy">DataContext.IsEvenRow</Ctor>
+                </Binding>
+              </DataTrigger.Binding>
+              <Setter Property="Control.Background" Value="#FFFFFFFF" />
+            </DataTrigger>
+            <DataTrigger Value="True">
+              <DataTrigger.Binding>
+                <Binding>
+                  <Ctor xmlns="https://github.com/icsharpcode/ILSpy">DataContext.IsGroupHeader</Ctor>
+                </Binding>
+              </DataTrigger.Binding>
+              <Setter Property="Control.Background" Value="#FF00008B" />
+            </DataTrigger>
+            <DataTrigger Value="True">
+              <DataTrigger.Binding>
+                <Binding>
+                  <Ctor xmlns="https://github.com/icsharpcode/ILSpy">DataContext.IsHighlighted</Ctor>
+                </Binding>
+              </DataTrigger.Binding>
+              <Setter Property="Control.Background" Value="#FFFFFF00" />
+            </DataTrigger>
+            <DataTrigger Value="True">
+              <DataTrigger.Binding>
+                <Binding>
+                  <Ctor xmlns="https://github.com/icsharpcode/ILSpy">DataContext.IsRed</Ctor>
+                </Binding>
+              </DataTrigger.Binding>
+              <Setter Property="Control.Background" Value="#FFFF0000" />
+              <Setter Property="Control.Foreground" Value="#FFFFFFFF" />
+            </DataTrigger>
+            <DataTrigger Value="True">
+              <DataTrigger.Binding>
+                <Binding>
+                  <Ctor xmlns="https://github.com/icsharpcode/ILSpy">DataContext.IsGreen</Ctor>
+                </Binding>
+              </DataTrigger.Binding>
+              <Setter Property="Control.Background" Value="#FF90EE90" />
+            </DataTrigger>
+            <MultiDataTrigger>
+              <MultiDataTrigger.Conditions>
+                <Condition Value="False">
+                  <Condition.Binding>
+                    <Binding>
+                      <Ctor xmlns="https://github.com/icsharpcode/ILSpy">DataContext.IsEvenRow</Ctor>
+                    </Binding>
+                  </Condition.Binding>
+                </Condition>
+                <Condition Value="True">
+                  <Condition.Binding>
+                    <Binding>
+                      <Ctor xmlns="https://github.com/icsharpcode/ILSpy">DataContext.IsAlternatingBlue</Ctor>
+                    </Binding>
+                  </Condition.Binding>
+                </Condition>
+              </MultiDataTrigger.Conditions>
+              <MultiDataTrigger.Setters>
+                <Setter Property="Control.Background" Value="#FFB0E0E6" />
+              </MultiDataTrigger.Setters>
+            </MultiDataTrigger>
+            <MultiDataTrigger>
+              <MultiDataTrigger.Conditions>
+                <Condition Value="True">
+                  <Condition.Binding>
+                    <Binding>
+                      <Ctor xmlns="https://github.com/icsharpcode/ILSpy">DataContext.IsEvenRow</Ctor>
+                    </Binding>
+                  </Condition.Binding>
+                </Condition>
+                <Condition Value="True">
+                  <Condition.Binding>
+                    <Binding>
+                      <Ctor xmlns="https://github.com/icsharpcode/ILSpy">DataContext.IsAlternatingBlue</Ctor>
+                    </Binding>
+                  </Condition.Binding>
+                </Condition>
+              </MultiDataTrigger.Conditions>
+              <MultiDataTrigger.Setters>
+                <Setter Property="Control.Background" Value="#FF87CEEB" />
+              </MultiDataTrigger.Setters>
+            </MultiDataTrigger>
+          </Style.Triggers>
+          <Setter Property="Control.BorderBrush" Value="#FF000000" />
+          <Setter Property="Control.BorderThickness" Value="2" />
+          <Setter Property="FrameworkElement.Height" Value="20" />
+        </Style>
+        <Style x:Key="TitleCellStyle">
+          <Style.TargetType>
+            <x:TypeExtension>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">grid:LightweightCellEditor</Ctor>
+            </x:TypeExtension>
+          </Style.TargetType>
+          <Style.BasedOn>
+            <StaticResourceExtension xmlns="">
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">
+                <themes2:GridRowThemeKeyExtension xmlns:themes1="clr-namespace:DevExpress.Xpf.Utils.Themes;assembly=DevExpress.Xpf.Core.v22.2" themes1:ThemeKeyExtensionInternalBase.ResourceKey="LightweightCellStyle" xmlns:themes2="clr-namespace:DevExpress.Xpf.Grid.Themes;assembly=DevExpress.Xpf.Grid.v22.2" />
+              </Ctor>
+            </StaticResourceExtension>
+          </Style.BasedOn>
+          <Style.Triggers>
+            <DataTrigger Value="True">
+              <DataTrigger.Binding>
+                <Binding>
+                  <Ctor xmlns="https://github.com/icsharpcode/ILSpy">Data.IsRed</Ctor>
+                </Binding>
+              </DataTrigger.Binding>
+              <Setter Property="grid:LightweightCellEditorBase.Foreground" Value="#FFFFFFFF" />
+            </DataTrigger>
+            <DataTrigger Value="False">
+              <DataTrigger.Binding>
+                <Binding>
+                  <Ctor xmlns="https://github.com/icsharpcode/ILSpy">Data.IsRed</Ctor>
+                </Binding>
+              </DataTrigger.Binding>
+              <Setter Property="grid:LightweightCellEditorBase.Foreground" Value="#FF00008B" />
+            </DataTrigger>
+          </Style.Triggers>
+          <Setter Property="TextBlock.FontWeight" Value="Bold" />
+          <Setter Property="grid:LightweightCellEditor.BorderBrush" Value="#FF000000" />
+          <Setter Property="FrameworkElement.Height" Value="20" />
+        </Style>
+        <Style x:Key="ValueCellStyle">
+          <Style.TargetType>
+            <x:TypeExtension>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">grid:LightweightCellEditor</Ctor>
+            </x:TypeExtension>
+          </Style.TargetType>
+          <Style.BasedOn>
+            <StaticResourceExtension xmlns="">
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">
+                <GridRowThemeKeyExtension p19:ThemeKeyExtensionInternalBase.ResourceKey="LightweightCellStyle" xmlns:p19="clr-namespace:DevExpress.Xpf.Utils.Themes;assembly=DevExpress.Xpf.Core.v22.2" xmlns="clr-namespace:DevExpress.Xpf.Grid.Themes;assembly=DevExpress.Xpf.Grid.v22.2" />
+              </Ctor>
+            </StaticResourceExtension>
+          </Style.BasedOn>
+          <Style.Triggers>
+            <DataTrigger Value="True">
+              <DataTrigger.Binding>
+                <Binding>
+                  <Ctor xmlns="https://github.com/icsharpcode/ILSpy">Data.IsGroupHeader</Ctor>
+                </Binding>
+              </DataTrigger.Binding>
+              <Setter Property="grid:LightweightCellEditorBase.Foreground" Value="#FFFFFFFF" />
+              <Setter Property="TextBlock.FontWeight" Value="Bold" />
+            </DataTrigger>
+            <MultiDataTrigger>
+              <MultiDataTrigger.Conditions>
+                <Condition Value="False">
+                  <Condition.Binding>
+                    <Binding>
+                      <Ctor xmlns="https://github.com/icsharpcode/ILSpy">Data.IsGroupHeader</Ctor>
+                    </Binding>
+                  </Condition.Binding>
+                </Condition>
+                <Condition Value="False">
+                  <Condition.Binding>
+                    <Binding>
+                      <Ctor xmlns="https://github.com/icsharpcode/ILSpy">Data.IsRed</Ctor>
+                    </Binding>
+                  </Condition.Binding>
+                </Condition>
+              </MultiDataTrigger.Conditions>
+              <Setter Property="grid:LightweightCellEditorBase.Foreground" Value="#FF000000" />
+              <Setter Property="TextBlock.FontWeight" Value="Normal" />
+            </MultiDataTrigger>
+            <MultiDataTrigger>
+              <MultiDataTrigger.Conditions>
+                <Condition Value="False">
+                  <Condition.Binding>
+                    <Binding>
+                      <Ctor xmlns="https://github.com/icsharpcode/ILSpy">Data.IsGroupHeader</Ctor>
+                    </Binding>
+                  </Condition.Binding>
+                </Condition>
+                <Condition Value="True">
+                  <Condition.Binding>
+                    <Binding>
+                      <Ctor xmlns="https://github.com/icsharpcode/ILSpy">Data.IsRed</Ctor>
+                    </Binding>
+                  </Condition.Binding>
+                </Condition>
+              </MultiDataTrigger.Conditions>
+              <Setter Property="grid:LightweightCellEditorBase.Foreground" Value="#FFFFFFFF" />
+              <Setter Property="TextBlock.FontWeight" Value="Normal" />
+            </MultiDataTrigger>
+            <DataTrigger Value="True">
+              <DataTrigger.Binding>
+                <Binding Path="RowData.Row.Value" ConverterParameter="True">
+                  <Binding.Converter>
+                    <StaticResourceExtension xmlns="">
+                      <Ctor xmlns="https://github.com/icsharpcode/ILSpy">NonEmptyStringToBooleanConverter</Ctor>
+                    </StaticResourceExtension>
+                  </Binding.Converter>
+                </Binding>
+              </DataTrigger.Binding>
+              <Setter Property="FrameworkElement.ToolTip">
+                <Setter.Value>
+                  <Binding>
+                    <Ctor xmlns="https://github.com/icsharpcode/ILSpy">RowData.Row.Value</Ctor>
+                  </Binding>
+                </Setter.Value>
+              </Setter>
+            </DataTrigger>
+          </Style.Triggers>
+          <Setter Property="grid:LightweightCellEditor.BorderBrush" Value="#FF000000" />
+          <Setter Property="FrameworkElement.Height" Value="20" />
+        </Style>
+        <Style>
+          <Style.TargetType>
+            <x:TypeExtension>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ToolTip</Ctor>
+            </x:TypeExtension>
+          </Style.TargetType>
+          <Style.Resources>
+            <ResourceDictionary>
+              <Style>
+                <Style.TargetType>
+                  <x:TypeExtension>
+                    <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ContentPresenter</Ctor>
+                  </x:TypeExtension>
+                </Style.TargetType>
+                <Style.Resources>
+                  <ResourceDictionary>
+                    <Style>
+                      <Style.TargetType>
+                        <x:TypeExtension>
+                          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">TextBlock</Ctor>
+                        </x:TypeExtension>
+                      </Style.TargetType>
+                      <Setter Property="TextBlock.TextWrapping" Value="Wrap" />
+                      <x:Key>
+                        <x:TypeExtension>
+                          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">TextBlock</Ctor>
+                        </x:TypeExtension>
+                      </x:Key>
+                    </Style>
+                  </ResourceDictionary>
+                </Style.Resources>
+                <x:Key>
+                  <x:TypeExtension>
+                    <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ContentPresenter</Ctor>
+                  </x:TypeExtension>
+                </x:Key>
+              </Style>
+            </ResourceDictionary>
+          </Style.Resources>
+          <Setter Property="FrameworkElement.MaxWidth" Value="550" />
+          <x:Key>
+            <x:TypeExtension>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ToolTip</Ctor>
+            </x:TypeExtension>
+          </x:Key>
+        </Style>
+      </ResourceDictionary>
+    </FrameworkElement.Resources>
+    <grid:GridControl.View>
+      <grid:TableView Name="ERxTableView" grid:GridViewBase.ShowGroupPanel="False" grid1:DataViewBase.AllowColumnFiltering="False" grid1:DataViewBase.AllowColumnMoving="False" grid1:DataViewBase.IsColumnMenuEnabled="False" grid1:DataViewBase.AllowSorting="False" AutoWidth="False" AllowBestFit="True" BestFitMode="Smart" ShowIndicator="False" grid1:DataViewBase.AllowEditing="False" grid1:DataViewBase.ShowColumnHeaders="False" grid1:DataViewBase.NavigationStyle="None" RowStyle="{StaticResource RowStyle}" ShowVerticalLines="False" ShowHorizontalLines="True" VerticalScrollbarVisibility="Auto" HorizontalScrollbarVisibility="Auto">
+        <!--Unknown connection ID: 3-->
+      </grid:TableView>
+    </grid:GridControl.View>
+    <grid:GridControl.Columns>
+      <grid:GridColumn Name="TitleColumn" grid1:ColumnBase.FieldName="Title" grid1:BaseColumn.Width="200" grid1:BaseColumn.MinWidth="200" grid1:ColumnBase.CellStyle="{StaticResource TitleCellStyle}">
+        <grid1:ColumnBase.CellTemplate>
+          <DataTemplate>
+            <Border BorderBrush="#FF000000" BorderThickness="0,0,1,0">
+              <editors:InplaceBaseEdit FrameworkElement.Name="PART_Editor" xmlns:editors="clr-namespace:DevExpress.Xpf.Editors;assembly=DevExpress.Xpf.Core.v22.2" />
+            </Border>
+          </DataTemplate>
+        </grid1:ColumnBase.CellTemplate>
+        <!--Unknown connection ID: 4-->
+      </grid:GridColumn>
+      <grid:GridColumn Name="ValueColumn" grid1:ColumnBase.FieldName="Value" grid1:ColumnBase.CellStyle="{StaticResource ValueCellStyle}">
+        <!--Unknown connection ID: 5-->
+      </grid:GridColumn>
+    </grid:GridControl.Columns>
+    <!--Unknown connection ID: 2-->
+  </grid:GridControl>
+  <!--Unknown connection ID: 1-->
+</UserControl>

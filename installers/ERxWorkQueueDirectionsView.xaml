@@ -1,0 +1,493 @@
+<UserControl x:Class="SoftWriters.FrameworkLtc.Views.Prescriptions.ERxWorkQueue.ERxWorkQueueDirectionsView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors" xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid" xmlns:valueConverters="clr-namespace:SoftWriters.FrameworkLtc.Infrastructure.ValueConverters" xmlns:dxre="http://schemas.devexpress.com/winfx/2008/xaml/richedit" xmlns:dxmvvm="http://schemas.devexpress.com/winfx/2008/xaml/mvvm" xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars" xmlns:erxworkqueue="clr-namespace:SoftWriters.FrameworkLtc.Views.Prescriptions.ERxWorkQueue">
+  <FrameworkElement.Resources>
+    <ResourceDictionary>
+      <valueConverters:BooleanToHiddenVisibilityConverter x:Key="BooleanToHiddenVisibilityConverter" />
+      <valueConverters:BooleanToCollapsedVisibilityConverter x:Key="BooleanToCollapsedVisibilityConverter" />
+      <Style xmlns:richedit="clr-namespace:DevExpress.Xpf.RichEdit;assembly=DevExpress.Xpf.RichEdit.v22.2">
+        <Style.TargetType>
+          <x:TypeExtension>
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">richedit:RichEditControl</Ctor>
+          </x:TypeExtension>
+        </Style.TargetType>
+        <Style.Triggers>
+          <Trigger Property="richedit:RichEditControl.ReadOnly" Value="True">
+            <Setter Property="UIElement.Opacity" Value="{DynamicResource ReadOnlyOpacity}" />
+            <Setter Property="Control.Background" Value="{DynamicResource ReadOnlyBackground}" />
+          </Trigger>
+        </Style.Triggers>
+        <x:Key>
+          <x:TypeExtension>
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">richedit:RichEditControl</Ctor>
+          </x:TypeExtension>
+        </x:Key>
+      </Style>
+    </ResourceDictionary>
+  </FrameworkElement.Resources>
+  <AdornerDecorator>
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="40*" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="40*" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="40*" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="40*" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="40*" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="80" />
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="130" />
+      </Grid.ColumnDefinitions>
+      <Label Grid.Row="0" Grid.Column="0" FrameworkElement.Margin="10 5 0 0" FrameworkElement.HorizontalAlignment="Left">Patient</Label>
+      <editors:TextEdit Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" FrameworkElement.Margin="0 5 0 0" FrameworkElement.Width="300" FrameworkElement.Style="{StaticResource ReadOnlyTextEditStyle}" FrameworkElement.HorizontalAlignment="Left" xmlns:automation="clr-namespace:System.Windows.Automation;assembly=PresentationCore" automation:AutomationProperties.Name="PatientTextEdit" xmlns:editors="clr-namespace:DevExpress.Xpf.Editors;assembly=DevExpress.Xpf.Core.v22.2">
+        <editors:BaseEdit.EditValue xmlns:editors="clr-namespace:DevExpress.Xpf.Editors;assembly=DevExpress.Xpf.Core.v22.2">
+          <Binding>
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">FacPatientNameId</Ctor>
+          </Binding>
+        </editors:BaseEdit.EditValue>
+      </editors:TextEdit>
+      <Label Grid.Row="1" Grid.Column="0" FrameworkElement.Margin="10 5 0 0" FrameworkElement.HorizontalAlignment="Left">Drug</Label>
+      <TextEdit Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" FrameworkElement.Margin="0 5 0 0" FrameworkElement.Width="300" FrameworkElement.Style="{StaticResource ReadOnlyTextEditStyle}" FrameworkElement.HorizontalAlignment="Left" p12:AutomationProperties.Name="DrugInfoTextEdit" xmlns:p12="clr-namespace:System.Windows.Automation;assembly=PresentationCore" xmlns="clr-namespace:DevExpress.Xpf.Editors;assembly=DevExpress.Xpf.Core.v22.2">
+        <BaseEdit.EditValue>
+          <Binding xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">DrugInformation</Ctor>
+          </Binding>
+        </BaseEdit.EditValue>
+      </TextEdit>
+      <RadioButton Name="DirectionsFromTheMessageRadioButton" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" FrameworkElement.Margin="10 5 0 0" GroupName="DirectionsRadio" ContentControl.Content="Directions from the message:" p12:AutomationProperties.Name="DirectionsFromTheMessageRadioButton" FrameworkElement.HorizontalAlignment="Left" xmlns:p12="clr-namespace:System.Windows.Automation;assembly=PresentationCore">
+        <ToggleButton.IsChecked>
+          <Binding UpdateSourceTrigger="PropertyChanged">
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">UseMessageDirections</Ctor>
+          </Binding>
+        </ToggleButton.IsChecked>
+        <!--Unknown connection ID: 2-->
+      </RadioButton>
+      <editors:TextEdit Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" FrameworkElement.Margin="30 2 5 0" FrameworkElement.Height="Auto" xmlns:editors="clr-namespace:DevExpress.Xpf.Editors;assembly=DevExpress.Xpf.Core.v22.2" editors:TextEditBase.VerticalScrollBarVisibility="Visible" FrameworkElement.Style="{StaticResource ReadOnlyTextEditStyle}" Control.VerticalContentAlignment="Top" Control.HorizontalContentAlignment="Left" p12:AutomationProperties.Name="MessageDirectionsTextEdit" editors:TextEditBase.TextWrapping="Wrap" xmlns:p12="clr-namespace:System.Windows.Automation;assembly=PresentationCore">
+        <editors:BaseEdit.EditValue>
+          <Binding>
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">MessageDirections</Ctor>
+          </Binding>
+        </editors:BaseEdit.EditValue>
+      </editors:TextEdit>
+      <RadioButton Name="DirectionsFromLinkedOrderRadioButton" Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" FrameworkElement.Margin="10 5 0 0" GroupName="DirectionsRadio" ContentControl.Content="Directions from the linked reorder:" p12:AutomationProperties.Name="DirectionsFromLinkedOrderRadioButton" FrameworkElement.HorizontalAlignment="Left" xmlns:p12="clr-namespace:System.Windows.Automation;assembly=PresentationCore">
+        <ToggleButton.IsChecked>
+          <Binding UpdateSourceTrigger="PropertyChanged">
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">UseLinkedSig</Ctor>
+          </Binding>
+        </ToggleButton.IsChecked>
+        <UIElement.IsEnabled>
+          <Binding>
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">UseLinkedSigEnabled</Ctor>
+          </Binding>
+        </UIElement.IsEnabled>
+        <!--Unknown connection ID: 3-->
+      </RadioButton>
+      <StackPanel Orientation="Horizontal" Grid.Row="4" Grid.Column="1" FrameworkElement.HorizontalAlignment="Right" FrameworkElement.Width="300">
+        <editors:CheckEdit FrameworkElement.Margin="60 5 0 1" xmlns:editors="clr-namespace:DevExpress.Xpf.Editors;assembly=DevExpress.Xpf.Core.v22.2" Content="Sequential Sigs" p13:AutomationProperties.Name="SequentialLinkedSigsCheckBox" FrameworkElement.HorizontalAlignment="Left" xmlns:p13="clr-namespace:System.Windows.Automation;assembly=PresentationCore">
+          <editors:BaseEdit.EditValue>
+            <Binding>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">SequentialLinkedSigs</Ctor>
+            </Binding>
+          </editors:BaseEdit.EditValue>
+          <UIElement.IsEnabled>
+            <Binding>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">SequentialLinkedSigsEnabled</Ctor>
+            </Binding>
+          </UIElement.IsEnabled>
+          <UIElement.Visibility>
+            <Binding Converter="{StaticResource BooleanToHiddenVisibilityConverter}">
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">AllowLinkedSplits</Ctor>
+            </Binding>
+          </UIElement.Visibility>
+        </editors:CheckEdit>
+        <Button Name="PreviousLinkedDirectionButton" FrameworkElement.Margin="10 5 0 1" Control.Padding="0" FrameworkElement.Height="25" FrameworkElement.ToolTip="Previous">
+          <ButtonBase.Command>
+            <Binding>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">PrevLinkedSplitCommand</Ctor>
+            </Binding>
+          </ButtonBase.Command>
+          <UIElement.IsEnabled>
+            <Binding>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">PrevLinkedSplitEnabled</Ctor>
+            </Binding>
+          </UIElement.IsEnabled>
+          <UIElement.Visibility>
+            <Binding Converter="{StaticResource BooleanToHiddenVisibilityConverter}">
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">AllowLinkedSplits</Ctor>
+            </Binding>
+          </UIElement.Visibility>
+          <ContentControl UIElement.Focusable="False">
+            <Image Source="pack://application:,,,/SoftWriters.FrameworkLtc;component/Resources/Images/Prev_16x16.png" FrameworkElement.Height="16" />
+          </ContentControl>
+          <!--Unknown connection ID: 4-->
+        </Button>
+        <Label FrameworkElement.Margin="10 5 0 1" FrameworkElement.HorizontalAlignment="Left">
+          <UIElement.Visibility>
+            <Binding Converter="{StaticResource BooleanToHiddenVisibilityConverter}">
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">AllowLinkedSplits</Ctor>
+            </Binding>
+          </UIElement.Visibility>
+          <ContentControl.Content>
+            <Binding>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">SequentialLinkedSigLabel</Ctor>
+            </Binding>
+          </ContentControl.Content>
+        </Label>
+        <Button Name="NextLinkedDirectionButton" FrameworkElement.Margin="10 5 0 1" Control.Padding="0" FrameworkElement.Height="25" FrameworkElement.ToolTip="Next">
+          <ButtonBase.Command>
+            <Binding>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">NextLinkedSplitCommand</Ctor>
+            </Binding>
+          </ButtonBase.Command>
+          <UIElement.IsEnabled>
+            <Binding>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">NextLinkedSplitEnabled</Ctor>
+            </Binding>
+          </UIElement.IsEnabled>
+          <UIElement.Visibility>
+            <Binding Converter="{StaticResource BooleanToHiddenVisibilityConverter}">
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">AllowLinkedSplits</Ctor>
+            </Binding>
+          </UIElement.Visibility>
+          <ContentControl UIElement.Focusable="False">
+            <Image Source="pack://application:,,,/SoftWriters.FrameworkLtc;component/Resources/Images/Next_16x16.png" FrameworkElement.Height="16" />
+          </ContentControl>
+          <!--Unknown connection ID: 5-->
+        </Button>
+      </StackPanel>
+      <Border Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" FrameworkElement.Margin="30 2 5 0" FrameworkElement.Height="Auto" BorderBrush="#FF000000" BorderThickness="1" CornerRadius="2">
+        <RichEditControl Name="LinkedSigTextBox" ShowBorder="False" FrameworkElement.MinHeight="40" VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Collapsed" ActiveViewType="Simple" ReadOnly="True" UIElement.IsEnabled="False" xmlns="clr-namespace:DevExpress.Xpf.RichEdit;assembly=DevExpress.Xpf.RichEdit.v22.2">
+          <FrameworkElement.DataContext xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+            <Binding Mode="OneWay">
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">LinkedSigDocument</Ctor>
+            </Binding>
+          </FrameworkElement.DataContext>
+          <RichEditControl.MenuCustomizations>
+            <menu:RichEditMenuCustomization xmlns:menu="clr-namespace:DevExpress.Xpf.RichEdit.Menu;assembly=DevExpress.Xpf.RichEdit.v22.2" MenuType="Text">
+              <bars:InsertAction xmlns:bars="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" bars:CollectionAction.Index="4">
+                <bars:BarItemSeparator />
+              </bars:InsertAction>
+              <InsertAction p16:CollectionAction.Index="5" xmlns:p16="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" xmlns="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2">
+                <bars:BarButtonItem xmlns:bars="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" bars:BarItem.Content="Select All" bars:BarItem.Command="SelectAll" />
+              </InsertAction>
+              <bars:RemoveAction xmlns:richedit="clr-namespace:DevExpress.Xpf.RichEdit;assembly=DevExpress.Xpf.RichEdit.v22.2" bars:CollectionAction.ElementName="{Static richedit:DefaultBarItemNames.PopupMenuItem_IncreaseIndent}" xmlns:bars="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" />
+              <RemoveAction p16:CollectionAction.ElementName="{Static DefaultBarItemNames.PopupMenuItem_DecreaseIndent}" xmlns:p16="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" xmlns="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" />
+              <RemoveAction p16:CollectionAction.ElementName="{Static DefaultBarItemNames.PopupMenuItem_Font}" xmlns:p16="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" xmlns="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" />
+              <RemoveAction p16:CollectionAction.ElementName="{Static DefaultBarItemNames.PopupMenuItem_Paragraph}" xmlns:p16="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" xmlns="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" />
+              <RemoveAction p16:CollectionAction.ElementName="{Static DefaultBarItemNames.PopupMenuItem_NumberingList}" xmlns:p16="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" xmlns="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" />
+              <RemoveAction p16:CollectionAction.ElementName="{Static DefaultBarItemNames.PopupMenuItem_CreateBookmark}" xmlns:p16="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" xmlns="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" />
+              <RemoveAction p16:CollectionAction.ElementName="{Static DefaultBarItemNames.PopupMenuItem_CreateHyperlink}" xmlns:p16="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" xmlns="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" />
+              <RemoveAction p16:CollectionAction.ElementName="{Static DefaultBarItemNames.PopupMenuItem_NewComment}" xmlns:p16="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" xmlns="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" />
+            </menu:RichEditMenuCustomization>
+          </RichEditControl.MenuCustomizations>
+          <interactivity:Interaction.Behaviors xmlns:interactivity="clr-namespace:DevExpress.Mvvm.UI.Interactivity;assembly=DevExpress.Xpf.Core.v22.2">
+            <ui:KeyToCommand xmlns:interactivity="clr-namespace:DevExpress.Mvvm.UI.Interactivity;assembly=DevExpress.Xpf.Core.v22.2" interactivity:EventTriggerBase.EventName="PreviewKeyDown" xmlns:ui="clr-namespace:DevExpress.Mvvm.UI;assembly=DevExpress.Xpf.Core.v22.2" KeyGesture="F9">
+              <ui:EventToCommandBase.Command>
+                <Binding Path="DataContext.SelectLinkedSigCommand" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+                  <Binding.RelativeSource>
+                    <RelativeSource>
+                      <Ctor xmlns="https://github.com/icsharpcode/ILSpy">FindAncestor</Ctor>
+                      <RelativeSource.AncestorType>
+                        <x:TypeExtension>
+                          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">UserControl</Ctor>
+                        </x:TypeExtension>
+                      </RelativeSource.AncestorType>
+                    </RelativeSource>
+                  </Binding.RelativeSource>
+                </Binding>
+              </ui:EventToCommandBase.Command>
+            </ui:KeyToCommand>
+          </interactivity:Interaction.Behaviors>
+          <!--Unknown connection ID: 6-->
+        </RichEditControl>
+      </Border>
+      <StackPanel Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" FrameworkElement.HorizontalAlignment="Left" FrameworkElement.Margin="25 0 0 0">
+        <Button FrameworkElement.Margin="5 5 0 0" FrameworkElement.Width="110" FrameworkElement.Style="{StaticResource GeneralButton}" ContentControl.Content="Add Split" p13:AutomationProperties.Name="AddLinkedSplitButton" xmlns:p13="clr-namespace:System.Windows.Automation;assembly=PresentationCore">
+          <ButtonBase.Command>
+            <Binding>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">AddLinkedSplitCommand</Ctor>
+            </Binding>
+          </ButtonBase.Command>
+          <UIElement.Visibility>
+            <Binding Converter="{StaticResource BooleanToCollapsedVisibilityConverter}">
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">AllowLinkedSplits</Ctor>
+            </Binding>
+          </UIElement.Visibility>
+        </Button>
+        <Button FrameworkElement.Margin="5 5 0 0" FrameworkElement.Width="110" FrameworkElement.HorizontalAlignment="Left" FrameworkElement.Style="{StaticResource GeneralButton}" ContentControl.Content="Remove Split" p13:AutomationProperties.Name="RemoveLinkedSplitButton" xmlns:p13="clr-namespace:System.Windows.Automation;assembly=PresentationCore">
+          <ButtonBase.Command>
+            <Binding>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">RemoveLinkedSplitCommand</Ctor>
+            </Binding>
+          </ButtonBase.Command>
+          <UIElement.IsEnabled>
+            <Binding>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">RemoveLinkedSplitEnabled</Ctor>
+            </Binding>
+          </UIElement.IsEnabled>
+          <UIElement.Visibility>
+            <Binding Converter="{StaticResource BooleanToCollapsedVisibilityConverter}">
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">AllowLinkedSplits</Ctor>
+            </Binding>
+          </UIElement.Visibility>
+        </Button>
+        <Button FrameworkElement.Margin="5 5 0 0" FrameworkElement.Width="110" FrameworkElement.HorizontalAlignment="Left" FrameworkElement.Style="{StaticResource GeneralButton}" ContentControl.Content="Preview Sig" p13:AutomationProperties.Name="PreviewLinkedSigButton" xmlns:p13="clr-namespace:System.Windows.Automation;assembly=PresentationCore">
+          <ButtonBase.Command>
+            <Binding>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">PreviewLinkedSigCommand</Ctor>
+            </Binding>
+          </ButtonBase.Command>
+          <UIElement.Visibility>
+            <Binding Converter="{StaticResource BooleanToCollapsedVisibilityConverter}">
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">AllowLinkedSplits</Ctor>
+            </Binding>
+          </UIElement.Visibility>
+        </Button>
+      </StackPanel>
+      <RadioButton Name="UseDefaultDirectionsRadioButton" Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="3" FrameworkElement.Margin="10 5 0 0" GroupName="DirectionsRadio" ContentControl.Content="Default Directions for this product:" p12:AutomationProperties.Name="UseDefaultDirectionsRadioButton" FrameworkElement.HorizontalAlignment="Left" xmlns:p12="clr-namespace:System.Windows.Automation;assembly=PresentationCore">
+        <ToggleButton.IsChecked>
+          <Binding UpdateSourceTrigger="PropertyChanged">
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">UseDefaultDirections</Ctor>
+          </Binding>
+        </ToggleButton.IsChecked>
+        <UIElement.IsEnabled>
+          <Binding>
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">UseDefaultDirectionsEnabled</Ctor>
+          </Binding>
+        </UIElement.IsEnabled>
+        <!--Unknown connection ID: 7-->
+      </RadioButton>
+      <TextEdit Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="3" FrameworkElement.Margin="30 2 5 0" FrameworkElement.Height="Auto" p12:TextEditBase.VerticalScrollBarVisibility="Visible" FrameworkElement.Style="{StaticResource ReadOnlyTextEditStyle}" Control.VerticalContentAlignment="Top" Control.HorizontalContentAlignment="Left" p13:AutomationProperties.Name="DefaultDirectionsTextEdit" p12:TextEditBase.TextWrapping="Wrap" xmlns:p13="clr-namespace:System.Windows.Automation;assembly=PresentationCore" xmlns:p12="clr-namespace:DevExpress.Xpf.Editors;assembly=DevExpress.Xpf.Core.v22.2" xmlns="clr-namespace:DevExpress.Xpf.Editors;assembly=DevExpress.Xpf.Core.v22.2">
+        <p12:BaseEdit.EditValue>
+          <Binding xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">DefaultDirections</Ctor>
+          </Binding>
+        </p12:BaseEdit.EditValue>
+      </TextEdit>
+      <Label Grid.Row="9" Grid.Column="0" Grid.ColumnSpan="3" FrameworkElement.Margin="30 5 0 0" ContentControl.Content="Structured Sig:" FrameworkElement.HorizontalAlignment="Left" />
+      <TextEdit Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="3" FrameworkElement.Margin="30 2 5 0" FrameworkElement.Height="Auto" p12:TextEditBase.VerticalScrollBarVisibility="Visible" FrameworkElement.Style="{StaticResource ReadOnlyTextEditStyle}" Control.VerticalContentAlignment="Top" Control.HorizontalContentAlignment="Left" p13:AutomationProperties.Name="StructuredSigTextEdit" p12:TextEditBase.TextWrapping="Wrap" xmlns:p13="clr-namespace:System.Windows.Automation;assembly=PresentationCore" xmlns:p12="clr-namespace:DevExpress.Xpf.Editors;assembly=DevExpress.Xpf.Core.v22.2" xmlns="clr-namespace:DevExpress.Xpf.Editors;assembly=DevExpress.Xpf.Core.v22.2">
+        <p12:BaseEdit.EditValue>
+          <Binding xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">StructuredSig</Ctor>
+          </Binding>
+        </p12:BaseEdit.EditValue>
+      </TextEdit>
+      <RadioButton Name="UseOrderSigRadioButton" Grid.Row="11" Grid.Column="0" FrameworkElement.Margin="10 10 0 0" GroupName="DirectionsRadio" ContentControl.Content="Order Sig:" FrameworkElement.HorizontalAlignment="Left">
+        <ToggleButton.IsChecked>
+          <Binding UpdateSourceTrigger="PropertyChanged">
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">UseOrderSig</Ctor>
+          </Binding>
+        </ToggleButton.IsChecked>
+        <UIElement.IsEnabled>
+          <Binding>
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">UseOrderSigEnabled</Ctor>
+          </Binding>
+        </UIElement.IsEnabled>
+        <!--Unknown connection ID: 8-->
+      </RadioButton>
+      <Border Grid.Row="12" Grid.Column="0" Grid.ColumnSpan="3" FrameworkElement.Margin="30 10 5 0" FrameworkElement.Height="Auto" BorderBrush="#FF000000" BorderThickness="1" CornerRadius="2">
+        <RichEditControl Name="OrderSigTextBox" ShowBorder="False" FrameworkElement.MinHeight="40" VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Collapsed" ActiveViewType="Simple" xmlns="clr-namespace:DevExpress.Xpf.RichEdit;assembly=DevExpress.Xpf.RichEdit.v22.2">
+          <FrameworkElement.DataContext xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+            <Binding Mode="OneWay">
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">OrderSigDocument</Ctor>
+            </Binding>
+          </FrameworkElement.DataContext>
+          <RichEditControl.MenuCustomizations>
+            <RichEditMenuCustomization MenuType="Text" xmlns="clr-namespace:DevExpress.Xpf.RichEdit.Menu;assembly=DevExpress.Xpf.RichEdit.v22.2">
+              <InsertAction p16:CollectionAction.Index="4" xmlns:p16="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" xmlns="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2">
+                <p16:BarItemSeparator />
+              </InsertAction>
+              <InsertAction p16:CollectionAction.Index="5" xmlns:p16="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" xmlns="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2">
+                <p16:BarButtonItem p16:BarItem.Content="Select All" p16:BarItem.Command="SelectAll" />
+              </InsertAction>
+              <RemoveAction p16:CollectionAction.ElementName="{Static DefaultBarItemNames.PopupMenuItem_IncreaseIndent}" xmlns:p16="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" xmlns="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" />
+              <RemoveAction p16:CollectionAction.ElementName="{Static DefaultBarItemNames.PopupMenuItem_DecreaseIndent}" xmlns:p16="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" xmlns="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" />
+              <RemoveAction p16:CollectionAction.ElementName="{Static DefaultBarItemNames.PopupMenuItem_Font}" xmlns:p16="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" xmlns="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" />
+              <RemoveAction p16:CollectionAction.ElementName="{Static DefaultBarItemNames.PopupMenuItem_Paragraph}" xmlns:p16="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" xmlns="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" />
+              <RemoveAction p16:CollectionAction.ElementName="{Static DefaultBarItemNames.PopupMenuItem_NumberingList}" xmlns:p16="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" xmlns="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" />
+              <RemoveAction p16:CollectionAction.ElementName="{Static DefaultBarItemNames.PopupMenuItem_CreateBookmark}" xmlns:p16="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" xmlns="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" />
+              <RemoveAction p16:CollectionAction.ElementName="{Static DefaultBarItemNames.PopupMenuItem_CreateHyperlink}" xmlns:p16="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" xmlns="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" />
+              <RemoveAction p16:CollectionAction.ElementName="{Static DefaultBarItemNames.PopupMenuItem_NewComment}" xmlns:p16="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" xmlns="clr-namespace:DevExpress.Xpf.Bars;assembly=DevExpress.Xpf.Core.v22.2" />
+            </RichEditMenuCustomization>
+          </RichEditControl.MenuCustomizations>
+          <Interaction.Behaviors xmlns="clr-namespace:DevExpress.Mvvm.UI.Interactivity;assembly=DevExpress.Xpf.Core.v22.2">
+            <KeyToCommand p15:EventTriggerBase.EventName="PreviewKeyDown" KeyGesture="F9" xmlns:p15="clr-namespace:DevExpress.Mvvm.UI.Interactivity;assembly=DevExpress.Xpf.Core.v22.2" xmlns="clr-namespace:DevExpress.Mvvm.UI;assembly=DevExpress.Xpf.Core.v22.2">
+              <EventToCommandBase.Command>
+                <Binding Path="DataContext.SelectSigCommand" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+                  <Binding.RelativeSource>
+                    <RelativeSource>
+                      <Ctor xmlns="https://github.com/icsharpcode/ILSpy">FindAncestor</Ctor>
+                      <RelativeSource.AncestorType>
+                        <x:TypeExtension>
+                          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">UserControl</Ctor>
+                        </x:TypeExtension>
+                      </RelativeSource.AncestorType>
+                    </RelativeSource>
+                  </Binding.RelativeSource>
+                </Binding>
+              </EventToCommandBase.Command>
+            </KeyToCommand>
+          </Interaction.Behaviors>
+          <!--Unknown connection ID: 9-->
+        </RichEditControl>
+      </Border>
+      <StackPanel Orientation="Horizontal" Grid.Row="11" Grid.Column="1" Grid.ColumnSpan="2" FrameworkElement.HorizontalAlignment="Left" FrameworkElement.Width="300">
+        <CheckEdit FrameworkElement.Margin="60 5 0 1" Content="Sequential Sigs" p13:AutomationProperties.Name="SequentialSigsCheckBox" FrameworkElement.HorizontalAlignment="Left" xmlns:p13="clr-namespace:System.Windows.Automation;assembly=PresentationCore" xmlns="clr-namespace:DevExpress.Xpf.Editors;assembly=DevExpress.Xpf.Core.v22.2">
+          <BaseEdit.EditValue>
+            <Binding xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">SequentialSigs</Ctor>
+            </Binding>
+          </BaseEdit.EditValue>
+          <UIElement.IsEnabled xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+            <Binding>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">SequentialSigsEnabled</Ctor>
+            </Binding>
+          </UIElement.IsEnabled>
+          <UIElement.Visibility xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+            <Binding Converter="{StaticResource BooleanToHiddenVisibilityConverter}">
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">AllowMultipleSplits</Ctor>
+            </Binding>
+          </UIElement.Visibility>
+        </CheckEdit>
+        <Button Name="PreviousDirectionButton" FrameworkElement.Margin="10 5 0 1" Control.Padding="0" FrameworkElement.Height="25" FrameworkElement.ToolTip="Previous">
+          <ButtonBase.Command>
+            <Binding>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">PrevSplitCommand</Ctor>
+            </Binding>
+          </ButtonBase.Command>
+          <UIElement.IsEnabled>
+            <Binding>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">PrevSequentialSplitEnabled</Ctor>
+            </Binding>
+          </UIElement.IsEnabled>
+          <UIElement.Visibility>
+            <Binding Converter="{StaticResource BooleanToHiddenVisibilityConverter}">
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">AllowMultipleSplits</Ctor>
+            </Binding>
+          </UIElement.Visibility>
+          <ContentControl UIElement.Focusable="False">
+            <Image Source="pack://application:,,,/SoftWriters.FrameworkLtc;component/Resources/Images/Prev_16x16.png" FrameworkElement.Height="16" />
+          </ContentControl>
+          <!--Unknown connection ID: 10-->
+        </Button>
+        <Label FrameworkElement.Margin="10 5 0 1" FrameworkElement.HorizontalAlignment="Left">
+          <UIElement.Visibility>
+            <Binding Converter="{StaticResource BooleanToHiddenVisibilityConverter}">
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">AllowMultipleSplits</Ctor>
+            </Binding>
+          </UIElement.Visibility>
+          <ContentControl.Content>
+            <Binding>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">SequentialSigLabel</Ctor>
+            </Binding>
+          </ContentControl.Content>
+        </Label>
+        <Button Name="NextDirectionButton" FrameworkElement.Margin="10 5 0 1" Control.Padding="0" FrameworkElement.Height="25" FrameworkElement.ToolTip="Next">
+          <ButtonBase.Command>
+            <Binding>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">NextSplitCommand</Ctor>
+            </Binding>
+          </ButtonBase.Command>
+          <UIElement.IsEnabled>
+            <Binding>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">NextSequentialSplitEnabled</Ctor>
+            </Binding>
+          </UIElement.IsEnabled>
+          <UIElement.Visibility>
+            <Binding Converter="{StaticResource BooleanToHiddenVisibilityConverter}">
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">AllowMultipleSplits</Ctor>
+            </Binding>
+          </UIElement.Visibility>
+          <ContentControl UIElement.Focusable="False">
+            <Image Source="pack://application:,,,/SoftWriters.FrameworkLtc;component/Resources/Images/Next_16x16.png" FrameworkElement.Height="16" />
+          </ContentControl>
+          <!--Unknown connection ID: 11-->
+        </Button>
+      </StackPanel>
+      <StackPanel Grid.Row="13" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" FrameworkElement.HorizontalAlignment="Left" FrameworkElement.Margin="25 0 0 0">
+        <Button FrameworkElement.Margin="5 5 0 0" FrameworkElement.Width="110" FrameworkElement.Style="{StaticResource GeneralButton}" ContentControl.Content="_Add Split" p13:AutomationProperties.Name="AddSplitButton" xmlns:p13="clr-namespace:System.Windows.Automation;assembly=PresentationCore">
+          <ButtonBase.Command>
+            <Binding>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">AddSplitCommand</Ctor>
+            </Binding>
+          </ButtonBase.Command>
+          <UIElement.Visibility>
+            <Binding Converter="{StaticResource BooleanToCollapsedVisibilityConverter}">
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">AllowMultipleSplits</Ctor>
+            </Binding>
+          </UIElement.Visibility>
+        </Button>
+        <Button FrameworkElement.Margin="5 5 0 0" FrameworkElement.Width="110" FrameworkElement.HorizontalAlignment="Left" FrameworkElement.Style="{StaticResource GeneralButton}" ContentControl.Content="_Remove Split" p13:AutomationProperties.Name="RemoveSplitButton" xmlns:p13="clr-namespace:System.Windows.Automation;assembly=PresentationCore">
+          <ButtonBase.Command>
+            <Binding>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">RemoveSplitCommand</Ctor>
+            </Binding>
+          </ButtonBase.Command>
+          <UIElement.IsEnabled>
+            <Binding>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">RemoveSplitEnabled</Ctor>
+            </Binding>
+          </UIElement.IsEnabled>
+          <UIElement.Visibility>
+            <Binding Converter="{StaticResource BooleanToCollapsedVisibilityConverter}">
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">AllowMultipleSplits</Ctor>
+            </Binding>
+          </UIElement.Visibility>
+        </Button>
+        <Button FrameworkElement.Margin="5 5 0 0" FrameworkElement.Width="110" FrameworkElement.HorizontalAlignment="Left" FrameworkElement.Style="{StaticResource GeneralButton}" ContentControl.Content="Pre_view Sig" p13:AutomationProperties.Name="PreviewSigButton" xmlns:p13="clr-namespace:System.Windows.Automation;assembly=PresentationCore">
+          <ButtonBase.Command>
+            <Binding>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">PreviewSigCommand</Ctor>
+            </Binding>
+          </ButtonBase.Command>
+        </Button>
+      </StackPanel>
+      <Button Grid.Row="13" Grid.Column="2" FrameworkElement.Margin="0 5 5 0" FrameworkElement.Width="120" FrameworkElement.Style="{StaticResource GeneralButton}" ContentControl.Content="Append _Default" FrameworkElement.HorizontalAlignment="Right" p12:AutomationProperties.Name="AppendDefaultButton" xmlns:p12="clr-namespace:System.Windows.Automation;assembly=PresentationCore">
+        <ButtonBase.Command>
+          <Binding>
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">AppendDefaultCommand</Ctor>
+          </Binding>
+        </ButtonBase.Command>
+        <UIElement.IsEnabled>
+          <Binding>
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">AppendDefaultEnabled</Ctor>
+          </Binding>
+        </UIElement.IsEnabled>
+      </Button>
+      <GroupBox Grid.Row="14" Grid.Column="0" Grid.ColumnSpan="3" FrameworkElement.Margin="20 10 0 0" FrameworkElement.HorizontalAlignment="Center">
+        <StackPanel Orientation="Horizontal">
+          <Label FrameworkElement.VerticalAlignment="Center" FrameworkElement.Margin="5 5 10 5" ContentControl.Content="Rx Batch" />
+          <lookup:LookUpEdit xmlns:editors="clr-namespace:DevExpress.Xpf.Editors;assembly=DevExpress.Xpf.Core.v22.2" editors:LookUpEditBase.AutoComplete="True" xmlns:lookup="clr-namespace:DevExpress.Xpf.Grid.LookUp;assembly=DevExpress.Xpf.Grid.v22.2" AutoPopulateColumns="False" editors:BaseEdit.ValidateOnTextInput="True" editors:TextEditBase.MaxLength="60" FrameworkElement.Style="{StaticResource ShowIdHyphenDisplayLookUpEditStyle}" FrameworkElement.Width="300" editors:PopupBaseEdit.PopupWidth="350" FrameworkElement.VerticalAlignment="Center" p15:AutomationProperties.Name="NewBatchLookupEdit" xmlns:p15="clr-namespace:System.Windows.Automation;assembly=PresentationCore">
+            <editors:LookUpEditBase.ItemsSource>
+              <Binding>
+                <Ctor xmlns="https://github.com/icsharpcode/ILSpy">Batches</Ctor>
+              </Binding>
+            </editors:LookUpEditBase.ItemsSource>
+            <editors:BaseEdit.EditValue>
+              <Binding UpdateSourceTrigger="PropertyChanged" Mode="TwoWay">
+                <Ctor xmlns="https://github.com/icsharpcode/ILSpy">SelectedBatchId</Ctor>
+              </Binding>
+            </editors:BaseEdit.EditValue>
+          </lookup:LookUpEdit>
+          <Button FrameworkElement.Margin="5 5 5 5" FrameworkElement.VerticalAlignment="Center" FrameworkElement.Style="{StaticResource GeneralButton}" ContentControl.Content="N_ew" p14:AutomationProperties.Name="NewBatchButton" xmlns:p14="clr-namespace:System.Windows.Automation;assembly=PresentationCore">
+            <ButtonBase.Command>
+              <Binding>
+                <Ctor xmlns="https://github.com/icsharpcode/ILSpy">NewBatchCommand</Ctor>
+              </Binding>
+            </ButtonBase.Command>
+          </Button>
+        </StackPanel>
+      </GroupBox>
+    </Grid>
+  </AdornerDecorator>
+  <!--Unknown connection ID: 1-->
+</UserControl>

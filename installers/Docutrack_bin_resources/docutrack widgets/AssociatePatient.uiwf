@@ -1,0 +1,150 @@
+﻿<Activity mc:Ignorable="sads sap" x:Class="AssociatePatient" this:AssociatePatient.Default_TimeoutMS="[30000]" this:AssociatePatient.Default_ContinueOnError="[False]" this:AssociatePatient.Default_DelayMS="[300]" this:AssociatePatient.DebugMode="False"
+ xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+ xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+ xmlns:mv="clr-namespace:Microsoft.VisualBasic;assembly=Microsoft.VisualBasic"
+ xmlns:mva="clr-namespace:Microsoft.VisualBasic.Activities;assembly=System.Activities"
+ xmlns:njl="clr-namespace:Newtonsoft.Json.Linq;assembly=Newtonsoft.Json"
+ xmlns:s="clr-namespace:System;assembly=mscorlib"
+ xmlns:s1="clr-namespace:System;assembly=System"
+ xmlns:s2="clr-namespace:System;assembly=System.Core"
+ xmlns:s3="clr-namespace:System;assembly=System.ServiceModel"
+ xmlns:s4="clr-namespace:System;assembly=System.ComponentModel.Composition"
+ xmlns:sa="clr-namespace:System.Activities;assembly=System.Activities"
+ xmlns:sads="http://schemas.microsoft.com/netfx/2010/xaml/activities/debugger"
+ xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+ xmlns:scg="clr-namespace:System.Collections.Generic;assembly=mscorlib"
+ xmlns:sd="clr-namespace:System.Data;assembly=System.Data"
+ xmlns:sd1="clr-namespace:System.Diagnostics;assembly=System"
+ xmlns:si="clr-namespace:System.IO;assembly=mscorlib"
+ xmlns:sl="clr-namespace:System.Linq;assembly=System.Core"
+ xmlns:sma="clr-namespace:System.Management.Automation;assembly=System.Management.Automation"
+ xmlns:snm="clr-namespace:System.Net.Mail;assembly=System"
+ xmlns:sx="clr-namespace:System.Xml;assembly=System.Xml"
+ xmlns:sxl="clr-namespace:System.Xml.Linq;assembly=System.Xml.Linq"
+ xmlns:this="clr-namespace:"
+ xmlns:ua="clr-namespace:UiPath.Activities;assembly=UiPath.Activities"
+ xmlns:ul="clr-namespace:UiPath.Library;assembly=UiPath.Library"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="Default_TimeoutMS" Type="InArgument(x:Int32)" />
+    <x:Property Name="Default_ContinueOnError" Type="InArgument(x:Boolean)" />
+    <x:Property Name="Default_DelayMS" Type="InArgument(x:Int32)" />
+    <x:Property Name="RegistrationCode" Type="InArgument(x:String)" />
+    <x:Property Name="StoreCode" Type="InArgument(x:String)" />
+    <x:Property Name="PatientValue" Type="InArgument(x:String)" />
+    <x:Property Name="AlternatePatientValue" Type="InArgument(x:String)" />
+    <x:Property Name="FirstName" Type="InArgument(x:String)" />
+    <x:Property Name="LastName" Type="InArgument(x:String)" />
+    <x:Property Name="Location" Type="InArgument(x:String)" />
+    <x:Property Name="DateOfBirth" Type="InArgument(x:String)" />
+    <x:Property Name="FacilityValue" Type="InArgument(x:String)" />
+    <x:Property Name="AdditionalInfo" Type="InArgument(x:String)" />
+    <x:Property Name="DebugMode" Type="InArgument(x:Boolean)" />
+    <x:Property Name="WidgetsFolder" Type="InArgument(x:String)" />
+  </x:Members>
+  <this:AssociatePatient.StoreCode>
+    <InArgument x:TypeArguments="x:String">
+      <Literal x:TypeArguments="x:String" Value="" />
+    </InArgument>
+  </this:AssociatePatient.StoreCode>
+  <this:AssociatePatient.AlternatePatientValue>
+    <InArgument x:TypeArguments="x:String">
+      <Literal x:TypeArguments="x:String" Value="" />
+    </InArgument>
+  </this:AssociatePatient.AlternatePatientValue>
+  <this:AssociatePatient.FirstName>
+    <InArgument x:TypeArguments="x:String">
+      <Literal x:TypeArguments="x:String" Value="" />
+    </InArgument>
+  </this:AssociatePatient.FirstName>
+  <this:AssociatePatient.LastName>
+    <InArgument x:TypeArguments="x:String">
+      <Literal x:TypeArguments="x:String" Value="" />
+    </InArgument>
+  </this:AssociatePatient.LastName>
+  <this:AssociatePatient.Location>
+    <InArgument x:TypeArguments="x:String">
+      <Literal x:TypeArguments="x:String" Value="" />
+    </InArgument>
+  </this:AssociatePatient.Location>
+  <this:AssociatePatient.DateOfBirth>
+    <InArgument x:TypeArguments="x:String">
+      <Literal x:TypeArguments="x:String" Value="" />
+    </InArgument>
+  </this:AssociatePatient.DateOfBirth>
+  <this:AssociatePatient.FacilityValue>
+    <InArgument x:TypeArguments="x:String">
+      <Literal x:TypeArguments="x:String" Value="" />
+    </InArgument>
+  </this:AssociatePatient.FacilityValue>
+  <this:AssociatePatient.AdditionalInfo>
+    <InArgument x:TypeArguments="x:String">
+      <Literal x:TypeArguments="x:String" Value="" />
+    </InArgument>
+  </this:AssociatePatient.AdditionalInfo>
+  <sap:VirtualizedContainerService.HintSize>815,554</sap:VirtualizedContainerService.HintSize>
+  <mva:VisualBasic.Settings>Assembly references and imported namespaces for internal implementation</mva:VisualBasic.Settings>
+  <Sequence sap:VirtualizedContainerService.HintSize="775,514">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:Int32" Name="intExceptionMessageBox" />
+    </Sequence.Variables>
+    <sap:WorkflowViewStateService.ViewState>
+      <scg:Dictionary x:TypeArguments="x:String, x:Object">
+        <x:Boolean x:Key="IsExpanded">True</x:Boolean>
+      </scg:Dictionary>
+    </sap:WorkflowViewStateService.ViewState>
+    <If Condition="[DebugMode=True]" sap:VirtualizedContainerService.HintSize="753,390">
+      <If.Then>
+        <ua:MessageBox Caption="{x:Null}" ChosenButton="{x:Null}" ContinueOnError="{x:Null}" DesignerSelector="{x:Null}" ElementPosition="{x:Null}" ImageBase64="{x:Null}" InformativeScreenshot="{x:Null}" MessageBoxResult="{x:Null}" ParentImageBase64="{x:Null}" AlwaysOnTop="True" Buttons="Ok" DisplayName="DEBUG" sap:VirtualizedContainerService.HintSize="314,59" ShowScreenshot="False" Text="[&quot;ASSOCIATE PATIENT&quot; + Environment.NewLine + &quot;RegistrationCode: &quot; + RegistrationCode + Environment.NewLine + &quot;StoreCode: &quot; + StoreCode + Environment.NewLine + &quot;PatientValue: &quot; + PatientValue + Environment.NewLine + &quot;AlternatePatientValue: &quot; + AlternatePatientValue + Environment.NewLine + &quot;LastName: &quot; + LastName + Environment.NewLine + &quot;FirstName: &quot; + FirstName + Environment.NewLine + &quot;DateOfBirth: &quot; + DateOfBirth + Environment.NewLine + &quot;Location: &quot; + Location + Environment.NewLine + &quot;FacilityValue: &quot; + FacilityValue + Environment.NewLine + &quot;AdditionalInfo: &quot; + AdditionalInfo]" />
+      </If.Then>
+      <If.Else>
+        <TryCatch sap:VirtualizedContainerService.HintSize="414,282">
+          <TryCatch.Try>
+            <Sequence sap:VirtualizedContainerService.HintSize="336,240">
+              <sap:WorkflowViewStateService.ViewState>
+                <scg:Dictionary x:TypeArguments="x:String, x:Object">
+                  <x:Boolean x:Key="IsExpanded">True</x:Boolean>
+                </scg:Dictionary>
+              </sap:WorkflowViewStateService.ViewState>
+              <ua:InvokeComMethod CLSID="{x:Null}" BindingFlags="InvokeMethod" ContinueOnError="[Default_ContinueOnError]" DisplayName="Invoke com method" sap:VirtualizedContainerService.HintSize="314,116" MethodName="AtomicAssociatePatient" ProgID="DCIDocument.DocumentEngine.1">
+                <ua:InvokeComMethod.Arguments>
+                  <InArgument x:TypeArguments="x:String" x:Key="registrationCode">[RegistrationCode]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="storeCode">[StoreCode]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="patientValue">[PatientValue]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="alternatePatientValue">[AlternatePatientValue]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="firstName">[FirstName]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="lastName">[LastName]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="location">[Location]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="dateOfBirth">[DateOfBirth]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="facilityValue">[FacilityValue]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="additionalInfo">[AdditionalInfo]</InArgument>
+                </ua:InvokeComMethod.Arguments>
+              </ua:InvokeComMethod>
+            </Sequence>
+          </TryCatch.Try>
+          <TryCatch.Catches>
+            <Catch x:TypeArguments="s:Exception" sap:VirtualizedContainerService.HintSize="400,120">
+              <sap:WorkflowViewStateService.ViewState>
+                <scg:Dictionary x:TypeArguments="x:String, x:Object">
+                  <x:Boolean x:Key="IsExpanded">True</x:Boolean>
+                  <x:Boolean x:Key="IsPinned">False</x:Boolean>
+                </scg:Dictionary>
+              </sap:WorkflowViewStateService.ViewState>
+              <ActivityAction x:TypeArguments="s:Exception">
+                <ActivityAction.Argument>
+                  <DelegateInArgument x:TypeArguments="s:Exception" Name="exception" />
+                </ActivityAction.Argument>
+                <ua:InvokeWorkflowWithArguments ContinueOnError="[Default_ContinueOnError]" DisplayName="Invoke workflow with arguments" sap:VirtualizedContainerService.HintSize="314,87" WorkflowFileName="[WidgetsFolder + &quot;ShowDocuTrackError.uiwf&quot;]">
+                  <ua:InvokeWorkflowWithArguments.Arguments>
+                    <InArgument x:TypeArguments="x:Boolean" x:Key="IsAssociateAction">True</InArgument>
+                    <InArgument x:TypeArguments="x:String" x:Key="Details">[exception.innerException.message]</InArgument>
+                  </ua:InvokeWorkflowWithArguments.Arguments>
+                </ua:InvokeWorkflowWithArguments>
+              </ActivityAction>
+            </Catch>
+          </TryCatch.Catches>
+        </TryCatch>
+      </If.Else>
+    </If>
+  </Sequence>
+</Activity>

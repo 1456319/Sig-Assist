@@ -31,6 +31,12 @@ windows-demo/README.md
 
 # Extracted SV data
 .secret_sv/
-docs/drive_samples/
+docs/drive_samples/*
+!docs/drive_samples/installer/
+!docs/drive_samples/installer/**
 docs/deidentified_order.pdf
 docs/redact_pdf.py
+
+# Installer audit package
+!installers/**
+

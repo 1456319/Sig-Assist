@@ -1,0 +1,4 @@
+* Add the services you want to stop and restart below. One per line (w/o the asterisk). 
+* note: only the services that were running will be restarted.
+* Example:
+* MyService1

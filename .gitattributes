@@ -9,3 +9,15 @@
 *.ps1 text eol=crlf
 windows-demo/index.html -text linguist-generated=true whitespace=-blank-at-eol
 windows-demo/*.zip -text -diff linguist-generated=true
+
+# Git LFS tracking for installers and large binary payloads
+*.msi filter=lfs diff=lfs merge=lfs -text
+*.exe filter=lfs diff=lfs merge=lfs -text
+*.cab filter=lfs diff=lfs merge=lfs -text
+*.zip filter=lfs diff=lfs merge=lfs -text
+*.dll filter=lfs diff=lfs merge=lfs -text
+*.pdb filter=lfs diff=lfs merge=lfs -text
+*.jar filter=lfs diff=lfs merge=lfs -text
+*.dat filter=lfs diff=lfs merge=lfs -text
+installers/FrameworkLtc_binaries/* filter=lfs diff=lfs merge=lfs -text
+

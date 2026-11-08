@@ -1,0 +1,136 @@
+<UserControl x:Class="SoftWriters.FrameworkLtc.Views.Prescriptions.ERxWorkQueue.ERxWorkQueueView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors" xmlns:valueConverters="clr-namespace:SoftWriters.FrameworkLtc.Infrastructure.ValueConverters" xmlns:shared="clr-namespace:SoftWriters.FrameworkLtc.Views.Shared" xmlns:erxworkqueue="clr-namespace:SoftWriters.FrameworkLtc.Views.Prescriptions.ERxWorkQueue">
+  <FrameworkElement.Resources>
+    <ResourceDictionary>
+      <valueConverters:NonEmptyStringToBooleanConverter x:Key="NonEmptyStringToBooleanConverter" />
+      <valueConverters:BooleanToHiddenVisibilityConverter x:Key="BooleanToHiddenVisibilityConverter" />
+      <valueConverters:BooleanToCollapsedVisibilityConverter x:Key="BooleanToCollapsedVisibilityConverter" />
+      <valueConverters:EPCSValidFlagColorConverter x:Key="EPCSValidFlagColorConverter" />
+    </ResourceDictionary>
+  </FrameworkElement.Resources>
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="*" />
+    </Grid.ColumnDefinitions>
+    <StackPanel Grid.Row="0" Orientation="Horizontal" FrameworkElement.HorizontalAlignment="Stretch">
+      <Label FrameworkElement.VerticalAlignment="Center" FrameworkElement.Margin="5 0">Received</Label>
+      <editors:TextEdit FrameworkElement.Width="150" FrameworkElement.Style="{StaticResource ReadOnlyTextEditStyle}" FrameworkElement.HorizontalAlignment="Left" FrameworkElement.Margin="5 0" xmlns:editors="clr-namespace:DevExpress.Xpf.Editors;assembly=DevExpress.Xpf.Core.v22.2" MaskType="DateTime" Mask="MM/dd/yyyy HH:mm:ss" MaskUseAsDisplayFormat="True" xmlns:automation="clr-namespace:System.Windows.Automation;assembly=PresentationCore" automation:AutomationProperties.Name="MessageReceivedTextbox">
+        <editors:BaseEdit.EditValue>
+          <Binding>
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">MessageEntryDate</Ctor>
+          </Binding>
+        </editors:BaseEdit.EditValue>
+      </editors:TextEdit>
+      <Label FrameworkElement.VerticalAlignment="Center" FrameworkElement.Margin="10 0 0 0">Message Type</Label>
+      <TextEdit FrameworkElement.Width="200" FrameworkElement.Style="{StaticResource ReadOnlyTextEditStyle}" FrameworkElement.HorizontalAlignment="Left" FrameworkElement.Margin="5 0" p11:AutomationProperties.Name="MessageTypeTextbox" xmlns:p11="clr-namespace:System.Windows.Automation;assembly=PresentationCore" xmlns="clr-namespace:DevExpress.Xpf.Editors;assembly=DevExpress.Xpf.Core.v22.2">
+        <BaseEdit.EditValue>
+          <Binding xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">MessageTypeDisplay</Ctor>
+          </Binding>
+        </BaseEdit.EditValue>
+      </TextEdit>
+    </StackPanel>
+    <Button Grid.Row="0" p10:AutomationProperties.Name="PrintCommand" FrameworkElement.Margin="5 0" FrameworkElement.Width="35" FrameworkElement.Height="25" FrameworkElement.HorizontalAlignment="Right" xmlns:p10="clr-namespace:System.Windows.Automation;assembly=PresentationCore">
+      <ButtonBase.Command>
+        <Binding>
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">PrintCommand</Ctor>
+        </Binding>
+      </ButtonBase.Command>
+      <UIElement.IsEnabled>
+        <Binding Converter="{StaticResource NonEmptyStringToBooleanConverter}">
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">MessageId</Ctor>
+        </Binding>
+      </UIElement.IsEnabled>
+      <ContentControl UIElement.Focusable="False">
+        <Image Source="pack://application:,,,/SoftWriters.FrameworkLtc;component/Resources/Images/Print_16x16.png" />
+      </ContentControl>
+    </Button>
+    <GroupBox Grid.Row="1" FrameworkElement.HorizontalAlignment="Left" FrameworkElement.Margin="0 5 0 0">
+      <UIElement.Visibility>
+        <Binding Converter="{StaticResource BooleanToCollapsedVisibilityConverter}">
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ShowEPCSMessage</Ctor>
+        </Binding>
+      </UIElement.Visibility>
+      <StackPanel Orientation="Horizontal" FrameworkElement.HorizontalAlignment="Stretch">
+        <TextBlock FontWeight="Bold" FrameworkElement.Width="458" FrameworkElement.Margin="0,0,0,0" TextWrapping="Wrap" p12:AutomationProperties.Name="EPCSMessageTextbox" xmlns:p12="clr-namespace:System.Windows.Automation;assembly=PresentationCore">
+          <TextBlock.Foreground>
+            <Binding Converter="{StaticResource EPCSValidFlagColorConverter}">
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">EPCSSignatureValid</Ctor>
+            </Binding>
+          </TextBlock.Foreground>
+          <TextBlock.Text>
+            <Binding>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">EPCSMessageText</Ctor>
+            </Binding>
+          </TextBlock.Text>
+        </TextBlock>
+        <Button FrameworkElement.HorizontalAlignment="Right" FrameworkElement.VerticalAlignment="Top" FrameworkElement.Margin="5,7,5,5" FrameworkElement.Width="110" ContentControl.Content="_Show Certificate" p12:AutomationProperties.Name="ShowCertificateCommand" FrameworkElement.Style="{StaticResource GeneralButton}" xmlns:p12="clr-namespace:System.Windows.Automation;assembly=PresentationCore">
+          <ButtonBase.Command>
+            <Binding>
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ShowCertificateCommand</Ctor>
+            </Binding>
+          </ButtonBase.Command>
+          <UIElement.Visibility>
+            <Binding Converter="{StaticResource BooleanToCollapsedVisibilityConverter}">
+              <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ShowEPCSCertificate</Ctor>
+            </Binding>
+          </UIElement.Visibility>
+        </Button>
+      </StackPanel>
+    </GroupBox>
+    <StackPanel Grid.Row="2" Orientation="Horizontal" FrameworkElement.HorizontalAlignment="Stretch">
+      <UIElement.Visibility>
+        <Binding Converter="{StaticResource BooleanToCollapsedVisibilityConverter}">
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ShowHL7Warning</Ctor>
+        </Binding>
+      </UIElement.Visibility>
+      <Image Source="pack://application:,,,/SoftWriters.FrameworkLtc;component/Resources/Images/Alert.png" FrameworkElement.Width="45" FrameworkElement.Height="40" FrameworkElement.Margin="10 5 5 5" />
+      <TextBlock FontWeight="Bold" Foreground="#FFFF0000" FrameworkElement.Margin="10,10,10,15" TextWrapping="Wrap" p11:AutomationProperties.Name="HL7WarningTextbox" xmlns:p11="clr-namespace:System.Windows.Automation;assembly=PresentationCore">
+        <TextBlock.Text>
+          <Binding>
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">HL7WarningText</Ctor>
+          </Binding>
+        </TextBlock.Text>
+      </TextBlock>
+    </StackPanel>
+    <shared:ERxGridView p10:AutomationProperties.Name="ERxGridView" Grid.Row="3" FrameworkElement.Margin="5 5 5 0" FrameworkElement.VerticalAlignment="Stretch" FrameworkElement.HorizontalAlignment="Stretch" xmlns:p10="clr-namespace:System.Windows.Automation;assembly=PresentationCore">
+      <shared:ERxGridView.ItemSource>
+        <Binding>
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ERxData</Ctor>
+        </Binding>
+      </shared:ERxGridView.ItemSource>
+    </shared:ERxGridView>
+    <StackPanel Grid.Row="4" Orientation="Horizontal" FrameworkElement.HorizontalAlignment="Center">
+      <UIElement.Visibility>
+        <Binding Converter="{StaticResource BooleanToCollapsedVisibilityConverter}">
+          <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ShowFolderFrame</Ctor>
+        </Binding>
+      </UIElement.Visibility>
+      <Label FrameworkElement.VerticalAlignment="Center" FrameworkElement.Margin="5 5 5 0">Current Folder:</Label>
+      <TextEdit FrameworkElement.Width="200" FrameworkElement.Style="{StaticResource ReadOnlyTextEditStyle}" FrameworkElement.HorizontalAlignment="Left" FrameworkElement.Margin="5 5 5 0" p11:AutomationProperties.Name="CurrentFolder" xmlns:p11="clr-namespace:System.Windows.Automation;assembly=PresentationCore" xmlns="clr-namespace:DevExpress.Xpf.Editors;assembly=DevExpress.Xpf.Core.v22.2">
+        <BaseEdit.EditValue>
+          <Binding xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">CurrentFolder.Display</Ctor>
+          </Binding>
+        </BaseEdit.EditValue>
+      </TextEdit>
+      <Button FrameworkElement.Style="{StaticResource GeneralButton}" FrameworkElement.Margin="5 5 0 0" p11:AutomationProperties.Name="ChangeFolderCommand" xmlns:p11="clr-namespace:System.Windows.Automation;assembly=PresentationCore">
+        <ButtonBase.Command>
+          <Binding>
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">ChangeFolderCommand</Ctor>
+          </Binding>
+        </ButtonBase.Command>
+        <UIElement.Visibility>
+          <Binding Converter="{StaticResource BooleanToHiddenVisibilityConverter}">
+            <Ctor xmlns="https://github.com/icsharpcode/ILSpy">MultipleERxWorkQueueFolders</Ctor>
+          </Binding>
+        </UIElement.Visibility>_Change</Button>
+    </StackPanel>
+  </Grid>
+</UserControl>

@@ -1,0 +1,8 @@
+<Manifest InitialStep="PatchChain">
+  <Text>*** If applicable, applying post-release SQL updates!</Text>  
+  <Step Name="PatchChain" Type="Sql" OnSuccessReport="Success" OnFailureReport="Failure">
+	<!-- add patches here -->
+	<!-- DO NOT MAKE UPDATES BELOW THIS LINE -->
+	<Path>_SQL-PATCH-PATH_\PatchHistory.sql</Path>
+  </Step>
+</Manifest>

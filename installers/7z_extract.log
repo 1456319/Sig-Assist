@@ -1,0 +1,21 @@
+
+7-Zip 25.01 (x64) : Copyright (c) 1999-2025 Igor Pavlov : 2025-08-03
+ 64-bit locale=en_US.UTF-8 Threads:8 OPEN_MAX:1024, ASM
+
+Scanning the drive for archives:
+1 file, 612577280 bytes (585 MiB)
+
+Extracting archive: /home/deck/installers/SoftWriters.FrameworkLtc.Installer 3.3.363.msi
+--
+Path = /home/deck/installers/SoftWriters.FrameworkLtc.Installer 3.3.363.msi
+Type = Compound
+Physical Size = 612577280
+Extension = msi
+Cluster Size = 4096
+Sector Size = 64
+
+Everything is Ok
+
+Files: 98
+Size:       611872032
+Compressed: 612577280

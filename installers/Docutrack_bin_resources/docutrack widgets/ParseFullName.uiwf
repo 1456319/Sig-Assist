@@ -1,0 +1,312 @@
+﻿<Activity mc:Ignorable="sads sap" x:Class="ParseFullName" this:ParseFullName.Default_TimeoutMS="[30000]" this:ParseFullName.Default_ContinueOnError="[False]" this:ParseFullName.Default_DelayMS="[300]" this:ParseFullName.DebugMode="False"
+ xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+ xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+ xmlns:mv="clr-namespace:Microsoft.VisualBasic;assembly=Microsoft.VisualBasic"
+ xmlns:mva="clr-namespace:Microsoft.VisualBasic.Activities;assembly=System.Activities"
+ xmlns:njl="clr-namespace:Newtonsoft.Json.Linq;assembly=Newtonsoft.Json"
+ xmlns:s="clr-namespace:System;assembly=mscorlib"
+ xmlns:s1="clr-namespace:System;assembly=System.Core"
+ xmlns:s2="clr-namespace:System;assembly=System"
+ xmlns:s3="clr-namespace:System;assembly=System.ServiceModel"
+ xmlns:s4="clr-namespace:System;assembly=System.ComponentModel.Composition"
+ xmlns:sa="clr-namespace:System.Activities;assembly=System.Activities"
+ xmlns:sads="http://schemas.microsoft.com/netfx/2010/xaml/activities/debugger"
+ xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+ xmlns:scg="clr-namespace:System.Collections.Generic;assembly=mscorlib"
+ xmlns:sd="clr-namespace:System.Data;assembly=System.Data"
+ xmlns:sd1="clr-namespace:System.Diagnostics;assembly=System"
+ xmlns:si="clr-namespace:System.IO;assembly=mscorlib"
+ xmlns:sl="clr-namespace:System.Linq;assembly=System.Core"
+ xmlns:sma="clr-namespace:System.Management.Automation;assembly=System.Management.Automation"
+ xmlns:snm="clr-namespace:System.Net.Mail;assembly=System"
+ xmlns:sx="clr-namespace:System.Xml;assembly=System.Xml"
+ xmlns:sxl="clr-namespace:System.Xml.Linq;assembly=System.Xml.Linq"
+ xmlns:this="clr-namespace:"
+ xmlns:ua="clr-namespace:UiPath.Activities;assembly=UiPath.Activities"
+ xmlns:ul="clr-namespace:UiPath.Library;assembly=UiPath.Library"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="Default_TimeoutMS" Type="InArgument(x:Int32)" />
+    <x:Property Name="Default_ContinueOnError" Type="InArgument(x:Boolean)" />
+    <x:Property Name="Default_DelayMS" Type="InArgument(x:Int32)" />
+    <x:Property Name="PatientFullName" Type="InArgument(x:String)" />
+    <x:Property Name="PatientFirstName" Type="OutArgument(x:String)" />
+    <x:Property Name="PatientLastName" Type="OutArgument(x:String)" />
+    <x:Property Name="DebugMode" Type="InArgument(x:Boolean)" />
+    <x:Property Name="WidgetsFolder" Type="InArgument(x:String)" />
+  </x:Members>
+  <this:ParseFullName.PatientFullName>
+    <InArgument x:TypeArguments="x:String">
+      <Literal x:TypeArguments="x:String" Value="" />
+    </InArgument>
+  </this:ParseFullName.PatientFullName>
+  <sap:VirtualizedContainerService.HintSize>1576,2708</sap:VirtualizedContainerService.HintSize>
+  <mva:VisualBasic.Settings>Assembly references and imported namespaces for internal implementation</mva:VisualBasic.Settings>
+  <Sequence sap:VirtualizedContainerService.HintSize="1536,2668">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Name="babyFirstNamePrefix" />
+    </Sequence.Variables>
+    <sap:WorkflowViewStateService.ViewState>
+      <scg:Dictionary x:TypeArguments="x:String, x:Object">
+        <x:Boolean x:Key="IsExpanded">True</x:Boolean>
+      </scg:Dictionary>
+    </sap:WorkflowViewStateService.ViewState>
+    <Assign DisplayName="Initialize" sap:VirtualizedContainerService.HintSize="1514,60">
+      <Assign.To>
+        <OutArgument x:TypeArguments="x:String">[PatientFirstName]</OutArgument>
+      </Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="x:String">
+          <Literal x:TypeArguments="x:String" Value="" />
+        </InArgument>
+      </Assign.Value>
+    </Assign>
+    <Assign DisplayName="Initialize" sap:VirtualizedContainerService.HintSize="1514,60">
+      <Assign.To>
+        <OutArgument x:TypeArguments="x:String">[PatientLastName]</OutArgument>
+      </Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="x:String">
+          <Literal x:TypeArguments="x:String" Value="" />
+        </InArgument>
+      </Assign.Value>
+    </Assign>
+    <Assign DisplayName="Trim Leading/Trailing Whitespace" sap:VirtualizedContainerService.HintSize="1514,60">
+      <Assign.To>
+        <OutArgument x:TypeArguments="x:String">[PatientFullName]</OutArgument>
+      </Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="x:String">[PatientFullName.Trim()]</InArgument>
+      </Assign.Value>
+    </Assign>
+    <If Condition="[PatientFullName.ToUpper().StartsWith(&quot;BABY OF &quot;)]" DisplayName="Is this a &quot;Baby of&quot; record?" sap:VirtualizedContainerService.HintSize="1514,392">
+      <If.Then>
+        <Sequence sap:VirtualizedContainerService.HintSize="264,284">
+          <sap:WorkflowViewStateService.ViewState>
+            <scg:Dictionary x:TypeArguments="x:String, x:Object">
+              <x:Boolean x:Key="IsExpanded">True</x:Boolean>
+            </scg:Dictionary>
+          </sap:WorkflowViewStateService.ViewState>
+          <Assign sap:VirtualizedContainerService.HintSize="242,60">
+            <Assign.To>
+              <OutArgument x:TypeArguments="x:String">[babyFirstNamePrefix]</OutArgument>
+            </Assign.To>
+            <Assign.Value>
+              <InArgument x:TypeArguments="x:String">[PatientFullName.Substring(0, 8)]</InArgument>
+            </Assign.Value>
+          </Assign>
+          <Assign DisplayName="Strip off &quot;Baby of &quot;" sap:VirtualizedContainerService.HintSize="242,60">
+            <Assign.To>
+              <OutArgument x:TypeArguments="x:String">[PatientFullName]</OutArgument>
+            </Assign.To>
+            <Assign.Value>
+              <InArgument x:TypeArguments="x:String">[PatientFullName.Substring(8)]</InArgument>
+            </Assign.Value>
+          </Assign>
+        </Sequence>
+      </If.Then>
+      <If.Else>
+        <Assign sap:VirtualizedContainerService.HintSize="242,60">
+          <Assign.To>
+            <OutArgument x:TypeArguments="x:String">[babyFirstNamePrefix]</OutArgument>
+          </Assign.To>
+          <Assign.Value>
+            <InArgument x:TypeArguments="x:String">
+              <Literal x:TypeArguments="x:String" Value="" />
+            </InArgument>
+          </Assign.Value>
+        </Assign>
+      </If.Else>
+    </If>
+    <If Condition="[PatientFullName.Contains(&quot;,&quot;)]" DisplayName="Does the full name contain a comma delimiter ?" sap:VirtualizedContainerService.HintSize="1514,1564">
+      <If.Then>
+        <Sequence sap:VirtualizedContainerService.HintSize="336,455">
+          <sap:WorkflowViewStateService.ViewState>
+            <scg:Dictionary x:TypeArguments="x:String, x:Object">
+              <x:Boolean x:Key="IsExpanded">True</x:Boolean>
+            </scg:Dictionary>
+          </sap:WorkflowViewStateService.ViewState>
+          <ua:Comment sap:VirtualizedContainerService.HintSize="314,131" Text="// 12/18/2014 This widget has been updated to account for commas in the name. It will take everything in front of the comma and make it the last name, and everything after the comma and make it the first name." />
+          <Assign DisplayName="Assign up to last space" sap:VirtualizedContainerService.HintSize="314,60">
+            <Assign.To>
+              <OutArgument x:TypeArguments="x:String">[PatientFirstName]</OutArgument>
+            </Assign.To>
+            <Assign.Value>
+              <InArgument x:TypeArguments="x:String">[PatientFullName.Substring(PatientFullName.LastIndexOf(",") + 1)]</InArgument>
+            </Assign.Value>
+          </Assign>
+          <Assign DisplayName="Assign from last space" sap:VirtualizedContainerService.HintSize="314,60">
+            <Assign.To>
+              <OutArgument x:TypeArguments="x:String">[PatientLastName]</OutArgument>
+            </Assign.To>
+            <Assign.Value>
+              <InArgument x:TypeArguments="x:String">[PatientFullName.Substring(0, PatientFullName.LastIndexOf(","))]</InArgument>
+            </Assign.Value>
+          </Assign>
+        </Sequence>
+      </If.Then>
+      <If.Else>
+        <If Condition="[PatientFullName.Contains(&quot; &quot;)]" DisplayName="Does the full name contain in-fix spaces?" sap:VirtualizedContainerService.HintSize="1153,1456">
+          <sap:WorkflowViewStateService.ViewState>
+            <scg:Dictionary x:TypeArguments="x:String, x:Object">
+              <x:Boolean x:Key="IsExpanded">True</x:Boolean>
+              <x:Boolean x:Key="IsPinned">False</x:Boolean>
+            </scg:Dictionary>
+          </sap:WorkflowViewStateService.ViewState>
+          <If.Then>
+            <Sequence sap:VirtualizedContainerService.HintSize="886,1348">
+              <sap:WorkflowViewStateService.ViewState>
+                <scg:Dictionary x:TypeArguments="x:String, x:Object">
+                  <x:Boolean x:Key="IsExpanded">True</x:Boolean>
+                </scg:Dictionary>
+              </sap:WorkflowViewStateService.ViewState>
+              <If Condition="[PatientFullName.IndexOf(&quot; &quot;)=patientFullName.LastIndexOf(&quot; &quot;)]" DisplayName="If more than one space, remove title (if applicable)." sap:VirtualizedContainerService.HintSize="864,1224">
+                <If.Then>
+                  <Sequence sap:VirtualizedContainerService.HintSize="264,284">
+                    <sap:WorkflowViewStateService.ViewState>
+                      <scg:Dictionary x:TypeArguments="x:String, x:Object">
+                        <x:Boolean x:Key="IsExpanded">True</x:Boolean>
+                      </scg:Dictionary>
+                    </sap:WorkflowViewStateService.ViewState>
+                    <Assign DisplayName="Assign up to space" sap:VirtualizedContainerService.HintSize="242,60">
+                      <Assign.To>
+                        <OutArgument x:TypeArguments="x:String">[PatientFirstName]</OutArgument>
+                      </Assign.To>
+                      <Assign.Value>
+                        <InArgument x:TypeArguments="x:String">[PatientFullName.Substring(0, PatientFullName.IndexOf(" "))]</InArgument>
+                      </Assign.Value>
+                    </Assign>
+                    <Assign DisplayName="Assign from space" sap:VirtualizedContainerService.HintSize="242,60">
+                      <Assign.To>
+                        <OutArgument x:TypeArguments="x:String">[PatientLastName]</OutArgument>
+                      </Assign.To>
+                      <Assign.Value>
+                        <InArgument x:TypeArguments="x:String">[PatientFullName.Substring(PatientFullName.IndexOf(" ") + 1)]</InArgument>
+                      </Assign.Value>
+                    </Assign>
+                  </Sequence>
+                </If.Then>
+                <If.Else>
+                  <Sequence sap:VirtualizedContainerService.HintSize="575,1116">
+                    <Sequence.Variables>
+                      <Variable x:TypeArguments="x:String" Name="patientTitle" />
+                      <Variable x:TypeArguments="x:String" Name="patientUpper" />
+                    </Sequence.Variables>
+                    <sap:WorkflowViewStateService.ViewState>
+                      <scg:Dictionary x:TypeArguments="x:String, x:Object">
+                        <x:Boolean x:Key="IsExpanded">True</x:Boolean>
+                      </scg:Dictionary>
+                    </sap:WorkflowViewStateService.ViewState>
+                    <Assign DisplayName="Assign up to first space" sap:VirtualizedContainerService.HintSize="553,60">
+                      <Assign.To>
+                        <OutArgument x:TypeArguments="x:String">[patientTitle]</OutArgument>
+                      </Assign.To>
+                      <Assign.Value>
+                        <InArgument x:TypeArguments="x:String">[PatientFullName.Substring(0, PatientFullName.IndexOf(" ")).ToUpper().Replace(".","")]</InArgument>
+                      </Assign.Value>
+                    </Assign>
+                    <If Condition="[patientTitle=&quot;MR&quot; or patientTitle=&quot;MRS&quot; or patientTitle=&quot;MS&quot; or patientTitle=&quot;MISS&quot; or patientTitle=&quot;DR&quot; or patientTitle=&quot;OFC&quot; or patientTitle=&quot;MASTER&quot; or patientTitle=&quot;PROF&quot; or patientTitle=&quot;ATTY&quot; or patientTitle=&quot;HON&quot; or patientTitle=&quot;REV&quot;]" DisplayName="Does the full name contain a title (i.e. Mr., Mrs.)?" sap:VirtualizedContainerService.HintSize="553,208">
+                      <If.Then>
+                        <Assign DisplayName="Remove the title (i.e. Mr., Mrs.)" sap:VirtualizedContainerService.HintSize="242,60">
+                          <Assign.To>
+                            <OutArgument x:TypeArguments="x:String">[PatientFullName]</OutArgument>
+                          </Assign.To>
+                          <Assign.Value>
+                            <InArgument x:TypeArguments="x:String">[PatientFullName.Substring(PatientFullName.IndexOf(" ") + 1)]</InArgument>
+                          </Assign.Value>
+                        </Assign>
+                      </If.Then>
+                    </If>
+                    <Assign sap:VirtualizedContainerService.HintSize="553,60">
+                      <Assign.To>
+                        <OutArgument x:TypeArguments="x:String">[patientUpper]</OutArgument>
+                      </Assign.To>
+                      <Assign.Value>
+                        <InArgument x:TypeArguments="x:String">[PatientFullName.ToUpper().Replace(".", "")]</InArgument>
+                      </Assign.Value>
+                    </Assign>
+                    <ua:Comment sap:VirtualizedContainerService.HintSize="553,112" Text="WARNING: Note the spaces around the comparers below (i.e. {space}VON{space}). very important. We don't want to match on Vonner." />
+                    <If Condition="[patientUpper.Contains(&quot; VON &quot;) or patientUpper.Contains(&quot; VAN &quot;) or patientUpper.Contains(&quot; DA &quot;) or patientUpper.Contains(&quot; DE &quot;) or patientUpper.Contains(&quot; DI &quot;) or patientUpper.Contains(&quot; DU  &quot;) or patientUpper.Contains(&quot; DES &quot;) or patientUpper.Contains(&quot; DEL &quot;) or patientUpper.Contains(&quot; DELLA &quot;) or patientUpper.Contains(&quot; LE &quot;) or patientUpper.Contains(&quot; LA &quot;) or patientUpper.Contains(&quot; ST &quot;)]" DisplayName="Is the last name more than one word?" sap:VirtualizedContainerService.HintSize="553,392">
+                      <If.Then>
+                        <Sequence sap:VirtualizedContainerService.HintSize="264,284">
+                          <sap:WorkflowViewStateService.ViewState>
+                            <scg:Dictionary x:TypeArguments="x:String, x:Object">
+                              <x:Boolean x:Key="IsExpanded">True</x:Boolean>
+                            </scg:Dictionary>
+                          </sap:WorkflowViewStateService.ViewState>
+                          <Assign DisplayName="Assign up to first space" sap:VirtualizedContainerService.HintSize="242,60">
+                            <Assign.To>
+                              <OutArgument x:TypeArguments="x:String">[PatientFirstName]</OutArgument>
+                            </Assign.To>
+                            <Assign.Value>
+                              <InArgument x:TypeArguments="x:String">[PatientFullName.Substring(0, PatientFullName.IndexOf(" "))]</InArgument>
+                            </Assign.Value>
+                          </Assign>
+                          <Assign DisplayName="Assign from first space" sap:VirtualizedContainerService.HintSize="242,60">
+                            <Assign.To>
+                              <OutArgument x:TypeArguments="x:String">[PatientLastName]</OutArgument>
+                            </Assign.To>
+                            <Assign.Value>
+                              <InArgument x:TypeArguments="x:String">[PatientFullName.Substring(PatientFullName.IndexOf(" ") + 1)]</InArgument>
+                            </Assign.Value>
+                          </Assign>
+                        </Sequence>
+                      </If.Then>
+                      <If.Else>
+                        <Sequence sap:VirtualizedContainerService.HintSize="264,284">
+                          <sap:WorkflowViewStateService.ViewState>
+                            <scg:Dictionary x:TypeArguments="x:String, x:Object">
+                              <x:Boolean x:Key="IsExpanded">True</x:Boolean>
+                            </scg:Dictionary>
+                          </sap:WorkflowViewStateService.ViewState>
+                          <Assign DisplayName="Assign up to last space" sap:VirtualizedContainerService.HintSize="242,60">
+                            <Assign.To>
+                              <OutArgument x:TypeArguments="x:String">[PatientFirstName]</OutArgument>
+                            </Assign.To>
+                            <Assign.Value>
+                              <InArgument x:TypeArguments="x:String">[PatientFullName.Substring(0, PatientFullName.LastIndexOf(" "))]</InArgument>
+                            </Assign.Value>
+                          </Assign>
+                          <Assign DisplayName="Assign from last space" sap:VirtualizedContainerService.HintSize="242,60">
+                            <Assign.To>
+                              <OutArgument x:TypeArguments="x:String">[PatientLastName]</OutArgument>
+                            </Assign.To>
+                            <Assign.Value>
+                              <InArgument x:TypeArguments="x:String">[PatientFullName.Substring(PatientFullName.LastIndexOf(" ") + 1)]</InArgument>
+                            </Assign.Value>
+                          </Assign>
+                        </Sequence>
+                      </If.Else>
+                    </If>
+                  </Sequence>
+                </If.Else>
+              </If>
+            </Sequence>
+          </If.Then>
+          <If.Else>
+            <Assign sap:VirtualizedContainerService.HintSize="242,60">
+              <Assign.To>
+                <OutArgument x:TypeArguments="x:String">[PatientLastName]</OutArgument>
+              </Assign.To>
+              <Assign.Value>
+                <InArgument x:TypeArguments="x:String">[PatientFullName]</InArgument>
+              </Assign.Value>
+            </Assign>
+          </If.Else>
+        </If>
+      </If.Else>
+    </If>
+    <If Condition="[babyFirstNamePrefix.Length &gt; 0]" DisplayName="Put &quot;Baby of&quot; back?" sap:VirtualizedContainerService.HintSize="1514,208">
+      <If.Then>
+        <Assign sap:VirtualizedContainerService.HintSize="242,60">
+          <Assign.To>
+            <OutArgument x:TypeArguments="x:String">[PatientFirstName]</OutArgument>
+          </Assign.To>
+          <Assign.Value>
+            <InArgument x:TypeArguments="x:String">[babyFirstNamePrefix + PatientFirstName]</InArgument>
+          </Assign.Value>
+        </Assign>
+      </If.Then>
+    </If>
+  </Sequence>
+</Activity>
