@@ -2,20 +2,20 @@
 <License>
   <Data>
     <LicensedTo>Integra</LicensedTo>
-    <EmailTo>maryjo.wiseman@integragroup.com</EmailTo>
+    <EmailTo>dev-licenses@fake-audit-domain.invalid</EmailTo>
     <LicenseType>Developer OEM</LicenseType>
     <LicenseNote>Limited to 1 developer, unlimited physical locations</LicenseNote>
-    <OrderID>150217115143</OrderID>
-    <UserID>291312</UserID>
+    <OrderID>REDACTED_AUDIT_ORDER</OrderID>
+    <UserID>REDACTED_USER</UserID>
     <OEM>This is a redistributable license</OEM>
     <Products>
       <Product>Aspose.Total for .NET</Product>
     </Products>
     <EditionType>Enterprise</EditionType>
-    <SerialNumber>e2fca591-a3ce-46a4-9f15-34a13fbb5dba</SerialNumber>
+    <SerialNumber>00000000-0000-0000-0000-000000000000</SerialNumber>
     <SubscriptionExpiry>20160217</SubscriptionExpiry>
     <LicenseVersion>3.0</LicenseVersion>
     <LicenseInstructions>http://www.aspose.com/corporate/purchase/license-instructions.aspx</LicenseInstructions>
   </Data>
-  <Signature>pWI3fMMk7XVch4VbEv5JAQ7f19lvXvm4v896muhXpzajSt7tBMMlsaug3luqVQBDBcAgJJtoBctOVHh7XCHed/IUgJdEYyHwvMiIxKU+VKWCiD1GFEuAKP1Ah9GKtI2GuWkqZ1kmmeuznqvn/msd9za836mgERo1Pz+XC9X5y1Q=</Signature>
+  <Signature>REDACTED_FOR_AUDIT_COMPLIANCE</Signature>
 </License>
