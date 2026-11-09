@@ -70,7 +70,10 @@ function assembleSig(
         title: 'Additional Instructions Require Review',
         message: 'Additional instructions were retained verbatim after the translated tokens. Verify every clause and Framework Preview Sig before copying.',
         trigger: clauses.supplemental });
-      return `${sig.replace(/[.;]+$/, '')}. ${uppercaseDirections(clauses.supplemental)}`;
+      const supplemental = uppercaseDirections(clauses.supplemental)
+        .replace(/^RINSE MOUTH WITH WATER AFTER USE\b/, 'RMAU WITH WATER')
+        .replace(/^HOSPICE RESIDENT[.]?$/, '(HOSPICE)');
+      return `${sig.replace(/[.;]+$/, '')}. ${supplemental}`;
     }
     return sig;
   };
@@ -250,7 +253,7 @@ function translateClinicalSigInternal(inbound: InboundOrder, preferences?: Parti
           id: `treatment_order_${inbound.id}`,
           tier: 'applied_correction',
           title: 'Wound Care Treatment Order Formatted',
-          message: 'Treatment directions formatted with condensed procedural syntax to satisfy the 199-character limit.',
+          message: 'Treatment directions formatted with condensed procedural syntax. Complete instructions are retained; suggestions exceeding the destination limit are flagged for review.',
           correction: treatmentEval.singleSig!,
           trigger: inbound.rawProse
         }
@@ -269,6 +272,24 @@ function translateClinicalSigInternal(inbound: InboundOrder, preferences?: Parti
     }
 
     const paxitEval = evaluatePaxitPackaging(inbound.drugName, inbound.rawProse);
+
+    // An explicit second administration is a separate regimen, not an
+    // indication or supplemental sentence. Keep routine and PRN frequencies,
+    // doses and course restrictions on their own clauses.
+    const regimens = inbound.rawProse.split(/\s+AND\s+(?=(?:(?:GIVE|TAKE|ADMINISTER|INJECT)\s+\d+(?:\.\d+)?|\d+(?:\.\d+)?\s*(?:ML|VIALS?)\s+INHALE)\b)/i);
+    if (regimens.length > 1 && regimens.some(p => /\b(?:AS NEEDED|PRN)\b/i.test(p))
+        && regimens.some(p => !/\b(?:AS NEEDED|PRN)\b/i.test(p))) {
+      const compiled = regimens.map(p => assembleSig(inbound.drugName, p, inbound.defaultSigTemplate, preferences, inbound.indication));
+      const abnormalities = compiled.flatMap(p => p.abnormalities);
+      const primarySig = compiled.map(p => p.sig).join(' **SPLIT** ');
+      abnormalities.push({ id: 'explicit_routine_prn_regimens', tier: 'applied_correction', title: 'Routine and PRN Directions Separated',
+        message: paxitEval.isControlled ? 'Both regimens remain on one controlled-drug order. Compare each clause with the original.'
+          : 'Routine and PRN directions are presented separately. Compare each dose, interval and duration with the original.', trigger: inbound.rawProse });
+      const subOrders = paxitEval.isControlled
+        ? [{ id: `${inbound.id}_single`, label: 'Order 1 of 1', suggestedSig: primarySig, abnormalities }]
+        : compiled.map((p, i) => ({ id: `${inbound.id}_split_${i + 1}`, label: `Order ${i + 1} of ${compiled.length}`, suggestedSig: p.sig, abnormalities: p.abnormalities }));
+      return { primarySig, subOrders, abnormalities, traceId };
+    }
 
     // Case A: Controlled substance with differential dosing or titration -> Compound SIG on single order
     if (paxitEval.isControlled && paxitEval.splitParts.length > 0) {
@@ -426,6 +447,8 @@ export function translateClinicalSig(inbound: InboundOrder, preferences?: Partia
   const finalize = (sig: string) => {
     const policy = applyOutputCodePolicy(sig, preferences?.exclusions);
     const findings: AbnormalityFinding[] = [];
+    if (policy.sig.length > 199) findings.push({ id: 'sig_length_review', tier: 'uncorrected_gap', title: 'SIG Length Requires Review',
+      message: `The suggestion is ${policy.sig.length} characters. Condense it for the reported 199-character destination limit; no instructions were truncated.` });
     if (policy.changes.length) findings.push({ id: 'output_code_replacement', tier: 'applied_correction', title: 'Rejected Codes Replaced',
       message: 'Packaging restrictions and saved exclusions were applied to the suggestion. Verify the expanded instructions.', correction: policy.changes.join('; ') });
     if (policy.unresolved.length) findings.push({ id: 'unresolved_output_exclusion', tier: 'uncorrected_gap', title: 'Excluded SIG Requires Manual Translation',

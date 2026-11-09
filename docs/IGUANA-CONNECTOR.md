@@ -28,7 +28,7 @@ resubmit/dequeue messages, change channels, or insert anything into Framework.
    checkout, run `npm run build:demo`, then `npm run connector` with Node installed.
 4. Paste a PON into **Find E-Rx** and press Enter or click **Find E-Rx**. This is
    the only field needed. **Load recent E-Rx** needs no field at all. Both use the
-   prefilled shared connection settings.
+   shared connection settings and the values supplied by Iguana's login form.
 5. Choose the correct result by drug, original directions, facility, patient
    reference, PON and source time. The incoming details and suggested SIG load
    automatically. Results are not automatically selected after a lookup, even
@@ -48,8 +48,9 @@ resubmit/dequeue messages, change channels, or insert anything into Framework.
    **Stop intake** stops the outstanding fetch/timer; Ctrl+C closes the bridge.
 
 **Live connection settings** remains available for overrides and **Fetch once**.
-Defaults are **http://iguanabalt01v:6543**, **admin / password**, and
-**MessageBroker**. Use the web management URL including its port, without
+Defaults are **http://iguanabalt01v:6543**, **Use Iguana login-page values**, and
+**MessageBroker**. The application contains no default username or password.
+Use the web management URL including its port, without
 `/logs.html`. **After** starts at midnight of the previous calendar day on this
 computer (`YYYY/MM/DD HH:MM:SS`); **Before** is blank. These are Iguana wall-clock
 times, so adjust them if the clocks differ. **Use yesterday’s midnight** resets
@@ -150,11 +151,26 @@ is not available in this captured NewRx and is not invented.
 The bridge calls **GET `/api_query`** with `source=MessageBroker`,
 `type=info,messages,warnings,errors`, `deleted=false`, `reverse=false`, `after`
 and `limit`, plus optional `before` and `filter`. **Info must be included**.
-Authentication defaults to Iguana API username/password parameters; HTTP Basic
-is an alternate mode. Credentials stay in page memory and are excluded from
-exports. Every request supplies credentials again; the connector does not depend
-on the Iguana web UI session or its 15-minute inactivity timeout. Captured HAR
-cookies/credentials are never reused.
+Authentication defaults to **Use Iguana login-page values**. Before each query,
+the bridge reads **GET `/login.html`** on the configured server and extracts one
+filled `username`/`password` form. It uses those values with the documented API
+parameters for that query. Values stay in bridge request memory, are not returned
+to the app or diagnostic exports, and are neither compiled into the download nor
+saved to disk. A changed server-supplied value is picked up on the next query.
+
+This mode reads values supplied in HTML, not credentials saved by a browser or
+inserted by JavaScript. It does not execute the login page, submit a login form,
+reuse browser cookies, or depend on the web UI session timeout. A blank, ambiguous,
+redirected or script-filled form produces a message to choose **Enter credentials ·
+Iguana API** or **Enter credentials · HTTP Basic**. Manual entries remain in page
+memory. Captured HAR cookies/credentials are never reused.
+
+The login form's field names are confirmed by the supplied captures. Those
+captures omit the login response body, so automatic discovery is tested against
+synthetic forms and needs one confirmation on the LAN. The user confirmed that a
+private browser window also presents filled fields; if filling happens in page
+JavaScript, use the manual fallback and supply the login page HTML for follow-up.
+API reference: https://help.interfaceware.com/v6/http-api-reference
 
 The live adapter accepts the site's observed `<export><message data="..."
 source_name="..." time_stamp="..." reference_id="..." /></export>` profile.

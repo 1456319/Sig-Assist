@@ -115,9 +115,12 @@ describe('connector through queue UI', () => {
     render(<Harness />);
     fireEvent.click(screen.getByText('Live connection settings'));
     expect((screen.getByLabelText('After · Iguana server time') as HTMLInputElement).value).toBe(yesterdayMidnight());
+    expect((screen.getByLabelText('Authentication mode') as HTMLSelectElement).value).toBe('login-page');
+    expect((screen.getByLabelText('Username') as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByLabelText('Password') as HTMLInputElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Fetch once', exact: true }));
     await screen.findByText('Last fetch: 2 logs · 1 added · 0 need investigation');
-    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({ serverUrl: 'http://iguanabalt01v:6543', username: 'admin', password: 'password', after: yesterdayMidnight(), before: '' });
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({ serverUrl: 'http://iguanabalt01v:6543', username: '', password: '', authMode: 'login-page', after: yesterdayMidnight(), before: '' });
     const draft = screen.getByLabelText('Final SIG · editable, uppercase') as HTMLTextAreaElement;
     fireEvent.change(draft, { target: { value: 'TECHNICIAN CORRECTION' } });
     fireEvent.click(screen.getByRole('button', { name: 'Fetch once', exact: true }));
@@ -128,6 +131,9 @@ describe('connector through queue UI', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Use yesterday’s midnight' }));
     expect((screen.getByLabelText('After · Iguana server time') as HTMLInputElement).value).toBe(yesterdayMidnight());
     expect((screen.getByLabelText('Before · optional server time') as HTMLInputElement).value).toBe('');
+    fireEvent.change(screen.getByLabelText('Authentication mode'), { target: { value: 'parameters' } });
+    expect((screen.getByLabelText('Username') as HTMLInputElement).disabled).toBe(false);
+    expect((screen.getByLabelText('Password') as HTMLInputElement).disabled).toBe(false);
   });
   it('populates the queue from four HAR details and preserves a technician correction on reimport', async () => {
     // Local optional validation reads the authorized capture without copying it into the repo.

@@ -38,11 +38,12 @@ describe('frequencyEngine', () => {
     expect(res.slidingScaleString).toBe('CBS AC SS <70=HYPOGLYCEMIC PROTOCOL;181-200=1U;201-250=2U;251-300=3U;301-350=4U;>350=5U SQ FDM');
   });
 
-  it('corrects sliding scale ml to U with an Applied Correction notice', () => {
+  it('retains volume-based scales for review instead of relabeling mL as units', () => {
     const prose = 'Inject as per sliding scale: if 200 - 300 = 5ml; 301 - 400 = 10ml; 401 - 500 = 15ml Greater than 500 or less than 79 notify MD, subcutaneously before meals and at bedtime for DM2';
     const res = resolveFrequencyAndSchedule(prose);
-    expect(res.slidingScaleString).toBe('CBS ACHS SS <79=CALL MD;200-300=5U;301-400=10U;401-500=15U;>500=CALL MD SQ FDM2');
-    expect(res.abnormalities.some(a => a.tier === 'applied_correction')).toBe(true);
+    expect(res.slidingScaleString).toBeUndefined();
+    expect(res.requiresManualTranslation).toBe(true);
+    expect(res.abnormalities.some(a => a.id === 'incomplete_sliding_scale')).toBe(true);
   });
 
   it('merges default templates for packet reconstitutions', () => {

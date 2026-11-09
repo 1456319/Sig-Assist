@@ -74,14 +74,16 @@ try {
   await livePage.locator('#sig-assist-startup').waitFor({ state: 'hidden' });
   await livePage.getByText('Live connection settings', { exact: true }).click();
   assert.equal(await livePage.getByLabel('Iguana base URL', { exact: true }).inputValue(), 'http://iguanabalt01v:6543');
-  assert.equal(await livePage.getByLabel('Username', { exact: true }).inputValue(), 'admin');
-  assert.equal(await livePage.getByLabel('Password', { exact: true }).inputValue(), 'password');
+  assert.equal(await livePage.getByLabel('Username', { exact: true }).inputValue(), '');
+  assert.equal(await livePage.getByLabel('Password', { exact: true }).inputValue(), '');
+  assert.equal(await livePage.getByLabel('Authentication mode', { exact: true }).inputValue(), 'login-page');
   const yesterday = await livePage.evaluate(() => {
     const date = new Date(); date.setDate(date.getDate() - 1);
     return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')} 00:00:00`;
   });
   assert.equal(await livePage.getByLabel('After · Iguana server time', { exact: true }).inputValue(), yesterday);
   await livePage.getByLabel('Iguana base URL', { exact: true }).fill(upstream);
+  await livePage.getByLabel('Authentication mode', { exact: true }).selectOption('parameters');
   await livePage.getByLabel('Username', { exact: true }).fill('demo');
   await livePage.getByLabel('Password', { exact: true }).fill('test-secret');
   await livePage.getByLabel('After · Iguana server time', { exact: true }).fill('2026/10/02 00:00:00');

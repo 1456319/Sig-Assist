@@ -18,6 +18,9 @@ export const INDICATION_MAP: Record<string, string> = {
   SOB: 'FSOB',
   AFIB: 'FAFIB', T1DM: 'FDM1', PNA: 'FPNE', NAUSEA: 'FNAU',
   'NAUSEA AND VOMITING': 'FNV', // Reported site packaging convention; shown as a correction.
+  CAD: 'FCAD', 'BENIGN PROSTATIC HYPERPLASIA': 'FBPH', 'PARKINSON DISEASE': 'FPD',
+  ANTICOAGULANTS: 'FACOAG', ANTICOAGULATION: 'FACOAG', DIABETES: 'FDM',
+  'MILD/MODERATE PAIN': 'FMMP', CONSITPATION: 'FCON', HT: 'FHTN',
 
 };
 
@@ -44,12 +47,19 @@ function removeDiagnosisCodes(value: string): string {
 export function resolveIndicationToken(indication?: string): string | undefined {
   if (!indication) return undefined;
   const cleaned = removeDiagnosisCodes(indication.toUpperCase().trim().replace(/^(?:FOR(?:\s+INDICATIONS\s+OF)?|RELATED\s+TO)\s+/, ''))
-    .replace(/[.;,]+$/, '').trim()
+    .replace(/[.;,\s]+$/, '').trim()
     .replace(/^PAIN FOR (.+ PAIN\b)/, '$1')
-    .replace(/^HEART HEALTHY$/, 'HEART HEALTH');
+    .replace(/^HEART HEALTHY$/, 'HEART HEALTH')
+    .replace(/\bA\s*-\s*FIB\b/g, 'AFIB')
+    .replace(/^NAUSEA\s*(?:\/|AND|OR)\s*VOMIT+ING$/, 'NAUSEA AND VOMITING');
   if (!cleaned) return undefined;
   if (INDICATION_MAP[cleaned]) return INDICATION_MAP[cleaned];
   if (Object.values(INDICATION_MAP).includes(cleaned)) return cleaned;
+  const qualified = cleaned.match(/^(CAD|AFIB|BPH|EDEMA|CELLULITIS)\b([\s\S]+)$/);
+  if (qualified && /^[\s,;-]|^ WITH\b/.test(qualified[2])) return `${INDICATION_MAP[qualified[1]] || referenceIndications[qualified[1]]}${qualified[2]}`;
+  const cellulitisSite = cleaned.match(/^(RLE|LLE|BLE|RIGHT LEG|LEFT LEG|BILATERAL LEGS?)\s+CELLULITIS$/);
+  if (cellulitisSite) return `FCEL OF ${cellulitisSite[1]}`;
+  if (/^ESSENTIAL \(PRIMARY\) HYPERTENSION(?: \(I10\))?$/.test(cleaned)) return `FHTN${cleaned.endsWith('(I10)') ? ' (I10)' : ''}`;
   // Prefer a complete compound indication (e.g. nausea OR vomiting) before
   // splitting individual symptoms. The site-approved FNV alias above is explicit.
   for (const separator of cleaned.matchAll(/\s+(?:AND|OR)\s+/g)) {
@@ -58,16 +68,16 @@ export function resolveIndicationToken(indication?: string): string | undefined 
     if (INDICATION_MAP[right]) return `${resolveIndicationToken(left)}${separator[0]}${INDICATION_MAP[right]}`;
     if (INDICATION_MAP[left]) return `${INDICATION_MAP[left]}${separator[0]}${resolveIndicationToken(right)}`;
   }
-  const clauses = cleaned.split(/(\s+AND\s+|\s+OR\s+|\s*\/\s*)/);
+  const clauses = cleaned.split(/(\s+AND\s+|\s+OR\s+|\s*[/;]\s*)/);
   if (clauses.length > 1 && clauses.some((c, i) => i % 2 === 0 && INDICATION_MAP[c])) {
-    return clauses.map((clause, i) => i % 2 ? clause : INDICATION_MAP[clause] || `FOR ${clause}`).join('');
+    return clauses.map((clause, i) => i % 2 ? /[/;]/.test(clause) ? `${clause.trim()} ` : clause : INDICATION_MAP[clause] || `FOR ${clause}`).join('');
   }
   return `FOR ${cleaned.replace(/\bSORETHROAT\b/g, 'SORE THROAT')}`;
 }
 
 // Only explicit directives qualify here. A diagnosis such as DAILY EYE
 // DISCOMFORT cannot supply a missing frequency.
-const TRAILING_SCHEDULE = /\b(?:(?:\d+|ONE|TWO|THREE|FOUR)\s+TIMES?\s+(?:A|PER|EACH)\s+DAY|TWICE\s+DAILY|EVERY\s+(?:\d+\s+HOURS?|MORNING)|IN\s+THE\s+(?:MORNING|EVENING)|(?:TAKE\s+)?BEFORE\s+MEALS|AT\s+BEDTIME|BEFORE\s+BREAKFAST|AFTER\s+DINNER|WITH\s+MEALS|ON\s+AN?\s+EMPTY\s+STOMACH|AS\s+NEEDED|PRN)\b/i;
+const TRAILING_SCHEDULE = /\b(?:(?:\d+|ONE|TWO|THREE|FOUR)\s+TIMES?\s+(?:A|PER|EACH)\s+DAY|TWICE\s+DAILY|EVERY\s+(?:\d+\s+HOURS?|MORNING)|IN\s+THE\s+(?:MORNING|EVENING|AFTERNOON)|(?:TAKE\s+|GIVE\s+)?(?:BEFORE\s+(?:MEALS|BREAKFAST)|AFTER\s+DINNER|WITH\s+(?:MEALS|FOOD|BREAKFAST))|AT\s+BEDTIME|ON\s+AN?\s+EMPTY\s+STOMACH|AS\s+NEEDED|PRN)\b/i;
 
 function indicationStart(prose: string): number | undefined {
   const upper = prose.toUpperCase();

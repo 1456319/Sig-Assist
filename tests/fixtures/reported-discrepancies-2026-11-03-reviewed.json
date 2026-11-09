@@ -1,0 +1,1871 @@
+[
+  {
+    "case": 1,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 1
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 1
+      }
+    ],
+    "drugName": "Simethicone Suspension 40 MG/0.6ML",
+    "rawProse": "Give 40 mg by mouth three times a day for Gas for 3 Days Put in 8oz water",
+    "expected": "ADM 0.6ML (40MG) PO TID X3D FOR GAS. PUT IN 8OZ WATER",
+    "subOrders": [
+      "ADM 0.6ML (40MG) PO TID X3D FOR GAS. PUT IN 8OZ WATER"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 2,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 2
+      },
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 3
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 2
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 3
+      }
+    ],
+    "drugName": "Polyethylene Glycol Powder",
+    "rawProse": "Give 1 packet by mouth one time a day for constipation",
+    "expected": "MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO QD FCON",
+    "subOrders": [
+      "MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO QD FCON"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 3,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 4
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 4
+      }
+    ],
+    "drugName": "Aspirin Oral Tablet Chewable 81 MG",
+    "rawProse": "Give 1 tablet by mouth two times a day for cad",
+    "expected": "1CHT PO BID FCAD",
+    "subOrders": [
+      "1CHT PO BID FCAD"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 4,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 5
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 5
+      }
+    ],
+    "drugName": "Aspirin 81 Oral Tablet Chewable 81 MG",
+    "rawProse": "Give 81 mg by mouth one time a day related to CEREBRAL INFARCTION DUE TO UNSPECIFIED OCCLUSION OR STENOSIS OF UNSPECIFIED CEREBRAL ARTERY (I63.50)",
+    "expected": "1CHT PO QD FOR CEREBRAL INFARCTION DUE TO UNSPECIFIED OCCLUSION OR STENOSIS OF UNSPECIFIED CEREBRAL ARTERY",
+    "subOrders": [
+      "1CHT PO QD FOR CEREBRAL INFARCTION DUE TO UNSPECIFIED OCCLUSION OR STENOSIS OF UNSPECIFIED CEREBRAL ARTERY"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 5,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 6
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 6
+      }
+    ],
+    "drugName": "Mepilex AG Topical Pad 4",
+    "rawProse": "Apply to right leg topically every day shift every Mon, Wed, Fri for skin tear on right leg put on xeroform and then apply mepliex pad on right leg",
+    "expected": "AP TPCL TO RT LEG QDDAY135 (DURING DAY SHIFT) FOR SKIN TEAR ON RIGHT LEG. PUT ON XEROFORM AND THEN APPLY MEPLIEX PAD ON RIGHT LEG",
+    "subOrders": [
+      "AP TPCL TO RT LEG QDDAY135 (DURING DAY SHIFT) FOR SKIN TEAR ON RIGHT LEG. PUT ON XEROFORM AND THEN APPLY MEPLIEX PAD ON RIGHT LEG"
+    ],
+    "status": "partial",
+    "reviewNote": "Procedural instructions are retained; Xeroform/Mepilex sequence still uses literal text."
+  },
+  {
+    "case": 6,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 7
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 7
+      }
+    ],
+    "drugName": "Tylenol Oral Tablet 325 MG",
+    "rawProse": "Give 2 tablet by mouth every 6 hours as needed for pain Do NOT exceed 3000mg/24h  AND  Give 2 tablet by mouth three times a day for Pain for 2 Weeks",
+    "expected": "2T (650MG) PO Q6H PRN FPAIN 3GME. DO NOT EXCEED 3000MG/24H **SPLIT** 2T (650MG) PO TID X2WK FPAIN 3GM",
+    "subOrders": [
+      "2T (650MG) PO Q6H PRN FPAIN 3GME. DO NOT EXCEED 3000MG/24H",
+      "2T (650MG) PO TID X2WK FPAIN 3GM"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 7,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 8
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 8
+      }
+    ],
+    "drugName": "Lidoderm Patch",
+    "rawProse": "Apply to left knee topically one time a day for Pain Management Apply Lidoderm patch 4%  AND  Apply to Lt knee topically one time a day for Pain management Remove Patch",
+    "expected": "1PA TPCL TO LEFT KNEE QD FOR PAIN MANAGEMENT AND REMOVE PER SCHEDULE 12ON",
+    "subOrders": [
+      "1PA TPCL TO LEFT KNEE QD FOR PAIN MANAGEMENT AND REMOVE PER SCHEDULE 12ON"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 8,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 9
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 9
+      }
+    ],
+    "drugName": "Nicotine Patch 24 Hour 21 MG/24HR",
+    "rawProse": "Apply 1 patch transdermally one time a day for Smoking Cessation for 30 Days  and remove per schedule",
+    "expected": "1PA TRANSDERMALLY QD X30D FOR SMOKING CESSATION. REMOVE PER SCHEDULE",
+    "subOrders": [
+      "1PA TRANSDERMALLY QD X30D FOR SMOKING CESSATION. REMOVE PER SCHEDULE"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 9,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 10
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 10
+      }
+    ],
+    "drugName": "Lantus Subcutaneous Solution 100 UNIT/ML",
+    "rawProse": "Inject 20 unit subcutaneously two times a day for High blood sugar HOLD for BS <100 and notify provider",
+    "expected": "INJ 20 UN SQ BID FOR HIGH BLOOD SUGAR (H BS <100 AND NOTIFY PROVIDER)",
+    "subOrders": [
+      "INJ 20 UN SQ BID FOR HIGH BLOOD SUGAR (H BS <100 AND NOTIFY PROVIDER)"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 10,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 11
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 11
+      }
+    ],
+    "drugName": "Santyl Topical Ointment 250 UNIT/GM",
+    "rawProse": "Apply to 2nd digit on right foot topically every day shift for wound care cleanse with wound cleanser, pat dry, apply santyl, and cover with bordered guaze.  AND  Apply to 2nd digit on right foot topically as needed for soiled/dislodged",
+    "expected": "TO 2ND DIGIT ON RT FOOT:CLEANSE W/WOUND CLEANSER,PAT DRY,THEN APPLY SANTYL,COVER W/BORDERED GUAZE QD **SPLIT** AP TPCL TO 2ND DIGIT ON RT FOOT PRN FOR SOILED/DISLODGED",
+    "subOrders": [
+      "TO 2ND DIGIT ON RT FOOT:CLEANSE W/WOUND CLEANSER,PAT DRY,THEN APPLY SANTYL,COVER W/BORDERED GUAZE QD",
+      "AP TPCL TO 2ND DIGIT ON RT FOOT PRN FOR SOILED/DISLODGED"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 11,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 12
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 12
+      }
+    ],
+    "drugName": "Potassium Chloride ER Oral Tablet Extended Release 20 MEQ",
+    "rawProse": "Give 2 tablet by mouth in the morning for low k with bumex",
+    "expected": "2T (40MEQ) PO QAM FOR LOW K WITH BUMEX",
+    "subOrders": [
+      "2T (40MEQ) PO QAM FOR LOW K WITH BUMEX"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 12,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 13
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 13
+      }
+    ],
+    "drugName": "Lidocaine Pain Relief External Patch 4 %",
+    "rawProse": "Apply to lower back topically every 24 hours for back pain apply on in morning and take off at night  and remove per schedule",
+    "expected": "1PA TPCL TO LOWER BACK QAM FOR BACK PAIN. APPLY ON IN MORNING AND REMOVE PER SCHEDULE 12ON",
+    "subOrders": [
+      "1PA TPCL TO LOWER BACK QAM FOR BACK PAIN. APPLY ON IN MORNING AND REMOVE PER SCHEDULE 12ON"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 13,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 14
+      },
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 15
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 14
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 15
+      }
+    ],
+    "drugName": "Telmisartan Oral Tablet 80 MG",
+    "rawProse": "Give 1 tablet by mouth in the afternoon for HTN hold if sys <110",
+    "expected": "1T PO QD IN THE AFTERNOON FHTN (HOLD IF SYS <110)",
+    "subOrders": [
+      "1T PO QD IN THE AFTERNOON FHTN (HOLD IF SYS <110)"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 14,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 16
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 16
+      }
+    ],
+    "drugName": "oxyCODONE HCl Oral Tablet 5 MG",
+    "rawProse": "Give 2.5 mg by mouth three times a day for Chronic pain AND Give 2.5 mg by mouth every 4 hours as needed for Moderate to severe pain 4-10/10",
+    "expected": "1/2T (2.5MG) PO TID FCHP **SPLIT** 1/2T (2.5MG) PO Q4H PRN FOR MODERATE TO SEVERE PAIN 4-10/10",
+    "subOrders": [
+      "1/2T (2.5MG) PO TID FCHP **SPLIT** 1/2T (2.5MG) PO Q4H PRN FOR MODERATE TO SEVERE PAIN 4-10/10"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 15,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 17
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 17
+      }
+    ],
+    "drugName": "Artificial Tear Ointment Ointment",
+    "rawProse": "Instill 0.25 inch in both eyes at bedtime for dry eyes",
+    "expected": "AP1/4 OF BOTH EYES QHS FDE",
+    "subOrders": [
+      "AP1/4 OF BOTH EYES QHS FDE"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 16,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 18
+      },
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 19
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 18
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 19
+      }
+    ],
+    "drugName": "HumaLOG Injection Solution 100 UNIT/ML",
+    "rawProse": "Inject as per sliding scale: if 250 - 300 = 1 unit; 301 - 350 = 2 units; 351 - 400 = 3 units; 401+ = 6 units 401 and higher give  ^ units, subcutaneously three times a day for DM Do not use dexcom, use glucose meter",
+    "expected": "INJECT AS PER SLIDING SCALE: IF 250 - 300 = 1 UNIT; 301 - 350 = 2 UNITS; 351 - 400 = 3 UNITS; 401+ = 6 UNITS 401 AND HIGHER GIVE ^ UNITS, SUBCUTANEOUSLY THREE TIMES A DAY FOR DM DO NOT USE DEXCOM, USE GLUCOSE METER",
+    "subOrders": [
+      "INJECT AS PER SLIDING SCALE: IF 250 - 300 = 1 UNIT; 301 - 350 = 2 UNITS; 351 - 400 = 3 UNITS; 401+ = 6 UNITS 401 AND HIGHER GIVE ^ UNITS, SUBCUTANEOUSLY THREE TIMES A DAY FOR DM DO NOT USE DEXCOM, USE GLUCOSE METER"
+    ],
+    "status": "source-review",
+    "reviewNote": "Source contains both 6 units and an unresolved ^ units for the same high threshold. Complete source retained."
+  },
+  {
+    "case": 17,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 20
+      },
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 21
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 20
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 21
+      }
+    ],
+    "drugName": "Tamsulosin HCl Capsule",
+    "rawProse": "Give 0.8 mg by mouth at bedtime for benign prostatic hyperplasia",
+    "expected": "GIVE 0.8 MG PO QHS FBPH",
+    "subOrders": [
+      "GIVE 0.8 MG PO QHS FBPH"
+    ],
+    "status": "source-review",
+    "reviewNote": "Product strength is absent. Preserve 0.8 mg; do not infer a capsule count."
+  },
+  {
+    "case": 18,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 22
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 22
+      }
+    ],
+    "drugName": "MiraLax Oral Powder 17 GM/SCOOP",
+    "rawProse": "Give 1 scoop by mouth in the morning for Consitpation mixed in 8oz of water, juice, or milk",
+    "expected": "MIX 17 GM (SEE INSIDE CAP) IN 8OZ OF WATER,JUICE,OR MILK AND GIVE PO QAM FCON",
+    "subOrders": [
+      "MIX 17 GM (SEE INSIDE CAP) IN 8OZ OF WATER,JUICE,OR MILK AND GIVE PO QAM FCON"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 19,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 23
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 23
+      }
+    ],
+    "drugName": "Lidocaine Pain Relief Topical Patch 4 %",
+    "rawProse": "Apply to Affected Area topically one time a day for Pain  and remove per schedule",
+    "expected": "1PA TPCL TO AFFECTED AREA QD FPAIN AND REMOVE PER SCHEDULE 12ON",
+    "subOrders": [
+      "1PA TPCL TO AFFECTED AREA QD FPAIN AND REMOVE PER SCHEDULE 12ON"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 20,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 24
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 24
+      }
+    ],
+    "drugName": "Naloxone HCl Nasal Liquid 4 MG/0.1ML",
+    "rawProse": "1 spray in nostril as needed for Opioid Overdose for 14 Days If Pt does not respond or relapses into respiratory distress call 911. Give additional dose every 2-3 minutes.",
+    "expected": "1SP IN NOSTRIL PRN FOR OPIOID OVERDOSE X14D. IF PT DOES NOT RESPOND OR RELAPSES INTO RESPIRATORY DISTRESS CALL 911. GIVE ADDITIONAL DOSE EVERY 2-3 MINUTES.",
+    "subOrders": [
+      "1SP IN NOSTRIL PRN FOR OPIOID OVERDOSE X14D. IF PT DOES NOT RESPOND OR RELAPSES INTO RESPIRATORY DISTRESS CALL 911. GIVE ADDITIONAL DOSE EVERY 2-3 MINUTES."
+    ],
+    "status": "source-review",
+    "reviewNote": "Source says a nostril, whereas the submitted correction uses ENOS. Preserve source laterality and repeat instructions."
+  },
+  {
+    "case": 21,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 25
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 25
+      }
+    ],
+    "drugName": "MiraLax Oral Packet 17 GM",
+    "rawProse": "Give 1 packet by mouth every 24 hours as needed for Constipation for 14 Days Mix 1 packet in 4 to 8 ounces of Liquid and drink daily as needed for constipation. Discontinue once BM returns.",
+    "expected": "MIX 17 GM (1 PACKET) IN 4-8OZ OF LIQUID AND GIVE PO Q24H PRN FCON X14D. DISCONTINUE ONCE BM RETURNS",
+    "subOrders": [
+      "MIX 17 GM (1 PACKET) IN 4-8OZ OF LIQUID AND GIVE PO Q24H PRN FCON X14D. DISCONTINUE ONCE BM RETURNS"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 22,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 26
+      },
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 27
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 26
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 27
+      }
+    ],
+    "drugName": "Lidocaine Topical Patch 4 %",
+    "rawProse": "Apply to Left Hip topically one time a day for Pain 3 patches onto the skin  and remove per schedule",
+    "expected": "3PA TPCL TO LEFT HIP QD FPAIN AND REMOVE PER SCHEDULE 12ON",
+    "subOrders": [
+      "3PA TPCL TO LEFT HIP QD FPAIN AND REMOVE PER SCHEDULE 12ON"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 23,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 28
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 28
+      }
+    ],
+    "drugName": "Allegra Allergy Oral Tablet",
+    "rawProse": "Give 1 tablet by mouth every 24 hours as needed for seasonal allergies for 14 Days Alternates with Claritin",
+    "expected": "1T PO Q24H PRN FOR SEASONAL ALLERGIES X14D. ALTERNATES WITH CLARITIN",
+    "subOrders": [
+      "1T PO Q24H PRN FOR SEASONAL ALLERGIES X14D. ALTERNATES WITH CLARITIN"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 24,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 29
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 29
+      }
+    ],
+    "drugName": "MiraLax Oral Powder 17 GM/SCOOP",
+    "rawProse": "Give 17 gram by mouth two times a day for BOWEL REGIMEN Mix with 4-8 oz liquidHold for loose stools",
+    "expected": "MIX 17 GM (SEE INSIDE CAP) IN 4-8OZ OF LIQUID AND GIVE PO BID FOR BOWEL REGIMEN (H LS)",
+    "subOrders": [
+      "MIX 17 GM (SEE INSIDE CAP) IN 4-8OZ OF LIQUID AND GIVE PO BID FOR BOWEL REGIMEN (H LS)"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 25,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-10-29T07-32-04-981Z.json",
+        "row": 30
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 30
+      }
+    ],
+    "drugName": "Albuterol Sulfate Nebulization Solution (2.5 MG/3ML) 0.083%",
+    "rawProse": "3 ml inhale orally via nebulizer four times a day for Congestion for 7 Days",
+    "expected": "1V NEB QID X7D FCOG",
+    "subOrders": [
+      "1V NEB QID X7D FCOG"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 26,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 31
+      }
+    ],
+    "drugName": "Nitroglycerin Tablet Sublingual 0.4 MG",
+    "rawProse": "Give 1 tablet sublingually every 5 minutes as needed for Chest Pain for 14 Days x 3 doses. If no relief, call MD.",
+    "expected": "1T SL Q5M PRN FCP X14D. X 3 DOSES. IF NO RELIEF, CALL MD.",
+    "subOrders": [
+      "1T SL Q5M PRN FCP X14D. X 3 DOSES. IF NO RELIEF, CALL MD."
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 27,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 32
+      }
+    ],
+    "drugName": "Triamcinolone Acetonide Topical Cream 0.1 %",
+    "rawProse": "Apply to Skin topically two times a day for Itching/redness",
+    "expected": "AP TPCL TO SKIN BID FITC/ FRD",
+    "subOrders": [
+      "AP TPCL TO SKIN BID FITC/ FRD"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 28,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 33
+      }
+    ],
+    "drugName": "Lidocaine Topical Patch 5 %",
+    "rawProse": "Apply to Back topically one time a day for Pain  and remove per schedule",
+    "expected": "1PA TPCL TO BACK QD FPAIN AND REMOVE PER SCHEDULE 12ON",
+    "subOrders": [
+      "1PA TPCL TO BACK QD FPAIN AND REMOVE PER SCHEDULE 12ON"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 29,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 34
+      }
+    ],
+    "drugName": "levoFLOXacin Oral Tablet 750 MG",
+    "rawProse": "Give 1 tablet by mouth one time a day every other day for SEVERE SEPSIS DUE TO BILAT. LE CELLULITIS for 7 Days",
+    "expected": "1T PO QDQ2D X7D FOR SEVERE SEPSIS DUE TO BILAT. LE CELLULITIS",
+    "subOrders": [
+      "1T PO QDQ2D X7D FOR SEVERE SEPSIS DUE TO BILAT. LE CELLULITIS"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 30,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 35
+      }
+    ],
+    "drugName": "Cephalexin Oral Capsule 500 MG",
+    "rawProse": "Give 1 capsule by mouth three times a day for CELLULITIS - TOE for 7 Days",
+    "expected": "1C PO TID X7D FCEL - TOE",
+    "subOrders": [
+      "1C PO TID X7D FCEL - TOE"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 31,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 36
+      }
+    ],
+    "drugName": "Acetaminophen Oral Tablet 500 MG",
+    "rawProse": "Give 2 tablet by mouth every 8 hours for mild/moderate pain for 10 Days",
+    "expected": "2T (1000MG) PO Q8H X10D FMMP 3GM",
+    "subOrders": [
+      "2T (1000MG) PO Q8H X10D FMMP 3GM"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 32,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 37
+      }
+    ],
+    "drugName": "Bisacodyl Oral Tablet Delayed Release 5 MG",
+    "rawProse": "Give 1 tablet by mouth every 24 hours as needed for constipation do not crush, chew or split",
+    "expected": "1T PO Q24H PRN FCON. DO NOT CRUSH, CHEW OR SPLIT",
+    "subOrders": [
+      "1T PO Q24H PRN FCON. DO NOT CRUSH, CHEW OR SPLIT"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 33,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 38
+      }
+    ],
+    "drugName": "Fluticasone-Salmeterol Inhalation Aerosol Powder Breath Activated 250-50 MCG/ACT",
+    "rawProse": "1 puff inhale orally two times a day for asthma Rinse mouth with water after use",
+    "expected": "1P PO BID FASTH. RMAU WITH WATER",
+    "subOrders": [
+      "1P PO BID FASTH. RMAU WITH WATER"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 34,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 39
+      }
+    ],
+    "drugName": "Lidocaine Topical Patch 4 %",
+    "rawProse": "Apply to lower back  2 patches topically one time a day for pain  and remove per schedule",
+    "expected": "2PA TPCL TO LOWER BACK QD FPAIN AND REMOVE PER SCHEDULE 12ON",
+    "subOrders": [
+      "2PA TPCL TO LOWER BACK QD FPAIN AND REMOVE PER SCHEDULE 12ON"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 35,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 40
+      }
+    ],
+    "drugName": "Ipratropium-Albuterol Solution 0.5-2.5 (3) MG/3ML",
+    "rawProse": "1 vial inhale orally three times a day for COPD for 7 Days",
+    "expected": "1V NEB TID X7D FCOPD",
+    "subOrders": [
+      "1V NEB TID X7D FCOPD"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 36,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 41
+      }
+    ],
+    "drugName": "LORazepam Oral Tablet 1 MG",
+    "rawProse": "Give 1 tablet by mouth every 2 hours as needed for anxiety for 14 Days hospice resident",
+    "expected": "1T PO Q2H PRN FANX X14D. (HOSPICE)",
+    "subOrders": [
+      "1T PO Q2H PRN FANX X14D. (HOSPICE)"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 37,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 42
+      }
+    ],
+    "drugName": "Furosemide Tablet 20 MG",
+    "rawProse": "Give 1 tablet by mouth STAT for Edema with recent weight gain",
+    "expected": "1T PO STAT FEDE WITH RECENT WEIGHT GAIN",
+    "subOrders": [
+      "1T PO STAT FEDE WITH RECENT WEIGHT GAIN"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 38,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 43
+      }
+    ],
+    "drugName": "Ondansetron HCl Oral Tablet 4 MG",
+    "rawProse": "Give 1 tablet by mouth every 4 hours as needed for Nausea/ Vomitting",
+    "expected": "1T PO Q4H PRN FNV",
+    "subOrders": [
+      "1T PO Q4H PRN FNV"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 39,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 44
+      }
+    ],
+    "drugName": "GlycoLax Powder",
+    "rawProse": "Give 1 packet by mouth as needed for constipation",
+    "expected": "MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO PRN FCON",
+    "subOrders": [
+      "MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO PRN FCON"
+    ],
+    "status": "source-review",
+    "reviewNote": "No PRN interval supplied. Preparation is translated without inventing a frequency."
+  },
+  {
+    "case": 40,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 45
+      }
+    ],
+    "drugName": "Hydrocortisone Ace-Pramoxine Cream 2.5-1 %",
+    "rawProse": "Insert 1 applicatorful rectally two times a day for Constipation until 10/31/2026 14:10",
+    "expected": "INSERT 1 APPLICATORFUL PR BID FOR CONSTIPATION UNTIL 10/31/2026 14:10",
+    "subOrders": [
+      "INSERT 1 APPLICATORFUL PR BID FOR CONSTIPATION UNTIL 10/31/2026 14:10"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 41,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 46
+      }
+    ],
+    "drugName": "fentaNYL Transdermal Patch 72 Hour 25 MCG/HR",
+    "rawProse": "Apply 1 patch transdermally every 72 hours for pain  and remove per schedule",
+    "expected": "1PA TRANSDERMALLY EVERY 72 HOURS FPAIN. REMOVE PER SCHEDULE",
+    "subOrders": [
+      "1PA TRANSDERMALLY EVERY 72 HOURS FPAIN. REMOVE PER SCHEDULE"
+    ],
+    "status": "partial",
+    "reviewNote": "Patch quantity and 72-hour interval are retained; requested placement/change template is not inferred."
+  },
+  {
+    "case": 42,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 47
+      }
+    ],
+    "drugName": "Ferrous Sulfate Oral Tablet 325 (65 Fe) MG",
+    "rawProse": "Give 325 mg by mouth one time a day for supplement",
+    "expected": "1T PO QD FSU",
+    "subOrders": [
+      "1T PO QD FSU"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 43,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 48
+      }
+    ],
+    "drugName": "Losartan Potassium Tablet 25 MG",
+    "rawProse": "Give 25 mg by mouth one time a day related to ESSENTIAL (PRIMARY) HYPERTENSION (I10) hold for systolic blood pressure less than 100 or heart rate less than 60",
+    "expected": "1T PO QD FHTN (I10) HR60SBP100",
+    "subOrders": [
+      "1T PO QD FHTN (I10) HR60SBP100"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 44,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 49
+      }
+    ],
+    "drugName": "Tamsulosin HCl Oral Capsule 0.4 MG",
+    "rawProse": "Give 0.4 mg by mouth in the evening for BPH, unspecified",
+    "expected": "1C PO QPM FBPH, UNSPECIFIED",
+    "subOrders": [
+      "1C PO QPM FBPH, UNSPECIFIED"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 45,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 50
+      }
+    ],
+    "drugName": "Metoprolol Tartrate Oral Tablet 75 MG",
+    "rawProse": "Give 1 tablet by mouth two times a day for A-fib with RVR",
+    "expected": "1T PO BID FAFIB WITH RVR",
+    "subOrders": [
+      "1T PO BID FAFIB WITH RVR"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 46,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 51
+      }
+    ],
+    "drugName": "Lidocaine Pain Relief External Patch 4 %",
+    "rawProse": "Apply to left arm topically two times a day for pain apply in the am and remove in the pm",
+    "expected": "1PA TPCL TO LEFT ARM QD FPAIN. APPLY IN THE AM AND REMOVE IN THE PM 12ON",
+    "subOrders": [
+      "1PA TPCL TO LEFT ARM QD FPAIN. APPLY IN THE AM AND REMOVE IN THE PM 12ON"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 47,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 52
+      }
+    ],
+    "drugName": "Ipratropium-Albuterol Solution 0.5-2.5 (3) MG/3ML",
+    "rawProse": "3 ml inhale orally every 6 hours for advanced COPD  AND  3 ml inhale orally every 4 hours as needed for Wheezing;Shortness of Breath",
+    "expected": "1V NEB Q6H FOR ADVANCED COPD **SPLIT** 1V NEB Q4H PRN FWHZ; FSOB",
+    "subOrders": [
+      "1V NEB Q6H FOR ADVANCED COPD",
+      "1V NEB Q4H PRN FWHZ; FSOB"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 48,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 53
+      }
+    ],
+    "drugName": "Calcium Citrate Oral Tablet 250 MG",
+    "rawProse": "Give 1 tablet by mouth with meals for osteoporosis",
+    "expected": "1T PO WMTID FOSTEO",
+    "subOrders": [
+      "1T PO WMTID FOSTEO"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 49,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 54
+      }
+    ],
+    "drugName": "metOLazone Oral Tablet 2.5 MG",
+    "rawProse": "Give 1 tablet by mouth in the morning every Fri for edema for 1 Administrations",
+    "expected": "1T PO QAMDAY5 X1 ONLY FEDE",
+    "subOrders": [
+      "1T PO QAMDAY5 X1 ONLY FEDE"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 50,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 55
+      }
+    ],
+    "drugName": "Doxycycline Hyclate Oral Tablet 100 MG",
+    "rawProse": "Give 1 tablet by mouth two times a day for RLE cellulitis for 5 Days",
+    "expected": "1T PO BID X5D FCEL OF RLE",
+    "subOrders": [
+      "1T PO BID X5D FCEL OF RLE"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 51,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 56
+      }
+    ],
+    "drugName": "Acetaminophen Oral Liquid",
+    "rawProse": "Give 10 ml by mouth two times a day for chronic cough, pain",
+    "expected": "ADM 10ML PO BID FOR CHRONIC COUGH, PAIN 3GM",
+    "subOrders": [
+      "ADM 10ML PO BID FOR CHRONIC COUGH, PAIN 3GM"
+    ],
+    "status": "source-review",
+    "reviewNote": "Liquid concentration absent. Keep 10 mL rather than asserting a 320 mg dose."
+  },
+  {
+    "case": 52,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 57
+      }
+    ],
+    "drugName": "Insulin Lispro Injection Solution 100 UNIT/ML",
+    "rawProse": "Inject as per sliding scale: if 0 - 150 = 0 units; 151 - 200 = 2 units; 201 - 250 = 4 units; 251 - 300 = 6 units; 301 - 350 = 8 units; 351 - 400 = 10 units Notify MD if BS greater than 400 or less than 60 , subcutaneously before meals for diabetes .",
+    "expected": "CBS AC SS <60=CALL MD;0-150=0U;151-200=2U;201-250=4U;251-300=6U;301-350=8U;351-400=10U;>400=CALL MD SQ FDM",
+    "subOrders": [
+      "CBS AC SS <60=CALL MD;0-150=0U;151-200=2U;201-250=4U;251-300=6U;301-350=8U;351-400=10U;>400=CALL MD SQ FDM"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 53,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 58
+      }
+    ],
+    "drugName": "Cholecalciferol Tablet 1000 UNIT",
+    "rawProse": "Give 2 tablet by mouth one time a day for supplement",
+    "expected": "2T PO QD FSU",
+    "subOrders": [
+      "2T PO QD FSU"
+    ],
+    "status": "partial",
+    "reviewNote": "Two tablets retained. No unit-to-mcg conversion inferred without a mass equivalence in product metadata."
+  },
+  {
+    "case": 54,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 59
+      }
+    ],
+    "drugName": "Eliquis Oral Tablet 2.5 MG",
+    "rawProse": "Give 1 tablet by mouth every 12 hours for A- Fib",
+    "expected": "1T PO Q12H FAFIB",
+    "subOrders": [
+      "1T PO Q12H FAFIB"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 55,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 60
+      }
+    ],
+    "drugName": "Levothyroxine Sodium Tablet",
+    "rawProse": "Give 37.5 mcg by mouth in the morning for low thyroid hormone",
+    "expected": "GIVE 37.5 MCG PO QAM FOR LOW THYROID HORMONE",
+    "subOrders": [
+      "GIVE 37.5 MCG PO QAM FOR LOW THYROID HORMONE"
+    ],
+    "status": "source-review",
+    "reviewNote": "No tablet strength. Keep original 37.5 MCG, including when a proposed correction uses MG."
+  },
+  {
+    "case": 56,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 61
+      }
+    ],
+    "drugName": "Ketoconazole Topical Shampoo 2 %",
+    "rawProse": "Apply to 1 application to scalp topically every evening shift every Mon, Thu for Dandruff",
+    "expected": "AP TPCL TO SCALP QDDAY14 (DURING EVENING SHIFT) FOR DANDRUFF",
+    "subOrders": [
+      "AP TPCL TO SCALP QDDAY14 (DURING EVENING SHIFT) FOR DANDRUFF"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 57,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 62
+      }
+    ],
+    "drugName": "Acetaminophen Oral Tablet 500 MG",
+    "rawProse": "Give 1 tablet by mouth every 6 hours as needed for fever/moderate pain for 10 Days",
+    "expected": "1T PO Q6H PRN FFEV/ FMOP X10D 3GM",
+    "subOrders": [
+      "1T PO Q6H PRN FFEV/ FMOP X10D 3GM"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 58,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 63
+      }
+    ],
+    "drugName": "Polyethylene Glycol 3350 Oral Packet 17 GM",
+    "rawProse": "Give 1 packet by mouth one time a day for Bowel Regimen for 3 Days Take with 4-8 OZ fluid of choice",
+    "expected": "MIX 17 GM (1 PACKET) IN 4-8OZ OF FOC AND GIVE PO QD X3D FOR BOWEL REGIMEN",
+    "subOrders": [
+      "MIX 17 GM (1 PACKET) IN 4-8OZ OF FOC AND GIVE PO QD X3D FOR BOWEL REGIMEN"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 59,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 64
+      }
+    ],
+    "drugName": "Ferrous Sulfate Oral Tablet Delayed Release 324 MG",
+    "rawProse": "Give 1 tablet by mouth one time a day for ion deficiency anemia Take with breakfast",
+    "expected": "1T PO QDW/B FOR ION DEFICIENCY ANEMIA",
+    "subOrders": [
+      "1T PO QDW/B FOR ION DEFICIENCY ANEMIA"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 60,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 65
+      }
+    ],
+    "drugName": "cloNIDine HCl Oral Tablet 0.1 MG",
+    "rawProse": "Give 1 tablet by mouth every 24 hours as needed for hypertension for 14 Days Take for Blood pressure greater than 160",
+    "expected": "1T PO Q24H PRN FHTN X14D. TAKE FOR BLOOD PRESSURE GREATER THAN 160",
+    "subOrders": [
+      "1T PO Q24H PRN FHTN X14D. TAKE FOR BLOOD PRESSURE GREATER THAN 160"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 61,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 66
+      }
+    ],
+    "drugName": "metFORMIN HCl ER Oral Tablet Extended Release 24 Hour 500 MG",
+    "rawProse": "Give 2 tablet by mouth one time a day for Type 2 Diabetes Take with breakfast",
+    "expected": "2T (1000MG) PO QDW/B FDM2",
+    "subOrders": [
+      "2T (1000MG) PO QDW/B FDM2"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 62,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 67
+      }
+    ],
+    "drugName": "guaiFENesin ER Oral Tablet Extended Release 12 Hour 600 MG",
+    "rawProse": "Give 1 tablet by mouth every morning and at bedtime for Cough for 7 Days Do not crush, chew, or split",
+    "expected": "1T PO BIDAMHS X7D FCOU. DO NOT CRUSH, CHEW, OR SPLIT",
+    "subOrders": [
+      "1T PO BIDAMHS X7D FCOU. DO NOT CRUSH, CHEW, OR SPLIT"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 63,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 68
+      }
+    ],
+    "drugName": "Polyethylene Glycol 3350 Oral Packet 17 GM",
+    "rawProse": "Give 1 packet by mouth one time a day for Bowel Regimen for 7 Days Mix in 4-8 OZ fluid of choice",
+    "expected": "MIX 17 GM (1 PACKET) IN 4-8OZ OF FOC AND GIVE PO QD X7D FOR BOWEL REGIMEN",
+    "subOrders": [
+      "MIX 17 GM (1 PACKET) IN 4-8OZ OF FOC AND GIVE PO QD X7D FOR BOWEL REGIMEN"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 64,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 69
+      }
+    ],
+    "drugName": "MiraLax Mix-In Pax Oral Packet 17 GM",
+    "rawProse": "Give 1 packet by mouth one time a day for Constipation",
+    "expected": "MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO QD FCON",
+    "subOrders": [
+      "MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO QD FCON"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 65,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 70
+      }
+    ],
+    "drugName": "Eliquis Oral Tablet 5 MG",
+    "rawProse": "Give 2 tablet by mouth two times a day for ANTICOAGULANTS for 6 Days",
+    "expected": "2T (10MG) PO BID X6D FACOAG",
+    "subOrders": [
+      "2T (10MG) PO BID X6D FACOAG"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 66,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 71
+      }
+    ],
+    "drugName": "Vitamin D2 Oral Tablet",
+    "rawProse": "Give 1.25 mg by mouth one time a day every 14 day(s) for D2 deficiency",
+    "expected": "GIVE 1.25 MG PO QD EVERY 14 DAY(S) FOR D2 DEFICIENCY",
+    "subOrders": [
+      "GIVE 1.25 MG PO QD EVERY 14 DAY(S) FOR D2 DEFICIENCY"
+    ],
+    "status": "source-review",
+    "reviewNote": "Strength and formulation need confirmation; preserve 1.25 mg and the 14-day interval."
+  },
+  {
+    "case": 67,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 72
+      }
+    ],
+    "drugName": "LORazepam Oral Concentrate 2 MG/ML",
+    "rawProse": "Give 0.25 ml by mouth every 2 hours as needed for Anxiety, restlessness, crying, rocking, or picking clothes If sx worsen or persist for 8 hr notify BRH.",
+    "expected": "LOR0.5MG PO Q2H PRN FOR ANXIETY, RESTLESSNESS, CRYING, ROCKING, OR PICKING CLOTHES. IF SX WORSEN OR PERSIST FOR 8 HR NOTIFY BRH.",
+    "subOrders": [
+      "LOR0.5MG PO Q2H PRN FOR ANXIETY, RESTLESSNESS, CRYING, ROCKING, OR PICKING CLOTHES. IF SX WORSEN OR PERSIST FOR 8 HR NOTIFY BRH."
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 68,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 73
+      }
+    ],
+    "drugName": "Amantadine HCl Oral Capsule 100 MG",
+    "rawProse": "Give 1 capsule via G-Tube one time a day for Parkinson disease.",
+    "expected": "1C GT QD FPD",
+    "subOrders": [
+      "1C GT QD FPD"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 69,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 74
+      }
+    ],
+    "drugName": "NALOXONE NASAL SPR 4MG/0.1ML",
+    "rawProse": "1 SPRAY IN EACH NOSTRIL EVERY 2 MINUTES QD PRN FOR OPIOID OVERDOSE REPEAT WITH NEW SYRINGE PRN 2-3 MINUTES IF NO RESPONSE",
+    "expected": "1SP ENOS EVERY 2 MINUTES QD PRN FOR OPIOID OVERDOSE. REPEAT WITH NEW SYRINGE PRN 2-3 MINUTES IF NO RESPONSE",
+    "subOrders": [
+      "1SP ENOS EVERY 2 MINUTES QD PRN FOR OPIOID OVERDOSE. REPEAT WITH NEW SYRINGE PRN 2-3 MINUTES IF NO RESPONSE"
+    ],
+    "status": "source-review",
+    "reviewNote": "Source contains every 2 minutes and QD. Retain both for technician resolution; Q2M means months in this site codebook."
+  },
+  {
+    "case": 70,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 75
+      }
+    ],
+    "drugName": "Hydrocortisone Topical Cream 2.5 %",
+    "rawProse": "Insert 1 applicator rectally every morning and at bedtime for Hemorrhoids",
+    "expected": "INSERT 1 APPLICATOR PR BIDAMHS FHEM",
+    "subOrders": [
+      "INSERT 1 APPLICATOR PR BIDAMHS FHEM"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 71,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 76
+      }
+    ],
+    "drugName": "HydrOXYzine HCl Solution 25 MG/ML",
+    "rawProse": "Inject 25 mg intramuscularly every 8 hours as needed for Anxiety",
+    "expected": "INJ 1ML (25MG) IM Q8H PRN FANX",
+    "subOrders": [
+      "INJ 1ML (25MG) IM Q8H PRN FANX"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 72,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 77
+      }
+    ],
+    "drugName": "Myrbetriq Oral Tablet Extended Release 24 Hour 50 MG",
+    "rawProse": "Give 1 tablet by mouth one time a day for overactive bladder with food",
+    "expected": "1T PO WMQD FOAB",
+    "subOrders": [
+      "1T PO WMQD FOAB"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 73,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 78
+      }
+    ],
+    "drugName": "Nitroglycerin Sublingual Tablet Sublingual 0.4 MG",
+    "rawProse": "Give 1 tablet sublingually every 5 minutes as needed for Chest Pain",
+    "expected": "1T SL Q5M PRN FCP",
+    "subOrders": [
+      "1T SL Q5M PRN FCP"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 74,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 79
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 80
+      }
+    ],
+    "drugName": "traZODone HCl Oral Tablet",
+    "rawProse": "Give 25 mg by mouth at bedtime for insomnia",
+    "expected": "GIVE 25 MG PO QHS FINS",
+    "subOrders": [
+      "GIVE 25 MG PO QHS FINS"
+    ],
+    "status": "source-review",
+    "reviewNote": "Source says 25 mg; conflicting corrections say 15 mg or 12.5 mg. Product strength is absent."
+  },
+  {
+    "case": 75,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 81
+      }
+    ],
+    "drugName": "Metoprolol Tartrate Oral Tablet 12.5 MG",
+    "rawProse": "Give 1 tablet by mouth every 12 hours for HT",
+    "expected": "1T PO Q12H FHTN",
+    "subOrders": [
+      "1T PO Q12H FHTN"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 76,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 82
+      }
+    ],
+    "drugName": "Naloxone HCl Nasal Liquid 4 MG/0.1ML",
+    "rawProse": "1 spray in both nostrils every 2 minutes as needed for Opoiod Overdose call MD if pt does not respond or relapses into respiratory distress.",
+    "expected": "1SP ENOS EVERY 2 MINUTES PRN FOR OPOIOD OVERDOSE. CALL MD IF PT DOES NOT RESPOND OR RELAPSES INTO RESPIRATORY DISTRESS.",
+    "subOrders": [
+      "1SP ENOS EVERY 2 MINUTES PRN FOR OPOIOD OVERDOSE. CALL MD IF PT DOES NOT RESPOND OR RELAPSES INTO RESPIRATORY DISTRESS."
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 77,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 83
+      }
+    ],
+    "drugName": "Polyethylene Glycol 3350 Powder",
+    "rawProse": "Give 17 gram by mouth one time a day for Constipation Dissolve in liquid, Hold for loose stool",
+    "expected": "MIX 17 GM (SEE INSIDE CAP) IN 8OZ OF LIQUID AND GIVE PO QD FCON (H LS)",
+    "subOrders": [
+      "MIX 17 GM (SEE INSIDE CAP) IN 8OZ OF LIQUID AND GIVE PO QD FCON (H LS)"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 78,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 84
+      }
+    ],
+    "drugName": "Nitroglycerin Sublingual Tablet Sublingual 0.4 MG",
+    "rawProse": "Give 1 tablet sublingually every 5 minutes as needed for Chest pain",
+    "expected": "1T SL Q5M PRN FCP",
+    "subOrders": [
+      "1T SL Q5M PRN FCP"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 79,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 85
+      }
+    ],
+    "drugName": "MiraLax Oral Packet 17 GM",
+    "rawProse": "Give 1 packet by mouth two times a day for Bowel Regiment Mix till dissolve in120 to 240 ml of fluids and Hold for Loose stool.",
+    "expected": "MIX 17 GM (1 PACKET) IN 120-240ML OF FLUIDS AND GIVE PO BID FOR BOWEL REGIMENT (H LS)",
+    "subOrders": [
+      "MIX 17 GM (1 PACKET) IN 120-240ML OF FLUIDS AND GIVE PO BID FOR BOWEL REGIMENT (H LS)"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 80,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 86
+      }
+    ],
+    "drugName": "glipiZIDE Oral Tablet 2.5 MG",
+    "rawProse": "Give 1 tablet by mouth one time a day for diabetes, take before breakfast. Do not chew, split, o chew.",
+    "expected": "1T PO QDA/B FDM. DO NOT CHEW, SPLIT, O CHEW.",
+    "subOrders": [
+      "1T PO QDA/B FDM. DO NOT CHEW, SPLIT, O CHEW."
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 81,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 87
+      }
+    ],
+    "drugName": "Polyethylene Glycol 3350 Oral Powder 17 GM/SCOOP",
+    "rawProse": "Give 1 scoop orally every 24 hours as needed for Constipation",
+    "expected": "MIX 17 GM (SEE INSIDE CAP) IN 8OZ OF WATER AND GIVE PO Q24H PRN FCON",
+    "subOrders": [
+      "MIX 17 GM (SEE INSIDE CAP) IN 8OZ OF WATER AND GIVE PO Q24H PRN FCON"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 82,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 88
+      }
+    ],
+    "drugName": "Cholecalciferol Oral Tablet 25 MCG (1000 UT)",
+    "rawProse": "Give 1000 unit orally one time a day for Supplement",
+    "expected": "1T PO QD FSU",
+    "subOrders": [
+      "1T PO QD FSU"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 83,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 89
+      }
+    ],
+    "drugName": "Insulin Lispro Injection Solution 100 UNIT/ML",
+    "rawProse": "Inject as per sliding scale: if 150 - 199 = 1 unit; 200 - 249 = 2 units; 250 - 299 = 3 units; 300 - 349 = 4 units Greater than or equals 350, give 5 units, subcutaneously before meals and at bedtime for Diabetes Mellitus",
+    "expected": "CBS ACHS SS 150-199=1U;200-249=2U;250-299=3U;300-349=4U;350+=5U SQ FDM",
+    "subOrders": [
+      "CBS ACHS SS 150-199=1U;200-249=2U;250-299=3U;300-349=4U;350+=5U SQ FDM"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 84,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 90
+      }
+    ],
+    "drugName": "Insulin Lispro Injection Solution 100 UNIT/ML",
+    "rawProse": "Inject as per sliding scale: if 150 - 199 = 1 unit 70 < call MD and follow hypoglycemic protocol150 < 0; 200 - 249 = 2 unites; 250 - 299 = 4 units; 300 - 349 = 5 units; 350+ = 6 unites Call MD., subcutaneously four times a day for diabetes",
+    "expected": "INJECT AS PER SLIDING SCALE: IF 150 - 199 = 1 UNIT 70 < CALL MD AND FOLLOW HYPOGLYCEMIC PROTOCOL150 < 0; 200 - 249 = 2 UNITES; 250 - 299 = 4 UNITS; 300 - 349 = 5 UNITS; 350+ = 6 UNITES CALL MD., SUBCUTANEOUSLY FOUR TIMES A DAY FOR DIABETES",
+    "subOrders": [
+      "INJECT AS PER SLIDING SCALE: IF 150 - 199 = 1 UNIT 70 < CALL MD AND FOLLOW HYPOGLYCEMIC PROTOCOL150 < 0; 200 - 249 = 2 UNITES; 250 - 299 = 4 UNITS; 300 - 349 = 5 UNITS; 350+ = 6 UNITES CALL MD., SUBCUTANEOUSLY FOUR TIMES A DAY FOR DIABETES"
+    ],
+    "status": "source-review",
+    "reviewNote": "Reversed/malformed threshold syntax and unresolved 150 < 0. Keep complete source."
+  },
+  {
+    "case": 85,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 91
+      }
+    ],
+    "drugName": "Polyethylene Glycol 3350 Oral Packet 17 GM",
+    "rawProse": "Give 1 packet by mouth every 24 hours as needed for constipation mix with 4 ounces of fluid of choice",
+    "expected": "MIX 17 GM (1 PACKET) IN 4OZ OF FOC AND GIVE PO Q24H PRN FCON",
+    "subOrders": [
+      "MIX 17 GM (1 PACKET) IN 4OZ OF FOC AND GIVE PO Q24H PRN FCON"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 86,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 92
+      }
+    ],
+    "drugName": "Vitamin A & D Topical Ointment",
+    "rawProse": "Apply to Sacrum and perineal  topically every shift for Skin care",
+    "expected": "TO SACRUM/PERINEAL:APPLY VITAMIN A & D QS",
+    "subOrders": [
+      "TO SACRUM/PERINEAL:APPLY VITAMIN A & D QS"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 87,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 93
+      }
+    ],
+    "drugName": "Skin Prep Wipes Miscellaneous",
+    "rawProse": "Apply to both heels topically every shift for preventative",
+    "expected": "AP TPCL TO BOTH HEELS QS FOR PREVENTATIVE",
+    "subOrders": [
+      "AP TPCL TO BOTH HEELS QS FOR PREVENTATIVE"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 88,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 94
+      }
+    ],
+    "drugName": "Erythromycin Ophthalmic Ointment 5 MG/GM",
+    "rawProse": "Instill 0.5 inch in both eyes four times a day for conjunctivitis for 7 Days 1/2 inch RIBBON to both eyes QID for 7 days",
+    "expected": "INSTILL A HALF-INCH RIBBON TO EYELID MARGINS OF BOTH EYES QID X7D FCONJ",
+    "subOrders": [
+      "INSTILL A HALF-INCH RIBBON TO EYELID MARGINS OF BOTH EYES QID X7D FCONJ"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 89,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 95
+      }
+    ],
+    "drugName": "Metamucil 4 in 1 Fiber Oral Packet",
+    "rawProse": "Give 1 packet by mouth one time a day for constipation mix in apple juice",
+    "expected": "1PKT PO QD FCON. MIX IN APPLE JUICE",
+    "subOrders": [
+      "1PKT PO QD FCON. MIX IN APPLE JUICE"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 90,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 96
+      }
+    ],
+    "drugName": "Erythromycin Ophthalmic Ointment 5 MG/GM",
+    "rawProse": "Instill 1 application in left eye three times a day for blepharitis, conjunctivitis for 7 Days",
+    "expected": "INSTILL 1 APPLICATION TO EYELID MARGIN OF LT EYE TID X7D FOR BLEPHARITIS, CONJUNCTIVITIS",
+    "subOrders": [
+      "INSTILL 1 APPLICATION TO EYELID MARGIN OF LT EYE TID X7D FOR BLEPHARITIS, CONJUNCTIVITIS"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 91,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 97
+      }
+    ],
+    "drugName": "Insulin Lispro Injection Solution 100 UNIT/ML",
+    "rawProse": "Inject as per sliding scale: if 90 - 199 = 0; 200 - 249 = 2; 250 - 299 = 4; 300 - 349 = 6; 350 - 399 = 8 > 400 10 units and notify MD , subcutaneously three times a day for Diabetes",
+    "expected": "CBS TID SS 90-199=0U;200-249=2U;250-299=4U;300-349=6U;350-399=8U;>400=10U&CALL MD SQ FDM",
+    "subOrders": [
+      "CBS TID SS 90-199=0U;200-249=2U;250-299=4U;300-349=6U;350-399=8U;>400=10U&CALL MD SQ FDM"
+    ],
+    "status": "source-review",
+    "reviewNote": "Numeric doses translate, but the source omits glucose 400 between 350-399 and >400. Flag without filling the gap."
+  },
+  {
+    "case": 92,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 98
+      },
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 99
+      }
+    ],
+    "drugName": "SEROquel Oral Tablet 25 MG",
+    "rawProse": "Give 1 tablet by mouth three times a day for psychosis give 1 tab PO in the morning,1 tab in the evening and 1 tab before bedtime.",
+    "expected": "1T PO TID FPSY. GIVE 1 TAB PO IN THE MORNING,1 TAB IN THE EVENING AND 1 TAB BEFORE BEDTIME.",
+    "subOrders": [
+      "1T PO TID FPSY. GIVE 1 TAB PO IN THE MORNING,1 TAB IN THE EVENING AND 1 TAB BEFORE BEDTIME."
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 93,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 100
+      }
+    ],
+    "drugName": "Hydrocortisone Topical Cream 1 %",
+    "rawProse": "Apply to Sacrum/Bilateral Buttocks topically every shift for Fungal Partial Thickness Cleanse with soap and water, pat dry, apply Greers Goo and Leave open to air  AND  Apply to Sacrum/Bilateral Buttocks topically every 24 hours as needed for Fungal Partial Thickness",
+    "expected": "TO SACRUM/BIL BUTTOCKS:CLEANSE W/SOAP AND WATER,PAT DRY,THEN APPLY GREERS GOO,LEAVE OPEN TO AIR QS **SPLIT** AP TPCL TO SACRUM/BILATERAL BUTTOCKS Q24H PRN FOR FUNGAL PARTIAL THICKNESS",
+    "subOrders": [
+      "TO SACRUM/BIL BUTTOCKS:CLEANSE W/SOAP AND WATER,PAT DRY,THEN APPLY GREERS GOO,LEAVE OPEN TO AIR QS",
+      "AP TPCL TO SACRUM/BILATERAL BUTTOCKS Q24H PRN FOR FUNGAL PARTIAL THICKNESS"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 94,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 101
+      }
+    ],
+    "drugName": "GlycoLax Powder",
+    "rawProse": "Give 17 gram by mouth one time a day for constipation (in Liquid)4-8 oz liquid- hold for loose stool",
+    "expected": "MIX 17 GM (SEE INSIDE CAP) IN 4-8OZ OF LIQUID AND GIVE PO QD FCON (H LS)",
+    "subOrders": [
+      "MIX 17 GM (SEE INSIDE CAP) IN 4-8OZ OF LIQUID AND GIVE PO QD FCON (H LS)"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 95,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 102
+      }
+    ],
+    "drugName": "Lidocaine Topical Patch 4 %",
+    "rawProse": "Apply to effected back area topically one time a day for pain apply at 9 AM, remove at 9 PM",
+    "expected": "1PA TPCL TO EFFECTED BACK AREA QD FPAIN. APPLY AT 9 AM, REMOVE AT 9 PM 12ON",
+    "subOrders": [
+      "1PA TPCL TO EFFECTED BACK AREA QD FPAIN. APPLY AT 9 AM, REMOVE AT 9 PM 12ON"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 96,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 103
+      }
+    ],
+    "drugName": "Acetaminophen Oral Tablet",
+    "rawProse": "Give 1000 mg by mouth every 8 hours as needed for pain or fever",
+    "expected": "GIVE 1000 MG PO Q8H PRN FPAIN OR FFEV",
+    "subOrders": [
+      "GIVE 1000 MG PO Q8H PRN FPAIN OR FFEV"
+    ],
+    "status": "source-review",
+    "reviewNote": "Acetaminophen tablet strength absent. Preserve 1000 mg without inferring 2 x 500 mg."
+  },
+  {
+    "case": 97,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 104
+      }
+    ],
+    "drugName": "B-12 Oral Capsule",
+    "rawProse": "Give 1000 mcg by mouth one time a day for B 12 deficiency/ anemia",
+    "expected": "GIVE 1000 MCG PO QD FOR B 12 DEFICIENCY/ FANE",
+    "subOrders": [
+      "GIVE 1000 MCG PO QD FOR B 12 DEFICIENCY/ FANE"
+    ],
+    "status": "source-review",
+    "reviewNote": "B12 product strength absent and tablet/capsule correction conflicts. Preserve the source mass dose."
+  },
+  {
+    "case": 98,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 105
+      }
+    ],
+    "drugName": "Ondansetron Oral Tablet Disintegrating",
+    "rawProse": "Give 4 mg by mouth three times a day for Nausea/Vomiting Give Before meals",
+    "expected": "GIVE 4 MG PO TID FNV GIVE BEFORE MEALS",
+    "subOrders": [
+      "GIVE 4 MG PO TID FNV GIVE BEFORE MEALS"
+    ],
+    "status": "source-review",
+    "reviewNote": "Ondansetron ODT strength absent. Preserve 4 mg and before-meals instructions instead of inventing a tablet count."
+  },
+  {
+    "case": 99,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 106
+      }
+    ],
+    "drugName": "Ferrous Sulfate Oral Tablet Delayed Release 324 (65 Fe) MG",
+    "rawProse": "Give 1 tablet by mouth in the morning for Anemia give with breakfast",
+    "expected": "1T PO QDW/B FANE",
+    "subOrders": [
+      "1T PO QDW/B FANE"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  },
+  {
+    "case": 100,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 107
+      }
+    ],
+    "drugName": "Alendronate Sodium Tablet 70 MG",
+    "rawProse": "Give 1 tablet by mouth one time a day every Mon for osteoporosis",
+    "expected": "1T PO QDDAY1 FOSTEO",
+    "subOrders": [
+      "1T PO QDDAY1 FOSTEO"
+    ],
+    "status": "partial",
+    "reviewNote": "Weekly interval translated. Automatic FOSAMAX/DNC suffix remains a separate template follow-up."
+  },
+  {
+    "case": 101,
+    "sources": [
+      {
+        "file": "sig-assist-cases-2026-11-03T08-21-15-116Z.json",
+        "row": 108
+      }
+    ],
+    "drugName": "Psyllium Oral Packet",
+    "rawProse": "Give 1 packet by mouth two times a day for constipation mix with liquid",
+    "expected": "1PKT PO BID FCON. MIX WITH LIQUID",
+    "subOrders": [
+      "1PKT PO BID FCON. MIX WITH LIQUID"
+    ],
+    "status": "translated",
+    "reviewNote": ""
+  }
+]

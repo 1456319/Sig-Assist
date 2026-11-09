@@ -54,7 +54,7 @@ the console prints the cause and the location of node-setup.log.
 Keep its console open and use the localhost
 page it opens. Live connection settings are prefilled with:
   Iguana base URL: http://iguanabalt01v:6543
-  Username: admin    Password: password    Channel: MessageBroker
+  Authentication: Use Iguana login-page values    Channel: MessageBroker
   After: yesterday at 00:00:00 on this computer    Before: blank
 Paste a PON into Find E-Rx and press Enter. Choose the matching drug/order from
 the results; incoming details and the suggested SIG fill automatically.
@@ -63,9 +63,12 @@ are no matches. The same box filters saved orders by PON, patient reference,
 facility or drug. The manual order form is optional and starts collapsed.
 Adjust the time in Live connection settings if Iguana uses a different clock.
 Start polling after the first test succeeds. New arrivals keep your current
-selection and draft. Each fetch
-supplies credentials again, independently of the web UI's 15-minute session.
-The bridge only reads GET /api_query. It uses no PowerShell.
+selection and draft. Each fetch reads the values supplied by Iguana's login form
+and authenticates independently of the web UI session. No login values are built
+into this download. If the form cannot supply them, choose an Enter credentials
+mode in Live connection settings. Browser-saved or JavaScript-filled values need
+that fallback. The bridge only reads GET /login.html and GET /api_query.
+It uses no PowerShell.
 
 If port 4190 is busy, a matching connector is reused; otherwise an available
 port is opened. Use the exact address printed by the launcher. Browser-saved

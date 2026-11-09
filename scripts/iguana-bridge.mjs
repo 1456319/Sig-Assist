@@ -104,8 +104,51 @@ export function makeQuery(config) {
   for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
   const headers = { Accept: 'application/xml' };
   if (config.authMode === 'basic') headers.Authorization = `Basic ${Buffer.from(`${config.username ?? ''}:${config.password ?? ''}`).toString('base64')}`;
-  else { url.searchParams.set('username', config.username ?? ''); url.searchParams.set('password', config.password ?? ''); }
+  else if (config.authMode === 'parameters' || !config.authMode) { url.searchParams.set('username', config.username ?? ''); url.searchParams.set('password', config.password ?? ''); }
+  else if (config.authMode !== 'login-page') throw new Error('Choose a supported authentication mode.');
   return { url, headers, params };
+}
+
+// Read server-supplied form values as data. Browser autofill and JavaScript-only
+// values are deliberately not guessed, and no login response code is executed.
+export function credentialsFromLoginPage(html) {
+  const decode = value => value.replace(/&(#x[0-9a-f]+|#\d+|amp|quot|apos|lt|gt);/gi, (entity, name) => {
+    if (!name.startsWith('#')) return ({ amp: '&', quot: '"', apos: "'", lt: '<', gt: '>' })[name.toLowerCase()];
+    const code = /^#x/i.test(name) ? parseInt(name.slice(2), 16) : Number(name.slice(1));
+    return code > 0 && code <= 0x10ffff && !(code >= 0xd800 && code <= 0xdfff) ? String.fromCodePoint(code) : entity;
+  });
+  const clean = html.replace(/<!--[\s\S]*?-->/g, '').replace(/<(script|style|textarea)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '');
+  const candidates = [];
+  for (const form of clean.matchAll(/<form\b[^>]*>([\s\S]*?)<\/form\s*>/gi)) {
+    const fields = { username: [], password: [] };
+    for (const tag of form[1].matchAll(/<input\b(?:[^"'<>]|"[^"]*"|'[^']*')*>/gi)) {
+      const attrs = {};
+      for (const a of tag[0].slice(6, -1).matchAll(/([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g)) {
+        attrs[a[1].toLowerCase()] = decode(a[2] ?? a[3] ?? a[4] ?? '');
+      }
+      const name = (attrs.name || attrs.id || '').toLowerCase();
+      if ((name === 'username' || name === 'password') && !Object.hasOwn(attrs, 'disabled')) fields[name].push(attrs.value || '');
+    }
+    if (fields.username.length === 1 && fields.password.length === 1 && fields.username[0] && fields.password[0]) {
+      candidates.push({ username: fields.username[0], password: fields.password[0] });
+    }
+  }
+  if (candidates.length !== 1) throw new Error('Iguana did not supply one filled login form. In Live connection settings, choose an Enter credentials mode. Browser-saved or JavaScript-filled values cannot be read by this connector.');
+  return candidates[0];
+}
+
+async function resolveQueryAuthentication(config, query, fetchImpl, signal) {
+  if (config.authMode !== 'login-page') return;
+  const loginUrl = new URL(config.serverUrl);
+  loginUrl.pathname = `${loginUrl.pathname.replace(/\/$/, '')}/login.html`;
+  loginUrl.search = ''; loginUrl.hash = '';
+  const response = await fetchImpl(loginUrl, { method: 'GET', headers: { Accept: 'text/html' }, redirect: 'manual', signal });
+  if (!response.ok || !/\b(?:text\/html|application\/xhtml\+xml)\b/i.test(response.headers.get('content-type') || '')) {
+    throw new Error(`Iguana login form could not be read (HTTP ${response.status}). Choose an Enter credentials mode in Live connection settings.`);
+  }
+  const credentials = credentialsFromLoginPage(response.body ? await limitedText(response.body, 512 * 1024) : '');
+  query.url.searchParams.set('username', credentials.username);
+  query.url.searchParams.set('password', credentials.password);
 }
 
 async function limitedText(stream, limit) {
@@ -123,7 +166,7 @@ export function createBridge({ htmlPath = defaultHtmlPath(), fetchImpl = fetch, 
     const send = (status, object) => { response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(JSON.stringify(object)); };
     if (request.method === 'GET' && ['/connector/health', '/connector/diagnostics'].includes(request.url)) {
       const { profile } = await portablePage(htmlPath);
-      send(200, { ok: true, service, protocolVersion: 1, bridgeBuildId, desktopBuildId: await desktopBuildId(), readOnly: true, readOnlyScope: 'Iguana upstream', desktopTransfer: true, upstreamEndpoints: ['GET /api_query'], runtime: process.version, pid: process.pid, page: profile, startup }); return;
+      send(200, { ok: true, service, protocolVersion: 1, bridgeBuildId, desktopBuildId: await desktopBuildId(), readOnly: true, readOnlyScope: 'Iguana upstream', desktopTransfer: true, upstreamEndpoints: ['GET /login.html', 'GET /api_query'], runtime: process.version, pid: process.pid, page: profile, startup }); return;
     }
     if (request.method === 'GET' && request.url === '/favicon.ico') { response.writeHead(204); response.end(); return; }
     if (request.method === 'GET' && ['/', '/index.html'].includes(request.url)) {
@@ -155,8 +198,9 @@ export function createBridge({ htmlPath = defaultHtmlPath(), fetchImpl = fetch, 
     try {
       config = JSON.parse(await limitedText(request, 64 * 1024));
       const query = makeQuery(config);
+      await resolveQueryAuthentication(config, query, fetchImpl, controller.signal);
       log('query.begin', { requestId, method: 'GET', endpoint: '/api_query', ...query.params });
-      // Fixed endpoint + GET only. No browser session or HAR credentials are reused.
+      // Fixed read-only endpoints. No browser session or HAR credentials are reused.
       const upstream = await fetchImpl(query.url, { method: 'GET', headers: query.headers, signal: controller.signal, redirect: 'manual' });
       const body = upstream.body ? await limitedText(upstream.body, maxBytes) : '';
       const result = { requestId, bridgeBuildId, runtime: process.version, ok: upstream.ok, status: upstream.status, contentType: upstream.headers.get('content-type'), serverDate: upstream.headers.get('date'), elapsedMs: Date.now() - started, bytes: Buffer.byteLength(body) };

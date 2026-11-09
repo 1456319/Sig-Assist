@@ -66,7 +66,7 @@ export interface ConnectorConfig {
   serverUrl: string;
   username: string;
   password: string;
-  authMode: 'parameters' | 'basic';
+  authMode: 'login-page' | 'parameters' | 'basic';
   channel: string;
   after: string;
   before: string;

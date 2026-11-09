@@ -62,7 +62,7 @@ describe('October 3 reported translator discrepancies', () => {
     ['Magnesium Hydroxide Oral Suspension 1200MG/15ML', 'Give 30 ml by mouth daily', 'ADM 30ML (2400MG) PO QD'],
     ['Magnesium Hydroxide Oral Suspension 2400MG/10ML', 'Give 15 ml by mouth daily', 'ADM 15ML (3600MG) PO QD'],
     ['EXAMPLE SOLUTION 2 MG/ML', 'Give .25 ml by mouth daily', 'ADM 0.25ML (0.5MG) PO QD'],
-    ['EXAMPLE SOLUTION 2 MG/ML', 'Give half a ml by mouth daily', 'LOR1MG PO QD'],
+    ['EXAMPLE SOLUTION 2 MG/ML', 'Give half a ml by mouth daily', 'ADM 0.5ML (1MG) PO QD'],
     ['EXAMPLE SOLUTION 1 MG/ML', 'Give 0.5 ml by mouth daily', 'ADM 0.5ML (0.5MG) PO QD'],
   ])('calculates using the actual liquid concentration: %s', (drug, prose, expected) => {
     expect(translate(drug, prose).primarySig).toBe(expected);
@@ -112,10 +112,10 @@ describe('October 3 reported translator discrepancies', () => {
       .toContain('WITH A FULL GLASS OF WATER');
   });
 
-  it('preserves missing intervals and multiple doses on alternate days', () => {
+  it('uses the reported with-meals convention without collapsing alternate-day schedules', () => {
     const r = translate('EXAMPLE TAB 5MG', 'Give 1 tablet by mouth with meals');
-    expect(r.primarySig).toBe('GIVE 1 TABLET PO WITH MEALS');
-    expect(r.abnormalities.some(a => a.title === 'Missing Frequency')).toBe(true);
+    expect(r.primarySig).toBe('1T PO WMTID');
+    expect(r.abnormalities.some(a => a.id === 'with_meals_schedule')).toBe(true);
     expect(translate('EXAMPLE TAB 5MG', 'Give 1 tablet by mouth twice daily every other day').primarySig).toBe('GIVE 1 TABLET PO BID QOD');
   });
 

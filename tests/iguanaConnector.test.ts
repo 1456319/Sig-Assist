@@ -123,8 +123,8 @@ describe('Iguana read-only intake', () => {
     expect(parseScriptLog(logs[0], emit)[0].directions).toBe('Apply & rinse; literal &lt; text');
     expect(parseScriptLog({ payload: diagnosticPayload(xml) }, emit)[0].messageId).toBe('synthetic-msg-1');
   });
-  it('prefills the requested shared account and recalculates yesterday at calendar midnight', () => {
-    expect(initialConnectorConfig(new Date(2026, 9, 2, 6, 38))).toMatchObject({ serverUrl: 'http://iguanabalt01v:6543', username: 'admin', password: 'password', channel: 'MessageBroker', after: '2026/10/01 00:00:00', before: '', authMode: 'parameters' });
+  it('uses server-provided login values without shipping credentials and recalculates yesterday at calendar midnight', () => {
+    expect(initialConnectorConfig(new Date(2026, 9, 2, 6, 38))).toMatchObject({ serverUrl: 'http://iguanabalt01v:6543', username: '', password: '', channel: 'MessageBroker', after: '2026/10/01 00:00:00', before: '', authMode: 'login-page' });
     expect(yesterdayMidnight(new Date(2026, 0, 1, 0, 5))).toBe('2025/12/31 00:00:00');
     expect(yesterdayMidnight(new Date(2024, 2, 1, 12))).toBe('2024/02/29 00:00:00');
     expect(yesterdayMidnight(new Date(2026, 2, 9, 0, 30))).toBe('2026/03/08 00:00:00');

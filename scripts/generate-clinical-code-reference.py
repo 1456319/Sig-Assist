@@ -42,6 +42,8 @@ base_whitelist = {
     'QS', 'QSD', 'QSHIFT', 'TXQS', 'CQOD', 'TXQOD', 'PRN', 'ASN', 'TXPRN',
     'TX1', 'TX2', 'TX3', 'TX4', 'TXQD', 'SAS', 'SC', '12ON',
     'AAA', 'AATX', 'CWS&W', 'CWS&H',
+    '1PKT', '1PA', '1CHT', '2CHT', '2T1GM', 'Q2M', 'Q5M', 'QDW/B', 'LOR0.5MG',
+    'FOC', '(H', 'LS', 'RMAU', 'AP1/4', 'FOSAMAX', 'DNC',
 }
 
 codes = {}

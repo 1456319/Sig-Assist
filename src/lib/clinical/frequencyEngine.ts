@@ -7,6 +7,7 @@ import { resolveDuration } from './durationEngine';
 import { SIG_CODE_REFERENCE } from './sigCodeReference';
 import { normalizeNumericDirections } from './numericDirections';
 import { hourlySchedule } from './hourlySchedule';
+import { parseSlidingScale } from './slidingScale';
 
 export interface FrequencyScheduleResult {
   readonly frequencyToken: string;
@@ -22,7 +23,7 @@ export interface FrequencyScheduleResult {
 }
 
 function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?: string): FrequencyScheduleResult {
-  let upper = normalizeNumericDirections(splitSupplementalDirections(rawProse).primary)
+  const upper = normalizeNumericDirections(splitSupplementalDirections(rawProse).primary)
     .replace(/\bDAY\(S\)/g, 'DAYS')
     .replace(/\b(?:VIA|USING|WITH)\s+(?:A\s+)?NEBULI[ZS]ER\b/g, '').trim();
   const abnormalities: AbnormalityFinding[] = [];
@@ -41,130 +42,37 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     };
   }
 
-  // Sliding scale insulin check
-  if (upper.includes('SLIDING SCALE')) {
-    if (/\b\d+\s+UNIS\b/.test(upper)) {
-      upper = upper.replace(/\bUNIS\b/g, 'UNITS');
-      abnormalities.push({ id: 'insulin_unit_typo', tier: 'applied_correction', title: 'Insulin Unit Typo Normalized',
-        message: 'UNIS was interpreted as UNITS on the numeric insulin scale. Verify the original electronic hardcopy before copying.', trigger: 'Numeric insulin scale specifies UNIS' });
-    }
-    const isAcHs = /\b(BEDTIME|HS|ACHS)\b/i.test(upper);
-    const prefix = isAcHs ? 'CBS ACHS SS' : 'CBS AC SS';
-
-    if (upper.includes('ML')) {
-      abnormalities.push({
-        id: `abn_ss_ml_${Date.now()}`,
-        tier: 'applied_correction',
-        title: 'Insulin Volume Normalization',
-        message: 'The generated Sig CONTAINS A CORRECTION.',
-        correction: 'Normalized mL volume to Units (U)',
-        trigger: 'Prescriber specified mL instead of Units on insulin order'
-      });
-    }
-
-    const segments: Array<{ sortKey: number; text: string }> = [];
-    const translatedMarkers = new Set<number>();
-    let unrecognizedNotification = false;
-
-    // Hypoglycemic protocol / low MD call
-    const lowMatch = upper.match(/(?:<|LESS THAN)\s*(\d+)[^;,\n]*(?:HYPOGLYCEMIC PROTOCOL|NOTIFY MD|CALL MD)/i);
-    if (lowMatch) {
-      const val = parseInt(lowMatch[1], 10);
-      const action = /HYPOGLYCEMIC/.test(lowMatch[0]) ? `HYPOGLYCEMIC PROTOCOL${/CALL MD|NOTIFY MD/.test(lowMatch[0]) ? '&CALL MD' : ''}` : 'CALL MD';
-      segments.push({ sortKey: val, text: `<${val}=${action}` });
-      translatedMarkers.add(lowMatch.index!);
-    }
-
-    // Bracket matches: 181 - 200 = 1 unit or 200 - 300 = 5ml
-    const bracketRegex = /(\d+)\s*-\s*(\d+)\s*=\s*(\d+)\s*(?:UNITS?|U|ML)\b/gi;
-    let bMatch: RegExpExecArray | null;
-    while ((bMatch = bracketRegex.exec(upper)) !== null) {
-      const low = parseInt(bMatch[1], 10);
-      const high = parseInt(bMatch[2], 10);
-      const units = parseInt(bMatch[3], 10);
-      segments.push({ sortKey: low, text: `${low}-${high}=${units}U` });
-      translatedMarkers.add(bMatch.index);
-    }
-
-    // High threshold: > 350 = 5 units or Greater than 500 notify MD
-    const highActionMatch = upper.match(/(?:>|GREATER THAN)\s*(\d+)[^;,\n]*(?:NOTIFY MD|CALL MD)/i);
-    if (highActionMatch) {
-      const val = parseInt(highActionMatch[1], 10);
-      segments.push({ sortKey: val + 1000, text: `>${val}=CALL MD` });
-      translatedMarkers.add(highActionMatch.index!);
-      if (/\b(?:ADMINISTER|GIVE)\b/.test(highActionMatch[0])) unrecognizedNotification = true;
-    } else {
-      const highUnitMatch = upper.match(/(?:>|GREATER THAN)\s*(\d+)\s*=\s*(\d+)\s*(?:UNITS?|U)\b/i);
-      if (highUnitMatch) {
-        const val = parseInt(highUnitMatch[1], 10);
-        const units = parseInt(highUnitMatch[2], 10);
-        segments.push({ sortKey: val + 1000, text: `>${val}=${units}U` });
-        translatedMarkers.add(highUnitMatch.index!);
-      }
-    }
-
-    // Inclusive plus thresholds retain both dose and notification recipient.
-    for (const match of upper.matchAll(/\b(\d+)\s*\+\s*=\s*(\d+)\s*(?:UNITS?|U)\b/g)) {
-      const tail = upper.slice(match.index! + match[0].length).split(/[;,]/)[0];
-      const notify = tail.match(/\b(?:NOTIFY|CALL)\s+(MD|NP\s*\/\s*PA|PA\s*\/\s*NP|NP|PA|PROVIDER|PRESCRIBER|PHYSICIAN)\b/);
-      if (/\b(?:NOTIFY|CALL)\b/.test(tail) && !notify) unrecognizedNotification = true;
-      const action = notify ? `&CALL ${notify[1].replace(/\s*\/\s*/g, '/')}` : '';
-      segments.push({ sortKey: Number(match[1]) + 1000, text: `${match[1]}+=${match[2]}U${action}` });
-      translatedMarkers.add(match.index!);
-    }
-    if (highActionMatch && /(?:>|GREATER THAN)\s*\d+\s*=/.test(highActionMatch[0])) {
-      const dose = highActionMatch[0].match(/(?:>|GREATER THAN)\s*(\d+)\s*=\s*(\d+)\s*(?:UNITS?|U)\b/);
-      if (dose) {
-        const high = segments.find(s => s.text === `>${dose[1]}=CALL MD`);
-        if (high) high.text = `>${dose[1]}=${dose[2]}U&CALL MD`;
-        translatedMarkers.add(highActionMatch.index!);
-      }
-    }
-    for (const match of upper.matchAll(/(?:>\s*(?:OR\s*)?=|GREATER THAN OR EQUAL TO)\s*(\d+)\s*(?:ADMINISTER|GIVE|=)\s*(\d+)\s*(?:UNITS?|U)\b/g)) {
-      const tail = upper.slice(match.index! + match[0].length).split(/[;,]/)[0];
-      const notify = tail.match(/\b(?:NOTIFY|NOTIFIED|CALL)\s+(MD|NP\s*\/\s*PA|PA\s*\/\s*NP|NP|PA|PROVIDER|PRESCRIBER|PHYSICIAN)\b/);
-      if (/\b(?:NOTIFY|NOTIFIED|CALL)\b/.test(tail) && !notify) unrecognizedNotification = true;
-      segments.push({ sortKey: Number(match[1]) + 1000, text: `${match[1]}+=${match[2]}U${notify ? `&CALL ${notify[1].replace(/\s*\/\s*/g, '/')}` : ''}` });
-      translatedMarkers.add(match.index!);
-    }
-    // Check all condition starts, not just the successfully parsed bands.
-    // Unknown <= thresholds or unsupported doses must retain the complete scale.
-    const markers = [...upper.matchAll(/\b\d+\s*-\s*\d+\s*=|\b\d+\s*\+\s*=|(?:[<>]\s*(?:(?:OR\s*)?=)?|(?:GREATER|LESS) THAN(?: OR EQUAL TO)?)\s*\d+/g)];
-    const sourceNotifications = [...upper.matchAll(/\b(?:NOTIFY|NOTIFIED|CALL)\b/g)].length;
-    const capturedNotifications = segments.filter(s => s.text.includes('CALL ')).length;
-    const hasMealSchedule = /\b(?:BEFORE MEALS|AC|ACHS)\b/.test(upper);
-    if (!segments.length || !hasMealSchedule || unrecognizedNotification || sourceNotifications > capturedNotifications || markers.some(m => !translatedMarkers.has(m.index!))) {
-      abnormalities.push({ id: 'incomplete_sliding_scale', tier: 'uncorrected_gap', title: 'Incomplete Sliding Scale',
-        message: 'At least one scale band or notification could not be translated. Original directions were retained; no partial scale was proposed.', trigger: rawProse });
+  if (/\bSLIDING[\s-]+SCALE\b/.test(upper)) {
+    const scale = parseSlidingScale(upper);
+    abnormalities.push(...scale.abnormalities);
+    if (scale.incomplete) return { frequencyToken: '', abnormalities, requiresManualTranslation: true };
+    const tail = splitSupplementalDirections(scale.schedule);
+    const schedule = resolveFrequencyAndScheduleInternal(tail.primary);
+    if (!schedule.frequencyToken || schedule.requiresManualTranslation) {
+      abnormalities.push({ id: 'incomplete_sliding_scale', tier: 'uncorrected_gap', title: 'Scale Schedule Requires Review',
+        message: 'The scale schedule could not be resolved. Original directions were retained.', trigger: rawProse });
       return { frequencyToken: '', abnormalities, requiresManualTranslation: true };
     }
-    segments.sort((a, b) => a.sortKey - b.sortKey);
-    const scaleDuration = resolveDuration(upper);
-    if (scaleDuration.unsupported) return { frequencyToken: '', abnormalities: [...abnormalities, ...scaleDuration.abnormalities], requiresManualTranslation: true };
-    const lastIndication = upper.match(/\bFOR\s+((?:T1DM|DM2?|TYPE [12] DIABETES))\s*$/)?.[0];
-    const route = /\bSUBCUTANEOUS(?:LY)?\b/.test(upper) ? 'SQ' : '';
-    const slidingScaleString = [prefix, segments.map(s => s.text).join(';'), route, scaleDuration.token, lastIndication ? extractIndicationToken(lastIndication) : ''].filter(Boolean).join(' ');
-
-    return {
-      frequencyToken: prefix,
-      slidingScaleString,
-      abnormalities
-    };
+    let frequency = schedule.frequencyToken;
+    if (frequency === 'TIDAC' && !/\b(?:3|THREE) TIMES|\bTID\b/.test(tail.primary)) frequency = 'AC';
+    const prefix = `CBS ${frequency} SS`;
+    const core = [prefix, scale.bands, scale.route, schedule.prnToken, schedule.durationToken,
+      schedule.indicationToken, schedule.holdToken, schedule.stopToken].filter(Boolean).join(' ');
+    const slidingScaleString = tail.supplemental ? `${core}. ${tail.supplemental.toUpperCase()}` : core;
+    return { frequencyToken: prefix, slidingScaleString, abnormalities: [...abnormalities, ...schedule.abnormalities] };
   }
 
   // Hold parameters
   let holdToken: string | undefined;
-  if (upper.includes('HOLD FOR SBP LESS THAN 100 OR HEART RATE LESS THAN 60')) {
+  const hold = upper.match(/\bHOLD\s+(?:IF|FOR|WHEN)\s+[^;.]+/)?.[0].trim();
+  if (hold && /^HOLD (?:IF|FOR) (?:SBP|SYSTOLIC BLOOD PRESSURE) (?:LESS THAN|<)\s*100 OR (?:HEART RATE|HR) (?:LESS THAN|<)\s*60$/.test(hold)) {
     holdToken = 'HR60SBP100';
-  } else if (/HOLD\s+(?:IF|FOR)\s+SBP\s*(?:<|LESS\s+THAN)\s*100/i.test(upper)) {
+  } else if (hold && /^HOLD\s+(?:IF|FOR)\s+SBP\s*(?:<|LESS\s+THAN)\s*100$/.test(hold)) {
     holdToken = 'SBP100';
-  } else if (upper.includes('HOLD IF MORE THAN 2 BOWEL MOVEMENT')) {
+  } else if (hold && /^HOLD IF MORE THAN 2 BOWEL MOVEMENTS?(?: DAILY)?$/.test(hold)) {
     holdToken = '(H >2 BOWEL MOVEMENTS DAILY)';
-  } else {
-    const genericHoldMatch = upper.match(/\b(HOLD\s+(?:IF|FOR|WHEN)\s+[^;,\n.]+)/i);
-    if (genericHoldMatch) {
-      holdToken = `(${genericHoldMatch[1].trim()})`;
-    }
+  } else if (hold) {
+    holdToken = `(${hold.replace(/^HOLD FOR\b/, 'H').replace(/\bLOOSE STOOLS?\b/g, 'LS')})`;
   }
 
   if (holdToken) {
@@ -186,7 +94,7 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
 
   const duration = resolveDuration(upper);
   const administrations = upper.match(/\bFOR\s+(\d+)\s+ADMINISTRATIONS?\b/);
-  const durationToken = duration.token || (administrations && administrations[1] !== '1' ? `FOR ${administrations[1]} DOSES` : undefined);
+  let durationToken = duration.token || (administrations && administrations[1] !== '1' ? `FOR ${administrations[1]} DOSES` : undefined);
   abnormalities.push(...duration.abnormalities);
   if (duration.unsupported) return { frequencyToken: '', abnormalities, requiresManualTranslation: true };
 
@@ -199,6 +107,7 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
   // Frequency tokens
   let frequencyToken = '';
   const weekday = resolveWeekdaySchedule(scheduleProse);
+  if (weekday.token && administrations?.[1] === '1' && !duration.token) durationToken = 'X1 ONLY';
   const compoundShift = scheduleProse.match(/\b(?:EVERY|EACH)\s+(DAY|EVENING|NIGHT)\s+AND\s+(DAY|EVENING|NIGHT)\s+SHIFT\b/);
   const dayInterval = scheduleProse.match(/\bEVERY\s+(\d+)\s+DAYS?\b/);
   const shift = scheduleProse.match(/\b(?:EVERY|EACH)\s+(DAY|EVENING|NIGHT)\s+SHIFT\b/);
@@ -206,7 +115,7 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     abnormalities.push({ id: 'unsupported_weekday_schedule', tier: 'uncorrected_gap', title: 'Weekday Schedule Requires Review',
       message: 'The complete weekday schedule could not be translated. Original directions were retained; no day or qualifier was discarded.', trigger: rawProse });
     return { frequencyToken: '', abnormalities, requiresManualTranslation: true };
-  } else if (administrations && (duration.token || weekday.token || Number(administrations[1]) <= 0)) {
+  } else if (administrations && (duration.token || Number(administrations[1]) <= 0)) {
     abnormalities.push({ id: 'complex_administration_count', tier: 'uncorrected_gap', title: 'Administration Count Requires Review', message: 'The administration count and other course restrictions were retained together for review.', trigger: rawProse });
     return { frequencyToken: '', abnormalities, requiresManualTranslation: true };
   } else if (weekday.token) {
@@ -226,6 +135,15 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     if (/\bAT BEDTIME\b/.test(scheduleProse)) frequencyToken += ' AT BEDTIME';
   } else if (shift) {
     frequencyToken = `QD (DURING ${shift[1]} SHIFT)`;
+  } else if (/\b(?:EVERY|EACH) SHIFT\b/.test(scheduleProse)) {
+    frequencyToken = 'QS';
+  } else if (/\bSTAT\b/.test(scheduleProse)) {
+    frequencyToken = 'STAT';
+  } else if (/\bEVERY\s+\d+\s+MINUTES?\b/.test(scheduleProse)) {
+    const minutes = Number(scheduleProse.match(/\bEVERY\s+(\d+)\s+MINUTES?\b/)![1]);
+    const code = `Q${minutes}M`;
+    frequencyToken = SIG_CODE_REFERENCE[code] === `EVERY ${minutes} MINUTES` ? code : `EVERY ${minutes} MINUTES`;
+    if (/\bQD\b/.test(scheduleProse)) frequencyToken += ' QD';
   } else if (/\b(?:EVERY OTHER DAY|EVERY 2 DAYS|QOD|QDQ2D)\b/.test(scheduleProse)) {
     if (/\b(?:[2-9] TIMES|TWICE|BID|TID|QID|Q\d+H)\b|\bMORNING\b.*\bBEDTIME\b/.test(scheduleProse)) {
       abnormalities.push({ id: 'complex_alternate_day_schedule', tier: 'uncorrected_gap', title: 'Alternate-Day Schedule Requires Review',
@@ -253,6 +171,8 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     frequencyToken = 'QAM';
   } else if (/\b(?:IN THE EVENING|EVERY EVENING|QPM)\b/.test(scheduleProse)) {
     frequencyToken = 'QPM';
+  } else if (/\b(?:IN THE AFTERNOON|EVERY AFTERNOON)\b/.test(scheduleProse)) {
+    frequencyToken = 'QD IN THE AFTERNOON';
   } else if (scheduleProse.includes('EVERY 12 HOURS') || /\bQ12H\b/i.test(scheduleProse)) {
     frequencyToken = 'Q12H';
   } else if (scheduleProse.includes('EVERY 8 HOURS') || /\bQ8H\b/i.test(scheduleProse)) {
@@ -305,7 +225,15 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     }
   }
 
-  if (frequencyToken && (/\bWITH\s+(?:EACH\s+)?MEALS?\b/i.test(scheduleProse) || /\bWM\b/.test(scheduleProse))) {
+  if (/\bWITH BREAKFAST\b/.test(scheduleProse)) {
+    frequencyToken = ['QD', 'QAM', ''].includes(frequencyToken) ? 'QDW/B' : `${frequencyToken} WITH BREAKFAST`;
+  }
+  if (/\bWITH\s+(?:EACH\s+)?(?:MEALS?|FOOD)\b/i.test(scheduleProse) || /\bWM\b/.test(scheduleProse)) {
+    if (!frequencyToken && /\bWITH\s+(?:EACH\s+)?MEALS?\b/.test(scheduleProse)) {
+      frequencyToken = 'TID';
+      abnormalities.push({ id: 'with_meals_schedule', tier: 'applied_correction', title: 'With-Meals Schedule Applied',
+        message: 'With meals uses the reported site convention of three meals daily. Compare the source before copying.', trigger: rawProse });
+    }
     if (frequencyToken !== 'WMHS') {
       const code = ({ QD: 'WMQD', BID: 'WMBID', TID: 'WMTID' } as Record<string, string>)[frequencyToken];
       frequencyToken = code && SIG_CODE_REFERENCE[code] ? code : `${frequencyToken} WM`.trim();

@@ -8,7 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 // Runtime script deliberately uses no package dependencies.
 // @ts-expect-error JavaScript bridge is tested in its native Node runtime.
-import { createBridge, makeQuery, startBridge, defaultHtmlPath } from '../scripts/iguana-bridge.mjs';
+import { createBridge, makeQuery, startBridge, defaultHtmlPath, credentialsFromLoginPage } from '../scripts/iguana-bridge.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -31,6 +31,60 @@ async function start(options: Record<string, unknown> = {}) {
 }
 
 describe('local read-only bridge', () => {
+  it('reads login-page defaults afresh for each query without embedding or exporting them', async () => {
+    const calls: string[] = []; let loginReads = 0;
+    const upstream = await listen(createServer((request, response) => {
+      const url = new URL(request.url!, 'http://localhost'); calls.push(`${request.method} ${url.pathname}`);
+      if (url.pathname === '/login.html') {
+        loginReads++;
+        response.setHeader('content-type', 'text/html');
+        response.end(`<form action="login.html"><input name="username" value="worker-${loginReads}"><input type="password" name="password" value="synthetic-&amp;-&#35;${loginReads}"></form>`);
+      } else {
+        expect(url.pathname).toBe('/api_query');
+        expect(url.searchParams.get('username')).toBe(`worker-${loginReads}`);
+        expect(url.searchParams.get('password')).toBe(`synthetic-&-#${loginReads}`);
+        expect(request.headers.cookie).toBeUndefined();
+        response.setHeader('content-type', 'application/xml'); response.end('<export/>');
+      }
+    }));
+    const bridge = await listen(createBridge());
+    for (let i = 0; i < 2; i++) {
+      const result = await (await fetch(`${bridge}/connector/query`, { method: 'POST', body: JSON.stringify({ ...config, username: '', password: '', authMode: 'login-page', serverUrl: upstream }) })).json();
+      expect(result).toMatchObject({ ok: true, body: '<export/>' });
+      expect(JSON.stringify(result)).not.toMatch(/worker-|synthetic-&/);
+    }
+    expect(calls).toEqual(['GET /login.html', 'GET /api_query', 'GET /login.html', 'GET /api_query']);
+  });
+  it.each([
+    '<form><input name=username value=demo><input name=password value=synthetic></form>',
+    "<FORM><INPUT VALUE='demo' NAME='username'><INPUT NAME='password' TYPE='password' VALUE='synthetic'></FORM>",
+    '<!-- <form><input name=username value=wrong><input name=password value=wrong></form> --><form><input name=username value=demo><input name=password value=synthetic></form>',
+  ])('recognizes filled HTML form values: %s', html => {
+    expect(credentialsFromLoginPage(html)).toEqual({ username: 'demo', password: 'synthetic' });
+  });
+  it.each([
+    '<form><input name=username><input name=password></form>',
+    '<script>const markup="<form><input name=username value=demo><input name=password value=synthetic></form>";</script>',
+    '<form><input name=username value=demo><input name=password value=synthetic disabled></form>',
+    '<form><input name=username value=demo><input name=username value=other><input name=password value=synthetic></form>',
+    '<form><input name=username value=demo><input name=password value=synthetic></form><form><input name=username value=other><input name=password value=other></form>',
+  ])('requests manual settings when server-supplied values are absent or ambiguous', html => {
+    expect(() => credentialsFromLoginPage(html)).toThrow(/choose an Enter credentials mode/i);
+  });
+  it('does not query logs when the login page requires browser autofill or redirects', async () => {
+    for (const status of [200, 302]) {
+      const calls: string[] = [];
+      const upstream = await listen(createServer((request, response) => {
+        calls.push(request.url!); response.writeHead(status, { 'Content-Type': 'text/html', Location: '/other-page' });
+        response.end('<form><input name="username"><input name="password"></form>');
+      }));
+      const bridge = await listen(createBridge());
+      const result = await (await fetch(`${bridge}/connector/query`, { method: 'POST', body: JSON.stringify({ ...config, authMode: 'login-page', serverUrl: upstream }) })).json();
+      expect(result.ok).toBe(false);
+      expect(result.error).toMatch(/Enter credentials mode/);
+      expect(calls).toEqual(['/login.html']);
+    }
+  });
   it('isolates desktop operations and rejects cross-origin and non-JSON requests', async () => {
     const calls: string[] = [];
     const bridge = await listen(createBridge({ desktop: async (action: string) => { calls.push(action); return { ok: true }; } }));

@@ -65,8 +65,8 @@ describe('24 exported discrepancy records, 2026-10-01 batch 3', () => {
 
   it.each([
     ['UNKNOWN DRUG', 'Use 3 ml via nebulizer daily', 'ADM 3ML NEB QD'],
-    ['IPRATROPIUM/ALBUTEROL INH SOLN', 'Inhale 3 ml daily', 'INHALE 3 ML QD'],
-    ['47335075649 - IPRATROPIUM/ALBUTEROL INH SOLN', 'Inhale 1.5 ml daily', 'INHALE 1.5 ML QD'],
+    ['IPRATROPIUM/ALBUTEROL INH SOLN', 'Inhale 3 ml daily', 'ADM 3ML NEB QD'],
+    ['47335075649 - IPRATROPIUM/ALBUTEROL INH SOLN', 'Inhale 1.5 ml daily', 'ADM 1.5ML NEB QD'],
   ])('does not assume a vial size or whole-vial dose: %s', (drug, prose, expected) => {
     expect(translate(drug, prose).primarySig).toBe(expected);
   });

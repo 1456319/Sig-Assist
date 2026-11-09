@@ -1,4 +1,7 @@
 import { AbnormalityFinding } from './types';
+import { resolveFrequencyAndSchedule } from './frequencyEngine';
+import { calculateDoseAndVolume } from './doseCalculator';
+import { splitSupplementalDirections } from './instructionClauses';
 
 export interface TreatmentSplitPart {
   readonly label: string;
@@ -30,6 +33,32 @@ export function resolveTreatmentOrder(drugName: string, rawProse: string): Treat
 
   if (isOralDosageForm || hasOralProse) {
     return undefined;
+  }
+
+  const explicit = rawProse.split(/\s+AND\s+(?=APPLY\s+TO\b)/i);
+  if (explicit.length === 2 && !/\b(?:AS NEEDED|PRN)\b/i.test(explicit[0]) && /\b(?:AS NEEDED|PRN)\b/i.test(explicit[1])) {
+    const routine = resolveTreatmentOrder(drugName, explicit[0]);
+    if (routine?.singleSig) {
+      if (/\b(?:CLEANSE|PAT DRY|COVER|WRAP|LEAVE)\b/i.test(explicit[1])) {
+        const review: AbnormalityFinding = { id: 'separate_prn_procedure', tier: 'uncorrected_gap', title: 'Separate PRN Procedure Requires Review',
+          message: 'The second procedure was retained in full with its own schedule. Compare it with the routine procedure.', trigger: explicit[1] };
+        return { isTreatment: true, isSplit: true, splitParts: [
+          { label: 'Order 1 of 2 (Routine)', sig: routine.singleSig, abnormalities: routine.abnormalities },
+          { label: 'Order 2 of 2 (PRN)', sig: explicit[1].toUpperCase().replace(/\s+/g, ' ').trim(), abnormalities: [review] },
+        ], abnormalities: [...routine.abnormalities, review] };
+      }
+      const d = calculateDoseAndVolume(drugName, explicit[1]);
+      const f = resolveFrequencyAndSchedule(explicit[1]);
+      if (d.doseToken && !d.requiresManualTranslation && !f.requiresManualTranslation) {
+        const supplemental = splitSupplementalDirections(explicit[1]).supplemental;
+        const prn = [d.doseToken, d.routeToken, d.siteToken, f.frequencyToken, f.prnToken, f.indicationToken, f.durationToken, f.holdToken, f.stopToken].filter(Boolean).join(' ')
+          + (supplemental ? `. ${supplemental.toUpperCase()}` : '');
+        return { isTreatment: true, isSplit: true, splitParts: [
+          { label: 'Order 1 of 2 (Routine)', sig: routine.singleSig, abnormalities: routine.abnormalities },
+          { label: 'Order 2 of 2 (PRN)', sig: prn, abnormalities: [...d.abnormalities, ...f.abnormalities] },
+        ], abnormalities: [...routine.abnormalities, ...d.abnormalities, ...f.abnormalities] };
+      }
+    }
   }
 
   // Must contain wound care / treatment order procedural markers
@@ -105,11 +134,11 @@ export function resolveTreatmentOrder(drugName: string, rawProse: string): Treat
   // 3. Drug application extraction:
   let applyDrug = '';
   const isDressingOrSupply = /\b(?:GAUZE|KERLIX|XEROFORM|WRAP|BANDAGE|DRESSING|TAPE|CLEANSER|SALINE|PAD|MEPILEX|TEGADERM)\b/i.test(upperDrug);
-  if (!hasLeaveOta) {
+  if (!hasLeaveOta || /\bAPPLY\s+(?!TO\b)[A-Z]/.test(upperProse)) {
     const postCleanseIdx = upperProse.search(/\b(?:CLEANSE|PAT\s+DRY)\b/);
     const searchScope = postCleanseIdx >= 0 ? upperProse.slice(postCleanseIdx) : upperProse;
     const applyMatch = searchScope.match(
-      /\b(?:THEN\s+)?APPLY\s+([A-Z0-9 /-]+?)(?=\s+(?:EVERY|EACH|DAILY|TWICE|THREE|FOUR|\d+\s+TIMES|Q[/-]|QS|QD|BID|TID|QID|QAM|QPM|QHS|PRN|AS\s+NEEDED|AND\s+PRN)\b|[.,;]|$)/i
+      /\b(?:THEN\s+)?APPLY\s+([A-Z0-9 /-]+?)(?=\s+(?:EVERY|EACH|DAILY|TWICE|THREE|FOUR|\d+\s+TIMES|Q[/-]|QS|QD|BID|TID|QID|QAM|QPM|QHS|PRN|AS\s+NEEDED|AND\s+(?:PRN|LEAVE))\b|[.,;]|$)/i
     );
     if (
       applyMatch &&
@@ -193,11 +222,10 @@ export function resolveTreatmentOrder(drugName: string, rawProse: string): Treat
       proceduralParts.push('PAT DRY');
     }
     const thenPrefix = proceduralParts.length > 0 ? 'THEN ' : '';
-    if (hasLeaveOta) {
-      proceduralParts.push(`${thenPrefix}LEAVE OPEN TO AIR`);
-    } else if (applyDrug) {
+    if (applyDrug) {
       proceduralParts.push(`${thenPrefix}APPLY ${applyDrug}`);
     }
+    if (hasLeaveOta) proceduralParts.push(`${applyDrug ? '' : thenPrefix}LEAVE OPEN TO AIR`);
     if (dressing) {
       proceduralParts.push(`COVER W/${dressing}`);
     }
@@ -237,7 +265,6 @@ export function resolveTreatmentOrder(drugName: string, rawProse: string): Treat
         message: `The formatted treatment order is ${full.length} characters long and exceeds FrameworkLTC's 199-character limit. Manual technician condensation required.`,
         trigger: full
       });
-      full = full.slice(0, 199);
     }
 
     return full;

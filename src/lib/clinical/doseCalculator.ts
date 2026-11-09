@@ -44,11 +44,17 @@ function quantityFromStrength(drug: string, prose: string): { count: number; lab
   const normalizedDrug = drug
     .replace(/(\d+(?:\.\d+)?)\s*\([^)]*\)\s*(MCG|MEQ|MG|GM|G)\b/gi, '$1 $2')
     .replace(/\([^)]*(?:FE|IRON|CA|CALCIUM|ELEMENTAL)[^)]*\)/gi, '');
-  const strengths = [...normalizedDrug.matchAll(/(?<![\d.])(\d+(?:\.\d+)?)\s*(MCG|MEQ|MG|GM|G)\b/g)];
-  const dose = prose.match(/\b(?:GIVE|TAKE|ADMINISTER)\s+(\d+(?:\.\d+)?)\s*(MCG|MEQ|MG|GM|G)\b/);
+  const unitDose = prose.match(/\b(?:GIVE|TAKE|ADMINISTER)\s+(\d+(?:\.\d+)?)\s*(?:UNITS?|IU|UT)\b/);
+  // Match a unit quantity explicitly printed on the product label, including
+  // parenthetical dual labels. Do not infer a vitamin mass/unit conversion.
+  const strengths = [...normalizedDrug.matchAll(unitDose
+    ? /(?<![\d.])(\d+(?:\.\d+)?)\s*(?:UNITS?|IU|UT)\b/g
+    : /(?<![\d.])(\d+(?:\.\d+)?)\s*(MCG|MEQ|MG|GM|G)\b/g)];
+  const dose = unitDose ? [unitDose[0], unitDose[1], 'UNIT'] : prose.match(/\b(?:GIVE|TAKE|ADMINISTER)\s+(\d+(?:\.\d+)?)\s*(MCG|MEQ|MG|GM|G)\b/);
   if (strengths.length !== 1 || !dose) return undefined;
   const strength = strengths[0];
-  const factors: Record<string, number> = { MCG: 0.001, MG: 1, GM: 1000, G: 1000, MEQ: 1 };
+  if (unitDose) strength[2] = 'UNIT';
+  const factors: Record<string, number> = { MCG: 0.001, MG: 1, GM: 1000, G: 1000, MEQ: 1, UNIT: 1 };
   if ((strength[2] === 'MEQ') !== (dose[2] === 'MEQ') || Number(strength[1]) <= 0) return undefined;
   const count = Number(dose[1]) * factors[dose[2]] / (Number(strength[1]) * factors[strength[2]]);
   const fractions: Record<string, string> = { '0.25': '1/4', '0.5': '1/2', '0.75': '3/4' };
@@ -86,7 +92,7 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
       const amount = Number(explicitLimit[1].replace(/,/g, ''));
       const milligrams = explicitLimit[2] === 'MG' ? amount : amount * 1000;
       // 3GME is a daily APAP limit; never substitute it for another amount/time period.
-      if ((milligrams === 3000 || milligrams === 4000) && /\b(?:PER\s+DAY|DAILY|(?:IN|PER)\s+(?:A\s+)?24\s*(?:HOURS?|HRS?|HR|H)\b)/.test(fullProse.slice(explicitLimit.index))) apapLimitToken = milligrams === 3000 ? '3GME' : 'NTE4';
+      if ((milligrams === 3000 || milligrams === 4000) && /(?:\bPER\s+DAY|\bDAILY|(?:\bIN|\bPER|\/)\s+(?:A\s+)?24\s*(?:HOURS?|HRS?|HR|H)\b|\/24H\b)/.test(fullProse.slice(explicitLimit.index))) apapLimitToken = milligrams === 3000 ? '3GME' : 'NTE4';
     } else apapLimitToken = '3GM';
   }
 
@@ -98,7 +104,11 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
   if (/^(?:(?:GIVE|TAKE|ADMINISTER|INSTILL|INSERT|APPLY|INHALE|USE)\s+)?-\s*\d/.test(upperProse)) return manualResult('Invalid Negative Dose');
 
   // A measured liquid is not necessarily oral. Resolve explicit inhalation first.
-  const nebulizer = /\b(?:NEB|NEBULI[ZS]ER|NEBULI[ZS]E)\b/.test(upperProse);
+  const inhaled = /\bINHAL(?:E|ATION|ED)\b/.test(upperProse);
+  const nebulizerProduct = !/\b(?:HFA|AEROSOL|INHALER|DISKUS)\b|\/ACT\b/.test(upperDrug) && (/\b(?:NEBULI[ZS]ATION|NEBULI[ZS]ER|DUONEB)\b/.test(upperDrug)
+    || /\bIPRATROPIUM\b/.test(upperDrug) && /\bALBUTEROL\b/.test(upperDrug) && /\bSOLUTION\b/.test(upperDrug)
+    || /\b(?:ALBUTEROL|BUDESONIDE)\b/.test(upperDrug) && /\b(?:INHALATION|INH)\b/.test(upperDrug) && /\b(?:SOLUTION|SUSPENSION|SOLN)\b/.test(upperDrug));
+  const nebulizer = /\b(?:NEB|NEBULI[ZS]ER|NEBULI[ZS]E)\b/.test(upperProse) || inhaled && nebulizerProduct;
   const inhaledVolume = /\bINHAL(?:E|ATION|ED)\b/.test(upperProse) && /\b\d+(?:\.\d+)?\s*(?:ML|MILLILITERS?)\b/.test(upperProse);
   if (nebulizer || inhaledVolume) {
     if (/\b(?:DO\s+NOT|NOT\s+TO|AVOID|WITHOUT)\b[^.;]{0,35}\b(?:NEB|NEBULI[ZS]ER|NEBULI[ZS]E)\b/.test(upperProse)) return manualResult('Unverified Nebulizer Route');
@@ -107,13 +117,15 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
     const volume = upperProse.match(/(?<![\d./-])\b(\d+(?:\.\d+)?)\s*(?:ML|MILLILITERS?)\b/);
     const verifiedCombinationVial = /\b(?:47335075649|47335075652|47335-756-(?:49|52))\b/.test(upperDrug)
       && /\bIPRATROPIUM\b/.test(upperDrug) && /\bALBUTEROL\b/.test(upperDrug);
-    const albuterolUnitDose = /\bALBUTEROL\b/.test(upperDrug) && /\b(?:INH|INHALATION)\b/.test(upperDrug)
-      && /(?<![\d.])0\.083\s*%/.test(upperDrug) && !/\b(?:IPRATROPIUM|WITH|AND)\b|[+/]/.test(upperDrug);
-    const verified3mlVial = verifiedCombinationVial || albuterolUnitDose;
+    const albuterolUnitDose = /\bALBUTEROL\b/.test(upperDrug) && /\b(?:INH|INHALATION|NEBULI[ZS]ATION)\b/.test(upperDrug)
+      && /(?<![\d.])0\.083\s*%/.test(upperDrug) && !/\b(?:IPRATROPIUM|WITH|AND)\b|\+/.test(upperDrug);
+    const reportedCombinationVial = /\bIPRATROPIUM\b/.test(upperDrug) && /\bALBUTEROL\b/.test(upperDrug)
+      && /0\.5\s*-\s*2\.5\s*\(3\)\s*MG\s*\/\s*3\s*ML\b/.test(upperDrug);
+    const verified3mlVial = verifiedCombinationVial || albuterolUnitDose || reportedCombinationVial;
     if (volume && Number(volume[1]) === 3 && verified3mlVial) {
       abnormalities.push({ id: 'nebulizer_vial_conversion', tier: 'applied_correction', title: 'Nebulizer Vial Quantity Calculated',
         message: 'The source volume was converted to one vial using the verified product presentation. Verify the selected NDC before copying.',
-        correction: '3ML = 1V; route NEB', trigger: albuterolUnitDose ? 'Albuterol 0.083% inhalation solution: labeled 3 mL unit-dose presentation; verify selected product' : 'NDC 47335-756-49/52: 3 mL unit-dose vial for nebulizer use' });
+        correction: '3ML = 1V; route NEB', trigger: albuterolUnitDose ? 'Albuterol 0.083%: reported 3 mL unit-dose presentation; verify selected product' : reportedCombinationVial ? 'Reported ipratropium-albuterol 0.5-2.5 (3) MG/3ML unit-dose presentation' : 'NDC 47335-756-49/52: 3 mL unit-dose vial for nebulizer use' });
       return { doseToken: '1V', routeToken: 'NEB', abnormalities, isApap, apapLimitToken };
     }
     if (volume && Number(volume[1]) > 0 && nebulizer && !/\b(?:MIX|DILUTE|ADD)\b/.test(upperProse)) {
@@ -153,6 +165,30 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
   const peg = resolvePegPreparation(upperDrug, fullProse, oral || !!tubeRoute ? enteralRoute : undefined);
   if (peg) return { doseToken: peg.preparationTemplate.includes('PACKET') ? '1PKT' : 'ADM 17GM', routeToken: enteralRoute, abnormalities, isApap, apapLimitToken, ...peg };
 
+  if (/\bPATCH(?:ES)?\b/.test(upperDrug) && /\b(?:TRANSDERMALLY|TRANSDERMAL)\b/.test(upperProse)) {
+    const count = upperProse.match(/^(?:APPLY|ADMINISTER)\s+(\d+)\s+PATCH(?:ES)?\b/);
+    if (!count || Number(count[1]) <= 0) return manualResult('Unverified Patch Quantity');
+    return { doseToken: `${Number(count[1])}PA`, routeToken: 'TRANSDERMALLY', abnormalities, isApap, apapLimitToken };
+  }
+
+  // Explicit rectal/ophthalmic instructions outrank a product's generic CREAM
+  // or OINTMENT label. They must not fall through to generic topical dosing.
+  if (/\bRECTALLY\b|\bPR\b/.test(upperProse) && /\bAPPLICATOR(?:FUL)?S?\b/.test(upperProse)) {
+    const count = upperProse.match(/^(?:INSERT|APPLY|ADMINISTER)\s+(\d+)\s+(APPLICATOR(?:FUL)?S?)\b/);
+    if (!count || Number(count[1]) <= 0 || oral) return manualResult('Unverified Rectal Applicator Dose');
+    return { doseToken: `INSERT ${count[1]} ${count[2]}`, routeToken: 'PR', abnormalities, isApap, apapLimitToken };
+  }
+  if (/\bOINTMENT\b/.test(upperDrug) && /\bEYES?\b/.test(upperProse)) {
+    const eye = upperProse.match(/\b(LEFT|RIGHT|BOTH|EACH)\s+EYES?\b/);
+    const amount = upperProse.match(/^INSTILL\s+(0\.25|0\.5|1\/4|1\/2|1)\s+(INCH|APPLICATION)\b/);
+    if (!eye || !amount || oral) return manualResult('Unverified Eye Ointment Dose or Site');
+    const side = /BOTH|EACH/.test(eye[1]) ? 'BOTH EYES' : `${eye[1] === 'LEFT' ? 'LT' : 'RT'} EYE`;
+    const doseToken = amount[2] === 'APPLICATION' ? `INSTILL ${amount[1]} APPLICATION TO EYELID MARGIN OF ${side}`
+      : ['0.25', '1/4'].includes(amount[1]) ? `AP1/4 OF ${side}`
+        : `INSTILL ${['0.5', '1/2'].includes(amount[1]) ? 'A HALF-INCH' : 'A 1-INCH'} RIBBON TO EYELID MARGINS OF ${side}`;
+    return { doseToken, routeToken: '', abnormalities, isApap, apapLimitToken };
+  }
+
   if (/\b(?:VAGINALLY|PV)\b/.test(upperProse)) {
     const amount = upperProse.match(/^INSERT\s+(\d+(?:\.\d+)?)\s*(?:GRAMS?|GMS?|G)\b/);
     if (!amount || Number(amount[1]) <= 0 || oral || /\b(?:TOPICALLY|RECTALLY)\b/.test(upperProse)) return manualResult('Unverified Vaginal Dose or Route');
@@ -174,7 +210,7 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
   const topicalAmount = upperProse.match(/\b(?:APPLY|AP)\s+(?:TO\s+)?(\d+(?:\.\d+)?)\s*(?:GMS?|GRAMS?|G)\b/);
   const siteProse = topicalAmount ? upperProse.slice(topicalAmount.index! + topicalAmount[0].length) : upperProse;
   const topicalSite = siteProse.match(/\bTO\s+(?:THE\s+)?([\s\S]+?)(?=\s+(?:TOPICALLY|TPCL|EVERY|EACH|DAILY|TWICE|THREE|FOUR|\d+\s+TIMES|BID|TID|QID|QD|FOR|AS\s+NEEDED)\b|[.;]|$)/);
-  const siteToken = topicalSite ? `TO ${topicalSite[1].trim().replace(/\bLEFT\b/g, 'LT').replace(/\bRIGHT\b/g, 'RT')}` : undefined;
+  const siteToken = topicalSite ? `TO ${topicalSite[1].trim().replace(/^1 APPLICATION TO\s+/, '').replace(/\bLEFT\b/g, 'LT').replace(/\bRIGHT\b/g, 'RT')}` : undefined;
 
   // Existing institutional diclofenac 1% defaults remain visible as additions.
   // Explicit quantities always win; preserve the complete anatomical site.
@@ -209,9 +245,9 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
   }
 
   if (/\bSPRAYS?\b/.test(upperProse)) {
-    const spray = upperProse.match(/^(?:ADMINISTER\s+|USE\s+|GIVE\s+)?([12])\s+SPRAYS?\s+(?:IN|INTO)\s+(?:BOTH|EACH)\s+NOSTRILS?\b/);
+    const spray = upperProse.match(/^(?:ADMINISTER\s+|USE\s+|GIVE\s+)?([12])\s+SPRAYS?\s+(?:IN|INTO)\s+(?:(BOTH|EACH|LEFT|RIGHT)\s+)?NOSTRILS?\b/);
     if (!spray || oral || /\b(?:NOT|EXCEPT|AVOID)\b/.test(upperProse)) return manualResult('Unverified Nasal Spray Dose or Site');
-    return { doseToken: `${spray[1]}SP`, routeToken: 'ENOS', abnormalities, isApap, apapLimitToken };
+    return { doseToken: `${spray[1]}SP`, routeToken: /BOTH|EACH/.test(spray[2] || '') ? 'ENOS' : `IN ${spray[2] ? spray[2] + ' ' : ''}NOSTRIL`, abnormalities, isApap, apapLimitToken };
   }
 
   // Unsupported explicit non-oral instructions must be retained, not forced into the oral fallback.
@@ -266,7 +302,7 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
       return { doseToken: `INJ ${Number(units[1])} UN`, routeToken: 'SQ', abnormalities, isApap, apapLimitToken };
     }
 
-    const strengthMatch = upperDrug.match(/(\d+(?:\.\d+)?)\s*MG\s*\/\s*(\d+(?:\.\d+)?)\s*ML/);
+    const strengthMatch = upperDrug.match(/(\d+(?:\.\d+)?)\s*MG\s*\/\s*(\d+(?:\.\d+)?)?\s*ML/);
     const mgMatch = upperProse.match(/(\d+(?:\.\d+)?)\s*MG/);
     const mlMatch = upperProse.match(/(\d+(?:\.\d+)?)\s*ML/);
 
@@ -275,7 +311,8 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
 
     if (strengthMatch) {
       const concMg = parseFloat(strengthMatch[1]);
-      const concMl = parseFloat(strengthMatch[2]);
+      const concMl = parseFloat(strengthMatch[2] || '1');
+      if (concMg <= 0 || concMl <= 0) return manualResult('Invalid Injectable Concentration');
       if (mgMatch) {
         mg = parseFloat(mgMatch[1]);
         vol = (mg * concMl) / concMg;
@@ -294,7 +331,7 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
 
     return {
       doseToken,
-      routeToken: /\b(?:INTRAMUSCULAR|IM)\b/i.test(upperProse) ? 'IM' : 'SQ',
+      routeToken: /\b(?:INTRAMUSCULAR(?:LY)?|IM)\b/i.test(upperProse) ? 'IM' : /\b(?:INTRAVENOUS(?:LY)?|IV)\b/.test(upperProse) ? 'IV' : 'SQ',
       abnormalities,
       isApap,
       apapLimitToken
@@ -317,7 +354,7 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
   // Powder packets precede liquid detection so mixing volumes cannot become
   // an oral liquid dose. Explicit preparation remains intact for manual review.
   if (/\b(?:PACKETS?|PKT)\b/.test(`${upperDrug} ${upperProse}`)) {
-    if (/\b(?:MIX(?:ED|ING)?|DISSOLV(?:E|ED|ING)|RECONSTITUT(?:E|ED|ION)|STIR(?:RED)?|WATER|JUICE|BEVERAGE|OZ|OUNCES?|ML|MILLILITERS?)\b/.test(fullProse)) return manualResult('Explicit Packet Preparation Requires Review');
+    if (/\b(?:MIX(?:ED|ING)?|DISSOLV(?:E|ED|ING)|RECONSTITUT(?:E|ED|ION)|STIR(?:RED)?|WATER|JUICE|BEVERAGE|OZ|OUNCES?|ML|MILLILITERS?)\b/.test(upperProse)) return manualResult('Explicit Packet Preparation Requires Review');
     const countMatch = upperProse.match(/(?<![\d./-])(\d+|ONE|TWO|THREE)\s*(?:PACKETS?|PKT)\b/);
     const calculated = !countMatch ? quantityFromStrength(upperDrug, upperProse) : undefined;
     if ((!countMatch && (!calculated || !Number.isInteger(calculated.count))) || /\b\d+\s*(?:-|TO|\/)\s*\d+\s*PACKETS?\b/.test(upperProse) || !/\b(?:ORALLY|BY\s+MOUTH|PO)\b/.test(upperProse)) return manualResult('Unspecified Packet Dose or Route');
@@ -329,7 +366,7 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
       && /\b17(?:\.0+)?\s*(?:GM|GRAMS?|G)\b/.test(upperDrug)
       && !/\b(?:ELECTROLYTES?|SODIUM|POTASSIUM|SULFATE|CHLORIDE|ASCORBIC|WITH|AND)\b|[-+/]/.test(upperDrug);
     return { doseToken: `${count}PKT`, routeToken: 'PO', abnormalities, isApap, apapLimitToken,
-      preparationTemplate: isPeg17g && count === 1 ? 'MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO' : undefined };
+      preparationTemplate: isPeg17g && count === 1 && !/\b(?:MIX|DISSOLVE|STIR|LIQUID|FLUID|WATER|OZ|ML)\b/.test(fullProse) ? 'MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO' : undefined };
   }
 
   // Bulk powder quantities are mass, never a tablet count. Preserve source preparation.
@@ -345,25 +382,29 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
   }
 
   // Oral liquid / syrup / elixir / solution / suspension
-  const isLiquid = /\b(?:SYR(?:UP)?|SOLN|SOLUTION|ELIX(?:IR)?|LIQ(?:UID)?|SUSP(?:ENSION)?)\b/.test(upperDrug) ||
+  const isLiquid = /\b(?:SYR(?:UP)?|SOLN|SOLUTION|ELIX(?:IR)?|LIQ(?:UID)?|SUSP(?:ENSION)?|CONCENTRATE)\b/.test(upperDrug) ||
     /\b\d+(?:\.\d+)?\s*ML\b/i.test(upperProse) ||
     upperProse.includes('MILLILITER');
 
   if (isLiquid) {
     const mlMatch = upperProse.match(/(?<![\d./-])\b(\d+(?:\.\d+)?)\s*(?:ML|MILLILITERS?)\b/);
-    if (!mlMatch || (!tubeRoute && !/\b(?:BY\s+MOUTH|PO|ORALLY|ORAL)\b/.test(upperProse))) return manualResult('Unspecified Liquid Dose or Route');
-    const vol = mlMatch ? parseFloat(mlMatch[1]) : 0;
-    if (vol <= 0 || /\b\d+(?:\.\d+)?\s*(?:-|TO|OR)\s*\d+(?:\.\d+)?\s*ML\b/.test(upperProse)) return manualResult('Invalid or Variable Liquid Dose');
+    if (!tubeRoute && !/\b(?:BY\s+MOUTH|PO|ORALLY|ORAL)\b/.test(upperProse)) return manualResult('Unspecified Liquid Dose or Route');
     const strengthMatch = upperDrug.match(/(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))?\s*(MEQ|MG|GM|MCG)\s*\/\s*(\d+(?:\.\d+)?)?\s*ML/);
 
     const drugWithoutConc = upperDrug.replace(/\/\s*\d*(?:\.\d+)?\s*ML.*/, '');
     const isMultiIngredient = upperDrug.includes('-') || (upperDrug.match(/\//g) || []).length > 1 || drugWithoutConc.includes('/') || Boolean(strengthMatch?.[2]);
+    const mass = upperProse.match(/^(?:GIVE|TAKE|ADMINISTER)\s+(\d+(?:\.\d+)?)\s*(MEQ|MG|GM|MCG)\b/);
+    const vol = mlMatch ? Number(mlMatch[1]) : mass && strengthMatch && mass[2] === strengthMatch[3] && !isMultiIngredient
+      && Number(strengthMatch[1]) > 0 ? Number(mass[1]) * Number(strengthMatch[4] || 1) / Number(strengthMatch[1]) : 0;
+    if (!mlMatch && !vol) return manualResult('Unspecified Liquid Dose or Concentration');
+    if (vol <= 0 || /\b\d+(?:\.\d+)?\s*(?:-|TO|OR)\s*\d+(?:\.\d+)?\s*(?:ML|MG|MCG|GM|MEQ)\b/.test(upperProse)) return manualResult('Invalid or Variable Liquid Dose');
+    const volumeText = String(Number(vol.toFixed(6)));
 
     const swishSwallow = /\bSWISH\s+AND\s+SWALLOW\b/.test(fullProse);
     const swishSpit = /\bSWISH\s+AND\s+SPIT\b/.test(fullProse);
     if (swishSwallow && swishSpit) return manualResult('Conflicting Oral Rinse Instructions');
     const action = swishSwallow ? 'SSW' : swishSpit ? 'SSP' : 'ADM';
-    let doseToken = `${action} ${vol}ML`;
+    let doseToken = `${action} ${volumeText}ML`;
     if (strengthMatch && vol > 0 && !isMultiIngredient) {
       const concVal = parseFloat(strengthMatch[1]);
       const unit = strengthMatch[3];
@@ -371,9 +412,11 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
       if (concVal <= 0 || concMl <= 0) return manualResult('Invalid Liquid Concentration');
       const calculatedDose = (vol * concVal) / concMl;
       const roundedDose = Number.isInteger(calculatedDose) ? calculatedDose.toString() : parseFloat(calculatedDose.toFixed(3)).toString();
-      doseToken = `${action} ${vol}ML (${roundedDose}${unit})`;
-      if (action === 'ADM' && vol === 0.5 && unit === 'MG' && calculatedDose === 1
-          && SIG_CODE_REFERENCE.LOR1MG === 'ADMINISTER 0.5 ML (1 MG)') doseToken = 'LOR1MG';
+      doseToken = `${action} ${volumeText}ML (${roundedDose}${unit})`;
+      if (action === 'ADM' && /\bLORAZEPAM\b/.test(upperDrug) && unit === 'MG') {
+        const code = `LOR${roundedDose}MG`;
+        if (SIG_CODE_REFERENCE[code] === `ADMINISTER ${volumeText} ML (${roundedDose} MG)`) doseToken = code;
+      }
     }
     if (!strengthMatch && /\bMAGNESIUM HYDROXIDE\b/.test(upperDrug)) abnormalities.push({
       id: 'missing_liquid_concentration', tier: 'uncorrected_gap', title: 'Liquid Concentration Missing',
@@ -396,7 +439,7 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
   if (/\b\d+(?:\.\d+)?\s*(?:TO|OR|-)\s*\d+(?:\.\d+)?\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)\b/.test(upperProse)) return manualResult('Dose Range Requires Review');
 
   if (/\b(?:TABLETS?|TABS?|CPLT|CAPLETS?|CAPS?|CAPSULES?)\b/.test(upperDrug)
-      && /\b(?:GIVE|TAKE|ADMINISTER)\s+\d+(?:\.\d+)?\s*(?:MCG|MEQ|MG|GM|G)\b/.test(upperProse)) {
+      && /\b(?:GIVE|TAKE|ADMINISTER)\s+\d+(?:\.\d+)?\s*(?:MCG|MEQ|MG|GM|G|UNITS?|IU|UT)\b/.test(upperProse)) {
     const calculated = quantityFromStrength(upperDrug, upperProse);
     if (!calculated || (isCapsule && !Number.isInteger(calculated.count)) || (!Number.isInteger(calculated.count) && /\b(?:ER|DR|EC)\b/.test(upperDrug))) return manualResult('Unverified Oral Solid Quantity');
     abnormalities.push({ id: 'solid_quantity_from_strength', tier: 'applied_correction', title: 'Oral Solid Quantity Calculated',
@@ -404,7 +447,7 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
     return { doseToken: `${calculated.label}${unitChar}${calculated.count === 1 ? '' : ` (${calculated.total})`}`, routeToken: solidRoute, abnormalities, isApap, apapLimitToken };
   }
 
-  const strengthMatch = upperDrug.match(/(\d+(?:\.\d+)?)\s*(MG|MCG|GM)/);
+  const strengthMatch = upperDrug.match(/(\d+(?:\.\d+)?)\s*(MG|MCG|GM|MEQ)\b/);
   const getTargetDose = (multiplier: number): string => {
     if (multiplier <= 0) return '';
     if (strengthMatch && !upperDrug.includes('/') && !upperDrug.includes('-')) {
@@ -549,6 +592,9 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
 
 export function calculateDoseAndVolume(drugName: string, rawProse: string): DoseCalculationResult {
   let result = calculateDoseAndVolumeInternal(drugName, rawProse);
+  if (/\bCHEWABLE\b/i.test(drugName) && result.routeToken === 'PO') {
+    result = { ...result, doseToken: result.doseToken.replace(/^([12])T\b/, '$1CHT') };
+  }
   if (/\b(?:ODT|ORALLY DISINTEGRATING|TABLET DISINTEGRATING)\b/i.test(drugName) && result.routeToken === 'PO' && /^\d+(?:\/\d+)?T\b/.test(result.doseToken)) {
     result = { ...result, doseToken: `DIS ${result.doseToken}` };
   }

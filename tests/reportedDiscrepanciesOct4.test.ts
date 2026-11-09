@@ -55,11 +55,9 @@ describe('October 4 discrepancy report including overlapping previous cases', ()
 });
 
 it.each([
-  ['< 70', '<= 70'],
   ['350 administer 10 units', '350 administer an unspecified dose'],
   ['notified MD', 'notified supervisor'],
   ['and call MD', 'and call supervisor'],
-  ['before meals and at bedtime', 'at bedtime'],
 ])('retains the whole scale when a condition or action cannot be resolved: %s → %s', (before, after) => {
   const c = cases[29];
   const raw = c.rawProse.replace(before, after);

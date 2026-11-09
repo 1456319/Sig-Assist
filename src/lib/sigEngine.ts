@@ -1,5 +1,7 @@
 import { doseForSolidQuantity, doseForVolume, toMedicationUnit, volumeForDose } from './sigMath';
 import { isUnknownElementalCandidate } from './formulationEquivalences';
+import { parseSlidingScale } from './clinical/slidingScale';
+import { resolveFrequencyAndSchedule } from './clinical/frequencyEngine';
 
 /**
  * A structured foundation for free-text SIG translation. Extraction, safety
@@ -17,6 +19,7 @@ export interface ParsedSigOrder {
   raw: string; normalized: string; drug: string; dose?: Dose; route?: Route; frequency?: Frequency;
   prn: boolean; durationDays?: number; indication?: string; slidingScale?: SlidingScaleBand[];
   hold?: { systolicBelow?: number; heartRateBelow?: number }; dateStripped: boolean; issues: SigIssue[];
+  slidingScaleSig?: string;
 }
 export interface SigParseOptions { drug: string; defaultSig?: string; }
 
@@ -69,11 +72,14 @@ function frequency(text: string): Frequency | undefined {
   return [[/\b(?:2 times|2 daily|bid)\b/, 'BID'], [/\b(?:3 times|3 daily|tid)\b/, 'TID'], [/\b(?:4 times|4 daily|qid)\b/, 'QID'], [/\b(?:every 4 hours|q4h)\b/, 'Q4H'], [/\b(?:every 6 hours|q6h)\b/, 'Q6H'], [/\b(?:every 12 hours|q12h)\b/, 'Q12H'], [/\b(?:1 time|daily|qd)\b/, 'QD']].find(([pattern]) => (pattern as RegExp).test(text))?.[1] as Frequency | undefined;
 }
 function scale(text: string): SlidingScaleBand[] | undefined {
-  if (!/sliding scale/.test(text)) return undefined;
+  if (!/sliding[\s-]+scale/i.test(text)) return undefined;
+  const parsed = parseSlidingScale(text);
+  if (parsed.incomplete) return undefined;
   const bands: SlidingScaleBand[] = [];
-  for (const item of text.matchAll(/(\d+)\s*(?:-|to)\s*(\d+)\s*=\s*(\d+(?:\.\d+)?)\s*(?:u|un(?:its?)?|ml)?/gi)) bands.push({ lower: Number(item[1]), upper: Number(item[2]), dose: Number(item[3]) });
-  for (const item of text.matchAll(/(?:<|less than)\s*(\d+)\s*(?:=)?\s*(follow hypoglycemic protocol|notify (?:md|doctor)|call (?:md|doctor))/gi)) bands.push({ upper: Number(item[1]) - 1, action: /hypoglycemic/.test(item[2]) ? 'HYPOGLYCEMIC PROTOCOL' : 'CALL MD' });
-  for (const item of text.matchAll(/(?:>|greater than)\s*(\d+)\s*(?:=\s*(\d+(?:\.\d+)?)\s*(?:u|un(?:its?)?|ml)?|(notify (?:md|doctor)|call (?:md|doctor)))/gi)) bands.push({ lower: Number(item[1]) + 1, dose: item[2] ? Number(item[2]) : undefined, action: item[3] ? 'CALL MD' : undefined });
+  for (const part of parsed.bands.split(';')) {
+    const range = part.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)=(\d+(?:\.\d+)?)U(?:&(.*))?$/);
+    if (range) bands.push({ lower: Number(range[1]), upper: Number(range[2]), dose: Number(range[3]), action: range[4] });
+  }
   return bands.length ? bands.sort((a, b) => (a.lower ?? -Infinity) - (b.lower ?? -Infinity)) : undefined;
 }
 function indication(text: string): string | undefined {
@@ -93,6 +99,11 @@ export function parseSigOrder(raw: string, options: SigParseOptions): ParsedSigO
   const normalized = normalizeSigText(raw).replace(/until\s+\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}:\d{2})?/i, '').trim();
   const issues: SigIssue[] = []; const slidingScale = scale(normalized);
   const order: ParsedSigOrder = { raw, normalized, drug: options.drug, dose: parseDose(normalized, drugStrength(options.drug)), route: route(normalized), frequency: frequency(normalized), prn: /as needed|\bprn\b/.test(normalized), durationDays: Number(normalized.match(/for\s+(\d+)\s+days?/)?.[1]) || undefined, indication: indication(normalized), slidingScale, dateStripped, issues };
+  if (/\bSLIDING[\s-]+SCALE\b/i.test(raw)) {
+    const resolved = resolveFrequencyAndSchedule(raw);
+    order.slidingScaleSig = resolved.slidingScaleString || raw.replace(/\s+/g, ' ').trim().toUpperCase();
+    if (!resolved.slidingScaleString) issues.push({ code: 'incomplete-sliding-scale', severity: 'warning', message: 'The complete scale needs technician review; original directions were retained.' });
+  }
   const hold = normalized.match(/hold\s+(?:if|for)\s+(?:sbp|systolic(?: blood pressure)?)\s+(?:less than|below)\s+(\d+).*?(?:heart rate|hr)\s+(?:less than|below)\s+(\d+)/i);
   if (hold) order.hold = { systolicBelow: Number(hold[1]), heartRateBelow: Number(hold[2]) };
   if (dateStripped) issues.push({ code: 'cut-date', severity: 'warning', message: 'A cut date was removed; verify it in the order date field.' });
@@ -108,6 +119,7 @@ function doseToken(dose: Dose, deliveryRoute?: Route): string {
   return dose.calculatedAmount ? `${base[dose.unit]} (${number(dose.calculatedAmount.amount)}${dose.calculatedAmount.unit})` : base[dose.unit];
 }
 export function renderSig(order: ParsedSigOrder): string {
+  if (order.slidingScaleSig !== undefined) return order.slidingScaleSig;
   if (order.slidingScale) return `CBS ${order.frequency === 'ACHS' ? 'ACHS' : 'AC'} SS ${order.slidingScale.map((band) => band.lower === undefined ? `<${band.upper! + 1}=${band.action}` : band.upper === undefined ? `>${band.lower - 1}=${band.action ?? `${number(band.dose ?? 0)}U`}` : `${band.lower}-${band.upper}=${number(band.dose ?? 0)}U`).join(';')}`;
   const tokens: Array<string | undefined> = [order.dose && doseToken(order.dose, order.route), order.route, order.frequency, order.prn ? 'PRN' : undefined];
   if (order.prn) { tokens.push(order.indication); if (order.durationDays) tokens.push(`X${order.durationDays}D`); } else { if (order.durationDays) tokens.push(`X${order.durationDays}D`); tokens.push(order.indication); }

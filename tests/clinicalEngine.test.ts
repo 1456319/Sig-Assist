@@ -12,7 +12,7 @@ describe('clinicalEngine TESTS.txt validation', () => {
   it('passes Case 2: Miralax packets', () => {
     const raw = `2)MIRALAX PACKETS\nUSER ENTRY:Give 1 packet by mouth one time a day for supplement`;
     const res = translateClinicalSig(parseInboundOrder(raw));
-    expect(res.primarySig).toBe('1PKT PO QD FSU');
+    expect(res.primarySig).toBe('MIX 17 GM (1 PACKET) IN 8OZ OF WATER AND GIVE PO QD FSU');
   });
 
   it('passes Case 3: Humalog Sliding Scale', () => {

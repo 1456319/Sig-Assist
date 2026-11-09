@@ -49,7 +49,7 @@ describe('six new reported mistranslations, 2026-10-01 batch 2', () => {
 
   it('does not discard an unrecognized explicit PRN interval', () => {
     const prose = 'Instill 1 drop in left eye every 45 minutes as needed';
-    expect(translate('UNKNOWN DRUG', prose).primarySig).toBe('INSTILL 1 DROP IN LEFT EYE EVERY 45 MINUTES PRN');
+    expect(translate('UNKNOWN DRUG', prose).primarySig).toBe('1G OS EVERY 45 MINUTES PRN');
   });
 
   it('preserves specified diclofenac quantity and every site', () => {
@@ -131,7 +131,7 @@ describe('six new reported mistranslations, 2026-10-01 batch 2', () => {
     expect(translate(cases.reports[5].drugName, prose).primarySig).toBe('GIVE 1 PACKET PO IN 4 OZ WATER QD FCON');
   });
 
-  it.each(['UNKNOWN POWDER PACKET', 'CHOLESTYRAMINE PWD PACKET 4GM', 'POLYETH GLYC PWD PACKET 8.5GM', 'POLYETHYLENE GLYCOL WITH ELECTROLYTES PACKET 17GM', 'MIRALAX PACKETS'])('does not add the PEG 17 g template to %s', drug => {
+  it.each(['UNKNOWN POWDER PACKET', 'CHOLESTYRAMINE PWD PACKET 4GM', 'POLYETH GLYC PWD PACKET 8.5GM', 'POLYETHYLENE GLYCOL WITH ELECTROLYTES PACKET 17GM'])('does not add the PEG 17 g template to %s', drug => {
     expect(translate(drug, 'Give 1 packet orally daily for constipation').primarySig).toBe('1PKT PO QD FCON');
   });
 
