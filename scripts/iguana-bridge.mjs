@@ -10,9 +10,29 @@ import { createDesktopSession, desktopBuildId } from './framework-desktop.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const maxBytes = 32 * 1024 * 1024;
-const bridgeBuildId = createHash('sha256').update(readFileSync(fileURLToPath(import.meta.url))).digest('hex');
+const siteProfilePath = process.env.SIG_ASSIST_IGUANA_PROFILE || (path.basename(here) === 'scripts' ? path.join(here, '../config/iguana-site.json') : path.join(here, 'iguana-site.json'));
+let siteProfileBytes;
+try { siteProfileBytes = readFileSync(siteProfilePath); } catch { siteProfileBytes = Buffer.alloc(0); }
+const bridgeBuildId = createHash('sha256').update(readFileSync(fileURLToPath(import.meta.url))).update(siteProfileBytes).digest('hex');
 const service = 'sig-assist-iguana-connector';
 const log = (stage, details) => console.log(JSON.stringify({ time: new Date().toISOString(), stage, ...details }));
+const unavailableMessage = 'The order service is temporarily unavailable. Try the lookup again shortly; saved orders and manual translation are still available.';
+
+export function loadSiteProfile() {
+  try { return JSON.parse(siteProfileBytes.toString('utf8')); } catch { return undefined; }
+}
+
+function sameServer(config, profile) {
+  if (!profile?.serverUrl) return false;
+  const target = new URL(config.serverUrl), approved = new URL(profile.serverUrl);
+  return target.origin === approved.origin && target.pathname.replace(/\/$/, '') === approved.pathname.replace(/\/$/, '');
+}
+
+function siteCredentials(config, profile) {
+  if (!profile?.fallbackCredentials || !sameServer(config, profile)) return undefined;
+  const { username, password } = profile.fallbackCredentials;
+  return typeof username === 'string' && username && typeof password === 'string' && password ? { username, password } : undefined;
+}
 
 export function defaultHtmlPath() {
   if (process.env.SIG_ASSIST_HTML_PATH) return process.env.SIG_ASSIST_HTML_PATH;
@@ -133,22 +153,19 @@ export function credentialsFromLoginPage(html) {
       candidates.push({ username: fields.username[0], password: fields.password[0] });
     }
   }
-  if (candidates.length !== 1) throw new Error('Iguana did not supply one filled login form. In Live connection settings, choose an Enter credentials mode. Browser-saved or JavaScript-filled values cannot be read by this connector.');
+  if (candidates.length !== 1) throw new Error('Iguana login form did not supply one unambiguous filled credential pair.');
   return candidates[0];
 }
 
-async function resolveQueryAuthentication(config, query, fetchImpl, signal) {
-  if (config.authMode !== 'login-page') return;
+async function discoverLoginCredentials(config, fetchImpl, signal) {
   const loginUrl = new URL(config.serverUrl);
   loginUrl.pathname = `${loginUrl.pathname.replace(/\/$/, '')}/login.html`;
   loginUrl.search = ''; loginUrl.hash = '';
   const response = await fetchImpl(loginUrl, { method: 'GET', headers: { Accept: 'text/html' }, redirect: 'manual', signal });
   if (!response.ok || !/\b(?:text\/html|application\/xhtml\+xml)\b/i.test(response.headers.get('content-type') || '')) {
-    throw new Error(`Iguana login form could not be read (HTTP ${response.status}). Choose an Enter credentials mode in Live connection settings.`);
+    throw new Error(`Iguana login form could not be read (HTTP ${response.status}).`);
   }
-  const credentials = credentialsFromLoginPage(response.body ? await limitedText(response.body, 512 * 1024) : '');
-  query.url.searchParams.set('username', credentials.username);
-  query.url.searchParams.set('password', credentials.password);
+  return credentialsFromLoginPage(response.body ? await limitedText(response.body, 512 * 1024) : '');
 }
 
 async function limitedText(stream, limit) {
@@ -161,12 +178,63 @@ async function limitedText(stream, limit) {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-export function createBridge({ htmlPath = defaultHtmlPath(), fetchImpl = fetch, timeoutMs = 20000, startup = {}, desktop = createDesktopSession() } = {}) {
-  return createServer(async (request, response) => {
+// An HTTP 200 login page or an unsuccessful XML envelope does not confirm access.
+function successfulLogExport(body) {
+  const xml = body.trim().replace(/^(?:<\?xml[\s\S]*?\?>\s*)?(?:<!--[\s\S]*?-->\s*)*/, '');
+  const root = xml.match(/^<export(?=[\s/>])((?:[^"'<>]|"[^"]*"|'[^']*')*)>/i);
+  if (!root || /\ssuccess\s*=\s*["'](?:false|0)["']/i.test(root[1])) return false;
+  if (root[1].endsWith('/')) return xml.length === root[0].length;
+  return /<\/export\s*>$/i.test(xml);
+}
+
+async function executeQuery(config, { fetchImpl, signal, siteProfile, discoveryTimeoutMs }, query = makeQuery(config)) {
+  const automatic = config.authMode === 'login-page';
+  let credentials, authSource = config.authMode || 'parameters';
+  const fallback = automatic ? siteCredentials(config, siteProfile) : undefined;
+  if (automatic) {
+    try {
+      credentials = await discoverLoginCredentials(config, fetchImpl, AbortSignal.any([signal, AbortSignal.timeout(discoveryTimeoutMs)]));
+      authSource = 'login-page';
+    } catch {
+      if (signal.aborted) throw signal.reason;
+      credentials = fallback; authSource = 'site-profile';
+    }
+    if (!credentials) throw Object.assign(new Error(unavailableMessage), { code: 'AUTOMATIC_AUTH_UNAVAILABLE' });
+  }
+  async function read() {
+    if (credentials) {
+      query.url.searchParams.set('username', credentials.username);
+      query.url.searchParams.set('password', credentials.password);
+    }
+    const response = await fetchImpl(query.url, { method: 'GET', headers: query.headers, signal, redirect: 'manual' });
+    const body = response.body ? await limitedText(response.body, maxBytes) : '';
+    const ok = response.ok && successfulLogExport(body);
+    return { ok, status: response.status, body, contentType: response.headers.get('content-type'), serverDate: response.headers.get('date'), bytes: Buffer.byteLength(body),
+      code: ok ? undefined : response.ok ? 'INVALID_LOG_EXPORT' : `IGUANA_HTTP_${response.status}` };
+  }
+  let result = await read();
+  // One known, explicitly approved site account, never a password search. Do
+  // not send the site's fallback to another host or retry a server outage.
+  if (automatic && !result.ok && [200, 401, 403].includes(result.status) && fallback
+      && (credentials.username !== fallback.username || credentials.password !== fallback.password)) {
+    credentials = fallback; authSource = 'site-profile'; result = await read();
+  }
+  return { ...result, authSource, error: result.ok ? undefined : unavailableMessage };
+}
+
+export function createBridge({ htmlPath = defaultHtmlPath(), fetchImpl = fetch, timeoutMs = 20000, discoveryTimeoutMs = 3000, siteProfile = loadSiteProfile(), startup = {}, desktop = createDesktopSession() } = {}) {
+  let connection = { state: 'not-checked' };
+  let probe, probeController;
+  const transport = { fetchImpl, siteProfile, discoveryTimeoutMs };
+  let generation = 0;
+  const record = (version, result) => {
+    if (version === generation) connection = { state: result.ok ? 'connected' : 'unavailable', checkedAt: new Date().toISOString(), code: result.code, authSource: result.authSource };
+  };
+  const server = createServer(async (request, response) => {
     const send = (status, object) => { response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(JSON.stringify(object)); };
     if (request.method === 'GET' && ['/connector/health', '/connector/diagnostics'].includes(request.url)) {
       const { profile } = await portablePage(htmlPath);
-      send(200, { ok: true, service, protocolVersion: 1, bridgeBuildId, desktopBuildId: await desktopBuildId(), readOnly: true, readOnlyScope: 'Iguana upstream', desktopTransfer: true, upstreamEndpoints: ['GET /login.html', 'GET /api_query'], runtime: process.version, pid: process.pid, page: profile, startup }); return;
+      send(200, { ok: true, service, protocolVersion: 1, bridgeBuildId, desktopBuildId: await desktopBuildId(), readOnly: true, readOnlyScope: 'Iguana upstream', desktopTransfer: true, upstreamEndpoints: ['GET /login.html', 'GET /api_query'], runtime: process.version, pid: process.pid, page: profile, startup, connection }); return;
     }
     if (request.method === 'GET' && request.url === '/favicon.ico') { response.writeHead(204); response.end(); return; }
     if (request.method === 'GET' && ['/', '/index.html'].includes(request.url)) {
@@ -194,27 +262,51 @@ export function createBridge({ htmlPath = defaultHtmlPath(), fetchImpl = fetch, 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     response.on('close', () => { if (!response.writableEnded) controller.abort(); });
-    let config;
+    let config, version;
     try {
       config = JSON.parse(await limitedText(request, 64 * 1024));
       const query = makeQuery(config);
-      await resolveQueryAuthentication(config, query, fetchImpl, controller.signal);
+      if (sameServer(config, siteProfile) && config.channel === siteProfile.channel) version = ++generation;
       log('query.begin', { requestId, method: 'GET', endpoint: '/api_query', ...query.params });
-      // Fixed read-only endpoints. No browser session or HAR credentials are reused.
-      const upstream = await fetchImpl(query.url, { method: 'GET', headers: query.headers, signal: controller.signal, redirect: 'manual' });
-      const body = upstream.body ? await limitedText(upstream.body, maxBytes) : '';
-      const result = { requestId, bridgeBuildId, runtime: process.version, ok: upstream.ok, status: upstream.status, contentType: upstream.headers.get('content-type'), serverDate: upstream.headers.get('date'), elapsedMs: Date.now() - started, bytes: Buffer.byteLength(body) };
+      const { body, ...upstream } = await executeQuery(config, { ...transport, signal: controller.signal }, query);
+      const result = { requestId, bridgeBuildId, runtime: process.version, ...upstream, elapsedMs: Date.now() - started };
+      record(version, upstream);
       log('query.end', result);
-      const error = upstream.ok ? undefined : upstream.status === 401 || upstream.status === 403 ? 'Iguana rejected this account or its log/channel permissions.' : `Iguana returned HTTP ${upstream.status}; check the base URL and authentication mode.`;
-      send(200, { ...result, body, error });
+      send(200, { ...result, ...(upstream.ok ? { body } : {}) });
     } catch (error) {
-      const code = controller.signal.aborted ? 'TIMEOUT_OR_STOPPED' : error.cause?.code ?? 'CONNECTOR_ERROR';
+      const code = controller.signal.aborted ? 'TIMEOUT_OR_STOPPED' : error.cause?.code ?? error.code ?? 'CONNECTOR_ERROR';
       // Fetch exceptions may contain credential-bearing URLs. Export only a safe category.
-      const message = code === 'TIMEOUT_OR_STOPPED' ? 'Iguana request timed out or was stopped.' : code === 'ENOTFOUND' ? 'Iguana hostname could not be resolved from this computer.' : code === 'ECONNREFUSED' ? 'Iguana refused the connection; check host and port.' : code === 'CONNECTOR_ERROR' && error.message && !error.message.includes('http') ? error.message : `Iguana request failed (${code}); check network, URL, account, or TLS configuration.`;
+      const message = config?.authMode === 'login-page' ? unavailableMessage
+        : code === 'TIMEOUT_OR_STOPPED' ? 'Iguana request timed out or was stopped.' : code === 'ENOTFOUND' ? 'Iguana hostname could not be resolved from this computer.' : code === 'ECONNREFUSED' ? 'Iguana refused the connection; check host and port.' : code === 'CONNECTOR_ERROR' && error.message && !error.message.includes('http') ? error.message : `Iguana request failed (${code}); check network, URL, account, or TLS configuration.`;
+      record(version, { ok: false, code });
       log('query.failed', { requestId, code, error: message, elapsedMs: Date.now() - started });
       send(200, { requestId, ok: false, code, error: message, elapsedMs: Date.now() - started });
     } finally { clearTimeout(timer); }
   });
+  server.confirmConnection = () => {
+    if (probe) return probe;
+    probeController = new AbortController();
+    const timer = setTimeout(() => probeController.abort(), timeoutMs);
+    const version = ++generation;
+    connection = { state: 'checking' };
+    probe = Promise.resolve().then(async () => {
+      try {
+        if (!siteProfile?.serverUrl || !siteProfile?.channel) throw Object.assign(new Error('Missing site profile'), { code: 'SITE_PROFILE_UNAVAILABLE' });
+        const day = new Date(); day.setDate(day.getDate() - 1); day.setHours(0, 0, 0, 0);
+        const pad = n => String(n).padStart(2, '0');
+        const config = { serverUrl: siteProfile.serverUrl, channel: siteProfile.channel, authMode: 'login-page', after: `${day.getFullYear()}/${pad(day.getMonth() + 1)}/${pad(day.getDate())} 00:00:00`, limit: 1 };
+        const result = await executeQuery(config, { ...transport, signal: probeController.signal });
+        // The probe neither returns order content nor touches the review queue.
+        record(version, result);
+      } catch (error) {
+        record(version, { ok: false, code: probeController.signal.aborted ? 'TIMEOUT_OR_STOPPED' : error.cause?.code ?? error.code ?? 'CONNECTION_CHECK_FAILED' });
+      } finally { clearTimeout(timer); probe = undefined; }
+      return connection;
+    });
+    return probe;
+  };
+  server.on('close', () => probeController?.abort());
+  return server;
 }
 
 function listen(server, port) {
@@ -234,17 +326,18 @@ async function matchingBridge(port, pageSha256) {
 }
 // A second launch must neither stop an unrelated listener nor open an old build.
 // Reuse a matching bridge; otherwise search nearby ports, then let Windows pick.
-export async function startBridge({ port = 4190, htmlPath = defaultHtmlPath(), onNotice = console.log } = {}) {
+export async function startBridge({ port = 4190, htmlPath = defaultHtmlPath(), onNotice = console.log, checkConnectionOnStart = false, siteProfile = loadSiteProfile(), fetchImpl = fetch } = {}) {
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('SIG_ASSIST_CONNECTOR_PORT must be an integer from 0 to 65535.');
   const { profile } = await portablePage(htmlPath);
   const candidates = port === 0 ? [0] : [...Array.from({ length: Math.min(20, 65536 - port) }, (_, i) => port + i), 0];
   for (const candidate of candidates) {
     const startup = { requestedPort: port };
-    const server = createBridge({ htmlPath, startup });
+    const server = createBridge({ htmlPath, startup, siteProfile, fetchImpl });
     try {
       const actualPort = await listen(server, candidate);
       Object.assign(startup, { actualPort, ...(port && actualPort !== port ? { fallbackFrom: port } : {}) });
       if (startup.fallbackFrom) onNotice(`Port ${port} is occupied. Using port ${actualPort}. Saved browser cases stay at their original address; close your earlier Sig-Assist connector and relaunch to return there.`);
+      if (checkConnectionOnStart) void server.confirmConnection();
       return { server, reused: false, port: actualPort, url: `http://127.0.0.1:${actualPort}/` };
     } catch (error) {
       if (error.code !== 'EADDRINUSE') throw error;
@@ -284,8 +377,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   try {
     const { profile } = await portablePage(htmlPath);
     log('startup.page', { bridgeBuildId, runtime: process.version, ...profile });
-    const { url, reused } = await startBridge({ port, htmlPath });
-    console.log(`Sig-Assist read-only Iguana connector: ${url}\n${reused ? 'The existing connector remains running.' : 'Keep this window open. Stop with Ctrl+C.'} Configure Iguana in Order Queue.`);
+    const { url, reused } = await startBridge({ port, htmlPath, checkConnectionOnStart: true });
+    console.log(`Sig-Assist read-only Iguana connector: ${url}\n${reused ? 'The existing connector remains running.' : 'Keep this window open. Stop with Ctrl+C.'} The order connection is checked automatically; use Sig-Assist normally.`);
     if (process.platform === 'win32' && !process.argv.includes('--no-browser')) spawn('cmd.exe', ['/d', '/c', 'start', '', url], { stdio: 'ignore' });
   } catch (error) {
     console.error(`Connector could not start: ${error.code ? `${error.code}: ` : ''}${error.message}`); process.exitCode = 1;

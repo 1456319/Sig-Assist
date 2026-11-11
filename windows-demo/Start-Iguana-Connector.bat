@@ -80,6 +80,7 @@ if not exist "%SIG_BRIDGE%" goto missing_bridge
 set "SIG_EXIT=%ERRORLEVEL%"
 popd
 echo.
+if "%SIG_ASSIST_BACKGROUND%"=="1" if "%SIG_EXIT%"=="0" exit /b 0
 echo Connector command finished. See the address or error above.
 pause
 exit /b %SIG_EXIT%

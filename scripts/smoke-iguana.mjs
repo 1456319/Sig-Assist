@@ -62,16 +62,33 @@ try {
 
   let requestCount = 0; let saturated = false;
   const upstream = await listen(createServer((request, response) => {
-    assert.equal(request.method, 'GET'); assert.equal(new URL(request.url, 'http://localhost').pathname, '/api_query'); requestCount++;
+    assert.equal(request.method, 'GET');
+    const url = new URL(request.url, 'http://localhost');
+    if (url.pathname === '/login.html') {
+      response.setHeader('Content-Type', 'text/html'); response.end('<form><input name="username"><input name="password"></form>'); return;
+    }
+    assert.equal(url.pathname, '/api_query');
+    assert.equal(url.searchParams.get('username'), 'demo');
+    assert.equal(url.searchParams.get('password'), 'test-secret');
+    requestCount++;
     const entries = saturated ? 1 : 2;
     response.setHeader('Content-Type', 'application/xml');
     response.end(attributeExport(Array.from({ length: entries }, () => ({ payload: newRx(), time: '2026-10-02 01:00:00.000' }))));
   }));
-  const bridge = await listen(createBridge());
+  const siteProfile = { serverUrl: 'http://iguanabalt01v:6543', channel: 'MessageBroker', fallbackCredentials: { username: 'demo', password: 'test-secret' } };
+  const app = createBridge({ siteProfile, fetchImpl: (url, options) => {
+    assert.equal(url.origin, siteProfile.serverUrl);
+    return fetch(new URL(url.pathname + url.search, upstream), options);
+  } });
+  const bridge = await listen(app);
+  assert.equal((await app.confirmConnection()).state, 'connected');
   const live = await browser.newContext(); const livePage = await live.newPage();
   livePage.on('pageerror', error => errors.push(error.message));
   await livePage.goto(bridge);
   await livePage.locator('#sig-assist-startup').waitFor({ state: 'hidden' });
+  await livePage.getByRole('button', { name: 'Load recent E-Rx', exact: true }).click();
+  await livePage.getByText('Search complete: 2 logs · 1 added. Choose a matching E‑Rx below.', { exact: true }).waitFor();
+  await livePage.locator('section[aria-label="Orders"]').getByRole('button').click();
   await livePage.getByText('Live connection settings', { exact: true }).click();
   assert.equal(await livePage.getByLabel('Iguana base URL', { exact: true }).inputValue(), 'http://iguanabalt01v:6543');
   assert.equal(await livePage.getByLabel('Username', { exact: true }).inputValue(), '');
@@ -82,13 +99,9 @@ try {
     return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')} 00:00:00`;
   });
   assert.equal(await livePage.getByLabel('After · Iguana server time', { exact: true }).inputValue(), yesterday);
-  await livePage.getByLabel('Iguana base URL', { exact: true }).fill(upstream);
-  await livePage.getByLabel('Authentication mode', { exact: true }).selectOption('parameters');
-  await livePage.getByLabel('Username', { exact: true }).fill('demo');
-  await livePage.getByLabel('Password', { exact: true }).fill('test-secret');
   await livePage.getByLabel('After · Iguana server time', { exact: true }).fill('2026/10/02 00:00:00');
   await livePage.getByRole('button', { name: 'Fetch once', exact: true }).click();
-  await livePage.getByText(/Last fetch: 2 logs · 1 added · 0 need investigation/).waitFor();
+  await livePage.getByText(/Last fetch: 2 logs · 0 added · 0 need investigation/).waitFor();
   assert.equal(await livePage.locator('section[aria-label="Orders"] li').count(), 1);
   await livePage.getByText('0900, 2100', { exact: true }).waitFor();
   const liveDownloadPromise = livePage.waitForEvent('download');

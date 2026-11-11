@@ -6,7 +6,8 @@ resubmit/dequeue messages, change channels, or insert anything into Framework.
 
 ## First run on Windows
 
-1. Extract the entire `Sig-Assist-Windows-Demo.zip`.
+1. Extract all files from the LAN or demo ZIP. In the preconfigured LAN edition,
+   double-click **Start-Sig-Assist.bat** and go directly to **Find E-Rx**.
 2. To inspect a capture now, open `index.html` in Edge/Chrome. Expand **Capture
    import and diagnostics**, choose **Import HAR / log XML** in Order Queue and
    select the HAR. This requires no runtime/server
@@ -28,7 +29,7 @@ resubmit/dequeue messages, change channels, or insert anything into Framework.
    checkout, run `npm run build:demo`, then `npm run connector` with Node installed.
 4. Paste a PON into **Find E-Rx** and press Enter or click **Find E-Rx**. This is
    the only field needed. **Load recent E-Rx** needs no field at all. Both use the
-   shared connection settings and the values supplied by Iguana's login form.
+   automatic connection; neither requires opening Iguana or testing the connection first.
 5. Choose the correct result by drug, original directions, facility, patient
    reference, PON and source time. The incoming details and suggested SIG load
    automatically. Results are not automatically selected after a lookup, even
@@ -48,7 +49,7 @@ resubmit/dequeue messages, change channels, or insert anything into Framework.
    **Stop intake** stops the outstanding fetch/timer; Ctrl+C closes the bridge.
 
 **Live connection settings** remains available for overrides and **Fetch once**.
-Defaults are **http://iguanabalt01v:6543**, **Use Iguana login-page values**, and
+Defaults are **http://iguanabalt01v:6543**, **Automatic site connection**, and
 **MessageBroker**. The application contains no default username or password.
 Use the web management URL including its port, without
 `/logs.html`. **After** starts at midnight of the previous calendar day on this
@@ -151,25 +152,32 @@ is not available in this captured NewRx and is not invented.
 The bridge calls **GET `/api_query`** with `source=MessageBroker`,
 `type=info,messages,warnings,errors`, `deleted=false`, `reverse=false`, `after`
 and `limit`, plus optional `before` and `filter`. **Info must be included**.
-Authentication defaults to **Use Iguana login-page values**. Before each query,
-the bridge reads **GET `/login.html`** on the configured server and extracts one
-filled `username`/`password` form. It uses those values with the documented API
-parameters for that query. Values stay in bridge request memory, are not returned
-to the app or diagnostic exports, and are neither compiled into the download nor
-saved to disk. A changed server-supplied value is picked up on the next query.
+On launch the connector checks access in the background with a read-only request
+for at most one log entry. It verifies the log export envelope, discards the
+response, and leaves the order queue alone. The page opens immediately. An empty
+successful export counts as access; a returned sign-in page does not.
 
-This mode reads values supplied in HTML, not credentials saved by a browser or
-inserted by JavaScript. It does not execute the login page, submit a login form,
-reuse browser cookies, or depend on the web UI session timeout. A blank, ambiguous,
-redirected or script-filled form produces a message to choose **Enter credentials ·
-Iguana API** or **Enter credentials · HTTP Basic**. Manual entries remain in page
-memory. Captured HAR cookies/credentials are never reused.
+**Automatic site connection** reads `GET /login.html` and uses the form's filled
+values for the API request. It does not need a browser session. When the fields
+are filled only by JavaScript or browser autofill, the preconfigured LAN edition
+uses the site's account automatically. If the API rejects values from the form,
+the connector can retry once with the site account. That account is used only for
+the configured server origin and base path. The GitHub demo contains no account.
+Neither the credentials nor the startup check's order data appear in diagnostics.
 
-The login form's field names are confirmed by the supplied captures. Those
-captures omit the login response body, so automatic discovery is tested against
-synthetic forms and needs one confirmation on the LAN. The user confirmed that a
-private browser window also presents filled fields; if filling happens in page
-JavaScript, use the manual fallback and supply the login page HTML for follow-up.
+If the LAN is down, saved orders and manual translation remain available. A
+normal lookup checks access again. No technician needs to confirm a login or open
+settings. Support can inspect `connection` at `/connector/diagnostics`.
+
+For site deployment, keep a private copy of `config/iguana-site.json` outside the
+repository, adding a `fallbackCredentials` object with the site's `username` and
+`password`. The portable bridge reads `iguana-site.json` beside it; support can
+override its location with `SIG_ASSIST_IGUANA_PROFILE`. To prepare a workstation ZIP:
+
+```sh
+python scripts/package-demo.py --site-profile ../site-profile.json --output ../Sig-Assist-LAN.zip
+```
+
 API reference: https://help.interfaceware.com/v6/http-api-reference
 
 The live adapter accepts the site's observed `<export><message data="..."

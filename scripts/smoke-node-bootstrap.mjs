@@ -56,6 +56,7 @@ try {
   assert.match(probe.stdout, /PROCESSOR_ARCHITECTURE=AMD64/i);
   await mkdir(folder, { recursive: true });
   await writeFile(launcher, source);
+  await cp(path.join(root, 'config/iguana-site.json'), path.join(folder, 'iguana-site.json'));
   await cp(path.join(root, 'scripts/iguana-bridge.mjs'), path.join(folder, 'iguana-bridge.mjs'));
   await cp(path.join(root, 'scripts/framework-desktop.mjs'), path.join(folder, 'framework-desktop.mjs'));
   await cp(path.join(root, 'windows/FrameworkDesktop.cs'), path.join(folder, 'FrameworkDesktop.cs'));

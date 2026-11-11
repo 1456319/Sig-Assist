@@ -13,7 +13,7 @@ See FRAMEWORK-DESKTOP.md for setup, supported fields and current limitations.
 
 1. Extract ALL files from Sig-Assist-Windows-Demo.zip to a folder.
 2. Open index.html directly in Microsoft Edge or Google Chrome.
-   Alternatively, double-click Start-Sig-Assist.bat to open your default browser.
+   In the GitHub demo, double-click Start-Sig-Assist.bat to open your default browser.
    The launcher exits after opening the page; no console needs to stay open.
    Start-Sig-Assist.cmd is the same browser launcher under the older file name.
    The current ZIP replaces the old CMD that required PowerShell.
@@ -54,7 +54,7 @@ the console prints the cause and the location of node-setup.log.
 Keep its console open and use the localhost
 page it opens. Live connection settings are prefilled with:
   Iguana base URL: http://iguanabalt01v:6543
-  Authentication: Use Iguana login-page values    Channel: MessageBroker
+  Authentication: Automatic site connection    Channel: MessageBroker
   After: yesterday at 00:00:00 on this computer    Before: blank
 Paste a PON into Find E-Rx and press Enter. Choose the matching drug/order from
 the results; incoming details and the suggested SIG fill automatically.
@@ -62,13 +62,14 @@ Load recent E-Rx needs no fields. Search the last 7 days is offered when there
 are no matches. The same box filters saved orders by PON, patient reference,
 facility or drug. The manual order form is optional and starts collapsed.
 Adjust the time in Live connection settings if Iguana uses a different clock.
-Start polling after the first test succeeds. New arrivals keep your current
-selection and draft. Each fetch reads the values supplied by Iguana's login form
-and authenticates independently of the web UI session. No login values are built
-into this download. If the form cannot supply them, choose an Enter credentials
-mode in Live connection settings. Browser-saved or JavaScript-filled values need
-that fallback. The bridge only reads GET /login.html and GET /api_query.
-It uses no PowerShell.
+The connector checks access on startup without opening Iguana or waiting for a
+technician. Use Find E-Rx or start polling normally. New arrivals keep your
+current selection and draft. Each fetch reads the server's login form; in the
+LAN edition it can also use the preconfigured site account if autofill is
+unavailable or the form's values are rejected. The GitHub demo has no site
+account. If the service is down, saved orders and manual translation remain
+available; the next live lookup tries again. The bridge only reads
+GET /login.html and GET /api_query.
 
 If port 4190 is busy, a matching connector is reused; otherwise an available
 port is opened. Use the exact address printed by the launcher. Browser-saved

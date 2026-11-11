@@ -1,11 +1,20 @@
 """Package the already-built demo deterministically for download."""
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
-import sys
+import argparse
+import json
 
 demo = Path(__file__).resolve().parent.parent / "windows-demo"
-files = ["Start-Sig-Assist.bat", "Start-Sig-Assist.cmd", "Start-Iguana-Connector.bat", "README.txt", "index.html", "iguana-bridge.mjs", "framework-desktop.mjs", "FrameworkDesktop.cs", "IGUANA-CONNECTOR.md", "FRAMEWORK-DESKTOP.md", "DESKTOP-RECOVERY-2026-10-04.md", "TRANSLATOR-2026-10-04.md", "TRANSLATOR-2026-11-09.md"]
+parser = argparse.ArgumentParser()
+parser.add_argument("--check", action="store_true")
+parser.add_argument("--site-profile", type=Path)
+parser.add_argument("--output", type=Path, default=demo / "Sig-Assist-Windows-Demo.zip")
+args = parser.parse_args()
+if args.site_profile and args.output.resolve().is_relative_to(demo.parent):
+    parser.error("Write site-specific distributions outside the repository.")
+files = ["iguana-site.json", "Start-Sig-Assist.bat", "Start-Sig-Assist.cmd", "Start-Iguana-Connector.bat", "README.txt", "index.html", "iguana-bridge.mjs", "framework-desktop.mjs", "FrameworkDesktop.cs", "IGUANA-CONNECTOR.md", "FRAMEWORK-DESKTOP.md", "DESKTOP-RECOVERY-2026-10-04.md", "TRANSLATOR-2026-10-04.md", "TRANSLATOR-2026-11-09.md"]
 sources = {
+    "iguana-site.json": args.site_profile or demo.parent / "config" / "iguana-site.json",
     "TRANSLATOR-2026-11-09.md": demo.parent / "docs" / "TRANSLATOR-2026-11-09.md",
     "TRANSLATOR-2026-10-04.md": demo.parent / "docs" / "TRANSLATOR-2026-10-04.md",
     "Start-Sig-Assist.cmd": demo.parent / "windows" / "Start-Sig-Assist.cmd",
@@ -23,18 +32,39 @@ for name in files:
     if name.endswith((".bat", ".cmd", ".ps1", ".txt")):
         data = data.replace(b"\n", b"\r\n")
     contents[name] = data
-if "--check" in sys.argv:
-    with ZipFile(demo / "Sig-Assist-Windows-Demo.zip") as archive:
-        assert set(archive.namelist()) == set(files), "Download contains unexpected or missing files"
+profile = json.loads(contents["iguana-site.json"])
+if not args.site_profile and "fallbackCredentials" in profile:
+    raise ValueError("Public package must not contain a site login pair.")
+if args.site_profile:
+    account = profile.get("fallbackCredentials") or {}
+    if not all(isinstance(v, str) and v.strip() for v in (
+        profile.get("serverUrl"), profile.get("channel"), account.get("username"), account.get("password")
+    )):
+        parser.error("A LAN profile requires serverUrl, channel and both fallbackCredentials fields.")
+    # The technician's usual shortcut starts the live workstation; keep an offline option.
+    contents["Open-Sig-Assist-Offline.bat"] = contents["Start-Sig-Assist.bat"]
+    site_launcher = (demo.parent / "windows" / "Start-Sig-Assist-LAN.cmd").read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+    for name in ("Start-Sig-Assist.bat", "Start-Sig-Assist.cmd"):
+        contents[name] = site_launcher
+    contents["README.txt"] = (
+        b"SIG-ASSIST LAN EDITION\r\n"
+        b"Extract all files and double-click Start-Sig-Assist.bat. Use Find E-Rx normally; "
+        b"access is checked automatically. No server login is needed.\r\n"
+        b"For the offline demo instructions below, use Open-Sig-Assist-Offline.bat or index.html.\r\n\r\n"
+        + contents["README.txt"]
+    )
+if args.check:
+    with ZipFile(args.output) as archive:
+        assert set(archive.namelist()) == set(contents), "Download contains unexpected or missing files"
         for name, data in contents.items():
             assert archive.read(name) == data, f"Rebuild the download: {name} differs from current source"
-    print("Committed Windows download matches the current build and launch scripts")
+    print(f"Verified {args.output.name}: every archived file matches its source")
 else:
-    with ZipFile(demo / "Sig-Assist-Windows-Demo.zip", "w", compression=ZIP_DEFLATED, compresslevel=9) as archive:
+    with ZipFile(args.output, "w", compression=ZIP_DEFLATED, compresslevel=9) as archive:
       for name, data in contents.items():
         entry = ZipInfo(name, date_time=(2026, 10, 1, 0, 0, 0))
         entry.compress_type = ZIP_DEFLATED
         entry.create_system = 0
         entry.external_attr = 0
         archive.writestr(entry, data, compresslevel=9)
-    print("Packaged Sig-Assist-Windows-Demo.zip")
+    print(f"Packaged {args.output.name}")

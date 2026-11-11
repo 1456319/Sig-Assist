@@ -68,23 +68,103 @@ describe('local read-only bridge', () => {
     '<form><input name=username value=demo><input name=password value=synthetic disabled></form>',
     '<form><input name=username value=demo><input name=username value=other><input name=password value=synthetic></form>',
     '<form><input name=username value=demo><input name=password value=synthetic></form><form><input name=username value=other><input name=password value=other></form>',
-  ])('requests manual settings when server-supplied values are absent or ambiguous', html => {
-    expect(() => credentialsFromLoginPage(html)).toThrow(/choose an Enter credentials mode/i);
+  ])('rejects absent or ambiguous server values without guessing', html => {
+    expect(() => credentialsFromLoginPage(html)).toThrow(/unambiguous filled credential pair/i);
   });
-  it('does not query logs when the login page requires browser autofill or redirects', async () => {
+  it('does not send the site account to a different server with an empty or redirected login page', async () => {
     for (const status of [200, 302]) {
       const calls: string[] = [];
       const upstream = await listen(createServer((request, response) => {
         calls.push(request.url!); response.writeHead(status, { 'Content-Type': 'text/html', Location: '/other-page' });
         response.end('<form><input name="username"><input name="password"></form>');
       }));
-      const bridge = await listen(createBridge());
+      const approved = status === 200 ? upstream + '/approved-base' : 'https://unrelated.invalid';
+      const bridge = await listen(createBridge({ siteProfile: { serverUrl: approved, channel: config.channel, fallbackCredentials: { username: 'site-test', password: 'fixture-only' } } }));
       const result = await (await fetch(`${bridge}/connector/query`, { method: 'POST', body: JSON.stringify({ ...config, authMode: 'login-page', serverUrl: upstream }) })).json();
       expect(result.ok).toBe(false);
-      expect(result.error).toMatch(/Enter credentials mode/);
+      expect(result.code).toBe('AUTOMATIC_AUTH_UNAVAILABLE');
+      expect(result.error).toMatch(/order service is temporarily unavailable/i);
+      expect(result.error).not.toMatch(/credential|server URL|login|settings/i);
       expect(calls).toEqual(['/login.html']);
     }
   });
+  it('confirms access at launch without blocking startup or returning the probe record', async () => {
+    const calls: URL[] = []; let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const upstream = await listen(createServer(async (req, res) => {
+      const url = new URL(req.url!, 'http://localhost'); calls.push(url);
+      if (url.pathname === '/login.html') {
+        await gate; res.setHeader('content-type', 'text/html'); res.end('<form><input name=username><input name=password></form>');
+      } else {
+        const valid = url.searchParams.get('username') === 'fixture-user' && url.searchParams.get('password') === 'fixture-pass';
+        res.writeHead(valid ? 200 : 403, { 'content-type': 'application/xml' });
+        res.end(valid ? '<export><message data="probe-only-order"/></export>' : '<error/>');
+      }
+    }));
+    const siteProfile = { serverUrl: upstream, channel: 'MessageBroker', fallbackCredentials: { username: 'fixture-user', password: 'fixture-pass' } };
+    const app = await start({ checkConnectionOnStart: true, htmlPath: await pageFile(portableHtml), siteProfile });
+    const health = async () => (await (await fetch(new URL('/connector/health', app.url))).json()).connection;
+    try { expect((await health()).state).toBe('checking'); } finally { release(); }
+    await expect.poll(health).toMatchObject({ state: 'connected', authSource: 'site-profile' });
+    expect(calls.map(c => c.pathname)).toEqual(['/login.html', '/api_query']);
+    expect(calls[1].searchParams.get('limit')).toBe('1');
+    expect(JSON.stringify(await health())).not.toMatch(/probe-only-order|fixture-pass|fixture-user/);
+  });
+
+  it('recovers on an ordinary lookup after an unavailable startup check without retrying an outage as a login failure', async () => {
+    let available = false;
+    const attempted: string[] = [];
+    const upstream = await listen(createServer((req, res) => {
+      const url = new URL(req.url!, 'http://localhost');
+      if (url.pathname === '/login.html') {
+        res.setHeader('content-type', 'text/html'); res.end('<form><input name=username value=form><input name=password value=synthetic></form>'); return;
+      }
+      attempted.push(url.searchParams.get('username')!);
+      res.writeHead(available ? 200 : 503);
+      res.end(available ? '<export/>' : 'offline');
+    }));
+    const app = await start({ checkConnectionOnStart: true, htmlPath: await pageFile(portableHtml),
+      siteProfile: { serverUrl: upstream, channel: config.channel, fallbackCredentials: { username: 'fallback', password: 'fixture-only' } } });
+    const health = async () => (await (await fetch(new URL('/connector/health', app.url))).json()).connection.state;
+    await expect.poll(health).toBe('unavailable');
+    available = true;
+    const r = await (await fetch(new URL('/connector/query', app.url), { method: 'POST', body: JSON.stringify({ ...config, serverUrl: upstream, authMode: 'login-page' }) })).json();
+    expect(r).toMatchObject({ ok: true, authSource: 'login-page' });
+    expect(await health()).toBe('connected');
+    expect(attempted).toEqual(['form', 'form']);
+  });
+
+  it.each([401, 403, 200])('silently retries rejected form credentials once with the site profile (HTTP %s)', async status => {
+    const accounts: string[] = [];
+    const upstream = await listen(createServer((req, res) => {
+      const url = new URL(req.url!, 'http://localhost');
+      if (url.pathname === '/login.html') {
+        res.setHeader('content-type', 'text/html'); res.end('<form><input name=username value=stale><input name=password value=stale></form>'); return;
+      }
+      const user = url.searchParams.get('username')!; accounts.push(user);
+      if (user === 'site-test') { res.setHeader('content-type', 'application/xml'); res.end('<export/>'); }
+      else { res.writeHead(status, { 'content-type': 'text/html' }); res.end('<html>Log in</html>'); }
+    }));
+    const bridge = await listen(createBridge({ siteProfile: { serverUrl: upstream, channel: config.channel, fallbackCredentials: { username: 'site-test', password: 'fixture-only' } } }));
+    const r = await (await fetch(bridge + '/connector/query', { method: 'POST', body: JSON.stringify({ ...config, serverUrl: upstream, authMode: 'login-page' }) })).json();
+    expect(r).toMatchObject({ ok: true, body: '<export/>', authSource: 'site-profile' });
+    expect(accounts).toEqual(['stale', 'site-test']);
+  });
+
+  it.each(['<html>Sign in</html>', '<export success="false"/>', '<export><message/>', '<export-other/>', '<export/><html/>'])('does not mark an unusable HTTP 200 response connected', async body => {
+    let count = 0;
+    const upstream = await listen(createServer((req, res) => {
+      if (req.url!.startsWith('/login.html')) { res.setHeader('content-type', 'text/html'); res.end('<form><input name=username value=test><input name=password value=test></form>'); }
+      else { count++; res.end(body); }
+    }));
+    const bridge = await listen(createBridge({ siteProfile: { serverUrl: upstream, channel: config.channel, fallbackCredentials: { username: 'test', password: 'test' } } }));
+    const r = await (await fetch(bridge + '/connector/query', { method: 'POST', body: JSON.stringify({ ...config, serverUrl: upstream, authMode: 'login-page' }) })).json();
+    expect(r).toMatchObject({ ok: false, code: 'INVALID_LOG_EXPORT' });
+    expect(r.body).toBeUndefined();
+    expect(count).toBe(1);
+    expect((await (await fetch(bridge + '/connector/health')).json()).connection.state).toBe('unavailable');
+  });
+
   it('isolates desktop operations and rejects cross-origin and non-JSON requests', async () => {
     const calls: string[] = [];
     const bridge = await listen(createBridge({ desktop: async (action: string) => { calls.push(action); return { ok: true }; } }));
