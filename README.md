@@ -1,6 +1,6 @@
 # Sig-Assist
 
-**v0.1.0 · Richmond E-DC pilot.** Open the Richmond Process folder in DocuTrack and choose **Show E-DC PONs** in Order Queue. See the [technician workflow](docs/DOCUTRACK-EDC.md).
+**v0.1.1 · Richmond E-DC pilot.** Open the Richmond Process folder in DocuTrack and choose **Show E-DC PONs** in Order Queue. See the [technician workflow](docs/DOCUTRACK-EDC.md).
 
 
 ## Try the local review MVP

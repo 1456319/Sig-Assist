@@ -12,7 +12,11 @@ parser.add_argument("--output", type=Path, default=demo / "Sig-Assist-Windows-De
 args = parser.parse_args()
 if args.site_profile and args.output.resolve().is_relative_to(demo.parent):
     parser.error("Write site-specific distributions outside the repository.")
-files = ["Start-Sig-Assist.bat", "Start-Sig-Assist.cmd", "Start-Iguana-Connector.bat", "README.txt", "index.html", "iguana-bridge.mjs", "framework-desktop.mjs", "FrameworkDesktop.cs", "IGUANA-CONNECTOR.md", "FRAMEWORK-DESKTOP.md", "DOCUTRACK-EDC.md", "DESKTOP-RECOVERY-2026-10-04.md", "TRANSLATOR-2026-10-04.md", "TRANSLATOR-2026-11-09.md"]
+files = ["Start-Sig-Assist.bat", "Start-Sig-Assist.cmd", "Start-Iguana-Connector.bat", "index.html",
+         "iguana-bridge.mjs", "framework-desktop.mjs", "FrameworkDesktop.cs"]
+if args.site_profile:
+    files.extend(["README.txt", "IGUANA-CONNECTOR.md", "FRAMEWORK-DESKTOP.md", "DOCUTRACK-EDC.md",
+                  "DESKTOP-RECOVERY-2026-10-04.md", "TRANSLATOR-2026-10-04.md", "TRANSLATOR-2026-11-09.md"])
 sources = {
     "DOCUTRACK-EDC.md": demo.parent / "docs" / "DOCUTRACK-EDC.md",
     "TRANSLATOR-2026-11-09.md": demo.parent / "docs" / "TRANSLATOR-2026-11-09.md",
@@ -52,6 +56,14 @@ if args.site_profile:
         b"For the offline demo instructions below, use Open-Sig-Assist-Offline.bat or index.html.\r\n\r\n"
         + contents["README.txt"]
     )
+else:
+    version = json.loads((demo.parent / "package.json").read_text())["version"]
+    contents["README.txt"] = (
+        f"Sig-Assist public demo v{version}\r\n"
+        "Extract the ZIP and run Start-Sig-Assist.bat for the offline demo.\r\n"
+        "For desktop access run Start-Iguana-Connector.bat in the same Windows session.\r\n"
+        "Enter your Iguana server URL in Live connection settings if you use live lookup.\r\n"
+    ).encode("utf-8")
 if args.check:
     with ZipFile(args.output) as archive:
         assert set(archive.namelist()) == set(contents), "Download contains unexpected or missing files"

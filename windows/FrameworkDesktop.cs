@@ -881,12 +881,12 @@ public static class FrameworkDesktop {
     static bool QueueColumn(string name, params string[] choices) {
         return choices.Contains(name.Trim().TrimEnd(':'), StringComparer.OrdinalIgnoreCase);
     }
-    static string CellText(AutomationElement cell) {
-        if (cell == null) throw new InvalidOperationException();
-        object value;
-        if (cell.TryGetCurrentPattern(ValuePattern.Pattern, out value)) return ((ValuePattern)value).Current.Value.Trim();
+    static string QueueCellText(AutomationElement cell) {
+        if (cell == null) throw new InvalidOperationException("The document grid returned a null cell.");
+        object pattern;
+        if (cell.TryGetCurrentPattern(ValuePattern.Pattern, out pattern)) return Trim(((ValuePattern)pattern).Current.Value);
         var text = cell.FindFirst(TreeScope.Children, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text));
-        return (text == null ? cell.Current.Name : text.Current.Name).Trim();
+        return text == null ? CellText(cell) : Trim(text.Current.Name);
     }
     static object DocuTrackQueue(string testProcess) {
         var session = Process.GetCurrentProcess().SessionId;
@@ -924,9 +924,9 @@ public static class FrameworkDesktop {
         var rows = new List<string[]>(); int unreadable = 0;
         for (int r = 0; r < count; r++) {
             try {
-                var row = cols.Select(c => CellText(grid.GetItem(r, c.i))).ToArray();
+                var row = cols.Select(c => QueueCellText(grid.GetItem(r, c.i))).ToArray();
                 // A resort during a row read can combine identifiers from different documents.
-                if (!row.SequenceEqual(cols.Select(c => CellText(grid.GetItem(r, c.i))))) throw new InvalidOperationException();
+                if (!row.SequenceEqual(cols.Select(c => QueueCellText(grid.GetItem(r, c.i))))) throw new InvalidOperationException();
                 rows.Add(row);
             } catch (ElementNotAvailableException) { unreadable++; }
               catch (InvalidOperationException) { unreadable++; }

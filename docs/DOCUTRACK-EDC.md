@@ -1,4 +1,4 @@
-# Richmond E-DC pilot · v0.1.0
+# Richmond E-DC pilot · v0.1.1
 
 Open DocuTrack and Sig-Assist in the same Windows session. In DocuTrack select **Folders → Richmond Pharmacy → Order Processing → Process**. Make the folder grid visible. In its Column Chooser show **Document Type** and **Text 3**. Clear filters that might hide E-DC orders, or filter specifically for E-DC Order. In Sig-Assist open **Order Queue → Show E-DC PONs**. The button reads the selected folder through Windows UI Automation using the technician's session.
 
