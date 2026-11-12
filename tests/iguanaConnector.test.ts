@@ -67,8 +67,22 @@ describe('Iguana read-only intake', () => {
     const original = event();
     const cancellation = event(`<Message><Header><From>DEMO-SENDER</From><MessageID>cancel-1</MessageID><SentTime>2026-10-02T06:00:00Z</SentTime><RelatesToMessageID>synthetic-msg-1</RelatesToMessageID></Header><Body><CancelRx/></Body></Message>`);
     const result = ingestScriptEvents([], [cancellation, original], () => '1T PO BID', emit);
-    expect(result.orders).toHaveLength(1); expect(result.orders[0].cancelled).toBe(true);
-    expect(ingestScriptEvents(result.orders, [original], () => 'REOPEN', emit).orders[0].cancelled).toBe(true);
+    expect(result.orders).toHaveLength(1); expect(result.orders[0].cancelled).toBe(false);
+    expect(result.orders[0].cancelRxReceived).toBe(true);
+    expect(ingestScriptEvents(result.orders, [original], () => 'REOPEN', emit).orders[0].cancelRxReceived).toBe(true);
+  });
+  it('does not attach a CancelRx to a conflicting patient or sender, and keeps technician cancellation terminal', () => {
+    const original = event();
+    const notice = { ...original, kind: 'CancelRx', messageId: 'notice', relatesToMessageId: original.messageId };
+    const seeded = ingestScriptEvents([], [original], () => 'SIG', emit).orders;
+    for (const other of [{ ...notice, patientRef: 'OTHER' }, { ...notice, sender: 'OTHER' }]) {
+      const result = ingestScriptEvents(seeded, [other], () => 'SIG', emit);
+      expect(result.summary.quarantined).toBe(1);
+      expect(result.orders[0].cancelRxReceived).toBeUndefined();
+    }
+    const result = ingestScriptEvents([{...seeded[0], manualCancellation:true, cancelled:true}], [notice,notice], () => 'SIG', emit);
+    expect(result.orders[0]).toMatchObject({manualCancellation:true, cancelled:true, cancelRxReceived:true});
+    expect(result.summary.duplicates).toBe(1);
   });
   it('rejects truncated HAR details and warns when details were never captured', () => {
     const har = fourLogHar();
@@ -124,7 +138,7 @@ describe('Iguana read-only intake', () => {
     expect(parseScriptLog({ payload: diagnosticPayload(xml) }, emit)[0].messageId).toBe('synthetic-msg-1');
   });
   it('uses server-provided login values without shipping credentials and recalculates yesterday at calendar midnight', () => {
-    expect(initialConnectorConfig(new Date(2026, 9, 2, 6, 38))).toMatchObject({ serverUrl: 'http://iguanabalt01v:6543', username: '', password: '', channel: 'MessageBroker', after: '2026/10/01 00:00:00', before: '', authMode: 'login-page' });
+    expect(initialConnectorConfig(new Date(2026, 9, 2, 6, 38))).toMatchObject({ serverUrl: '', username: '', password: '', channel: 'MessageBroker', after: '2026/10/01 00:00:00', before: '', authMode: 'login-page' });
     expect(yesterdayMidnight(new Date(2026, 0, 1, 0, 5))).toBe('2025/12/31 00:00:00');
     expect(yesterdayMidnight(new Date(2024, 2, 1, 12))).toBe('2024/02/29 00:00:00');
     expect(yesterdayMidnight(new Date(2026, 2, 9, 0, 30))).toBe('2026/03/08 00:00:00');

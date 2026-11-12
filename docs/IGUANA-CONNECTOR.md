@@ -49,7 +49,7 @@ resubmit/dequeue messages, change channels, or insert anything into Framework.
    **Stop intake** stops the outstanding fetch/timer; Ctrl+C closes the bridge.
 
 **Live connection settings** remains available for overrides and **Fetch once**.
-Defaults are **http://iguanabalt01v:6543**, **Automatic site connection**, and
+A blank server URL uses the installed site profile. In a public demo, enter your server URL. The defaults are **Automatic site connection**, and
 **MessageBroker**. The application contains no default username or password.
 Use the web management URL including its port, without
 `/logs.html`. **After** starts at midnight of the previous calendar day on this
@@ -212,9 +212,7 @@ complete collection of a saturated historical window.
   **Revise source** to resolve the hold and require fresh review.
 - RxFill/status transactions are recorded without creating orders; prescribed
   and dispensed medication sections are kept distinct.
-- CancelRx cancels a uniquely matched local order by explicit source identity
-  or original-message reference. Unmatched/ambiguous cancellations are reported.
-  Replays never reopen cancelled orders.
+- A uniquely matched CancelRx from the same sender records an advisory and clears prior approval. Check the current DocuTrack Process folder and pending Framework order. Unmatched or conflicting identities are reported. Replays preserve technician cancellations.
 - HL7 records are classified for diagnostics and not queued by this adapter.
 
 ## Verbose diagnostic evidence

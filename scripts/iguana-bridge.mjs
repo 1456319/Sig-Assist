@@ -82,7 +82,7 @@ async function portablePage(htmlPath) {
   try {
     const html = await readFile(htmlPath, 'utf8');
     const ok = /<div\b[^>]*\bid=["']root["']/i.test(html) && /<script\b[^>]*type=["']module["'][^>]*>/i.test(html) && !/<(?:script|link)\b[^>]*(?:src|href)\s*=/i.test(html);
-    return { html, profile: { ok, path: path.resolve(htmlPath), bytes: Buffer.byteLength(html), sha256: createHash('sha256').update(html).digest('hex'), ...(ok ? {} : { error: 'This index.html is not the standalone build. It references source files or separate assets that this connector cannot serve.' }) } };
+    return { html, profile: { ok, appVersion: /<meta name="sig-assist-version" content="([^"]+)"/.exec(html)?.[1] ?? null, path: path.resolve(htmlPath), bytes: Buffer.byteLength(html), sha256: createHash('sha256').update(html).digest('hex'), ...(ok ? {} : { error: 'This index.html is not the standalone build. It references source files or separate assets that this connector cannot serve.' }) } };
   } catch (error) {
     if (error.code === 'ENOENT') {
       const isDemoPath = /windows-demo[\\/]index\.html$/i.test(htmlPath) || htmlPath === defaultHtmlPath();
@@ -247,7 +247,7 @@ export function createBridge({ htmlPath = defaultHtmlPath(), fetchImpl = fetch, 
       } else response.end(html);
       return;
     }
-    if (request.method === 'POST' && /^\/connector\/desktop\/(detect|inspect|target|send)$/.test(request.url ?? '')) {
+    if (request.method === 'POST' && /^\/connector\/desktop\/(detect|inspect|target|send|docutrack)$/.test(request.url ?? '')) {
       // Local UI writes require a JSON request from this served page, never a
       // form POST from another site. No CORS access is granted.
       if (request.headers['content-type'] !== 'application/json' || (request.headers.origin && request.headers.origin !== `http://${request.headers.host}`) || request.headers['sec-fetch-site'] === 'cross-site') {
@@ -265,6 +265,10 @@ export function createBridge({ htmlPath = defaultHtmlPath(), fetchImpl = fetch, 
     let config, version;
     try {
       config = JSON.parse(await limitedText(request, 64 * 1024));
+      if (config.serverUrl === '') {
+        if (!siteProfile?.serverUrl) throw new Error('Enter the Iguana base URL in Live connection settings.');
+        config.serverUrl = siteProfile.serverUrl;
+      }
       const query = makeQuery(config);
       if (sameServer(config, siteProfile) && config.channel === siteProfile.channel) version = ++generation;
       log('query.begin', { requestId, method: 'GET', endpoint: '/api_query', ...query.params });

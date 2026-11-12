@@ -47,6 +47,7 @@ export interface DiscrepancyReport {
   readonly technicianSig: string;
   readonly notes: string;
   readonly flaggedForRph: boolean;
+  readonly appVersion?: string;
   readonly buildId?: string;
   readonly context?: {
     readonly source: 'queue' | 'workbench';

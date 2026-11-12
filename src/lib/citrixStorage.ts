@@ -17,6 +17,9 @@ export interface StoredQueueOrder {
   revision?: number;
   previousSources?: OrderSource[];
   cancelled?: boolean;
+  cancelRxReceived?: boolean;
+  manualCancellation?: boolean;
+  legacyReleased?: boolean;
   intakeHold?: string;
   approved?: string;
   copied?: string;

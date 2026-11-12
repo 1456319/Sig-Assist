@@ -848,6 +848,94 @@ public static class FrameworkDesktop {
         return new { ok = true, verified = true, field = field, warnings = warnings,
             detected = Detect(Scan(testProcess, false, false, Identity(window)), control.id, field) };
     }
+    static bool Selected(AutomationElement element) {
+        object pattern;
+        return element.TryGetCurrentPattern(SelectionItemPattern.Pattern, out pattern)
+            && ((SelectionItemPattern)pattern).Current.IsSelected;
+    }
+    static bool FolderSelected(AutomationElement window) {
+        var tabs = window.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TabItem));
+        if (!tabs.Cast<AutomationElement>().Any(tab => tab.Current.Name == "Folders" && !tab.Current.IsOffscreen && Selected(tab))) return false;
+        var items = window.FindAll(TreeScope.Descendants, new AndCondition(
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TreeItem),
+            new PropertyCondition(AutomationElement.NameProperty, "Process")));
+        foreach (AutomationElement item in items) {
+            if (item.Current.IsOffscreen || !Selected(item)) continue;
+            var names = new List<string>();
+            for (var p = item; p != null && !Automation.Compare(p, window); p = TreeWalker.ControlViewWalker.GetParent(p)) {
+                if (p.Current.ControlType == ControlType.TreeItem) names.Add(p.Current.Name.Trim());
+            }
+            if (names.Take(3).SequenceEqual(new[] { "Process", "Order Processing", "Richmond Pharmacy" }, StringComparer.OrdinalIgnoreCase)) return true;
+        }
+        return false;
+    }
+    static string[] QueueHeaders(AutomationElement element, int count) {
+        object pattern;
+        if (element.TryGetCurrentPattern(TablePattern.Pattern, out pattern)) {
+            var headers = ((TablePattern)pattern).Current.GetColumnHeaders();
+            if (headers.Length == count) return headers.Select(h => h.Current.Name.Trim()).ToArray();
+        }
+        var items = element.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.HeaderItem));
+        return items.Count == count ? items.Cast<AutomationElement>().Select(h => h.Current.Name.Trim()).ToArray() : new string[0];
+    }
+    static bool QueueColumn(string name, params string[] choices) {
+        return choices.Contains(name.Trim().TrimEnd(':'), StringComparer.OrdinalIgnoreCase);
+    }
+    static string CellText(AutomationElement cell) {
+        if (cell == null) throw new InvalidOperationException();
+        object value;
+        if (cell.TryGetCurrentPattern(ValuePattern.Pattern, out value)) return ((ValuePattern)value).Current.Value.Trim();
+        var text = cell.FindFirst(TreeScope.Children, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text));
+        return (text == null ? cell.Current.Name : text.Current.Name).Trim();
+    }
+    static object DocuTrackQueue(string testProcess) {
+        var session = Process.GetCurrentProcess().SessionId;
+        var pids = new HashSet<int>();
+        foreach (var p in Process.GetProcessesByName(testProcess ?? "DocuTrack")) {
+            using (p) { if (p.SessionId == session) pids.Add(p.Id); }
+        }
+        var windows = AutomationElement.RootElement.FindAll(TreeScope.Children, Condition.TrueCondition);
+        var scoped = windows.Cast<AutomationElement>().Where(w => pids.Contains(w.Current.ProcessId)
+            && !w.Current.IsOffscreen && FolderSelected(w)).ToList();
+        if (scoped.Count != 1) return new { ok = false, error = "Open Folders > Richmond Pharmacy > Order Processing > Process in one visible DocuTrack window in this Windows session. Its selected folder must be readable.", diagnostics = new { processes = pids.Count, confirmedFolders = scoped.Count } };
+        var window = scoped[0];
+        var grids = window.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.IsGridPatternAvailableProperty, true));
+        AutomationElement chosen = null;
+        var shapes = new List<object>();
+        string[] headers = null;
+        foreach (AutomationElement element in grids) {
+            if (element.Current.IsOffscreen) continue;
+            var candidate = (GridPattern)element.GetCurrentPattern(GridPattern.Pattern);
+            var columns = candidate.Current.ColumnCount;
+            if (columns < 2 || columns > 100) continue;
+            var names = QueueHeaders(element, columns);
+            bool hasType = names.Any(h => QueueColumn(h, "Document Type", "Doc. Type", "Doc Type"));
+            bool hasPon = names.Any(h => QueueColumn(h, "Text 3", "Custom Field 3", "PON", "E-Prescriber Order Number", "Prescriber Order Number"));
+            shapes.Add(new { columns, exposedHeaders = names.Length, hasType, hasPon });
+            if (!hasType || !hasPon) continue;
+            if (chosen != null) throw new Exception("Multiple document grids are exposed. Open just the Process folder and scan again.");
+            chosen = element; headers = names;
+        }
+        if (chosen == null) return new { ok = false, error = "The folder is selected, but its document grid or column names could not be read. Show Document Type and Text 3 in Column Chooser, then refresh. You can also paste rows or document text.", diagnostics = new { confirmedFolders = 1, gridProviders = grids.Count, shapes } };
+        var grid = (GridPattern)chosen.GetCurrentPattern(GridPattern.Pattern);
+        int count = grid.Current.RowCount;
+        if (count < 0 || count > 5000) throw new Exception("The provider did not expose a usable row count. Filter the Process grid to E-DC Order and refresh.");
+        var cols = headers.Select((h,i) => new { h, i }).Where(c => QueueColumn(c.h, "Document Type","Doc. Type","Doc Type","Text 3","Custom Field 3","PON","E-Prescriber Order Number","Prescriber Order Number","Document Number","Document #","Document ID","DocumentID","Doc #","Doc. #","Facility ID","Facility","Source","Text 4","Custom Field 4","Resident Name","List 2","Priority","Route","Status")).ToArray();
+        var rows = new List<string[]>(); int unreadable = 0;
+        for (int r = 0; r < count; r++) {
+            try {
+                var row = cols.Select(c => CellText(grid.GetItem(r, c.i))).ToArray();
+                // A resort during a row read can combine identifiers from different documents.
+                if (!row.SequenceEqual(cols.Select(c => CellText(grid.GetItem(r, c.i))))) throw new InvalidOperationException();
+                rows.Add(row);
+            } catch (ElementNotAvailableException) { unreadable++; }
+              catch (InvalidOperationException) { unreadable++; }
+              catch (System.Runtime.InteropServices.COMException) { unreadable++; }
+        }
+        if (!FolderSelected(window) || grid.Current.RowCount != count || !headers.SequenceEqual(QueueHeaders(chosen, grid.Current.ColumnCount)))
+            throw new Exception("The folder or grid changed during the read. Refresh the Process list again.");
+        return new { ok = true, diagnostics = new { confirmedFolders = 1, gridProviders = grids.Count, shapes, rows = count, unreadable }, capture = new { headers = cols.Select(c => c.h).ToArray(), rows, unreadable } };
+    }
     [STAThread]
     public static int Main(string[] args) {
         Console.InputEncoding = Encoding.UTF8; Console.OutputEncoding = new UTF8Encoding(false);
@@ -857,6 +945,7 @@ public static class FrameworkDesktop {
             string testProcess = args.Length == 2 && args[0] == "--test-process" ? args[1] : null;
             var input = Map(Json.DeserializeObject(Console.In.ReadToEnd()));
             var action = Text(input["action"]);
+            if (action == "docutrack") { Console.WriteLine(Serialize(DocuTrackQueue(testProcess))); return 0; }
             if (action == "target") { Console.WriteLine(Serialize(ChooseTarget(Text(input["field"]), testProcess))); return 0; }
             bool positionReview = input.ContainsKey("positionReview") && Object.Equals(input["positionReview"], true);
             if (action == "window") { Console.WriteLine(Serialize(ChooseEntryWindow(testProcess, positionReview))); return 0; }

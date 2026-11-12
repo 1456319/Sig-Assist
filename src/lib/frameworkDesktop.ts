@@ -29,7 +29,7 @@ export async function frameworkDesktop(action: 'detect' | 'inspect' | 'target' |
 }
 
 export function downloadDesktopDiagnostics(diagnostics: unknown) {
-  const url = URL.createObjectURL(new Blob([JSON.stringify({ format: 'sig-assist-desktop-diagnostics', buildId: __SIG_ASSIST_BUILD__, exportedAt: new Date().toISOString(), evidence: diagnostics }, null, 2)], { type: 'application/json' }));
+  const url = URL.createObjectURL(new Blob([JSON.stringify({ format: 'sig-assist-desktop-diagnostics', buildId: __SIG_ASSIST_BUILD__, appVersion: __SIG_ASSIST_VERSION__, exportedAt: new Date().toISOString(), evidence: diagnostics }, null, 2)], { type: 'application/json' }));
   const link = document.createElement('a'); link.href = url; link.download = `sig-assist-desktop-${new Date().toISOString().replace(/[:.]/g, '-')}.json`; link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

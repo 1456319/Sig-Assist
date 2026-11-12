@@ -9,7 +9,7 @@ export async function exportDiscrepancyCases(scope: 'active' | 'archived' | 'all
   return {
     format: 'sig-assist-discrepancy-cases',
     schemaVersion: 1,
-    exportedAt: new Date().toISOString(),
+    appVersion: __SIG_ASSIST_VERSION__, exportedAt: new Date().toISOString(),
     // Exact source text is needed for replay; this is not an anonymized export.
     redacted: false,
     caseCount: reports.length,

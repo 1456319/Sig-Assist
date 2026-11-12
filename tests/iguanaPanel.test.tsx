@@ -65,7 +65,7 @@ describe('connector through queue UI', () => {
     fireEvent.change(search, { target: { value: ' 12345 ' } });
     fireEvent.submit(search.closest('form')!);
     await screen.findByText('Search complete: 2 logs · 2 added. Choose a matching E‑Rx below.');
-    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({ filter: '12345', serverUrl: 'http://iguanabalt01v:6543', after: yesterdayMidnight(), before: '' });
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({ filter: '12345', serverUrl: '', after: yesterdayMidnight(), before: '' });
     const candidates = within(screen.getByRole('region', { name: 'Orders' }));
     expect(candidates.getAllByRole('button')).toHaveLength(2);
     expect(screen.queryByLabelText('Final SIG · editable, uppercase')).toBeNull();
@@ -120,7 +120,7 @@ describe('connector through queue UI', () => {
     expect((screen.getByLabelText('Password') as HTMLInputElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Fetch once', exact: true }));
     await screen.findByText('Last fetch: 2 logs · 1 added · 0 need investigation');
-    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({ serverUrl: 'http://iguanabalt01v:6543', username: '', password: '', authMode: 'login-page', after: yesterdayMidnight(), before: '' });
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({ serverUrl: '', username: '', password: '', authMode: 'login-page', after: yesterdayMidnight(), before: '' });
     const draft = screen.getByLabelText('Final SIG · editable, uppercase') as HTMLTextAreaElement;
     fireEvent.change(draft, { target: { value: 'TECHNICIAN CORRECTION' } });
     fireEvent.click(screen.getByRole('button', { name: 'Fetch once', exact: true }));

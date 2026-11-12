@@ -27,7 +27,8 @@
         var pageUrl = new URL(location.href);
         pageUrl.username = ''; pageUrl.password = ''; pageUrl.search = ''; pageUrl.hash = '';
         var build = document.querySelector('meta[name="sig-assist-build"]');
-        var report = { format: 'sig-assist-startup-diagnostics', schemaVersion: 1, buildId: build ? build.content : null, startedAt: new Date().toISOString(), pageUrl: pageUrl.href, userAgent: navigator.userAgent, status: 'loading', errors: [] };
+        var version = document.querySelector('meta[name="sig-assist-version"]');
+        var report = { appVersion: version ? version.content : null, format: 'sig-assist-startup-diagnostics', schemaVersion: 1, buildId: build ? build.content : null, startedAt: new Date().toISOString(), pageUrl: pageUrl.href, userAgent: navigator.userAgent, status: 'loading', errors: [] };
         function failed(kind, error, extra) {
           var entry = Object.assign({ time: new Date().toISOString(), kind: kind, message: String(error && error.message || error || 'Unknown startup failure'), stack: error && error.stack || null }, extra || {});
           report.errors.push(entry); report.errors = report.errors.slice(-30);

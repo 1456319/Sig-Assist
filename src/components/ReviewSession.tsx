@@ -84,11 +84,16 @@ export function ReviewSession({ children }: { children: ReactNode }) {
                 orderMap.set(local.id, local);
               } else {
                 // Cancellation precedence: cancellation is a terminal lifecycle state
-                const isCancelled = Boolean(remote.cancelled || local.cancelled);
+                const flags = {
+                  cancelRxReceived: Boolean(remote.cancelRxReceived || local.cancelRxReceived),
+                  manualCancellation: Boolean(remote.manualCancellation || local.manualCancellation),
+                  legacyReleased: Boolean(remote.legacyReleased || local.legacyReleased),
+                };
+                const isCancelled = flags.manualCancellation || (!flags.legacyReleased && Boolean(remote.cancelled || local.cancelled));
                 if (local.revision > remote.revision) {
                   orderMap.set(local.id, {
                     ...local,
-                    cancelled: isCancelled
+                    ...flags, cancelled: isCancelled
                   });
                 } else {
                   const hasLocalSplitEdits = Boolean(
@@ -99,12 +104,12 @@ export function ReviewSession({ children }: { children: ReactNode }) {
                   if (local.revision === remote.revision && (local.approved || local.copied || local.draft !== remote.draft || hasLocalSplitEdits)) {
                     orderMap.set(local.id, {
                       ...local,
-                      cancelled: isCancelled
+                      ...flags, cancelled: isCancelled
                     });
                   } else {
                     orderMap.set(local.id, {
                       ...remote,
-                      cancelled: isCancelled
+                      ...flags, cancelled: isCancelled
                     });
                   }
                 }
@@ -201,6 +206,7 @@ export function ReviewSession({ children }: { children: ReactNode }) {
         revision: o.revision,
         previousSources: o.previousSources,
         cancelled: o.cancelled,
+        manualCancellation: o.manualCancellation, cancelRxReceived: o.cancelRxReceived, legacyReleased: o.legacyReleased,
         intakeHold: o.intakeHold,
         approved: o.approved,
         copied: o.copied,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { useReviewSession } from '../hooks/use-review-session';
 import { ConnectorDiagnostics } from '../lib/iguana/diagnostics';
@@ -14,7 +14,8 @@ import { reviewButtonClass, reviewInputClass } from './SigReviewPanel';
 import { FrameworkDetect } from './FrameworkDesktop';
 import type { FrameworkDetection } from '../lib/frameworkDesktop';
 
-export function IguanaConnectorPanel({ onSelect, searchQuery, onSearchChange, onLookupStart, onDesktopDetected }: {
+export function IguanaConnectorPanel({ onSelect, searchQuery, onSearchChange, onLookupStart, onDesktopDetected, renderQueueTools }: {
+  renderQueueTools?: (find: (pon: string) => void) => ReactNode;
   onSelect: (id: string) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
@@ -149,7 +150,7 @@ export function IguanaConnectorPanel({ onSelect, searchQuery, onSearchChange, on
     const bundle = diagnostics.export({
       buildId: __SIG_ASSIST_BUILD__, connection: { serverUrl: config.serverUrl, channel: config.channel, after: config.after, before: config.before, filter: config.filter, limit: config.limit, authMode: config.authMode, cursor: cursor.current },
       runtime: { userAgent: navigator.userAgent, pageProtocol: location.protocol, localTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, polling, status }, summary,
-      queue: latestOrders.current.filter(order => order.iguana).map(order => ({ id: order.id, revision: order.revision, pon: order.pon, drug: order.drug, directions: order.directions, cancelled: order.cancelled, metadata: order.iguana })),
+      queue: latestOrders.current.filter(order => order.iguana).map(order => ({ id: order.id, revision: order.revision, pon: order.pon, drug: order.drug, directions: order.directions, cancelled: order.cancelled, cancelRxReceived: order.cancelRxReceived, metadata: order.iguana })),
       payloadSnapshots: includePayloads ? snapshots.current : [], droppedSnapshots: droppedSnapshots.current,
     });
     const url = URL.createObjectURL(new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' }));
@@ -162,7 +163,10 @@ export function IguanaConnectorPanel({ onSelect, searchQuery, onSearchChange, on
     onLookupStart(); setEmptyLookup(undefined);
     void runQuery({ query: query.trim(), days });
   }
-  return <section className="rounded-lg border border-primary/40 bg-card p-4" aria-label="Find E-Rx">
+  return <>{renderQueueTools?.(pon => {
+    onSearchChange(pon);
+    if (canLive && !busy && !polling && ready !== false) lookup(pon);
+  })}<section className="rounded-lg border border-primary/40 bg-card p-4" aria-label="Find E-Rx">
     <h3 className="font-semibold">Find E‑Rx</h3>
     <div className="mt-3 space-y-3">
       <FrameworkDetect disabled={!canLive || busy || polling || ready === false}
@@ -193,14 +197,14 @@ export function IguanaConnectorPanel({ onSelect, searchQuery, onSearchChange, on
         <label className="text-sm flex items-center gap-2"><input type="checkbox" role="switch" checked={includePayloads} onChange={event => setIncludePayloads(event.target.checked)} />Include payload evidence</label>
       </div>
       <p className="text-xs text-muted-foreground">Imports inspect captured responses only. Diagnostics contain exact order data and resident references. Payload evidence records up to 20 snapshots of 1 MB each while enabled; authentication fields are omitted. Export before closing this page.</p>
-      {summary && <p className="text-sm">Added {summary.added} · revised {summary.revised} · duplicates {summary.duplicates} · cancelled {summary.cancelled} · status events {summary.ignored} · investigate {summary.quarantined}</p>}
+      {summary && <p className="text-sm">Added {summary.added} · revised {summary.revised} · duplicates {summary.duplicates} · CancelRx notices {summary.cancelled} · status events {summary.ignored} · investigate {summary.quarantined}</p>}
       </details>
       <details>
         <summary className="cursor-pointer text-sm">Live connection settings</summary>
         <fieldset disabled={busy || polling} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-3">
           {(['serverUrl', 'username', 'password', 'channel', 'after', 'before', 'filter'] as const).map(field => <label key={field} className="text-sm space-y-1">
             <span>{{ serverUrl: 'Iguana base URL', username: 'Username', password: 'Password', channel: 'Channel', after: 'After · Iguana server time', before: 'Before · optional server time', filter: 'Text / PON filter · optional' }[field]}</span>
-            <input className={reviewInputClass} type={field === 'password' ? 'password' : 'text'} autoComplete="off" disabled={config.authMode === 'login-page' && (field === 'username' || field === 'password')} value={config[field]} placeholder={field === 'after' || field === 'before' ? 'YYYY/MM/DD HH:MM:SS' : undefined} onChange={event => { cursor.current = ''; setConfig(value => ({ ...value, [field]: event.target.value })); }} />
+            <input className={reviewInputClass} type={field === 'password' ? 'password' : 'text'} autoComplete="off" disabled={config.authMode === 'login-page' && (field === 'username' || field === 'password')} value={config[field]} placeholder={field === 'serverUrl' ? 'Use site profile or enter server URL' : field === 'after' || field === 'before' ? 'YYYY/MM/DD HH:MM:SS' : undefined} onChange={event => { cursor.current = ''; setConfig(value => ({ ...value, [field]: event.target.value })); }} />
           </label>)}
           <label className="text-sm space-y-1"><span>Authentication mode</span><select className={reviewInputClass} value={config.authMode} onChange={event => setConfig(value => ({ ...value, authMode: event.target.value as ConnectorConfig['authMode'] }))}><option value="login-page">Automatic site connection</option><option value="parameters">Enter credentials · Iguana API</option><option value="basic">Enter credentials · HTTP Basic</option></select></label>
           <label className="text-sm space-y-1"><span>Log limit · 1–5000</span><input className={reviewInputClass} type="number" min={1} max={5000} value={config.limit} onChange={event => setConfig(value => ({ ...value, limit: Number(event.target.value) }))} /></label>
@@ -215,5 +219,5 @@ export function IguanaConnectorPanel({ onSelect, searchQuery, onSearchChange, on
         <div className="max-h-56 overflow-auto text-xs font-mono mt-2 space-y-1">{diagnostics.events.slice(-40).reverse().map(event => <p key={event.seq} className={event.level === 'error' ? 'text-red-400' : event.level === 'warn' ? 'text-amber-400' : ''}>{event.timestamp} [{event.level}] {event.stage}: {event.message}</p>)}</div>
       </details>
     </div>
-  </section>;
+  </section></>;
 }

@@ -1,4 +1,4 @@
-import { cancelOrder, orderKey, saveOrder, type OrderSource, type QueueOrder } from '../orderQueue';
+import { orderKey, saveOrder, type OrderSource, type QueueOrder } from '../orderQueue';
 import { clinicalMetadataStamp, type DiagnosticSink, type ScriptEvent } from './types';
 
 export interface IntakeSummary { added: number; revised: number; duplicates: number; cancelled: number; ignored: number; quarantined: number }
@@ -9,7 +9,7 @@ export function ingestScriptEvents(
   let orders = original;
   const summary: IntakeSummary = { added: 0, revised: 0, duplicates: 0, cancelled: 0, ignored: 0, quarantined: 0 };
   const batchIds = new Map<string, string>();
-  const eventStamp = (event: ScriptEvent) => JSON.stringify([event.kind.toLowerCase(), event.facility, event.patientRef, event.pon, event.drug, event.directions, clinicalMetadataStamp(event.metadata)]);
+  const eventStamp = (event: ScriptEvent) => JSON.stringify([event.kind.toLowerCase(), event.relatesToMessageId, event.facility, event.patientRef, event.pon, event.drug, event.directions, clinicalMetadataStamp(event.metadata)]);
   const conflicts = new Set<string>();
   for (const event of events) {
     if (!event.messageId || !event.sender) continue;
@@ -60,6 +60,8 @@ export function ingestScriptEvents(
       const matches = orders.filter(order => {
         const bySource = event.facility && event.patientRef && event.pon && order.id === orderKey({ facility: event.facility, patientRef: event.patientRef, pon: event.pon, drug: '', directions: '' });
         const byMessage = event.relatesToMessageId && order.iguana?.sender === event.sender && order.iguana.messageIds.includes(event.relatesToMessageId);
+        if (order.iguana?.sender !== event.sender) return false;
+        if (event.facility && event.facility !== order.facility || event.pon && event.pon !== order.pon || event.patientRef && event.patientRef !== order.patientRef) return false;
         return bySource || byMessage;
       });
       if (matches.length !== 1) {
@@ -68,10 +70,10 @@ export function ingestScriptEvents(
         continue;
       }
       const match = matches[0];
-      if (match.cancelled) { summary.duplicates++; continue; }
-      orders = orders.map(order => order.id === match.id ? cancelOrder(order) : order);
+      if (match.cancelRxReceived) { summary.duplicates++; continue; }
+      orders = orders.map(order => order.id === match.id ? { ...order, cancelRxReceived: true, approved: undefined, copied: undefined, subOrderApprovals: undefined, subOrderCopied: undefined } : order);
       summary.cancelled++;
-      emit('warn', 'intake.cancelled', 'Matched cancellation blocks review/copy in the local queue', details);
+      emit('warn', 'intake.cancelled', 'Matched SCRIPT CancelRx. Technician review is available. Verify current DocuTrack and Framework evidence.', details);
       continue;
     }
     const source: OrderSource = {

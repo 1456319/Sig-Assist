@@ -12,9 +12,9 @@ parser.add_argument("--output", type=Path, default=demo / "Sig-Assist-Windows-De
 args = parser.parse_args()
 if args.site_profile and args.output.resolve().is_relative_to(demo.parent):
     parser.error("Write site-specific distributions outside the repository.")
-files = ["iguana-site.json", "Start-Sig-Assist.bat", "Start-Sig-Assist.cmd", "Start-Iguana-Connector.bat", "README.txt", "index.html", "iguana-bridge.mjs", "framework-desktop.mjs", "FrameworkDesktop.cs", "IGUANA-CONNECTOR.md", "FRAMEWORK-DESKTOP.md", "DESKTOP-RECOVERY-2026-10-04.md", "TRANSLATOR-2026-10-04.md", "TRANSLATOR-2026-11-09.md"]
+files = ["Start-Sig-Assist.bat", "Start-Sig-Assist.cmd", "Start-Iguana-Connector.bat", "README.txt", "index.html", "iguana-bridge.mjs", "framework-desktop.mjs", "FrameworkDesktop.cs", "IGUANA-CONNECTOR.md", "FRAMEWORK-DESKTOP.md", "DOCUTRACK-EDC.md", "DESKTOP-RECOVERY-2026-10-04.md", "TRANSLATOR-2026-10-04.md", "TRANSLATOR-2026-11-09.md"]
 sources = {
-    "iguana-site.json": args.site_profile or demo.parent / "config" / "iguana-site.json",
+    "DOCUTRACK-EDC.md": demo.parent / "docs" / "DOCUTRACK-EDC.md",
     "TRANSLATOR-2026-11-09.md": demo.parent / "docs" / "TRANSLATOR-2026-11-09.md",
     "TRANSLATOR-2026-10-04.md": demo.parent / "docs" / "TRANSLATOR-2026-10-04.md",
     "Start-Sig-Assist.cmd": demo.parent / "windows" / "Start-Sig-Assist.cmd",
@@ -32,10 +32,9 @@ for name in files:
     if name.endswith((".bat", ".cmd", ".ps1", ".txt")):
         data = data.replace(b"\n", b"\r\n")
     contents[name] = data
-profile = json.loads(contents["iguana-site.json"])
-if not args.site_profile and "fallbackCredentials" in profile:
-    raise ValueError("Public package must not contain a site login pair.")
 if args.site_profile:
+    contents["iguana-site.json"] = args.site_profile.read_bytes()
+    profile = json.loads(contents["iguana-site.json"])
     account = profile.get("fallbackCredentials") or {}
     if not all(isinstance(v, str) and v.strip() for v in (
         profile.get("serverUrl"), profile.get("channel"), account.get("username"), account.get("password")

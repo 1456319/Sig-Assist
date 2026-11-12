@@ -75,7 +75,7 @@ try {
     response.setHeader('Content-Type', 'application/xml');
     response.end(attributeExport(Array.from({ length: entries }, () => ({ payload: newRx(), time: '2026-10-02 01:00:00.000' }))));
   }));
-  const siteProfile = { serverUrl: 'http://iguanabalt01v:6543', channel: 'MessageBroker', fallbackCredentials: { username: 'demo', password: 'test-secret' } };
+  const siteProfile = { serverUrl: 'http://synthetic-iguana.invalid:6543', channel: 'MessageBroker', fallbackCredentials: { username: 'demo', password: 'test-secret' } };
   const app = createBridge({ siteProfile, fetchImpl: (url, options) => {
     assert.equal(url.origin, siteProfile.serverUrl);
     return fetch(new URL(url.pathname + url.search, upstream), options);
@@ -90,7 +90,7 @@ try {
   await livePage.getByText('Search complete: 2 logs · 1 added. Choose a matching E‑Rx below.', { exact: true }).waitFor();
   await livePage.locator('section[aria-label="Orders"]').getByRole('button').click();
   await livePage.getByText('Live connection settings', { exact: true }).click();
-  assert.equal(await livePage.getByLabel('Iguana base URL', { exact: true }).inputValue(), 'http://iguanabalt01v:6543');
+  assert.equal(await livePage.getByLabel('Iguana base URL', { exact: true }).inputValue(), '');
   assert.equal(await livePage.getByLabel('Username', { exact: true }).inputValue(), '');
   assert.equal(await livePage.getByLabel('Password', { exact: true }).inputValue(), '');
   assert.equal(await livePage.getByLabel('Authentication mode', { exact: true }).inputValue(), 'login-page');

@@ -210,7 +210,7 @@ export function TraceLogDrawer({ isOpen, onClose }: TraceLogDrawerProps) {
   const handleExportBundle = () => {
     try {
       const bundle = {
-        exportedAt: new Date().toISOString(),
+        appVersion: __SIG_ASSIST_VERSION__, exportedAt: new Date().toISOString(),
         userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Node/Test',
         storageMode,
         storageConnected: isStorageConnected,

@@ -22,7 +22,7 @@ export class ConnectorDiagnostics {
   export(context: Record<string, unknown>) {
     return {
       format: 'sig-assist-iguana-diagnostics', schemaVersion: 1,
-      exportedAt: new Date().toISOString(), redacted: false,
+      appVersion: __SIG_ASSIST_VERSION__, exportedAt: new Date().toISOString(), redacted: false,
       ...context, droppedEvents: this.dropped, stageCounts: this.counts, events: this.events,
     };
   }

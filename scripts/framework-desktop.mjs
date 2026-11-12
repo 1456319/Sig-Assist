@@ -52,7 +52,7 @@ export async function helperExecutable() {
 }
 export async function runDesktopHelper(input) {
   const exe = await helperExecutable();
-  return JSON.parse(await execute(exe, [], JSON.stringify(input), input.action === 'window' ? 55000 : ['detect', 'inspect'].includes(input.action) ? 45000 : 20000));
+  return JSON.parse(await execute(exe, [], JSON.stringify(input), input.action === 'window' ? 55000 : ['detect', 'inspect', 'docutrack'].includes(input.action) ? 45000 : 20000));
 }
 
 // Bindings stay in this process, expire and are consumed before a write. The page
@@ -76,6 +76,7 @@ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } 
     busy = true;
     let writeStarted = false;
     try {
+      if (action === 'docutrack') return await run({ action: 'docutrack' });
       if (action === 'detect') {
         bindings.clear();
         const input = { action: body.chooseWindow === true ? 'window' : 'detect', positionReview: body.positionReview === true };

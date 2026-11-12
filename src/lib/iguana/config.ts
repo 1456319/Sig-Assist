@@ -15,7 +15,7 @@ export function daysAgoMidnight(days: number, now = new Date()): string {
 
 export function initialConnectorConfig(now = new Date()): ConnectorConfig {
   return {
-    serverUrl: 'http://iguanabalt01v:6543', username: '', password: '',
+    serverUrl: '', username: '', password: '',
     authMode: 'login-page', channel: 'MessageBroker', after: yesterdayMidnight(now),
     before: '', filter: '', limit: 1000,
   };

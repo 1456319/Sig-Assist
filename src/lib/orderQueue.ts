@@ -19,6 +19,9 @@ export interface QueueOrder extends OrderSource {
   approved?: string;
   copied?: string;
   cancelled: boolean;
+  cancelRxReceived?: boolean;
+  manualCancellation?: boolean;
+  legacyReleased?: boolean;
   intakeHold?: string;
   subOrderDrafts?: Record<string, string>;
   subOrderApprovals?: Record<string, string>;
@@ -65,7 +68,7 @@ export function saveOrder(orders: QueueOrder[], source: OrderSource, suggestion:
     };
     return orders.map(order => order.id === id ? {
       ...cleanSource, id, revision: order.revision + 1, previousSources: [...order.previousSources, previous],
-      draft: finalSig(suggestion), cancelled: false,
+      draft: finalSig(suggestion), cancelled: false, cancelRxReceived: existing.cancelRxReceived, legacyReleased: existing.legacyReleased,
     } : order);
   }
   return [...orders, { ...cleanSource, id, revision: 1, previousSources: [], draft: finalSig(suggestion), cancelled: false }];
@@ -76,5 +79,5 @@ export function editDraft(order: QueueOrder, draft: string): QueueOrder {
 }
 
 export function cancelOrder(order: QueueOrder): QueueOrder {
-  return { ...order, cancelled: true, approved: undefined, copied: undefined };
+  return { ...order, manualCancellation: true, cancelled: true, approved: undefined, copied: undefined };
 }

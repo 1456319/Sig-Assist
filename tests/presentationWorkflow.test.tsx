@@ -25,6 +25,20 @@ describe('presentation workflow', () => {
     expect(addDemoOrders(orders)[0]).toEqual(orders[0]);
   });
 
+  it('shows an exact DocuTrack warning while permitting the technician to review and copy the selected order', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    render(<DemoHost />);
+    fireEvent.click(screen.getByRole('button', { name: 'Load demo queue' }));
+    fireEvent.change(screen.getByLabelText('Copied DocuTrack text'), {target: {value: 'Order Type: Discontinue Rx\nPrescriber Order Number: DEMO-001\nOriginal document #: 001234 received on example date'}});
+    fireEvent.click(screen.getByLabelText(/I checked that these documents/));
+    fireEvent.click(screen.getByText('Read copied documents'));
+    expect(screen.getByRole('heading', {name:'This PON has a matching E-DC in DocuTrack!'})).toBeDefined();
+    fireEvent.click(screen.getByRole('checkbox', {name:/I matched the order and checked/}));
+    fireEvent.click(screen.getByRole('button', {name:'Copy reviewed SIG'}));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('1T PO BID X7D'));
+  });
+
   it('runs load, edit, approve, actual clipboard call and source revision through the queue', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { clipboard: { writeText } });

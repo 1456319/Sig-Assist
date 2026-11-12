@@ -23,12 +23,13 @@ hashSources(path.join(__dirname, 'src'));
 buildHash.update(readFileSync(path.join(__dirname, 'index.html'), 'utf8').replace(/\r\n/g, '\n'));
 buildHash.update(readFileSync(path.join(__dirname, 'package-lock.json'), 'utf8').replace(/\r\n/g, '\n'));
 const buildId = buildHash.digest('hex');
+const version = JSON.parse(readFileSync(path.join(__dirname, 'package.json'), 'utf8')).version;
 
 export default defineConfig({
-  define: { __SIG_ASSIST_BUILD__: JSON.stringify(buildId) },
+  define: { __SIG_ASSIST_VERSION__: JSON.stringify(version), __SIG_ASSIST_BUILD__: JSON.stringify(buildId) },
   plugins: [react(), {
     name: 'startup-build-fingerprint',
-    transformIndexHtml: () => [{ tag: 'meta', attrs: { name: 'sig-assist-build', content: buildId }, injectTo: 'head-prepend' }],
+    transformIndexHtml: () => [{ tag: 'meta', attrs: { name: 'sig-assist-version', content: version }, injectTo: 'head-prepend' }, { tag: 'meta', attrs: { name: 'sig-assist-build', content: buildId }, injectTo: 'head-prepend' }],
   }],
   resolve: {
     alias: {

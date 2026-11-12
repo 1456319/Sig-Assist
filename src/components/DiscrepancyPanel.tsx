@@ -85,7 +85,7 @@ export const DiscrepancyPanel: React.FC<DiscrepancyPanelProps> = ({
         technicianSig: techSig.trim().toUpperCase(),
         notes,
         flaggedForRph: false,
-        buildId: __SIG_ASSIST_BUILD__,
+        appVersion: __SIG_ASSIST_VERSION__, buildId: __SIG_ASSIST_BUILD__,
         context,
       }, { immediate: true });
       window.dispatchEvent(new Event(DISCREPANCY_SAVED_EVENT));

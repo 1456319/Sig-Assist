@@ -1,3 +1,5 @@
+v0.1.0 — For the Richmond E-DC list, run the Windows connector and see DOCUTRACK-EDC.md.
+
 SIG-ASSIST BROWSER DEMO
 
 FRAMEWORK DESKTOP PILOT
@@ -53,7 +55,7 @@ requires internet; later launches reuse the cached runtime. If setup fails,
 the console prints the cause and the location of node-setup.log.
 Keep its console open and use the localhost
 page it opens. Live connection settings are prefilled with:
-  Iguana base URL: http://iguanabalt01v:6543
+  Iguana base URL: enter your server URL or leave blank to use an installed site profile
   Authentication: Automatic site connection    Channel: MessageBroker
   After: yesterday at 00:00:00 on this computer    Before: blank
 Paste a PON into Find E-Rx and press Enter. Choose the matching drug/order from

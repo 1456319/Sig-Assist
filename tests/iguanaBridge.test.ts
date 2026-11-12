@@ -146,7 +146,7 @@ describe('local read-only bridge', () => {
       else { res.writeHead(status, { 'content-type': 'text/html' }); res.end('<html>Log in</html>'); }
     }));
     const bridge = await listen(createBridge({ siteProfile: { serverUrl: upstream, channel: config.channel, fallbackCredentials: { username: 'site-test', password: 'fixture-only' } } }));
-    const r = await (await fetch(bridge + '/connector/query', { method: 'POST', body: JSON.stringify({ ...config, serverUrl: upstream, authMode: 'login-page' }) })).json();
+    const r = await (await fetch(bridge + '/connector/query', { method: 'POST', body: JSON.stringify({ ...config, serverUrl: status === 403 ? '' : upstream, authMode: 'login-page' }) })).json();
     expect(r).toMatchObject({ ok: true, body: '<export/>', authSource: 'site-profile' });
     expect(accounts).toEqual(['stale', 'site-test']);
   });

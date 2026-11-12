@@ -19,6 +19,9 @@ import { matchesOrderQuery } from '../lib/orderSearch';
 import { AdministrationTimes, FrameworkTransfer } from './FrameworkDesktop';
 import type { FrameworkDetection } from '../lib/frameworkDesktop';
 
+import { DocuTrackQueue, EdcWarning } from './DocuTrackQueue';
+import { edcMatch, type EdcSnapshot } from '../lib/docutrackQueue';
+
 const emptySource: OrderSource = { facility: '', patientRef: '', pon: '', drug: '', directions: '' };
 const sample: OrderSource = { facility: 'DEMO-FACILITY', patientRef: 'DEMO-RESIDENT', pon: 'DEMO-PON-001', drug: 'Example medication 10 mg tablet', directions: 'Take 1 tablet by mouth twice daily for 7 days.' };
 
@@ -29,7 +32,11 @@ export function OrderQueueView() {
   const [reviseId, setReviseId] = useState<string>();
   const [query, setQuery] = useState('');
   const [desktop, setDesktop] = useState<FrameworkDetection>();
+  const [edcs, setEdcs] = useState<EdcSnapshot>();
   const selected = orders.find(order => order.id === selectedId);
+  const selectedEdc = edcs && selected && edcMatch(edcs.documents, selected, orders);
+  const lookupEdc = edcs && !selected && query.trim() && edcMatch(edcs.documents, { pon: query }, orders);
+  const edcPons = useMemo(() => new Set(edcs?.documents.map(doc => doc.pon)), [edcs]);
   const selectedDirections = selected?.directions;
   const selectedDrug = selected?.drug;
   const selectedDefaultSig = selected?.defaultSig;
@@ -163,7 +170,7 @@ export function OrderQueueView() {
   return <div className="p-4 md:p-6 space-y-5 max-w-[1500px] mx-auto">
     <div className="flex flex-wrap justify-between items-start gap-3">
       <div>
-        <h2 className="text-xl font-semibold">Order review queue</h2>
+        <h2 className="text-xl font-semibold">Order review queue <small className="text-xs text-muted-foreground">v{__SIG_ASSIST_VERSION__}</small></h2>
         <p className="text-sm text-muted-foreground mt-1">Detect or find the incoming E‑Rx, review its SIG and administration times, then copy or send to Framework.</p>
         <p className="text-xs text-muted-foreground mt-1">Orders are saved in browser cache or your connected folder and restored after reload. Clear orders removes the saved queue.</p>
       </div>
@@ -172,7 +179,10 @@ export function OrderQueueView() {
         setOrders([]); setSelectedId(undefined); setReviseId(undefined); setForm(emptySource);
       }}>Clear orders</button>
     </div>
-    <IguanaConnectorPanel searchQuery={query}
+    <IguanaConnectorPanel searchQuery={query} renderQueueTools={find => <>
+      <DocuTrackQueue snapshot={edcs} onCapture={setEdcs} onFind={pon => { setDesktop(undefined); find(pon); }} />
+      {lookupEdc && edcs && <EdcWarning match={lookupEdc} snapshot={edcs} />}
+    </>}
       onDesktopDetected={setDesktop}
       onSearchChange={value => { setQuery(value); setSelectedId(undefined); setReviseId(undefined); setForm(emptySource); }}
       onLookupStart={() => { setSelectedId(undefined); setReviseId(undefined); setForm(emptySource); }}
@@ -188,6 +198,8 @@ export function OrderQueueView() {
           <span className="block text-sm line-clamp-2 mt-1">{order.directions}</span>
           {order.iguana?.sentTime && <span className="block text-xs text-muted-foreground mt-1">Source: {order.iguana.sentTime}</span>}
           <span className="block text-xs mt-2">Revision {order.revision} · {status(order)}</span>
+          {edcPons.has(order.pon) && <strong className="block text-red-600">DocuTrack E-DC · check PON</strong>}
+          {order.cancelRxReceived && <strong className="block text-amber-600">Iguana CancelRx received</strong>}
         </button></li>)}</ul>
         {!filtered.length && <p className="text-sm text-muted-foreground">No orders to display.</p>}
       </section>
@@ -198,6 +210,11 @@ export function OrderQueueView() {
             <span className="text-sm">{status(selected)}</span>
           </div>
           <p className="text-sm break-all">{selected.facility} · {selected.patientRef} · {selected.drug || 'Drug not supplied'}</p>
+          {selectedEdc && edcs && <EdcWarning match={selectedEdc} snapshot={edcs} />}
+          {selected.cancelRxReceived && <p role="alert" className="border-2 border-amber-500 rounded-md p-3 font-semibold">Iguana received a CancelRx for this order. Check Richmond Process for the E-DC and confirm the NewRx is still pending in Framework.</p>}
+          {selected.cancelled && selected.iguana && !selected.manualCancellation && <button className={reviewButtonClass} onClick={() => {
+            if (window.confirm('This older order has a saved cancellation of unknown origin. Resume local review after checking both systems?')) updateSelected(o => ({ ...o, legacyReleased: true, cancelled: false, approved: undefined, copied: undefined, subOrderApprovals: undefined, subOrderCopied: undefined }));
+          }}>Resume review of legacy cancellation</button>}
           {selected.intakeHold && <p role="alert" className="text-sm text-amber-400">{selected.intakeHold}</p>}
           {selected.iguana && <details className="rounded-md border border-border p-3">
             <summary className="cursor-pointer text-sm font-medium">Incoming prescription fields</summary>
