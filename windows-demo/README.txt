@@ -1,4 +1,4 @@
-v0.1.1 — For the Richmond E-DC list, run the Windows connector and see DOCUTRACK-EDC.md.
+v0.1.2 — For the Richmond E-DC list, run the Windows connector and see DOCUTRACK-EDC.md.
 
 SIG-ASSIST BROWSER DEMO
 
