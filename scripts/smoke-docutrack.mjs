@@ -11,9 +11,10 @@ if (process.platform !== 'win32') throw new Error('Windows UI Automation is requ
 const folder = await mkdtemp(path.join(tmpdir(), 'docutrack-fixture-'));
 const helper = await helperExecutable();
 const fixture = spawn('powershell.exe', ['-NoProfile', '-Sta', '-ExecutionPolicy', 'Bypass', '-File', path.resolve('tests/fixtures/DocuTrackQueueFixture.ps1'), folder], { stdio: 'inherit' });
-async function until(name) {
+let outlineFixture;
+async function until(name, host = fixture) {
   for (let i = 0; i < 100; i++) {
-    if (fixture.exitCode !== null) throw new Error('Synthetic fixture exited before ' + name);
+    if (host.exitCode !== null) throw new Error('Synthetic fixture exited before ' + name);
     try { await access(path.join(folder, name)); return; } catch { await wait(150); }
   }
   throw new Error('Synthetic fixture did not reach ' + name);
@@ -36,9 +37,9 @@ try {
   const fx = path.join(process.env.WINDIR, 'Microsoft.NET', 'Framework', 'v4.0.30319');
   const exec = promisify(execFile);
   const probe = path.join(folder,'PilotProbe.exe');
-  const args = ['/nologo','/target:exe','/platform:anycpu','/out:'+probe,'/reference:System.Web.Extensions.dll',
+  const args = ['/nologo','/target:exe','/platform:anycpu','/out:'+probe,'/reference:System.Web.Extensions.dll','/reference:Accessibility.dll',
     ...['UIAutomationClient','UIAutomationTypes','WindowsBase'].map(n=>'/reference:'+path.join(fx,'WPF',n+'.dll')),
-    path.resolve('pilot/workstation-probe/WorkstationProbe.cs')];
+    path.resolve('pilot/workstation-probe/WorkstationProbe.cs'), path.resolve('pilot/workstation-probe/FolderSelectionProbe.cs')];
   await exec(path.join(fx,'csc.exe'),args);
   await assert.rejects(exec(probe,['docutrack','powershell']));
   await exec(path.join(fx,'csc.exe'),['/define:PROBE_FIXTURE',...args]);
@@ -58,8 +59,31 @@ try {
   const changed = await probeFixture();
   assert.ok(changed.nodes.some(n=>n.label==='PV1' && n.selected));
   assert.ok(!changed.nodes.some(n=>n.label==='Process' && n.selected));
+  const outlineExe = path.join(folder, 'PilotFolderFixture.exe');
+  await exec(path.join(fx,'csc.exe'), ['/nologo', '/target:winexe', '/out:'+outlineExe,
+    '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll', '/reference:Accessibility.dll',
+    path.resolve('tests/fixtures/DocuTrackFolderFixture.cs')]);
+  outlineFixture = spawn(outlineExe, [folder]);
+  await until('outline-ready', outlineFixture);
+  async function folderReport() {
+    const { stdout } = await exec(probe, ['folder', 'PilotFolderFixture'], {timeout:30000});
+    assert.ok(!stdout.includes('Private Canary'));
+    const report = JSON.parse(stdout);
+    assert.equal(report.format, 'sig-assist-folder-selection');
+    assert.equal(report.outlines, 1, stdout);
+    return report.trees[0];
+  }
+  assert.deepEqual(await folderReport(), { installerControl: true, selectedState:true, outcome:'selected-path-observed',
+    folder:'Process', cabinet:'Order Processing', businessUnit:'Richmond Pharmacy' });
+  await writeFile(path.join(folder, 'select-triage'), '1'); await until('triage-ready', outlineFixture);
+  const triage = await folderReport();
+  assert.equal(triage.folder, 'Triage'); assert.equal(triage.outcome, 'selected-path-observed');
+  await writeFile(path.join(folder, 'unknown-unit'), '1'); await until('unknown-ready', outlineFixture);
+  const unknown = await folderReport();
+  assert.equal(unknown.businessUnit, null); assert.equal(unknown.outcome, 'path-incomplete');
   console.log('Pilot probe returned scoped controls and read capabilities; sensitive fixture values stayed out of its reports.');
   console.log('Verified scoped DocuTrack folder, exact PON/document ID and rejection after switching folders.');
 } finally {
+  if (outlineFixture) outlineFixture.kill();
   fixture.kill(); await rm(folder, { recursive: true, force: true, maxRetries: 8, retryDelay: 150 });
 }

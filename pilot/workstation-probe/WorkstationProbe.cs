@@ -57,7 +57,7 @@ public static class WorkstationProbe {
         public int? rows, columns;
     }
     public sealed class Report {
-        public string format = "sig-assist-workstation-map", version = "0.1.3", buildMode = "PILOT ONLY", app, outcome;
+        public string format = "sig-assist-workstation-map", version = "0.1.4", buildMode = "PILOT ONLY", app, outcome;
         public int processes, windows, inaccessible, repeatedRowSamplesSkipped, elapsedMs;
         public bool partial;
         public string com32, com64;
@@ -140,7 +140,7 @@ public static class WorkstationProbe {
     [STAThread]
     public static int Main(string[] args) {
         Console.OutputEncoding = new UTF8Encoding(false);
-        if (args.Length == 0 || (args[0] != "docutrack" && args[0] != "framework")) return 2;
+        if (args.Length == 0 || (args[0] != "docutrack" && args[0] != "framework" && args[0] != "folder")) return 2;
         string fixture = null;
 #if PROBE_FIXTURE
         if (args.Length == 2) fixture = args[1];
@@ -149,16 +149,23 @@ public static class WorkstationProbe {
 #endif
         // The provider can hang in a single native call. A background worker lets the coordinator
         // return a fixed failure report and terminate the process even in that case.
-        Report result = null;
+        bool folder = args[0] == "folder";
+        object result = null;
         var worker = new System.Threading.Thread(delegate() {
-            try { result = Capture(args[0], fixture); }
-            catch { result = new Report { app = args[0], outcome = "provider-failed", partial = true }; }
+            try {
+                if (folder) result = FolderSelectionProbe.Capture(fixture);
+                else result = Capture(args[0], fixture);
+            } catch {
+                if (folder) result = new FolderSelectionProbe.Report { outcome = "provider-failed", partial = true };
+                else result = new Report { app = args[0], outcome = "provider-failed", partial = true };
+            }
         });
         worker.IsBackground = true;
         worker.SetApartmentState(System.Threading.ApartmentState.MTA);
         worker.Start();
         if (!worker.Join(20000)) {
-            Console.WriteLine(Json.Serialize(new Report { app = args[0], outcome = "timeout", elapsedMs = 20000, partial = true }));
+            if (folder) Console.WriteLine(Json.Serialize(new FolderSelectionProbe.Report { outcome = "timeout", partial = true }));
+            else Console.WriteLine(Json.Serialize(new Report { app = args[0], outcome = "timeout", elapsedMs = 20000, partial = true }));
             return 0;
         }
         Console.WriteLine(Json.Serialize(result));

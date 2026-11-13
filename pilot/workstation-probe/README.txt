@@ -1,6 +1,19 @@
-SIG-ASSIST WORKSTATION PROBE v0.1.3  |  PILOT ONLY — REMOVE FROM PRODUCTION
+SIG-ASSIST WORKSTATION PROBE v0.1.4  |  PILOT ONLY — REMOVE FROM PRODUCTION
 
 No administrator install or HAR is required.
+
+Richmond folder check (option 3)
+Open Richmond Pharmacy > Order Processing > Process and let the list refresh.
+Run Start-Probe.cmd and choose 3. Save the report as 05-process-folder.json.
+Switch to Triage under the same cabinet, wait for the refresh, and repeat
+option 3. Save as 06-triage-folder.json. No document needs to be opened.
+This check uses Windows accessibility to ask visible outline controls which
+node is active and which cabinet and pharmacy are above it. It reports only
+fixed folder labels, selection state, installer control matches and counts.
+An unknown label is omitted. A partial or missing path is useful evidence.
+No row values are read. Neither report is uploaded automatically.
+
+General control maps (options 1 and 2)
 
 1. Extract all files to a local folder. On the Windows desktop hosting DocuTrack,
    open Richmond Pharmacy > Order Processing > Process. Run Start-Probe.cmd
@@ -14,7 +27,7 @@ No administrator install or HAR is required.
    filename. A second dummy resident helps test collisions; repeat the first
    to check consistency. No real name, PON, phone, or address is needed.
 
-The read-only probe samples the Windows UI Automation control tree. A node
+The general map samples the Windows UI Automation control tree. A node
 number is unique within one capture. Parent numbers describe the structure.
 Labels come from a fixed application vocabulary. Unrecognized names are
 omitted. Node numbers identify controls, not people. Protected inputs and
