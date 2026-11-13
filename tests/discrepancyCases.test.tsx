@@ -65,6 +65,7 @@ it('never reports success on a storage failure and retains the correction for re
   fireEvent.change(screen.getByLabelText('Technician Preferred / Corrected SIG:'), { target: { value: 'corrected' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save Discrepancy Report' }));
   await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+  expect((await screen.findByRole('alert')).textContent).toContain('storage full');
   await waitFor(() => expect((screen.getByRole('button', { name: 'Save Discrepancy Report' }) as HTMLButtonElement).disabled).toBe(false));
   expect(screen.queryByText('Discrepancy saved locally')).toBeNull();
   expect((screen.getByLabelText('Technician Preferred / Corrected SIG:') as HTMLTextAreaElement).value).toBe('CORRECTED');
@@ -79,6 +80,7 @@ it('rejects an empty report, permits notes-only cases and includes older reports
   const saved = vi.fn();
   render(<DiscrepancyPanel pon="CASE-NOTES" drugName="Synthetic drug" rawProse="Ambiguous directions" generatedSig="DRAFT" isOpen onDiscrepancySaved={saved} />);
   fireEvent.click(screen.getByRole('button', { name: 'Save Discrepancy Report' }));
+  expect(screen.getByRole('alert').textContent).toMatch(/corrected SIG or notes/);
   expect(await getCitrixStorageAdapter().readDiscrepancies()).toEqual([]);
   await expect(exportDiscrepancyCases()).rejects.toThrow('No discrepancy reports');
   fireEvent.change(screen.getByLabelText('Notes / Rationale:'), { target: { value: 'Needs investigation; expected SIG not established.' } });
@@ -90,6 +92,24 @@ it('rejects an empty report, permits notes-only cases and includes older reports
   expect(bundle.caseCount).toBe(2);
   expect(bundle.reports[0].technicianSig).toBe('');
   expect(bundle.reports[1]).toEqual(oldReport);
+});
+
+it('saves distinct reports on HTTP workstations without randomUUID', async () => {
+  vi.stubGlobal('crypto', { getRandomValues: crypto.getRandomValues.bind(crypto) });
+  try {
+    const props = { pon: 'SYN', drugName: '', rawProse: 'Synthetic instructions', generatedSig: 'DRAFT', isOpen: true, onDiscrepancySaved: vi.fn() };
+    for (const note of ['First correction', 'Second correction']) {
+      const panel = render(<DiscrepancyPanel {...props} />);
+      fireEvent.change(screen.getByLabelText('Notes / Rationale:'), { target: { value: note } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save Discrepancy Report' }));
+      await screen.findByText('Discrepancy saved locally');
+      panel.unmount();
+    }
+    _resetCitrixStorageAdapterForTesting();
+    const { reports } = await exportDiscrepancyCases();
+    expect(reports.map(report => report.notes)).toEqual(['First correction', 'Second correction']);
+    expect(new Set(reports.map(report => report.id)).size).toBe(2);
+  } finally { vi.unstubAllGlobals(); }
 });
 
 it('clears every Workbench entry and draft while retaining the saved discrepancy archive', async () => {

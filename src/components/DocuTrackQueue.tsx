@@ -54,6 +54,7 @@ export function DocuTrackQueue({ snapshot, onCapture, onFind }: {
     {!!report && <button type="button" className={reviewButtonClass} onClick={() => downloadDesktopDiagnostics(report)}>Save E-DC reader report (counts only)</button>}
     {snapshot && <div className="space-y-2">
       <p role="status" className="text-sm"><strong>{snapshot.documents.length} E-DC documents with a PON</strong> · {snapshot.source === 'desktop' ? 'Exposed folder grid' : 'Technician-provided copy'} · {new Date(snapshot.capturedAt).toLocaleTimeString()} · {snapshot.inspected} rows examined · {snapshot.unresolved} unresolved.</p>
+      {snapshot.exposedRowsOnly && <p role="status">DocuTrack exposed these rows without a total. Compare the count with the Process list or use Copy All Rows to check coverage.</p>}
       {!!snapshot.unresolved && <p role="alert">Some rows could not be identified. Check them in DocuTrack.</p>}
       {!snapshot.documents.length && <p>No matching PON was readable in this snapshot. Check the current folder and filters.</p>}
       {!!snapshot.documents.length && <div className="overflow-auto max-h-80"><table className="text-sm text-left w-full"><thead><tr>{['PON', 'Document #', 'Facility / resident', 'Route', ''].map((h,i) => <th key={i} className="p-2">{h}</th>)}</tr></thead>

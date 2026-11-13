@@ -33,12 +33,54 @@ public class DocuTrackFolderFixture : Control {
     }
 
     protected override AccessibleObject CreateAccessibilityInstance() { return new FolderTree(this); }
+    // WPF peers represent the UltraGrid column captions and value patterns on the workstation.
+    class Segment : System.Windows.Controls.StackPanel {
+        public System.Windows.Automation.Peers.AutomationControlType Role;
+        public Segment(System.Windows.Automation.Peers.AutomationControlType role, string label = "") {
+            Role = role;
+            System.Windows.Automation.AutomationProperties.SetName(this, label);
+            MinHeight = 12;
+        }
+        protected override System.Windows.Automation.Peers.AutomationPeer OnCreateAutomationPeer() {
+            return new SegmentPeer(this);
+        }
+    }
+    class SegmentPeer : System.Windows.Automation.Peers.FrameworkElementAutomationPeer {
+        public SegmentPeer(Segment owner) : base(owner) {}
+        protected override System.Windows.Automation.Peers.AutomationControlType GetAutomationControlTypeCore() {
+            return ((Segment)Owner).Role;
+        }
+        protected override bool IsControlElementCore() { return true; }
+        protected override bool IsContentElementCore() { return true; }
+    }
+    static Segment Results() {
+        var tree = new Segment(System.Windows.Automation.Peers.AutomationControlType.Tree);
+        var header = new Segment(System.Windows.Automation.Peers.AutomationControlType.Header);
+        foreach (var name in new[] { "Doc. Type", "Other", "Text 3" })
+            header.Children.Add(new Segment(System.Windows.Automation.Peers.AutomationControlType.HeaderItem, name));
+        tree.Children.Add(header);
+        foreach (bool ambiguous in new[] { false, true }) {
+            var row = new Segment(System.Windows.Automation.Peers.AutomationControlType.DataItem);
+            // Reverse the headers' order and include a second row with two Text 3 cells.
+            foreach (string name in new[] { "Text 3", ambiguous ? "Text 3" : "Other", "Doc. Type" }) {
+                var cell = new System.Windows.Controls.TextBox { Text = name == "Text 3" ? "00-SYN-A" : name == "Other" ? "Private Canary" : "E-DC Order" };
+                System.Windows.Automation.AutomationProperties.SetName(cell, name);
+                row.Children.Add(cell);
+            }
+            tree.Children.Add(row);
+        }
+        return tree;
+    }
     [STAThread]
     public static void Main(string[] args) {
         var folder = args[0];
         var form = new Form { Text = "Private Canary" };
-        var tree = new DocuTrackFolderFixture { Name = "_searchFolderTree", Dock = DockStyle.Fill };
-        form.Controls.Add(tree);
+        var workspace = new Panel { Name = "WorkflowWorkspace", Dock = DockStyle.Fill };
+        var tree = new DocuTrackFolderFixture { Name = "_searchFolderTree", Dock = DockStyle.Top, Height = 26 };
+        var grid = new System.Windows.Forms.Integration.ElementHost { Name = "_resultsGrid", Dock = DockStyle.Fill, Child = Results() };
+        workspace.Controls.Add(grid);
+        workspace.Controls.Add(tree);
+        form.Controls.Add(workspace);
         var timer = new Timer { Interval = 100 };
         timer.Tick += delegate {
             if (File.Exists(Path.Combine(folder, "unknown-unit"))) {

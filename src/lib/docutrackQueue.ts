@@ -11,6 +11,7 @@ export interface QueueCapture {
   headers: string[];
   rows: string[][];
   unreadable: number;
+  exposedRowsOnly?: boolean;
 }
 
 export interface EdcSnapshot {
@@ -19,6 +20,7 @@ export interface EdcSnapshot {
   documents: EdcDocument[];
   inspected: number;
   unresolved: number;
+  exposedRowsOnly?: boolean;
 }
 
 const headerAliases = {
@@ -55,6 +57,7 @@ export function readQueueCapture(capture: QueueCapture, source: EdcSnapshot['sou
   const facility = column('facility'), sourceCol = column('source'), resident = column('resident'), route = column('route'), status = column('status');
   if (type < 0 || pon < 0) throw new Error('Show Document Type and Text 3 (PON) in the DocuTrack folder grid using Column Chooser.');
   const snapshot: EdcSnapshot = { source, capturedAt, inspected: capture.rows.length + capture.unreadable, unresolved: capture.unreadable, documents: [] };
+  if (capture.exposedRowsOnly) snapshot.exposedRowsOnly = true;
   for (const row of capture.rows) {
     const value = (i: number) => row[i]?.trim() ?? '';
     const kind = value(type);

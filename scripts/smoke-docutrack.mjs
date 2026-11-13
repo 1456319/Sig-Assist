@@ -19,9 +19,9 @@ async function until(name, host = fixture) {
   }
   throw new Error('Synthetic fixture did not reach ' + name);
 }
-function scan() {
+function scan(processName = 'powershell') {
   return new Promise((resolve, reject) => {
-    const child = execFile(helper, ['--test-process', 'powershell'], { timeout: 30000 }, (err, stdout) => {
+    const child = execFile(helper, ['--test-process', processName], { timeout: 30000 }, (err, stdout) => {
       if (err) reject(err); else { try { resolve(JSON.parse(stdout)); } catch (error) { reject(error); } }
     });
     child.stdin.end(JSON.stringify({ action: 'docutrack' }));
@@ -62,6 +62,7 @@ try {
   const outlineExe = path.join(folder, 'PilotFolderFixture.exe');
   await exec(path.join(fx,'csc.exe'), ['/nologo', '/target:winexe', '/out:'+outlineExe,
     '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll', '/reference:Accessibility.dll',
+    ...['PresentationCore','PresentationFramework','UIAutomationTypes','UIAutomationProvider','WindowsBase','WindowsFormsIntegration'].map(n=>'/reference:'+path.join(fx,'WPF',n+'.dll')),
     path.resolve('tests/fixtures/DocuTrackFolderFixture.cs')]);
   outlineFixture = spawn(outlineExe, [folder]);
   await until('outline-ready', outlineFixture);
@@ -75,7 +76,12 @@ try {
   }
   assert.deepEqual(await folderReport(), { installerControl: true, selectedState:true, outcome:'selected-path-observed',
     folder:'Process', cabinet:'Order Processing', businessUnit:'Richmond Pharmacy' });
+  const native = await scan('PilotFolderFixture');
+  assert.equal(native.ok, true, JSON.stringify(native));
+  assert.deepEqual(native.capture, { headers: ['Doc. Type', 'Text 3'], rows: [['E-DC Order', '00-SYN-A']], unreadable: 1, exposedRowsOnly: true });
+  assert.ok(!JSON.stringify(native.diagnostics).includes('00-SYN-A'));
   await writeFile(path.join(folder, 'select-triage'), '1'); await until('triage-ready', outlineFixture);
+  assert.equal((await scan('PilotFolderFixture')).ok, false);
   const triage = await folderReport();
   assert.equal(triage.folder, 'Triage'); assert.equal(triage.outcome, 'selected-path-observed');
   await writeFile(path.join(folder, 'unknown-unit'), '1'); await until('unknown-ready', outlineFixture);

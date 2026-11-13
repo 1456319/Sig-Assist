@@ -45,7 +45,7 @@ export async function helperExecutable() {
       `/reference:${path.join(framework, 'WPF', 'UIAutomationClient.dll')}`,
       `/reference:${path.join(framework, 'WPF', 'UIAutomationTypes.dll')}`,
       `/reference:${path.join(framework, 'WPF', 'WindowsBase.dll')}`,
-      '/reference:System.Web.Extensions.dll', filename], '');
+      '/reference:System.Web.Extensions.dll', '/reference:Accessibility.dll', filename], '');
     return exe;
   })();
   try { return await compiling; } catch (error) { compiling = undefined; throw error; }

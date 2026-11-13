@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useId } from 'react';
 import { getCitrixStorageAdapter } from '../lib/citrixStorage';
 import { MessageSquarePlus } from 'lucide-react';
-import { toast } from 'sonner';
 import type { DiscrepancyReport } from '../lib/clinical/types';
 import { DISCREPANCY_SAVED_EVENT } from '../lib/discrepancyCases';
 
@@ -35,11 +34,13 @@ export const DiscrepancyPanel: React.FC<DiscrepancyPanelProps> = ({
   const [notes, setNotes] = useState('');
   const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const fieldId = useId();
 
   const toggleOpen = () => {
+    setSaveError('');
     if (!isOpen && !techSig && currentDraft !== undefined) setTechSig(currentDraft.toUpperCase());
     if (onToggleOpen) {
       onToggleOpen();
@@ -69,14 +70,16 @@ export const DiscrepancyPanel: React.FC<DiscrepancyPanelProps> = ({
   const handleSave = async () => {
     if (isSaving || isSaved) return;
     if (!techSig.trim() && !notes.trim()) {
-      toast.error('Enter a corrected SIG or notes describing the problem.');
+      setSaveError('Enter a corrected SIG or notes describing the problem.');
       return;
     }
     setIsSaving(true);
+    setSaveError('');
     try {
       const adapter = getCitrixStorageAdapter();
       await adapter.appendDiscrepancy({
-        id: `disc_${crypto.randomUUID()}`,
+        // getRandomValues also works on HTTP workstation origins.
+        id: `disc_${Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('')}`,
         timestamp: new Date().toISOString(),
         pon,
         drugName,
@@ -104,7 +107,7 @@ export const DiscrepancyPanel: React.FC<DiscrepancyPanelProps> = ({
       }, 1200);
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      toast.error(`Failed to save discrepancy report: ${errMsg}`);
+      setSaveError(`Report could not be saved. Your entries are still here. ${errMsg}`);
     } finally {
       setIsSaving(false);
     }
@@ -164,6 +167,7 @@ export const DiscrepancyPanel: React.FC<DiscrepancyPanelProps> = ({
                 ? 'Saving...'
                 : 'Save Discrepancy Report'}
           </button>
+          {saveError && <p role="alert" className="font-semibold text-red-700 dark:text-red-300">{saveError}</p>}
         </div>
       )}
     </div>

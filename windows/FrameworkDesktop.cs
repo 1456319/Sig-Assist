@@ -9,6 +9,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Web.Script.Serialization;
 using System.Windows.Automation;
+using Accessibility;
 
 public sealed class ControlInfo {
     public string id, parentId, automationId, name, label, value, type, className;
@@ -853,6 +854,72 @@ public static class FrameworkDesktop {
         return element.TryGetCurrentPattern(SelectionItemPattern.Pattern, out pattern)
             && ((SelectionItemPattern)pattern).Current.IsSelected;
     }
+    delegate bool VisitWindow(IntPtr handle, IntPtr context);
+    [DllImport("user32.dll")] static extern bool EnumChildWindows(IntPtr parent, VisitWindow visit, IntPtr context);
+    [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr handle);
+    [DllImport("user32.dll")] static extern IntPtr GetParent(IntPtr handle);
+    [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr handle, out uint pid);
+    [DllImport("oleacc.dll")] static extern int AccessibleObjectFromWindow(IntPtr handle, int objectId,
+        ref Guid interfaceId, [MarshalAs(UnmanagedType.Interface)] out IAccessible client);
+    static bool FolderControl(IntPtr handle, IntPtr root) {
+        for (int depth = 0; depth < 3 && handle != IntPtr.Zero && handle != root; depth++) {
+            var id = AutomationElement.FromHandle(handle).Current.AutomationId;
+            if (id == "_searchFolderTree" || id == "SearchFolderTree") return true;
+            handle = GetParent(handle);
+        }
+        return false;
+    }
+    static bool ActiveRichmondProcess(IAccessible tree) {
+        const int outlineItem = 36, selected = 2, navigateLeft = 3;
+        var active = tree.accSelection;
+        var node = active as IAccessible;
+        int child = 0;
+        if (node == null && active is int && (int)active > 0) {
+            child = (int)active;
+            node = tree.get_accChild(child) as IAccessible;
+            if (node == null) node = tree;
+            else child = 0;
+        }
+        foreach (string expected in new[] { "Process", "Order Processing", "Richmond Pharmacy" }) {
+            if (node == null || Convert.ToInt32(node.get_accRole(child)) != outlineItem ||
+                !String.Equals(Trim(node.get_accName(child)), expected, StringComparison.OrdinalIgnoreCase)) return false;
+            if (expected == "Process" && (Convert.ToInt32(node.get_accState(child)) & selected) == 0) return false;
+            if (expected != "Richmond Pharmacy") {
+                // Infragistics maps left navigation to the parent folder in this tree.
+                node = node.accNavigate(navigateLeft, child) as IAccessible;
+                child = 0;
+            }
+        }
+        return true;
+    }
+    static bool NativeFolderSelected(AutomationElement workspace) {
+        var root = new IntPtr(workspace.Current.NativeWindowHandle);
+        int pid = workspace.Current.ProcessId, outlines = 0;
+        bool selected = false, failed = false;
+        if (root == IntPtr.Zero) return false;
+        EnumChildWindows(root, delegate(IntPtr handle, IntPtr unused) {
+            try {
+                uint owner;
+                GetWindowThreadProcessId(handle, out owner);
+                if (owner != pid || !IsWindowVisible(handle) || !FolderControl(handle, root)) return true;
+                var iid = typeof(IAccessible).GUID;
+                IAccessible client;
+                if (AccessibleObjectFromWindow(handle, -4, ref iid, out client) == 0 && client != null &&
+                    Convert.ToInt32(client.get_accRole(0)) == 35) {
+                    outlines++;
+                    selected = ActiveRichmondProcess(client);
+                }
+                return outlines < 2;
+            } catch (Exception) { failed = true; return false; }
+        }, IntPtr.Zero);
+        return !failed && outlines == 1 && selected;
+    }
+    static AutomationElement QueueScope(AutomationElement window) {
+        var areas = window.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, "WorkflowWorkspace"))
+            .Cast<AutomationElement>().Where(w => !w.Current.IsOffscreen).ToArray();
+        if (areas.Length > 0) return areas.Length == 1 && NativeFolderSelected(areas[0]) ? areas[0] : null;
+        return FolderSelected(window) ? window : null;
+    }
     static bool FolderSelected(AutomationElement window) {
         var tabs = window.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TabItem));
         if (!tabs.Cast<AutomationElement>().Any(tab => tab.Current.Name == "Folders" && !tab.Current.IsOffscreen && Selected(tab))) return false;
@@ -888,6 +955,73 @@ public static class FrameworkDesktop {
         var text = cell.FindFirst(TreeScope.Children, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text));
         return text == null ? CellText(cell) : Trim(text.Current.Name);
     }
+    static AutomationElement[] Children(AutomationElement root, ControlType type) {
+        return root.FindAll(TreeScope.Children, new PropertyCondition(AutomationElement.ControlTypeProperty, type))
+            .Cast<AutomationElement>().ToArray();
+    }
+    static bool UnderResultsGrid(AutomationElement tree, AutomationElement scope) {
+        for (var p = tree; p != null && !Automation.Compare(p, scope); p = TreeWalker.ControlViewWalker.GetParent(p))
+            if (p.Current.AutomationId == "_resultsGrid") return true;
+        return false;
+    }
+    static string[] TreeHeaders(AutomationElement tree) {
+        var header = Children(tree, ControlType.Header);
+        return header.Length == 1 ? Children(header[0], ControlType.HeaderItem).Select(h => Trim(h.Current.Name)).ToArray() : new string[0];
+    }
+    static string[] NamedTreeRow(AutomationElement row, string[] columns) {
+        // The installed UltraGrid exposes the column caption as the cell's accessible name.
+        // Bind by caption. Header and cell display order can differ after customization.
+        var cells = row.FindAll(TreeScope.Children, Condition.TrueCondition).Cast<AutomationElement>()
+            .Where(c => !c.Current.IsPassword && c.Current.ControlType == ControlType.Edit)
+            .ToLookup(c => Trim(c.Current.Name), StringComparer.OrdinalIgnoreCase);
+        var values = new List<string>();
+        foreach (var column in columns) {
+            var matching = cells[column].ToArray();
+            object pat;
+            if (matching.Length != 1 || !matching[0].TryGetCurrentPattern(ValuePattern.Pattern, out pat))
+                throw new InvalidOperationException();
+            values.Add(Trim(((ValuePattern)pat).Current.Value));
+        }
+        return values.ToArray();
+    }
+    static bool QueueTypeColumn(string h) { return QueueColumn(h, "Document Type", "Doc. Type", "Doc Type"); }
+    static bool QueuePonColumn(string h) {
+        return QueueColumn(h, "Text 3", "Custom Field 3", "PON", "E-Prescriber Order Number", "Prescriber Order Number");
+    }
+    static bool QueueReadColumn(string h) {
+        return QueueTypeColumn(h) || QueuePonColumn(h) || QueueColumn(h, "Document Number","Document #","Document ID","DocumentID","Doc #","Doc. #","Facility ID","Facility","Source","Text 4","Custom Field 4","Resident Name","List 2","Priority","Route","Status");
+    }
+    static object ReadResultsTree(AutomationElement window, AutomationElement area) {
+        var trees = area.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Tree))
+            .Cast<AutomationElement>().Where(t => !t.Current.IsOffscreen && UnderResultsGrid(t, area) && Children(t, ControlType.Header).Length == 1).ToArray();
+        var headers = trees.Length == 1 ? TreeHeaders(trees[0]) : new string[0];
+        var columns = headers.Where(QueueReadColumn).ToArray();
+        if (headers.Length > 100 || columns.Count(QueueTypeColumn) != 1 || columns.Count(QueuePonColumn) != 1 ||
+            columns.Distinct(StringComparer.OrdinalIgnoreCase).Count() != columns.Length)
+            return new { ok = false, error = "Process is selected. Show Doc. Type and Text 3 in one document list, or use Copy All Rows.",
+                diagnostics = new { confirmedFolders = 1, resultTrees = trees.Length, exposedHeaders = headers.Length } };
+        var tree = trees[0];
+        var items = Children(tree, ControlType.DataItem);
+        if (items.Length > 5000) throw new Exception("Filter the Process list to E-DC Order and refresh.");
+        var rowIds = items.Select(Id).ToArray();
+        var rows = new List<string[]>();
+        int unreadable = 0;
+        foreach (var item in items) {
+            try {
+                var values = NamedTreeRow(item, columns);
+                if (!values.SequenceEqual(NamedTreeRow(item, columns))) throw new InvalidOperationException();
+                rows.Add(values);
+            } catch (ElementNotAvailableException) { unreadable++; }
+              catch (InvalidOperationException) { unreadable++; }
+              catch (COMException) { unreadable++; }
+        }
+        var finalArea = QueueScope(window);
+        if (finalArea == null || !Automation.Compare(area, finalArea) || tree.Current.IsOffscreen ||
+            !headers.SequenceEqual(TreeHeaders(tree)) || !rowIds.SequenceEqual(Children(tree, ControlType.DataItem).Select(Id)))
+            throw new Exception("The Process selection or document list changed. Refresh and try again.");
+        return new { ok = true, capture = new { headers = columns, rows, unreadable, exposedRowsOnly = true },
+            diagnostics = new { confirmedFolders = 1, resultTrees = 1, exposedHeaders = headers.Length, rows = items.Length, unreadable } };
+    }
     static object DocuTrackQueue(string testProcess) {
         var session = Process.GetCurrentProcess().SessionId;
         var pids = new HashSet<int>();
@@ -896,9 +1030,10 @@ public static class FrameworkDesktop {
         }
         var windows = AutomationElement.RootElement.FindAll(TreeScope.Children, Condition.TrueCondition);
         var scoped = windows.Cast<AutomationElement>().Where(w => pids.Contains(w.Current.ProcessId)
-            && !w.Current.IsOffscreen && FolderSelected(w)).ToList();
+            && !w.Current.IsOffscreen).Select(w => new { window = w, area = QueueScope(w) }).Where(w => w.area != null).ToList();
         if (scoped.Count != 1) return new { ok = false, error = "Open Folders > Richmond Pharmacy > Order Processing > Process in one visible DocuTrack window in this Windows session. Its selected folder must be readable.", diagnostics = new { processes = pids.Count, confirmedFolders = scoped.Count } };
-        var window = scoped[0];
+        var window = scoped[0].window;
+        if (!Automation.Compare(window, scoped[0].area)) return ReadResultsTree(window, scoped[0].area);
         var grids = window.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.IsGridPatternAvailableProperty, true));
         AutomationElement chosen = null;
         var shapes = new List<object>();
@@ -909,8 +1044,8 @@ public static class FrameworkDesktop {
             var columns = candidate.Current.ColumnCount;
             if (columns < 2 || columns > 100) continue;
             var names = QueueHeaders(element, columns);
-            bool hasType = names.Any(h => QueueColumn(h, "Document Type", "Doc. Type", "Doc Type"));
-            bool hasPon = names.Any(h => QueueColumn(h, "Text 3", "Custom Field 3", "PON", "E-Prescriber Order Number", "Prescriber Order Number"));
+            bool hasType = names.Any(QueueTypeColumn);
+            bool hasPon = names.Any(QueuePonColumn);
             shapes.Add(new { columns, exposedHeaders = names.Length, hasType, hasPon });
             if (!hasType || !hasPon) continue;
             if (chosen != null) throw new Exception("Multiple document grids are exposed. Open just the Process folder and scan again.");
@@ -920,7 +1055,7 @@ public static class FrameworkDesktop {
         var grid = (GridPattern)chosen.GetCurrentPattern(GridPattern.Pattern);
         int count = grid.Current.RowCount;
         if (count < 0 || count > 5000) throw new Exception("The provider did not expose a usable row count. Filter the Process grid to E-DC Order and refresh.");
-        var cols = headers.Select((h,i) => new { h, i }).Where(c => QueueColumn(c.h, "Document Type","Doc. Type","Doc Type","Text 3","Custom Field 3","PON","E-Prescriber Order Number","Prescriber Order Number","Document Number","Document #","Document ID","DocumentID","Doc #","Doc. #","Facility ID","Facility","Source","Text 4","Custom Field 4","Resident Name","List 2","Priority","Route","Status")).ToArray();
+        var cols = headers.Select((h,i) => new { h, i }).Where(c => QueueReadColumn(c.h)).ToArray();
         var rows = new List<string[]>(); int unreadable = 0;
         for (int r = 0; r < count; r++) {
             try {
