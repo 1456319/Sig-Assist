@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Sig-Assist offline HAR preview</title>
+<style>body{font:16px/1.5 system-ui,sans-serif;max-width:62rem;margin:2rem auto;padding:0 1rem;color:#172832;background:#f5f7f7}header{border-left:.4rem solid #bf6514;padding-left:1rem}strong{font-size:.9rem;color:#713800}button,input{font:inherit;margin:.6rem .6rem .6rem 0}button{padding:.35rem .8rem}pre{max-height:50vh;overflow:auto;padding:1rem;background:white;border:1px solid #9ba9aa}#status{font-weight:600}</style></head>
+<body><header><strong>PILOT ONLY · REMOVE FROM PRODUCTION · v0.1.3</strong><h1>Offline HAR preview</h1></header>
+<p>Choose a dummy browser capture. Review the request sequence, status, timing and fictional identifiers below. Files are processed on this computer. The saved JSON contains the preview.</p>
+<label>Local HAR file <input id="file" type="file" accept=".har,.json"></label><button id="save" disabled>Save previewed JSON</button>
+<p id="status" role="status">Waiting for a local file.</p><pre id="preview" aria-label="Report preview"></pre>
+<script>
+'use strict';
+function summarizeHar(input, parseXml) {
+  const entries = input?.log?.entries;
+  if (!Array.isArray(entries)) throw new Error('format');
+  const aliases = new Map();
+  function alias(kind, raw) {
+    if (!aliases.has(kind)) aliases.set(kind, new Map());
+    const map = aliases.get(kind);
+    // Identical values agree only inside this capture; no mapping table is serialized.
+    if (!map.has(raw)) map.set(raw, map.size + 1);
+    const n = map.get(raw);
+    if (kind === 'name') return 'Comet-' + n;
+    if (kind === 'phone') return '+1 (000) 555-0100 x' + n;
+    if (kind === 'address') return n + ' Fictional Comet Lane';
+    return kind + '-' + n;
+  }
+  const groups = new Map();
+  const definitions = {
+    name: ['firstname','lastname','middlename','fullname','patientname','residentname','prescribername','givenname','familyname','name'],
+    phone: ['phone','phonenumber','primarytelephone','telephone','fax','faxnumber','mobilephone'],
+    address: ['address','address1','address2','street','streetaddress','addressline1','addressline2','postalcode','zipcode','city'],
+    pon: ['pon','prescriberordernumber'],
+    resident: ['residentid','patientid','patientaccountnumber','medicalrecordidentificationnumberehr'],
+    document: ['documentid','documentnumber'],
+    message: ['messageid','relatestomessageid'],
+    facility: ['facilityid']
+  };
+  for (const [kind, keys] of Object.entries(definitions)) for (const key of keys) groups.set(key,kind);
+  function sensitiveKey(key) { return /pass|secret|credential|authorization|cookie|token|api.?key|session/i.test(key); }
+  function shape(content) {
+    const raw = content?.text;
+    if (typeof raw !== 'string' || !raw) return { state:'absent' };
+    if (raw.length > 250000 || content.encoding) return { state:'opaque' };
+    const fields = []; let visited = 0, truncated = false;
+    function observe(key,value) {
+      const kind = groups.get(key.toLowerCase().replace(/[\s_-]/g,''));
+      if (kind && (typeof value === 'string' || typeof value === 'number') && String(value).trim()) {
+        fields.push({field:kind,example:alias(kind,String(value).trim())});
+      }
+    }
+    function visit(obj, key, depth) {
+      if (++visited > 1500 || depth > 15 || fields.length >= 120) {truncated=true; return;}
+      if (obj === null || typeof obj !== 'object') {observe(key,obj); return;}
+      for (const k of Object.keys(obj)) {
+        if (truncated) break;
+        if (!sensitiveKey(k)) visit(obj[k],Array.isArray(obj) ? key : k,depth+1);
+      }
+    }
+    let format;
+    try {
+      if (/^\s*[{[]/.test(raw)) {format='json';visit(JSON.parse(raw),'',0);}
+      else if (/^\s*</.test(raw) && !/<!DOCTYPE|<!ENTITY/i.test(raw) && !/^\s*(?:<!doctype\s+html|<html\b)/i.test(raw)) {
+        format='xml';
+        const root = parseXml(raw);
+        if (!root || root.localName === 'html' || root.localName === 'parsererror') return {state:'opaque'};
+        function walk(element,depth) {
+          if (++visited>1500 || depth>15 || fields.length>=120) {truncated=true;return;}
+          if (sensitiveKey(element.localName)) return;
+          for (const attr of element.attributes) if (!sensitiveKey(attr.localName)) observe(attr.localName,attr.value);
+          if (!element.firstElementChild) {observe(element.localName,element.textContent);return;}
+          for(let child=element.firstElementChild;child&&!truncated;child=child.nextElementSibling) walk(child,depth+1);
+        }
+        walk(root,0);
+      } else return {state:'opaque'};
+    } catch { return {state:'opaque'}; }
+    return {state:format,fields,truncated};
+  }
+  const methods = new Set(['GET','POST','PUT','PATCH','DELETE','HEAD','OPTIONS']);
+  const knownPaths = new Map([['/connector/query','connector-query'],['/connector/desktop/docutrack','docutrack-reader'],['/connector/health','connector-health'],['/api_query','iguana-query'],['/login.html','login']]);
+  const records = entries.slice(0,400).map((entry,index)=>{
+    const req=entry?.request, res=entry?.response;
+    let origin=null,route=null,known=null;
+    try {
+      const u=new URL(req.url);
+      if (u.protocol === 'http:' || u.protocol === 'https:') {
+        origin=alias('origin',u.origin);
+        route=alias('route',u.origin+u.pathname);
+        known=knownPaths.get(u.pathname) || null;
+      }
+    } catch { /* opaque URL */ }
+    const payload=req?.postData;
+    // Query values, URL fragments, headers, cookies, credentials and free text are never copied.
+    return {step:index+1,method:methods.has(req?.method)?req.method:'other',origin,route,known,
+      status:Number.isInteger(res?.status) && res.status>=100 && res.status<=599 ? res.status : null,
+      ms:Number.isFinite(entry?.time) && entry.time>=0 ? Math.min(3600000,Math.round(entry.time)) : null,
+      request:shape(payload), response:shape(res?.content)};
+  });
+  return { format:'sig-assist-offline-har-map',version:'0.1.3',buildMode:'PILOT ONLY',entryCount:entries.length,
+    partial:records.length!==entries.length,records };
+}
+const file=document.getElementById('file'),save=document.getElementById('save'),preview=document.getElementById('preview'),statusText=document.getElementById('status');
+let generation=0;
+file.addEventListener('change', async ()=>{
+  const current=++generation, chosen=file.files[0];
+  save.disabled=true;preview.textContent='';statusText.textContent='Waiting for a local file.';
+  if(!chosen)return;
+  if(chosen.size>32*1024*1024){statusText.textContent='Use a capture under 32 MiB.';return;}
+  try {
+    const doc=JSON.parse(await chosen.text());
+    if(current!==generation)return;
+    const projection=summarizeHar(doc,raw=>{
+      const xml=new DOMParser().parseFromString(raw,'application/xml');
+      return xml.getElementsByTagName('parsererror').length ? null : xml.documentElement;
+    });
+    preview.textContent=JSON.stringify(projection,null,2);
+    statusText.textContent=projection.records.length+' requests in preview, from '+projection.entryCount+' entries. Unknown fields and opaque bodies are omitted.';
+    save.disabled=false;
+  } catch { if(current===generation) statusText.textContent='This file could not be read as a HAR. No report was created.'; }
+});
+save.addEventListener('click',()=>{
+  if(save.disabled)return;
+  const url=URL.createObjectURL(new Blob([preview.textContent],{type:'application/json'}));
+  const link=document.createElement('a');link.href=url;link.download='sig-assist-pilot-har-map.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1500);
+});
+</script></body></html>

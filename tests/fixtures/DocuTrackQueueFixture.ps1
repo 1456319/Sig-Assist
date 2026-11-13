@@ -2,13 +2,16 @@ param([string]$FixtureFolder)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName PresentationFramework, System.Data
 [xml]$layout = @'
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" Title="Synthetic DocuTrack folder reader" Width="800" Height="480">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" Title="Synthetic DocuTrack folder reader" Width="800" Height="650">
   <TabControl><TabItem Header="Folders"><StackPanel>
     <TreeView Height="180"><TreeViewItem Header="Richmond Pharmacy" IsExpanded="True">
       <TreeViewItem Header="Order Processing" IsExpanded="True">
         <TreeViewItem Name="ProcessNode" Header="Process" IsSelected="True"/><TreeViewItem Name="OtherNode" Header="PV1"/>
       </TreeViewItem></TreeViewItem></TreeView>
     <DataGrid Name="Documents" AutoGenerateColumns="True" CanUserAddRows="False" IsReadOnly="True" Height="180"/>
+    <Button Content="Refuse Request"/>
+    <TextBox Text="Private Canary 555-0199 Secret Lane"/>
+    <TextBlock Text="Private Canary"/>
   </StackPanel></TabItem><TabItem Header="Search"/></TabControl>
 </Window>
 '@
