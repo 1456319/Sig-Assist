@@ -61,7 +61,7 @@ try {
   assert.ok(!changed.nodes.some(n=>n.label==='Process' && n.selected));
   const outlineExe = path.join(folder, 'PilotFolderFixture.exe');
   await exec(path.join(fx,'csc.exe'), ['/nologo', '/target:winexe', '/out:'+outlineExe,
-    '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll', '/reference:Accessibility.dll',
+    '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll', '/reference:Accessibility.dll', '/reference:System.Xaml.dll',
     ...['PresentationCore','PresentationFramework','UIAutomationTypes','UIAutomationProvider','WindowsBase','WindowsFormsIntegration'].map(n=>'/reference:'+path.join(fx,'WPF',n+'.dll')),
     path.resolve('tests/fixtures/DocuTrackFolderFixture.cs')]);
   outlineFixture = spawn(outlineExe, [folder]);
