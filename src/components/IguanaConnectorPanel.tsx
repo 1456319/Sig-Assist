@@ -7,6 +7,8 @@ import { ingestScriptEvents, type IntakeSummary } from '../lib/iguana/intake';
 import { nextAfter, queryIguana } from '../lib/iguana/client';
 import { daysAgoMidnight, initialConnectorConfig, yesterdayMidnight } from '../lib/iguana/config';
 import type { ConnectorConfig, IguanaLog } from '../lib/iguana/types';
+import { verifyEdcDispositions, type EdcDispositionEvidence } from '../lib/iguana/edcDisposition';
+import type { EdcDocument } from '../lib/docutrackQueue';
 import { translateClinicalSig } from '../lib/clinical/clinicalEngine';
 import { orderKey } from '../lib/orderQueue';
 import { matchesOrderQuery } from '../lib/orderSearch';
@@ -15,7 +17,7 @@ import { FrameworkDetect } from './FrameworkDesktop';
 import type { FrameworkDetection } from '../lib/frameworkDesktop';
 
 export function IguanaConnectorPanel({ onSelect, searchQuery, onSearchChange, onLookupStart, onDesktopDetected, renderQueueTools }: {
-  renderQueueTools?: (find: (pon: string) => void) => ReactNode;
+  renderQueueTools?: (find: (pon: string) => void, verify: (documents: EdcDocument[], signal: AbortSignal, onResult: (document: EdcDocument, evidence: EdcDispositionEvidence) => void) => Promise<void>) => ReactNode;
   onSelect: (id: string) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
@@ -159,6 +161,7 @@ export function IguanaConnectorPanel({ onSelect, searchQuery, onSearchChange, on
   }
 
   const canLive = location.protocol === 'http:' || location.protocol === 'https:';
+  const verifyEdcs = useCallback((documents: EdcDocument[], signal: AbortSignal, onResult: (document: EdcDocument, evidence: EdcDispositionEvidence) => void) => verifyEdcDispositions(documents, config, signal, onResult), [config]);
   function lookup(query: string, days?: number) {
     onLookupStart(); setEmptyLookup(undefined);
     void runQuery({ query: query.trim(), days });
@@ -166,7 +169,7 @@ export function IguanaConnectorPanel({ onSelect, searchQuery, onSearchChange, on
   return <>{renderQueueTools?.(pon => {
     onSearchChange(pon);
     if (canLive && !busy && !polling && ready !== false) lookup(pon);
-  })}<section className="rounded-lg border border-primary/40 bg-card p-4" aria-label="Find E-Rx">
+  }, verifyEdcs)}<section className="rounded-lg border border-primary/40 bg-card p-4" aria-label="Find E-Rx">
     <h3 className="font-semibold">Find E‑Rx</h3>
     <div className="mt-3 space-y-3">
       <FrameworkDetect disabled={!canLive || busy || polling || ready === false}

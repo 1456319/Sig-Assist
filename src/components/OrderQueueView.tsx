@@ -21,6 +21,7 @@ import type { FrameworkDetection } from '../lib/frameworkDesktop';
 
 import { DocuTrackQueue, EdcWarning } from './DocuTrackQueue';
 import { edcMatch, type EdcSnapshot } from '../lib/docutrackQueue';
+import { edcEvidenceKey, type EdcDispositionEvidence } from '../lib/iguana/edcDisposition';
 
 const emptySource: OrderSource = { facility: '', patientRef: '', pon: '', drug: '', directions: '' };
 const sample: OrderSource = { facility: 'DEMO-FACILITY', patientRef: 'DEMO-RESIDENT', pon: 'DEMO-PON-001', drug: 'Example medication 10 mg tablet', directions: 'Take 1 tablet by mouth twice daily for 7 days.' };
@@ -33,6 +34,7 @@ export function OrderQueueView() {
   const [query, setQuery] = useState('');
   const [desktop, setDesktop] = useState<FrameworkDetection>();
   const [edcs, setEdcs] = useState<EdcSnapshot>();
+  const [edcEvidence, setEdcEvidence] = useState<Record<string, EdcDispositionEvidence>>({});
   const selected = orders.find(order => order.id === selectedId);
   const selectedEdc = edcs && selected && edcMatch(edcs.documents, selected, orders);
   const lookupEdc = edcs && !selected && query.trim() && edcMatch(edcs.documents, { pon: query }, orders);
@@ -179,9 +181,9 @@ export function OrderQueueView() {
         setOrders([]); setSelectedId(undefined); setReviseId(undefined); setForm(emptySource);
       }}>Clear orders</button>
     </div>
-    <IguanaConnectorPanel searchQuery={query} renderQueueTools={find => <>
-      <DocuTrackQueue snapshot={edcs} onCapture={setEdcs} onFind={pon => { setDesktop(undefined); find(pon); }} />
-      {lookupEdc && edcs && <EdcWarning match={lookupEdc} snapshot={edcs} />}
+    <IguanaConnectorPanel searchQuery={query} renderQueueTools={(find, verify) => <>
+      <DocuTrackQueue snapshot={edcs} onCapture={setEdcs} onFind={pon => { setDesktop(undefined); find(pon); }} onVerify={verify} evidence={edcEvidence} onEvidenceChange={setEdcEvidence} />
+      {lookupEdc && edcs && <EdcWarning match={lookupEdc} snapshot={edcs} evidence={edcEvidence} />}
     </>}
       onDesktopDetected={setDesktop}
       onSearchChange={value => { setQuery(value); setSelectedId(undefined); setReviseId(undefined); setForm(emptySource); }}
@@ -198,7 +200,7 @@ export function OrderQueueView() {
           <span className="block text-sm line-clamp-2 mt-1">{order.directions}</span>
           {order.iguana?.sentTime && <span className="block text-xs text-muted-foreground mt-1">Source: {order.iguana.sentTime}</span>}
           <span className="block text-xs mt-2">Revision {order.revision} · {status(order)}</span>
-          {edcPons.has(order.pon) && <strong className="block text-red-600">DocuTrack E-DC · check PON</strong>}
+          {edcPons.has(order.pon) && <strong className="block text-red-600">DocuTrack E-DC · check PON{edcs?.documents.some(doc => doc.pon === order.pon && !!edcEvidence[edcEvidenceKey(doc)]?.outboundSeen) ? ' · outbound activity requires review' : ''}</strong>}
           {order.cancelRxReceived && <strong className="block text-amber-600">Iguana CancelRx received</strong>}
         </button></li>)}</ul>
         {!filtered.length && <p className="text-sm text-muted-foreground">No orders to display.</p>}
@@ -210,7 +212,7 @@ export function OrderQueueView() {
             <span className="text-sm">{status(selected)}</span>
           </div>
           <p className="text-sm break-all">{selected.facility} · {selected.patientRef} · {selected.drug || 'Drug not supplied'}</p>
-          {selectedEdc && edcs && <EdcWarning match={selectedEdc} snapshot={edcs} />}
+          {selectedEdc && edcs && <EdcWarning match={selectedEdc} snapshot={edcs} evidence={edcEvidence} />}
           {selected.cancelRxReceived && <p role="alert" className="border-2 border-amber-500 rounded-md p-3 font-semibold">Iguana received a CancelRx for this order. Check Richmond Process for the E-DC and confirm the NewRx is still pending in Framework.</p>}
           {selected.cancelled && selected.iguana && !selected.manualCancellation && <button className={reviewButtonClass} onClick={() => {
             if (window.confirm('This older order has a saved cancellation of unknown origin. Resume local review after checking both systems?')) updateSelected(o => ({ ...o, legacyReleased: true, cancelled: false, approved: undefined, copied: undefined, subOrderApprovals: undefined, subOrderCopied: undefined }));
