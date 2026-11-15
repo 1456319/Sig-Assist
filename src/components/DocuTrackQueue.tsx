@@ -5,6 +5,7 @@ import { downloadDesktopDiagnostics } from '../lib/frameworkDesktop';
 import { reviewButtonClass, reviewInputClass } from './SigReviewPanel';
 import { edcEvidenceDescription, edcEvidenceKey, type EdcDispositionEvidence } from '../lib/iguana/edcDisposition';
 import type { EdcDocument } from '../lib/docutrackQueue';
+import { locateEdcInErxQueue, parseErxQueueCsv, type ErxQueueCsvSnapshot } from '../lib/ssrs/erxQueueCsv';
 
 async function copy(value: string) {
   try { await navigator.clipboard.writeText(value); toast.success('Copied.'); }
@@ -14,7 +15,7 @@ async function copy(value: string) {
 export function EdcWarning({ match, snapshot, evidence = {} }: { match: NonNullable<ReturnType<typeof edcMatch>>; snapshot: EdcSnapshot; evidence?: Record<string, EdcDispositionEvidence> }) {
   return <div role="alert" className="rounded-md border-2 border-red-600 bg-red-50 text-red-950 p-4 space-y-2">
     <h4 className="font-bold text-lg">{match.unique ? 'This PON has a matching E-DC in DocuTrack!' : 'E-DC found for this PON — verify the order identity'}</h4>
-    <p>{match.unique ? 'Find the E-DC and check the resident, facility and medication against the unprocessed NewRx in E-Rx Triage Manager. If they match and the medication is in scope, refuse this order.' : 'The identifiers do not resolve to one order and document. Compare the original records before acting.'}</p>
+    <p>{match.unique ? 'Find the E-DC and check the resident, facility and medication against the unprocessed NewRx in E-Rx Triage Manager. Confirm the exact currently pending Framework NewRx and the DocuTrack E-DC before any action. Controlled and uncertain cases require pharmacist review.' : 'The identifiers do not resolve to one order and document. Compare the original records before acting.'}</p>
     <p className="text-sm">{snapshot.source === 'paste' ? 'Technician-provided' : 'Desktop'} snapshot at {new Date(snapshot.capturedAt).toLocaleTimeString()}. Refresh to check for changes. A historical E-Rx match does not establish a pending Framework request.</p>
     {match.candidates.map((doc,i) => <p key={'evidence-' + i} className="text-sm font-semibold">Iguana: {edcEvidenceDescription(evidence[edcEvidenceKey(doc)])}</p>)}
     {match.candidates.map((doc, i) => <p key={i} className="text-sm font-mono break-words">PON {doc.pon} · {doc.facility || 'Facility unavailable'} · {doc.resident || 'Resident unavailable'} · {doc.documentNumber ? (doc.numberSource === 'grid' ? 'Grid document # ' : 'Stamped document # ') + doc.documentNumber : 'Read document # from the bottom-right stamp'}</p>)}
@@ -31,6 +32,8 @@ export function DocuTrackQueue({ snapshot, onCapture, onFind, onVerify, evidence
   const [report, setReport] = useState<unknown>();
   const [error, setError] = useState('');
   const [paste, setPaste] = useState('');
+  const [ssrsReport, setSsrsReport] = useState<ErxQueueCsvSnapshot>();
+  const [ssrsError, setSsrsError] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [localEvidence, setLocalEvidence] = useState<Record<string, EdcDispositionEvidence>>({});
   const evidence = externalEvidence ?? localEvidence;
@@ -79,6 +82,31 @@ export function DocuTrackQueue({ snapshot, onCapture, onFind, onVerify, evidence
     try { const current = readPastedQueue(paste); onCapture(current); void verify(current); setPaste(''); setConfirmed(false); }
     catch (err) { setError(err instanceof Error ? err.message : String(err)); }
   }
+  async function importSsrs(file?: File) {
+    if (!file) return;
+    setSsrsError('');
+    try {
+      if (file.size > 8_000_000) throw new Error('SSRS CSV exceeds the 8 MB import limit.');
+      const parsed = parseErxQueueCsv(await file.text());
+      setSsrsReport(parsed);
+    } catch (err) {
+      setSsrsReport(undefined);
+      setSsrsError(err instanceof Error ? err.message : String(err));
+    }
+  }
+  function ssrsLabel(doc: EdcDocument) {
+    if (!ssrsReport) return 'SSRS CSV not imported';
+    const match = locateEdcInErxQueue(doc, ssrsReport);
+    if (match.kind === 'located') {
+      return match.candidates[0].folder + ' · ' + match.candidates[0].messageType +
+        (match.reviewHold ? ' · review hold (not refused)' : '') +
+        (match.pharmacistReviewRequired ? ' · pharmacist review' : '');
+    }
+    if (match.kind === 'facility-unknown') return 'PON found; missing facility — ambiguous';
+    if (match.kind === 'facility-conflict') return 'PON found at another facility — investigate';
+    if (match.kind === 'ambiguous') return 'More than one matching queue row — ambiguous';
+    return 'Not listed in imported snapshot — disposition unknown';
+  }
   return <section aria-label="Richmond DocuTrack E-DCs" className="rounded-lg border border-primary/50 bg-card p-4 space-y-3">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h3 className="font-semibold">Richmond DocuTrack E-DCs</h3>
@@ -94,10 +122,21 @@ export function DocuTrackQueue({ snapshot, onCapture, onFind, onVerify, evidence
       {snapshot.exposedRowsOnly && <p role="status">DocuTrack exposed these rows without a total. Compare the count with the Process list or use Copy All Rows to check coverage.</p>}
       {!!snapshot.unresolved && <p role="alert">Some rows could not be identified. Check them in DocuTrack.</p>}
       {!snapshot.documents.length && <p>No matching PON was readable in this snapshot. Check the current folder and filters.</p>}
-      {!!snapshot.documents.length && <div className="overflow-auto max-h-80"><table className="text-sm text-left w-full"><thead><tr>{['PON', 'Document #', 'Facility / resident', 'Route', 'Iguana evidence', ''].map((h,i) => <th key={i} className="p-2">{h}</th>)}</tr></thead>
-        <tbody>{snapshot.documents.map((doc, i) => <tr key={i} className="border-t"><td className="p-2 font-mono">{doc.pon}</td><td className="p-2">{doc.documentNumber || 'See stamped page'}</td><td className="p-2">{[doc.facility, doc.resident].filter(Boolean).join(' · ') || 'Check document'}</td><td className="p-2">{doc.route || '—'}</td><td className="p-2 min-w-56 text-amber-700">{edcEvidenceDescription(evidence[edcEvidenceKey(doc)])}</td><td className="p-2"><button className={reviewButtonClass} onClick={() => onFind(doc.pon)}>Find PON</button> {doc.documentNumber && <button className={reviewButtonClass} onClick={() => void copy(doc.documentNumber)}>{doc.numberSource === 'grid' ? 'Copy grid #' : 'Copy stamped #'}</button>}</td></tr>)}</tbody></table></div>}
+      {!!snapshot.documents.length && <div className="overflow-auto max-h-80"><table className="text-sm text-left w-full"><thead><tr>{['PON', 'Document #', 'Facility / resident', 'Route', 'Iguana evidence', 'SSRS queue snapshot', ''].map((h,i) => <th key={i} className="p-2">{h}</th>)}</tr></thead>
+        <tbody>{snapshot.documents.map((doc, i) => <tr key={i} className="border-t"><td className="p-2 font-mono">{doc.pon}</td><td className="p-2">{doc.documentNumber || 'See stamped page'}</td><td className="p-2">{[doc.facility, doc.resident].filter(Boolean).join(' · ') || 'Check document'}</td><td className="p-2">{doc.route || '—'}</td><td className="p-2 min-w-56 text-amber-700">{edcEvidenceDescription(evidence[edcEvidenceKey(doc)])}</td><td className="p-2 min-w-56">{ssrsLabel(doc)}</td><td className="p-2"><button className={reviewButtonClass} onClick={() => onFind(doc.pon)}>Find PON</button> {doc.documentNumber && <button className={reviewButtonClass} onClick={() => void copy(doc.documentNumber)}>{doc.numberSource === 'grid' ? 'Copy grid #' : 'Copy stamped #'}</button>}</td></tr>)}</tbody></table></div>}
       {!!snapshot.documents.length && <button className={reviewButtonClass} onClick={() => void copy([...new Set(snapshot.documents.map(d => d.pon))].join('\n'))}>Copy PON list</button>}
     </div>}
+    <details><summary className="cursor-pointer text-sm">Import eRx Queue Dashboard CSV (read-only)</summary>
+      <p className="text-sm my-2">Export ErxQueueDashboard as CSV from SSRS, then select the file here. The data stays in this browser session. No report server requests or Framework changes are made.</p>
+      <input aria-label="eRx Queue Dashboard CSV file" type="file" accept=".csv,text/csv" className="text-sm max-w-full" onChange={event => void importSsrs(event.currentTarget.files?.[0])} />
+      {ssrsError && <p role="alert" className="text-amber-700">{ssrsError} Queue coverage is unknown.</p>}
+      {ssrsReport && <div role="status" className="text-sm space-y-1 mt-2">
+        <p><strong>{ssrsReport.rows.length} queue items imported</strong> · {ssrsReport.placeholderRows} empty folder rows · imported {new Date(ssrsReport.importedAt).toLocaleTimeString()}.</p>
+        <p>{ssrsReport.structurallyComplete ? 'Export counts match the reported total.' : 'Incomplete or unverifiable export counts.'} Report generation time and active SSRS filters are unknown; absence is never proof of processing or refusal.</p>
+        {ssrsReport.warnings.map((warning, i) => <p key={i} className="text-amber-700">{warning}</p>)}
+        <button type="button" className={reviewButtonClass} onClick={() => setSsrsReport(undefined)}>Clear imported SSRS snapshot</button>
+      </div>}
+    </details>
     <details><summary className="cursor-pointer text-sm">Use copied rows or document text</summary>
       <p className="text-sm my-2">Paste tab-separated rows with column headings, or select and copy the text of one Discontinue Rx. Use a copy from the current Richmond Process folder. Each import replaces the snapshot.</p>
       <textarea aria-label="Copied DocuTrack text" className={reviewInputClass} rows={3} value={paste} onChange={e => { setPaste(e.target.value); setConfirmed(false); }} />
