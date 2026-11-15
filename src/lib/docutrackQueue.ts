@@ -98,13 +98,18 @@ export function readPastedQueue(text: string): EdcSnapshot {
 }
 
 export function edcMatch(documents: EdcDocument[], order: { pon: string; facility?: string }, knownOrders: { pon: string; facility: string; patientRef: string }[]) {
-  const matches = documents.filter(doc => doc.pon === order.pon.trim());
+  const pon = order.pon.trim();
+  const matches = documents.filter(doc => doc.pon === pon);
   if (!matches.length) return;
   const facility = order.facility?.trim().toUpperCase();
-  const candidates = matches.filter(doc => !facility || !doc.facility || doc.facility.toUpperCase() === facility);
-  // A PON can be reused across facilities/residents. Do not choose among them.
-  const candidateFacility = candidates.length === 1 ? candidates[0].facility.trim().toUpperCase() : '';
-  const orders = knownOrders.filter(item => item.pon === order.pon && (!facility || !candidateFacility || item.facility.trim().toUpperCase() === candidateFacility));
-  const unique = candidates.length === 1 && orders.length <= 1 && (matches.length === 1 || Boolean(facility && candidates[0].facility));
+  const candidates = facility
+    ? matches.filter(doc => doc.facility.trim().toUpperCase() === facility)
+    : [];
+  // A PON without a confirmed facility (on BOTH sides) cannot identify
+  // a unique prescription, even if only one E-DC row was exposed.
+  const matchingOrders = facility
+    ? knownOrders.filter(item => item.pon.trim() === pon && item.facility.trim().toUpperCase() === facility)
+    : [];
+  const unique = Boolean(facility) && candidates.length === 1 && matchingOrders.length === 1;
   return { candidates: unique ? candidates : matches, unique };
 }
