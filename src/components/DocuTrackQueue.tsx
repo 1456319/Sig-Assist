@@ -5,6 +5,7 @@ import { downloadDesktopDiagnostics } from '../lib/frameworkDesktop';
 import { reviewButtonClass, reviewInputClass } from './SigReviewPanel';
 import { edcEvidenceDescription, edcEvidenceKey, type EdcDispositionEvidence } from '../lib/iguana/edcDisposition';
 import type { EdcDocument } from '../lib/docutrackQueue';
+import { recordPilotEvent } from '../lib/pilotDiagnostics';
 
 async function copy(value: string) {
   try { await navigator.clipboard.writeText(value); toast.success('Copied.'); }
@@ -60,6 +61,7 @@ export function DocuTrackQueue({ snapshot, onCapture, onFind, onVerify, evidence
     }
   }
   async function scan() {
+    const started = performance.now();
     setBusy(true); setReport(undefined); setError(''); resetVerification(); onCapture(undefined);
     try {
       if (!['http:', 'https:'].includes(location.protocol)) throw new Error('Open the Windows connector in the same session as DocuTrack, or paste a copy below.');
@@ -69,9 +71,10 @@ export function DocuTrackQueue({ snapshot, onCapture, onFind, onVerify, evidence
       setReport(data.diagnostics);
       if (!data.ok || !data.capture) throw new Error(data.error || 'The DocuTrack folder was unreadable.');
       const current = readQueueCapture(data.capture, 'desktop');
+      recordPilotEvent('desktop.response', { operation: 'docutrack', outcome: 'ok', durationMs: performance.now() - started, count: current.inspected, headers: data.capture.headers.length, unreadable: current.unresolved });
       onCapture(current);
       void verify(current);
-    } catch (err) { setError(err instanceof Error ? err.message : String(err)); }
+    } catch (err) { recordPilotEvent('desktop.response', { operation: 'docutrack', outcome: 'failed', durationMs: performance.now() - started }); setError(err instanceof Error ? err.message : String(err)); }
     finally { setBusy(false); }
   }
   function importRows() {

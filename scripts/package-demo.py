@@ -13,11 +13,12 @@ args = parser.parse_args()
 if args.site_profile and args.output.resolve().is_relative_to(demo.parent):
     parser.error("Write site-specific distributions outside the repository.")
 files = ["Start-Sig-Assist.bat", "Start-Sig-Assist.cmd", "Start-Iguana-Connector.bat", "index.html",
-         "iguana-bridge.mjs", "framework-desktop.mjs", "FrameworkDesktop.cs"]
+         "iguana-bridge.mjs", "framework-desktop.mjs", "FrameworkDesktop.cs", "TECHNICIAN-FEEDBACK.md"]
 if args.site_profile:
     files.extend(["README.txt", "IGUANA-CONNECTOR.md", "FRAMEWORK-DESKTOP.md", "DOCUTRACK-EDC.md",
                   "DESKTOP-RECOVERY-2026-10-04.md", "TRANSLATOR-2026-10-04.md", "TRANSLATOR-2026-11-09.md"])
 sources = {
+    "TECHNICIAN-FEEDBACK.md": demo.parent / "docs" / "TECHNICIAN-FEEDBACK.md",
     "DOCUTRACK-EDC.md": demo.parent / "docs" / "DOCUTRACK-EDC.md",
     "TRANSLATOR-2026-11-09.md": demo.parent / "docs" / "TRANSLATOR-2026-11-09.md",
     "TRANSLATOR-2026-10-04.md": demo.parent / "docs" / "TRANSLATOR-2026-10-04.md",

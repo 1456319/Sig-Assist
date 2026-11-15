@@ -2,6 +2,7 @@ import { DiscrepancyReport, TechnicianPreferences } from './clinical/types';
 import type { OrderSource } from './orderQueue';
 import type { IguanaOrderMetadata } from './iguana/types';
 import { traceLogger, type TraceEvent } from './diagnostics/traceLogger';
+import type { TechnicianFeedback } from './feedbackTypes';
 
 export interface StoredQueueOrder {
   id: string;
@@ -41,6 +42,8 @@ export interface CitrixStorageAdapter {
   readDiscrepancies(options?: { bypassPending?: boolean }): Promise<DiscrepancyReport[]>;
   appendDiscrepancy(report: DiscrepancyReport, options?: { immediate?: boolean; debounceMs?: number }): Promise<void>;
   setDiscrepanciesArchived(ids: string[], archived: boolean): Promise<void>;
+  readFeedback(options?: { browserOnly?: boolean }): Promise<TechnicianFeedback[]>;
+  appendFeedback(report: TechnicianFeedback): Promise<'file_system' | 'browser_cache'>;
   readPreferences(options?: { bypassPending?: boolean }): Promise<TechnicianPreferences>;
   writePreferences(prefs: TechnicianPreferences, options?: { immediate?: boolean; debounceMs?: number }): Promise<void>;
   appendTraceLogs(events: TraceEvent[]): Promise<{ destination: 'file_system' | 'browser_cache'; destinationId: string; recordsSaved: number }>;
@@ -75,6 +78,7 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
   private discrepanciesTimer: ReturnType<typeof setTimeout> | null = null;
   private discrepanciesResolvers: Array<{ resolve: () => void; reject: (err: unknown) => void } | (() => void)> = [];
   private discrepancyAppendChain: Promise<void> = Promise.resolve();
+  private feedbackAppendChain: Promise<unknown> = Promise.resolve();
 
   private pendingPreferences: TechnicianPreferences | null = null;
   private preferencesTimer: ReturnType<typeof setTimeout> | null = null;
@@ -331,6 +335,45 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
       return data;
     }
     return this.readLocalStorage<DiscrepancyReport[]>('citrix_storage_discrepancies', []);
+  }
+
+  async readFeedback(options?: { browserOnly?: boolean }): Promise<TechnicianFeedback[]> {
+    const parse = (text: string): TechnicianFeedback[] => {
+      const data: unknown = JSON.parse(text);
+      if (!Array.isArray(data) || data.some(r => !r || typeof r.id !== 'string' || r.schemaVersion !== 1)) throw new Error('Invalid feedback archive. Export or repair it before saving more reports.');
+      return data;
+    };
+    let cached: TechnicianFeedback[] = [];
+    try { const raw = localStorage.getItem('citrix_storage_feedback_v1'); if (raw) cached = parse(raw); }
+    catch { throw new Error('Saved feedback could not be read from this browser. Your new comment has not been saved.'); }
+    let stored: TechnicianFeedback[] = [];
+    if (this.dirHandle && !options?.browserOnly) {
+      try {
+        const file = await (await this.dirHandle.getFileHandle('feedback.json')).getFile();
+        stored = parse(await file.text());
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === 'NotFoundError')) throw new Error('Saved feedback could not be read from the connected folder. Your new comment has not been saved.');
+      }
+    }
+    return [...new Map([...stored, ...cached].map(r => [r.id, r])).values()];
+  }
+
+  async appendFeedback(report: TechnicianFeedback): Promise<'file_system' | 'browser_cache'> {
+    const append = async () => {
+      let existing: TechnicianFeedback[];
+      let folderReadable = true;
+      try { existing = await this.readFeedback(); }
+      catch { folderReadable = false; existing = await this.readFeedback({ browserOnly: true }); }
+      if (!existing.some(r => r.id === report.id)) existing.push(report);
+      // Never replace a folder archive we could not read. Save this report to
+      // browser storage and merge it by ID when the folder becomes available.
+      if (folderReadable && this.dirHandle && await this.writeFile('feedback.json', existing)) return 'file_system' as const;
+      if (this.writeLocalStorage('citrix_storage_feedback_v1', existing)) return 'browser_cache' as const;
+      throw new Error('Feedback could not be saved to the folder or browser. Your entries are still here; retry or download this report.');
+    };
+    const next = this.feedbackAppendChain.then(append, append);
+    this.feedbackAppendChain = next.catch(() => {});
+    return next;
   }
 
   async appendDiscrepancy(

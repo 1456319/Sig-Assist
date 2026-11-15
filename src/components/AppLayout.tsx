@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 import {
   FlaskConical,
@@ -22,6 +22,8 @@ import { ExpansionView } from './ExpansionView';
 import { SettingsView } from './SettingsView';
 import { OrderQueueView } from './OrderQueueView';
 import { TraceLogDrawer } from './TraceLogDrawer';
+import { TechnicianFeedback } from './TechnicianFeedback';
+import { observeCustomizationCounts, recordPilotEvent } from '../lib/pilotDiagnostics';
 
 export type AppView = 'queue' | 'workbench' | 'dictionary' | 'rules' | 'expansions' | 'settings';
 
@@ -39,6 +41,10 @@ export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [traceDrawerOpen, setTraceDrawerOpen] = useState(false);
   const { theme, setTheme } = useTheme();
+  useEffect(() => {
+    observeCustomizationCounts();
+    recordPilotEvent('screen.open', { screen: activeView });
+  }, [activeView]);
 
   const ActiveIcon = NAV_ITEMS.find((n) => n.id === activeView)?.icon ?? FlaskConical;
 
@@ -133,6 +139,7 @@ export function AppLayout() {
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <TechnicianFeedback screen={activeView} />
             <button
               onClick={() => setTraceDrawerOpen(true)}
               className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md bg-muted hover:bg-muted/80 text-foreground border border-border transition-colors shadow-sm"
@@ -142,7 +149,7 @@ export function AppLayout() {
               <span>Trace Logs</span>
             </button>
             <span className="text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-full border border-border uppercase tracking-wider">
-              SIG Parser MVP v1
+              v{__SIG_ASSIST_VERSION__}
             </span>
           </div>
         </header>

@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import type { SigDictionaryEntry, SigDictionaryInsert } from './types';
+import { observeCustomizationCounts, recordPilotEvent } from './pilotDiagnostics';
 
 const LOCAL_STORAGE_KEY = 'sig_assist_local_sig_dictionary';
 
@@ -17,7 +18,10 @@ function saveLocalEntries(entries: SigDictionaryEntry[]): void {
   if (typeof localStorage === 'undefined') return;
   try {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(entries));
+    recordPilotEvent('dictionary.save', { outcome: 'ok', count: entries.length });
+    observeCustomizationCounts();
   } catch {
+    recordPilotEvent('dictionary.save', { outcome: 'failed', count: entries.length });
     // ignore local storage errors
   }
 }

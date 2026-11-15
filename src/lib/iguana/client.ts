@@ -1,5 +1,6 @@
 import { parseApiQuery } from './payload';
 import type { ConnectorConfig, DiagnosticSink } from './types';
+import { pilotReason, recordPilotEvent } from '../pilotDiagnostics';
 
 export async function queryIguana(config: ConnectorConfig, emit: DiagnosticSink, signal?: AbortSignal, captureResponse?: (body: string) => void) {
   emit('info', 'transport.request', 'Requesting read-only MessageBroker logs through local bridge', {
@@ -7,10 +8,12 @@ export async function queryIguana(config: ConnectorConfig, emit: DiagnosticSink,
     limit: config.limit, type: 'info,messages,warnings,errors', method: 'GET', endpoint: '/api_query', authMode: config.authMode,
   });
   const started = performance.now();
+  recordPilotEvent('connector.request');
   let response: Response;
   try {
     response = await fetch('/connector/query', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config), signal });
   } catch (error) {
+    recordPilotEvent('connector.failed', { outcome: 'failed', reason: 'BRIDGE_UNREACHABLE', durationMs: performance.now() - started });
     if (signal?.aborted) {
       emit('info', 'transport.stopped', 'Local request was stopped by the operator');
       throw error;
@@ -24,6 +27,7 @@ export async function queryIguana(config: ConnectorConfig, emit: DiagnosticSink,
     throw new Error('This page is not served by the connector bridge. Launch Start-Iguana-Connector.bat.');
   }
   const result = await response.json();
+  recordPilotEvent('connector.response', { outcome: result.ok ? 'ok' : 'failed', reason: result.ok ? undefined : pilotReason(result.code), httpStatus: result.status, durationMs: performance.now() - started });
   emit(result.ok ? 'info' : 'error', 'transport.response', 'Local bridge returned an Iguana response', {
     requestId: result.requestId, status: result.status, contentType: result.contentType,
     elapsedMs: Math.round(performance.now() - started), upstreamMs: result.elapsedMs,

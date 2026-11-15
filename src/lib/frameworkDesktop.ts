@@ -1,3 +1,5 @@
+import { recordPilotEvent } from './pilotDiagnostics';
+
 export interface FrameworkDetection {
   ok: boolean;
   error?: string;
@@ -21,11 +23,19 @@ export interface FrameworkDetection {
 
 export async function frameworkDesktop(action: 'detect' | 'inspect' | 'target' | 'send', body: Record<string, unknown> = {}): Promise<FrameworkDetection> {
   if (!['http:', 'https:'].includes(location.protocol)) throw new Error('Launch Start-Iguana-Connector.bat in the same Windows/Citrix session as Framework.');
-  const response = await fetch(`/connector/desktop/${action}`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(65000),
-  });
-  if (!response.ok) throw new Error(response.status === 404 ? 'This connector is older than the page. Close it and start the connector from the new ZIP.' : `Desktop connector returned HTTP ${response.status}.`);
-  return response.json();
+  const started = performance.now();
+  try {
+    const response = await fetch(`/connector/desktop/${action}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(65000),
+    });
+    if (!response.ok) throw new Error(response.status === 404 ? 'This connector is older than the page. Close it and start the connector from the new ZIP.' : `Desktop connector returned HTTP ${response.status}.`);
+    const result: FrameworkDetection = await response.json();
+    recordPilotEvent('desktop.response', { operation: action, outcome: result.ok ? 'ok' : 'failed', durationMs: performance.now() - started, uncertain: result.uncertain, verified: result.verified });
+    return result;
+  } catch (error) {
+    recordPilotEvent('desktop.response', { operation: action, outcome: 'failed', durationMs: performance.now() - started });
+    throw error;
+  }
 }
 
 export function downloadDesktopDiagnostics(diagnostics: unknown) {
