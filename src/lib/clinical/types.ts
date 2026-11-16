@@ -37,6 +37,7 @@ export interface ClinicalSigResult {
 }
 
 export interface DiscrepancyReport {
+  readonly storageUpdatedAt?: string;
   readonly archivedAt?: string;
   readonly id: string;
   readonly timestamp: string;

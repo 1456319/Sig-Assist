@@ -1,4 +1,5 @@
 import { getCitrixStorageAdapter } from './citrixStorage';
+import type { DiscrepancyReport } from './clinical/types';
 
 export const DISCREPANCY_SAVED_EVENT = 'sig-assist-discrepancy-saved';
 
@@ -6,6 +7,10 @@ export async function exportDiscrepancyCases(scope: 'active' | 'archived' | 'all
   const saved = await getCitrixStorageAdapter().readDiscrepancies();
   const reports = saved.filter(report => scope === 'all' || (scope === 'archived' ? !!report.archivedAt : !report.archivedAt));
   if (!reports.length) throw new Error('No discrepancy reports in the selected list.');
+  return discrepancyCaseBundle(reports);
+}
+
+export function discrepancyCaseBundle(reports: DiscrepancyReport[]) {
   return {
     format: 'sig-assist-discrepancy-cases',
     schemaVersion: 1,

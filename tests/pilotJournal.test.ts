@@ -102,3 +102,15 @@ it('serves recording controls only to same-origin JSON, never queries upstream f
   expect(await readFile(path.join(bundle.directory, bundle.bundleFile), 'utf8')).toContain('SELECTION_REQUIRED');
   const exported = await post('export'); expect(exported.headers.get('content-type')).toBe('application/x-ndjson'); expect(await exported.text()).not.toContain(folder);
 });
+
+it('keeps cumulative browser drops in the manifest without counting retries or repeated counters twice', async () => {
+  const journal = createPilotJournal({ baseDir: await root(), sync: false });
+  const status = await journal.start({});
+  const ingest = (batchId: string, clientRef: string, dropped: number) => journal.ingest({ sessionId: status.sessionId, batchId, events: [{ code: 'browser.overflow', clientRef, fields: { droppedWorkflow: 0, droppedTranslation: dropped } }] });
+  await ingest('first', 'a'.repeat(32), 8); await ingest('first', 'a'.repeat(32), 8);
+  await ingest('repeat', 'a'.repeat(32), 8); await ingest('later', 'a'.repeat(32), 12);
+  await ingest('other', 'b'.repeat(32), 3);
+  const manifest = JSON.parse(await readFile(path.join(status.directory, 'manifest.json'), 'utf8'));
+  expect(manifest).toMatchObject({ droppedTranslation: 0, browserDroppedTranslation: 15, browserDroppedWorkflow: 0 });
+  expect(manifest.browserDrops).toBeUndefined();
+});

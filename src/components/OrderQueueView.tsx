@@ -115,6 +115,13 @@ export function OrderQueueView() {
         map.set(order.id, 'Cancelled');
         continue;
       }
+      // Unapproved orders always need review. Translating every waiting row just
+      // to rediscover that status thrashes the clinical cache on large queues.
+      // The selected order is still translated; approved parts are revalidated below.
+      if (!order.approved && !Object.values(order.subOrderApprovals || {}).some(Boolean)) {
+        map.set(order.id, 'Needs review');
+        continue;
+      }
       try {
         const clinical = getCachedClinicalSig({
           id: order.id,

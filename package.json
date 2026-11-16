@@ -1,7 +1,7 @@
 {
   "name": "vite-react-typescript-starter",
   "private": true,
-  "version": "0.1.7",
+  "version": "0.1.8",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -78,6 +78,7 @@
     "eslint": "^9.11.1",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.12",
+    "fake-indexeddb": "^6.2.4",
     "globals": "^15.9.0",
     "jsdom": "^30.1.0",
     "playwright": "1.62.1",

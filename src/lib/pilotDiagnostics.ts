@@ -4,9 +4,9 @@
  */
 const EVENTS_KEY = 'sig_assist_pilot_events_v1';
 const COUNTS_KEY = 'sig_assist_pilot_counts_v1';
-const CODES = ['screen.open', 'customization.count', 'dictionary.save', 'connector.request', 'connector.response', 'connector.failed', 'desktop.response', 'feedback.save'] as const;
+const CODES = ['screen.open', 'customization.count', 'dictionary.save', 'connector.request', 'connector.response', 'connector.failed', 'desktop.response', 'feedback.save', 'discrepancy.save'] as const;
 export type PilotCode = typeof CODES[number];
-const OUTCOMES = ['ok', 'failed', 'unavailable', 'unknown', 'changed', 'file_system', 'browser_cache'] as const;
+const OUTCOMES = ['ok', 'failed', 'unavailable', 'unknown', 'changed', 'file_system', 'browser_cache', 'browser_database'] as const;
 const SCREENS = ['queue', 'workbench', 'dictionary', 'rules', 'expansions', 'settings'] as const;
 const REASONS = ['AUTOMATIC_AUTH_UNAVAILABLE', 'ENOTFOUND', 'ECONNREFUSED', 'ECONNRESET', 'TIMEOUT_OR_STOPPED', 'INVALID_LOG_EXPORT', 'IGUANA_HTTP_401', 'IGUANA_HTTP_403', 'BRIDGE_UNREACHABLE', 'UNCLASSIFIED'] as const;
 const NUMBERS = ['durationMs', 'count', 'beforeCount', 'afterCount', 'httpStatus', 'port', 'headers', 'unreadable'] as const;

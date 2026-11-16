@@ -23,7 +23,9 @@ export function IntensifiedLogging({ screen }: { screen: string }) {
     setNotice(`Review bundle saved inside the recording folder: ${status.bundleFile}. Check the pending-event count before sharing.`);
   }
   const active = state.status.active;
-  const warning = state.status.fileError || state.status.limitReached || state.outboxError || !!state.error || state.droppedWorkflow > 0 || state.droppedTranslation > 0 || (state.status.droppedWorkflow || 0) > 0 || (state.status.droppedTranslation || 0) > 0;
+  const browserDroppedWorkflow = Math.max(state.droppedWorkflow, state.status.browserDroppedWorkflow || 0);
+  const browserDroppedTranslation = Math.max(state.droppedTranslation, state.status.browserDroppedTranslation || 0);
+  const warning = state.status.fileError || state.status.limitReached || state.outboxError || !!state.error || browserDroppedWorkflow > 0 || browserDroppedTranslation > 0 || (state.status.droppedWorkflow || 0) > 0 || (state.status.droppedTranslation || 0) > 0;
   const button = 'rounded border border-amber-600/50 px-2 py-1 text-xs disabled:opacity-50';
   return <section aria-label="Temporary intensified logging" className={`border-b px-4 py-2 text-xs ${warning ? 'bg-red-100 text-red-950 dark:bg-red-950 dark:text-red-100' : 'bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100'}`}>
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -51,7 +53,7 @@ export function IntensifiedLogging({ screen }: { screen: string }) {
           <option value="order-opened">Order opened</option><option value="product-selected">Product selected</option><option value="sig-reviewed">SIG reviewed</option><option value="fields-ready">Fields ready</option><option value="saved">Saved</option><option value="abandoned">Abandoned</option><option value="problem-observed">Problem observed</option>
         </select></label>
         <button type="button" className={button} disabled={busy} onClick={() => void perform(() => recorder.checkpoint(checkpoint))}>Mark checkpoint</button>
-        <span>A checkpoint records your observation; it does not save or submit an order.</span>
+        <span>Mark AFTER the action finishes and the screen settles. Use Saved only after Framework finishes saving. Checkpoints are optional observations; they do not submit an order.</span>
       </div>}
       <p role="status">Saved: {state.status.workflowEvents || 0} workflow · {state.status.translationEvents || 0} translation · {state.pending} browser events pending. {state.lastSavedAt && `Last browser save ${new Date(state.lastSavedAt).toLocaleTimeString()}.`}</p>
       {state.status.directory && <p className="break-all">Recording folder: {state.status.directory}</p>}
@@ -64,7 +66,7 @@ export function IntensifiedLogging({ screen }: { screen: string }) {
         {state.outboxError && <p>Pending-event browser backup is unavailable. Keep this page open until its events are saved, or download pending events.</p>}
         {state.status.fileError && <p>FILE WRITE FAILED{state.status.fileErrorCode ? ` (${state.status.fileErrorCode})` : ''}. Recording stopped; inspect the destination before restarting.</p>}
         {state.status.limitReached && <p>CAPTURE LIMIT REACHED. Some events were not saved. Start a new recording to continue.</p>}
-        {(state.droppedWorkflow > 0 || state.droppedTranslation > 0 || state.status.droppedWorkflow || state.status.droppedTranslation) ? <p>Dropped events: browser workflow {state.droppedWorkflow}, browser translation {state.droppedTranslation}, file workflow {state.status.droppedWorkflow || 0}, file translation {state.status.droppedTranslation || 0}.</p> : null}
+        {(browserDroppedWorkflow > 0 || browserDroppedTranslation > 0 || state.status.droppedWorkflow || state.status.droppedTranslation) ? <p>Dropped events: browser workflow {browserDroppedWorkflow}, browser translation {browserDroppedTranslation}, file workflow {state.status.droppedWorkflow || 0}, file translation {state.status.droppedTranslation || 0}.</p> : null}
       </div>}
       {state.pending > 0 && <div><button type="button" className={button} onClick={() => downloadJournalBlob(new Blob([JSON.stringify(recorder.pendingExport(), null, 2)], { type: 'application/json' }), 'sig-assist-unsaved-browser-events.json')}>Download pending browser events</button><span> Emergency download uses your browser's save location; choose the recording folder.</span></div>}
       <code className="block break-all text-[10px]">{INTENSIFIED_REMOVAL_MARKER}</code>

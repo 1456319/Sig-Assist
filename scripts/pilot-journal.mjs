@@ -8,9 +8,9 @@ import path from 'node:path';
 export const REMOVAL_PRIORITY = 'TEMPORARY_INTENSIFIED_LOGGING_REMOVAL_PRIORITY_HIGH';
 export const CONTROL_IDS = new Set(('ERxQueueButton ERxGrid ERxPatientOrderGrid FolderGridControl DirectionsView paneRichEdit RxEntryViewControl RxEntryPrescription_QtyEdit RxEntryPrescription_DaysSupplyEdit RxEntryPrescription_ProfileOnly ProductSelectionView CompoundAutoSuggestEdit RxBatch MoveRxBatchUserControl PatientViewControl chkPatientProfileReviewed WorkQueueView PART_Editor PART_OkButton PART_YesButton PART_NoButton PART_Item PART_GridControl PART_Content PART_DockLayoutManager Name Value Display Title CloseButton CancelButton OrderSigTextBox LinkedSigTextBox ERxWorkQueueWizardView ERxWorkQueueDirectionsView PrescriptionTabDirectionsView ERxWorkQueueView RxEntryView ERxTriageManagerView PatientOrdersView FrameworkEcmPopup').split(' '));
 const labels = new Set("sig|prescription sig|sig code|order sig|linked sig|directions|structured sig|preview sig|quantity|qty|days supply|days' supply|times/day|times per day|administration times|admin times|start date|delivery date|dispensed date|dispense date|effective date|expire date|status date|package type|profile only|cycle fill|unit dose|partial tablet|delivery id|rx batch|batch|product|drug|drug name|patient|patient id|facility|facility id|patient profile reviewed|allergies|no known allergies|allergy/adverse event information|refills|next|back|finish|cancel|ok|yes|no|save|continue saving|select compound/iv|search|accept|close|pon|prescriber order number".split('|'));
-const codes = new Set(('screen.open customization.count dictionary.save connector.request connector.response connector.failed desktop.response feedback.save browser.click browser.change browser.error browser.visibility browser.lifecycle browser.overflow checkpoint trace').split(' '));
+const codes = new Set(('screen.open customization.count dictionary.save connector.request connector.response connector.failed desktop.response feedback.save discrepancy.save browser.click browser.change browser.error browser.visibility browser.lifecycle browser.overflow checkpoint trace').split(' '));
 const enums = {
-  outcome: ['ok', 'failed', 'unavailable', 'unknown', 'changed', 'file_system', 'browser_cache'],
+  outcome: ['ok', 'failed', 'unavailable', 'unknown', 'changed', 'file_system', 'browser_cache', 'browser_database'],
   screen: ['queue', 'workbench', 'dictionary', 'rules', 'expansions', 'settings'],
   operation: ['detect', 'inspect', 'target', 'send', 'docutrack', 'observe'],
   metric: ['dictionary', 'rules', 'expansions'],
@@ -72,7 +72,7 @@ export function safeDesktop(raw) {
 export function createPilotJournal({ baseDir, baseDirs = baseDir ? [baseDir] : [], maxStreamBytes = 64 * 1024 * 1024, rotateBytes = 2 * 1024 * 1024, maxDurationMs = 8 * 60 * 60 * 1000, now = Date.now, monotonic = () => performance.now(), sync = true } = {}) {
   let session, chain = Promise.resolve(), key, previous = new Map(), fileErrorCode; const unsynced = new Set();
   const serialize = fn => { const p = chain.then(fn); chain = p.catch(() => {}); return p; };
-  const status = () => session ? { ok: true, marker: REMOVAL_PRIORITY, configured: baseDirs.length > 0, ...Object.fromEntries(Object.entries(session).filter(([k]) => !['streams', 'batches', 'files', 'startedTick'].includes(k))), ...(fileErrorCode ? { fileErrorCode } : {}), maxStreamBytes, maxDurationMs } : { ok: true, marker: REMOVAL_PRIORITY, active: false, configured: baseDirs.length > 0, ...(fileErrorCode ? { fileError: true, fileErrorCode } : {}) };
+  const status = () => session ? { ok: true, marker: REMOVAL_PRIORITY, configured: baseDirs.length > 0, ...Object.fromEntries(Object.entries(session).filter(([k]) => !['streams', 'batches', 'files', 'startedTick', 'browserDrops'].includes(k))), ...(fileErrorCode ? { fileErrorCode } : {}), maxStreamBytes, maxDurationMs } : { ok: true, marker: REMOVAL_PRIORITY, active: false, configured: baseDirs.length > 0, ...(fileErrorCode ? { fileError: true, fileErrorCode } : {}) };
   const pseudonym = value => key && typeof value === 'string' && value ? createHmac('sha256', key).update(value).digest('hex').slice(0, 32) : undefined;
   async function manifest() {
     await writeFile(path.join(session.directory, 'manifest.json'), JSON.stringify({ ...status(), directory: undefined, files: session.files }, null, 2), { mode: 0o600 });
@@ -120,7 +120,7 @@ export function createPilotJournal({ baseDir, baseDirs = baseDir ? [baseDir] : [
       }
       if (!directory) throw Object.assign(new Error('Configured recording destinations are unavailable.'), { code: 'DESTINATION_UNAVAILABLE' });
       key = randomBytes(32); previous = new Map(); unsynced.clear(); fileErrorCode = undefined;
-      session = { sessionId, directory, active: true, startedMs, startedTick: monotonic(), startedAt: new Date(startedMs).toISOString(), appVersion: version(body?.appVersion), observeDesktop: body?.observeDesktop !== false, seq: 0, workflowEvents: 0, translationEvents: 0, droppedWorkflow: 0, droppedTranslation: 0, limitReached: false, fileError: false, batches: new Set(), files: [], streams: { workflow: { bytes: 0, part: 1, partBytes: 0 }, translation: { bytes: 0, part: 1, partBytes: 0 } } };
+      session = { sessionId, directory, active: true, startedMs, startedTick: monotonic(), startedAt: new Date(startedMs).toISOString(), appVersion: version(body?.appVersion), observeDesktop: body?.observeDesktop !== false, seq: 0, workflowEvents: 0, translationEvents: 0, droppedWorkflow: 0, droppedTranslation: 0, browserDroppedWorkflow: 0, browserDroppedTranslation: 0, browserDrops: new Map(), limitReached: false, fileError: false, batches: new Set(), files: [], streams: { workflow: { bytes: 0, part: 1, partBytes: 0 }, translation: { bytes: 0, part: 1, partBytes: 0 } } };
       for (const field of ['appBuildId', 'bridgeBuildId', 'desktopBuildId']) if (/^[a-f0-9]{64}$/.test(body?.[field] || '')) session[field] = body[field];
       await append('workflow', 'session.start', { appVersion: session.appVersion, nodeVersion: process.version, platform: process.platform, arch: process.arch, observeDesktop: session.observeDesktop }); await manifest(); return status();
     })),
@@ -134,7 +134,15 @@ export function createPilotJournal({ baseDir, baseDirs = baseDir ? [baseDir] : [
       if (typeof body.batchId !== 'string' || !/^[a-zA-Z0-9_-]{1,100}$/.test(body.batchId) || !Array.isArray(body.events) || body.events.length > 250) throw new Error('Invalid pilot event batch.');
       if (session.batches.has(body.batchId)) return { ...status(), duplicate: true };
       if (!session.active) throw new Error('Pilot recording stopped. Pending events were not saved to this session.');
-      for (const event of body.events.map(safeBrowserEvent).filter(Boolean)) await append(event.code === 'trace' ? 'translation' : 'workflow', 'browser.' + event.code, event, false);
+      for (const event of body.events.map(safeBrowserEvent).filter(Boolean)) {
+        await append(event.code === 'trace' ? 'translation' : 'workflow', 'browser.' + event.code, event, false);
+        if (event.code === 'browser.overflow') {
+          const ref = event.clientRef || 'legacy'; const previous = session.browserDrops.get(ref) || { workflow: 0, translation: 0 };
+          session.browserDrops.set(ref, { workflow: Math.max(previous.workflow, event.fields.droppedWorkflow || 0), translation: Math.max(previous.translation, event.fields.droppedTranslation || 0) });
+          session.browserDroppedWorkflow = [...session.browserDrops.values()].reduce((sum, item) => sum + item.workflow, 0);
+          session.browserDroppedTranslation = [...session.browserDrops.values()].reduce((sum, item) => sum + item.translation, 0);
+        }
+      }
       for (const filename of unsynced) { const handle = await open(filename, 'r+'); try { await handle.sync(); } finally { await handle.close(); } }
       unsynced.clear();
       session.batches.add(body.batchId);

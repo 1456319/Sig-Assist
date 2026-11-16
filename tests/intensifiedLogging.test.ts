@@ -1,9 +1,12 @@
+import 'fake-indexeddb/auto';
+import { browserRecords } from '../src/lib/browserDatabase';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { IntensifiedRecorder, summarizeTrace, type JournalStatus, type JournalEvent } from '../src/lib/diagnostics/intensifiedLogging';
 import { traceLogger } from '../src/lib/diagnostics/traceLogger';
 import { recordPilotEvent } from '../src/lib/pilotDiagnostics';
 const recorders: IntensifiedRecorder[] = [];
-beforeEach(() => localStorage.clear());
+const records = browserRecords('sig-assist-pilot-v2');
+beforeEach(async () => { localStorage.clear(); for (const [key] of await records.entries()) await records.remove(key); });
 afterEach(() => { recorders.splice(0).forEach(r => r.dispose()); vi.restoreAllMocks(); });
 function setup(capacity = 10000) {
   let status: JournalStatus = { ok: true, active: true, configured: true, sessionId: 'test-session' };
@@ -67,4 +70,31 @@ it('ignores password fields and records ordinary interactions without their valu
   const events = api.mock.calls.filter(([a]) => a === 'events').flatMap(([, body]) => body!.events as JournalEvent[]);
   expect(events.filter(e => e.code === 'browser.change')).toHaveLength(1); expect(JSON.stringify(events)).not.toContain('PRIVATE');
   expect(summarizeTrace({ id: 'secret', traceId: 'secret', timestamp: '', layer: 'clinical', level: 'WARN', component: 'unknown PHI', message: 'secret' }, 'trace-1')).toMatchObject({ component: 'other', messageLength: 6 });
+});
+
+it('migrates only diagnostic keys after a durable copy and never writes new outboxes to localStorage', async () => {
+  const legacy = { sessionId: 'test-session', workflow: [], translation: [], droppedWorkflow: 0, droppedTranslation: 0 };
+  localStorage.setItem('sig_assist_intensified_outbox_v1_test-session', JSON.stringify(legacy));
+  localStorage.setItem('sig_assist_intensified_last_outbox_v1', 'test-session');
+  localStorage.setItem('citrix_storage_discrepancies', 'existing reports');
+  localStorage.setItem('custom_codes', 'existing codes');
+  const writes = vi.spyOn(Storage.prototype, 'setItem');
+  const { recorder } = setup(); await recorder.connect(); recorder.record('browser.error'); await recorder.flush();
+  expect(writes).not.toHaveBeenCalled();
+  expect(localStorage.getItem('sig_assist_intensified_outbox_v1_test-session')).toBeNull();
+  expect(await records.get('legacy:sig_assist_intensified_outbox_v1_test-session')).toBe(JSON.stringify(legacy));
+  expect(localStorage.getItem('citrix_storage_discrepancies')).toBe('existing reports');
+  expect(localStorage.getItem('custom_codes')).toBe('existing codes');
+});
+
+it('preserves legacy buffers when the database transaction fails and keeps the connector capture usable', async () => {
+  const legacy = JSON.stringify({ sessionId: 'test-session', workflow: [], translation: [], droppedWorkflow: 0, droppedTranslation: 0 });
+  localStorage.setItem('sig_assist_intensified_outbox_v1_test-session', legacy);
+  const store = { ...records, merge: vi.fn().mockRejectedValue(new Error('quota')) };
+  const api = vi.fn(async (action: string) => { void action; return { ok: true, active: true, sessionId: 'test-session' }; });
+  const recorder = new IntensifiedRecorder(api, localStorage, 10000, store); recorders.push(recorder);
+  await recorder.connect(); recorder.record('browser.error'); await recorder.flush();
+  expect(recorder.getState().outboxError).toBe(true);
+  expect(localStorage.getItem('sig_assist_intensified_outbox_v1_test-session')).toBe(legacy);
+  expect(api.mock.calls.some(call => call[0] === 'events')).toBe(true);
 });

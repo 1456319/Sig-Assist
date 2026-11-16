@@ -18,7 +18,7 @@ function createMockDirectoryHandle() {
         if (options?.create) {
           files.set(filename, '');
         } else {
-          throw new Error(`File not found: ${filename}`);
+          throw new DOMException('File not found', 'NotFoundError');
         }
       }
 

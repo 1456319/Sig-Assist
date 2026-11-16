@@ -156,7 +156,7 @@ it('archives the current list, keeps a fresh active export and restores original
   await screen.findByText('1 archived reports');
   fireEvent.click(screen.getByRole('button', { name: 'Restore archived reports' }));
   await screen.findByText('2 saved discrepancy reports');
-  expect((await exportDiscrepancyCases()).reports).toEqual([old, fresh]);
+  expect((await exportDiscrepancyCases()).reports).toEqual([{ ...old, storageUpdatedAt: expect.any(String) }, fresh]);
 });
 
 it('serializes concurrent saves and archives without losing or archiving new reports', async () => {
@@ -183,4 +183,31 @@ it('does not clear the list or lose report evidence when an archive write fails'
   await waitFor(() => expect((screen.getByRole('button', { name: 'Archive current reports' }) as HTMLButtonElement).disabled).toBe(false));
   expect(screen.queryByText('1 archived reports')).toBeNull();
   expect((await adapter.readDiscrepancies())).toEqual([old]);
+});
+
+it('downloads an unsaved report with its correction and retains the same identity when retrying', async () => {
+  const adapter = getCitrixStorageAdapter();
+  const save = vi.spyOn(adapter, 'appendDiscrepancy').mockRejectedValueOnce(new Error('all stores unavailable'));
+  let downloaded: Blob | undefined;
+  vi.stubGlobal('URL', { createObjectURL: (blob: Blob) => { downloaded = blob; return 'blob:synthetic'; }, revokeObjectURL: vi.fn() });
+  const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  try {
+    render(<DiscrepancyPanel pon="SYNTHETIC" drugName="Test" rawProse="Original" generatedSig="DRAFT" isOpen onDiscrepancySaved={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('Technician Preferred / Corrected SIG:'), { target: { value: 'corrected' } });
+    fireEvent.change(screen.getByLabelText('Notes / Rationale:'), { target: { value: 'keep this note' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Discrepancy Report' }));
+    await screen.findByRole('alert');
+    fireEvent.click(screen.getByRole('button', { name: 'Download this report' }));
+    expect(click).toHaveBeenCalledTimes(1);
+    // FileReader works in jsdom as well as in the browser.
+    const text = await new Promise<string>((resolve) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.readAsText(downloaded!); });
+    const bundle = JSON.parse(text);
+    expect(bundle).toMatchObject({ format: 'sig-assist-discrepancy-cases', redacted: false, caseCount: 1 });
+    expect(bundle.reports[0]).toMatchObject({ id: save.mock.calls[0][0].id, rawProse: 'Original', technicianSig: 'CORRECTED', notes: 'keep this note' });
+    expect(screen.getByRole('status').textContent).toContain('does not add the report');
+    expect(await adapter.readDiscrepancies()).toEqual([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Save Discrepancy Report' }));
+    await screen.findByText('Discrepancy saved locally');
+    expect((await adapter.readDiscrepancies())[0].id).toBe(bundle.reports[0].id);
+  } finally { vi.unstubAllGlobals(); }
 });

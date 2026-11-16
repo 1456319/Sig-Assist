@@ -159,33 +159,37 @@ export function ReviewSession({ children }: { children: ReactNode }) {
       let isReviewed = Boolean(o.approved);
       let isCompleted = Boolean(o.copied);
 
-      try {
-        const clinical = getCachedClinicalSig({
-          id: o.id,
-          pon: o.pon,
-          drugName: o.drug,
-          rawProse: o.directions,
-          defaultSigTemplate: o.defaultSig,
-          sourceFormat: 'manual_text',
-        }, { exclusions: policy.exclusions });
-        if (clinical.subOrders.length > 1) {
-          const allApproved = clinical.subOrders.every(sub => Boolean(o.subOrderApprovals?.[sub.id]));
-          const allCopied = allApproved && clinical.subOrders.every(sub => Boolean(o.subOrderCopied?.[sub.id]));
-          isReviewed = allApproved;
-          isCompleted = allCopied;
-        }
-      } catch {
-        const subOrderDraftKeys = o.subOrderDrafts ? Object.keys(o.subOrderDrafts) : [];
-        const subOrderApprovalKeys = o.subOrderApprovals ? Object.keys(o.subOrderApprovals) : [];
-        const subOrderCopiedKeys = o.subOrderCopied ? Object.keys(o.subOrderCopied) : [];
-
-        if (subOrderDraftKeys.length > 1 || subOrderApprovalKeys.length > 1 || subOrderCopiedKeys.length > 1) {
-          const allIds = Array.from(new Set([...subOrderDraftKeys, ...subOrderApprovalKeys, ...subOrderCopiedKeys]));
-          if (allIds.length > 0) {
-            const allApproved = allIds.every(id => Boolean(o.subOrderApprovals?.[id]));
-            const allCopied = allApproved && allIds.every(id => Boolean(o.subOrderCopied?.[id]));
+      // Pending rows need no clinical evaluation just to persist pending status.
+      // Keep validation for all reviewed/copied split parts and the active order.
+      if (o.approved || o.copied || Object.values(o.subOrderApprovals || {}).some(Boolean) || Object.values(o.subOrderCopied || {}).some(Boolean)) {
+        try {
+          const clinical = getCachedClinicalSig({
+            id: o.id,
+            pon: o.pon,
+            drugName: o.drug,
+            rawProse: o.directions,
+            defaultSigTemplate: o.defaultSig,
+            sourceFormat: 'manual_text',
+          }, { exclusions: policy.exclusions });
+          if (clinical.subOrders.length > 1) {
+            const allApproved = clinical.subOrders.every(sub => Boolean(o.subOrderApprovals?.[sub.id]));
+            const allCopied = allApproved && clinical.subOrders.every(sub => Boolean(o.subOrderCopied?.[sub.id]));
             isReviewed = allApproved;
             isCompleted = allCopied;
+          }
+        } catch {
+          const subOrderDraftKeys = o.subOrderDrafts ? Object.keys(o.subOrderDrafts) : [];
+          const subOrderApprovalKeys = o.subOrderApprovals ? Object.keys(o.subOrderApprovals) : [];
+          const subOrderCopiedKeys = o.subOrderCopied ? Object.keys(o.subOrderCopied) : [];
+
+          if (subOrderDraftKeys.length > 1 || subOrderApprovalKeys.length > 1 || subOrderCopiedKeys.length > 1) {
+            const allIds = Array.from(new Set([...subOrderDraftKeys, ...subOrderApprovalKeys, ...subOrderCopiedKeys]));
+            if (allIds.length > 0) {
+              const allApproved = allIds.every(id => Boolean(o.subOrderApprovals?.[id]));
+              const allCopied = allApproved && allIds.every(id => Boolean(o.subOrderCopied?.[id]));
+              isReviewed = allApproved;
+              isCompleted = allCopied;
+            }
           }
         }
       }

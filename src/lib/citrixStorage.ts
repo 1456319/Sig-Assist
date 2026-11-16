@@ -3,6 +3,8 @@ import type { OrderSource } from './orderQueue';
 import type { IguanaOrderMetadata } from './iguana/types';
 import { traceLogger, type TraceEvent } from './diagnostics/traceLogger';
 import type { TechnicianFeedback } from './feedbackTypes';
+import { recordPilotEvent } from './pilotDiagnostics';
+import { mergeDiscrepancyReports, readDatabaseDiscrepancies, writeDatabaseDiscrepancies } from './discrepancyDatabase';
 
 export interface StoredQueueOrder {
   id: string;
@@ -79,6 +81,8 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
   private discrepanciesResolvers: Array<{ resolve: () => void; reject: (err: unknown) => void } | (() => void)> = [];
   private discrepancyAppendChain: Promise<void> = Promise.resolve();
   private feedbackAppendChain: Promise<unknown> = Promise.resolve();
+  private discrepancyFolderReadable = true;
+  private discrepancyCacheReadable = true;
 
   private pendingPreferences: TechnicianPreferences | null = null;
   private preferencesTimer: ReturnType<typeof setTimeout> | null = null;
@@ -150,7 +154,10 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
       return false;
     }
     try {
-      await this.flushPendingWrites();
+      // A full old destination must not prevent choosing a working folder.
+      // Failed writes still reject their callers; the new handle does not claim
+      // that those writes were saved. Report drafts remain in their forms.
+      try { await this.flushPendingWrites(); } catch { /* Allow storage recovery. */ }
       const newHandle = await win.showDirectoryPicker({ mode: 'readwrite' });
       this.dirHandle = newHandle;
       this.destinationId = `dir_${newHandle.name || 'share'}_${Math.random().toString(36).substring(2, 10)}`;
@@ -229,7 +236,7 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
       this.writeQueueItems.push(async () => {
         try {
           let writtenToFile = false;
-          if (this.dirHandle) {
+          if (this.dirHandle && (filename !== 'discrepancies.json' || this.discrepancyFolderReadable)) {
             writtenToFile = await this.writeFile(filename, data);
             if (writtenToFile) {
               this.fallbackActive[filename] = false;
@@ -238,17 +245,28 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
             }
           }
           let writtenToLocal = false;
-          if (!writtenToFile) {
+          let writtenToDatabase = false;
+          if (!writtenToFile && (filename !== 'discrepancies.json' || this.discrepancyCacheReadable)) {
             writtenToLocal = this.writeLocalStorage(storageKey, data);
           }
           if (!writtenToFile && !writtenToLocal) {
-            const err = new Error(`StorageWriteError: Failed to write ${filename} to both file system and browser local storage.`);
+            if (filename === 'discrepancies.json') {
+              try { await writeDatabaseDiscrepancies(data as DiscrepancyReport[]); writtenToLocal = true; writtenToDatabase = true; }
+              catch { /* Preserve the form and all older archives if every store fails. */ }
+            }
+          }
+          if (!writtenToFile && !writtenToLocal) {
+            if (filename === 'discrepancies.json') recordPilotEvent('discrepancy.save', { outcome: 'failed' });
+            const err = new Error(filename === 'discrepancies.json'
+              ? 'StorageWriteError: Report could not be saved to the connected folder, browser cache or local database. Download this report before closing or reloading.'
+              : `StorageWriteError: Failed to write ${filename} to both file system and browser local storage.`);
             resolvers.forEach((r) => {
               if (r && typeof r === 'object' && 'reject' in r && typeof r.reject === 'function') r.reject(err);
             });
             reject(err);
             return;
           }
+          if (filename === 'discrepancies.json') recordPilotEvent('discrepancy.save', { outcome: writtenToFile ? 'file_system' : writtenToDatabase ? 'browser_database' : 'browser_cache' });
           resolvers.forEach((r) => {
             if (typeof r === 'function') r();
             else if (r && typeof r === 'object' && 'resolve' in r && typeof r.resolve === 'function') r.resolve();
@@ -327,14 +345,30 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
     if (!options?.bypassPending && this.pendingDiscrepancies !== null) {
       return this.pendingDiscrepancies;
     }
-    let data: DiscrepancyReport[] | null = null;
-    if (this.dirHandle && !this.fallbackActive['discrepancies.json']) {
-      data = await this.readFile<DiscrepancyReport[]>('discrepancies.json');
+    let data: DiscrepancyReport[] = [];
+    this.discrepancyFolderReadable = true;
+    if (this.dirHandle) {
+      try {
+        const file = await (await this.dirHandle.getFileHandle('discrepancies.json')).getFile();
+        const parsed = JSON.parse(await file.text());
+        if (!Array.isArray(parsed)) throw new Error('Invalid discrepancy archive');
+        data = mergeDiscrepancyReports(parsed);
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === 'NotFoundError')) this.discrepancyFolderReadable = false;
+      }
     }
-    if (data !== null) {
-      return data;
-    }
-    return this.readLocalStorage<DiscrepancyReport[]>('citrix_storage_discrepancies', []);
+    let cached: DiscrepancyReport[] = [];
+    this.discrepancyCacheReadable = true;
+    try {
+      const raw = localStorage.getItem('citrix_storage_discrepancies');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) throw new Error('Invalid discrepancy cache');
+        cached = mergeDiscrepancyReports(parsed);
+      }
+    } catch { this.discrepancyCacheReadable = false; }
+    const backedUp = await readDatabaseDiscrepancies();
+    return mergeDiscrepancyReports(cached, data, backedUp);
   }
 
   async readFeedback(options?: { browserOnly?: boolean }): Promise<TechnicianFeedback[]> {
@@ -382,7 +416,7 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
   ): Promise<void> {
     const runAppend = async () => {
       const existing = await this.readDiscrepancies();
-      const updated = [...existing, report];
+      const updated = mergeDiscrepancyReports(existing, [report]);
       const delay = options?.immediate ? 0 : (options?.debounceMs ?? this.debounceDelayMs);
 
       if (delay <= 0) {
@@ -434,12 +468,16 @@ class MemoryCitrixStorageAdapter implements CitrixStorageAdapter {
       // Share the append chain: a new report saved while archiving cannot be lost
       // or accidentally archived with the selected snapshot.
       const reports = await this.readDiscrepancies();
-      const timestamp = new Date().toISOString();
       const updated = reports.map(report => {
         if (!selected.has(report.id)) return report;
-        if (archived) return { ...report, archivedAt: report.archivedAt || timestamp };
+        // A restore immediately after archive must supersede stale fallback copies,
+        // even within the same clock tick or after a workstation clock adjustment.
+        const previous = Math.max(...[report.timestamp, report.archivedAt, report.storageUpdatedAt].map(value => Date.parse(value || '') || 0));
+        const timestamp = new Date(Math.max(Date.now(), previous + 1)).toISOString();
+        if (archived) return { ...report, archivedAt: report.archivedAt || timestamp, storageUpdatedAt: timestamp };
         const restored = { ...report };
         delete (restored as { archivedAt?: string }).archivedAt;
+        (restored as { storageUpdatedAt?: string }).storageUpdatedAt = timestamp;
         return restored;
       });
       await this.commitWrite('discrepancies.json', 'citrix_storage_discrepancies', updated, []);
