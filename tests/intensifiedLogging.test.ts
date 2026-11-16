@@ -43,6 +43,17 @@ it('separates queue budgets so a translation burst cannot displace workflow and 
   expect(events.find(e => e.code === 'browser.overflow')!.fields.droppedTranslation).toBe(8);
 });
 
+it('refreshes server status after a write failure so stopped recording is not reported as active', async () => {
+  const { recorder, api } = setup(); await recorder.connect(); recorder.record('browser.click', { tag: 'button' });
+  api.mockImplementation(async action => {
+    if (action === 'events') throw new Error('File write failed');
+    return { ok: true, active: false, configured: true, sessionId: 'test-session', fileError: true, fileErrorCode: 'ENOSPC' };
+  });
+  await recorder.flush();
+  expect(recorder.getState().status).toMatchObject({ active: false, fileError: true, fileErrorCode: 'ENOSPC' });
+  expect(recorder.getState().pending).toBeGreaterThan(0);
+});
+
 it('preserves an unreadable outbox and still exposes a persistence warning while saving live events to the connector', async () => {
   localStorage.setItem('sig_assist_intensified_outbox_v1_test-session', '{broken');
   const { recorder } = setup(); await recorder.connect(); recorder.record('browser.error'); await recorder.flush();

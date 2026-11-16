@@ -25,6 +25,7 @@ const enums = {
 const numbers = new Set(('durationMs count beforeCount afterCount httpStatus port headers unreadable messageLength valueLength rawProseLength primarySigLength drugNameLength abnormalitiesCount splitPartsCount droppedWorkflow droppedTranslation recovered pendingCount nodeCount visitedCount errors elapsedMs limit rowCount columnCount').split(' '));
 const booleans = new Set(('uncertain verified checked isControlled isPaxitSolid requiresSplit hasPackagingNotice isApap hidden disabled writable hasFilter').split(' '));
 const version = x => typeof x === 'string' && /^[0-9]+\.[0-9]+\.[0-9]+$/.test(x) ? x : 'unknown';
+const fileCodes = ['EACCES', 'EPERM', 'ENOENT', 'ENOSPC', 'EIO', 'EROFS', 'ETIMEDOUT', 'ECONNRESET', 'ENOTCONN', 'EBUSY', 'DESTINATION_UNAVAILABLE'];
 const token = x => typeof x === 'string' && /^[a-f0-9]{32}$/.test(x) ? x : undefined;
 export function safeFields(raw = {}) {
   if (!raw || typeof raw !== 'object') raw = {};
@@ -65,9 +66,9 @@ export function safeDesktop(raw) {
 }
 
 export function createPilotJournal({ baseDir, baseDirs = baseDir ? [baseDir] : [], maxStreamBytes = 64 * 1024 * 1024, rotateBytes = 2 * 1024 * 1024, maxDurationMs = 8 * 60 * 60 * 1000, now = Date.now, monotonic = () => performance.now(), sync = true } = {}) {
-  let session, chain = Promise.resolve(), key, previous = new Map(); const unsynced = new Set();
+  let session, chain = Promise.resolve(), key, previous = new Map(), fileErrorCode; const unsynced = new Set();
   const serialize = fn => { const p = chain.then(fn); chain = p.catch(() => {}); return p; };
-  const status = () => session ? { ok: true, marker: REMOVAL_PRIORITY, configured: baseDirs.length > 0, ...Object.fromEntries(Object.entries(session).filter(([k]) => !['streams', 'batches', 'files', 'startedTick'].includes(k))), maxStreamBytes, maxDurationMs } : { ok: true, marker: REMOVAL_PRIORITY, active: false, configured: baseDirs.length > 0 };
+  const status = () => session ? { ok: true, marker: REMOVAL_PRIORITY, configured: baseDirs.length > 0, ...Object.fromEntries(Object.entries(session).filter(([k]) => !['streams', 'batches', 'files', 'startedTick'].includes(k))), ...(fileErrorCode ? { fileErrorCode } : {}), maxStreamBytes, maxDurationMs } : { ok: true, marker: REMOVAL_PRIORITY, active: false, configured: baseDirs.length > 0, ...(fileErrorCode ? { fileError: true, fileErrorCode } : {}) };
   const pseudonym = value => key && typeof value === 'string' && value ? createHmac('sha256', key).update(value).digest('hex').slice(0, 32) : undefined;
   async function manifest() {
     await writeFile(path.join(session.directory, 'manifest.json'), JSON.stringify({ ...status(), directory: undefined, files: session.files }, null, 2), { mode: 0o600 });
@@ -92,6 +93,7 @@ export function createPilotJournal({ baseDir, baseDirs = baseDir ? [baseDir] : [
     try { return await fn(); }
     catch (error) {
       if (typeof error?.code !== 'string') throw new Error('Invalid or unavailable pilot logging operation. Existing files were preserved.');
+      fileErrorCode = fileCodes.includes(error.code) ? error.code : 'FILE_IO_ERROR';
       if (session) { session.active = false; session.stopReason = 'FILE_WRITE_FAILED'; session.fileError = true; }
       throw new Error('Pilot journal could not write its local files. Existing files were preserved.');
     }
@@ -113,7 +115,7 @@ export function createPilotJournal({ baseDir, baseDirs = baseDir ? [baseDir] : [
         } catch { /* Try only the explicitly configured alternative root. */ }
       }
       if (!directory) throw Object.assign(new Error('Configured recording destinations are unavailable.'), { code: 'DESTINATION_UNAVAILABLE' });
-      key = randomBytes(32); previous = new Map(); unsynced.clear();
+      key = randomBytes(32); previous = new Map(); unsynced.clear(); fileErrorCode = undefined;
       session = { sessionId, directory, active: true, startedMs, startedTick: monotonic(), startedAt: new Date(startedMs).toISOString(), appVersion: version(body?.appVersion), observeDesktop: body?.observeDesktop !== false, seq: 0, workflowEvents: 0, translationEvents: 0, droppedWorkflow: 0, droppedTranslation: 0, limitReached: false, fileError: false, batches: new Set(), files: [], streams: { workflow: { bytes: 0, part: 1, partBytes: 0 }, translation: { bytes: 0, part: 1, partBytes: 0 } } };
       for (const field of ['appBuildId', 'bridgeBuildId', 'desktopBuildId']) if (/^[a-f0-9]{64}$/.test(body?.[field] || '')) session[field] = body[field];
       await append('workflow', 'session.start', { appVersion: session.appVersion, nodeVersion: process.version, platform: process.platform, arch: process.arch, observeDesktop: session.observeDesktop }); await manifest(); return status();

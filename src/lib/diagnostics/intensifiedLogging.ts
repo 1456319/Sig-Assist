@@ -13,6 +13,7 @@ export interface JournalStatus {
   limitReached?: boolean; fileError?: boolean; stopReason?: string; desktopCode?: string; desktopPartial?: boolean;
   maxStreamBytes?: number; maxDurationMs?: number;
   bundleFile?: string;
+  fileErrorCode?: string;
 }
 export interface RecorderState {
   available: boolean; status: JournalStatus; pending: number; droppedWorkflow: number; droppedTranslation: number;
@@ -36,8 +37,13 @@ export function summarizeTrace(event: TraceEvent, traceRef: string): Record<stri
 }
 export async function journalApi(action: string, body: Record<string, unknown> = {}): Promise<JournalStatus> {
   const response = await fetch(`/connector/pilot/${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(action === 'start' ? 60000 : 20000) });
-  if (!response.ok) throw new Error(response.status === 404 ? 'Start the v0.1.7 connector to use pilot file logging.' : 'Pilot file logging could not complete the request. Check the connector and file destination.');
-  const data = await response.json(); if (!data.ok) throw new Error('Pilot recorder reported a failure. Check its file destination.'); return data;
+  if (response.status === 404) throw new Error('Start the v0.1.7 connector to use pilot file logging.');
+  const data = await response.json();
+  if (!response.ok || !data.ok) {
+    const code = ['EACCES', 'EPERM', 'ENOENT', 'ENOSPC', 'EIO', 'EROFS', 'ETIMEDOUT', 'ECONNRESET', 'ENOTCONN', 'EBUSY', 'DESTINATION_UNAVAILABLE', 'FILE_IO_ERROR'].includes(data.fileErrorCode) ? ` (${data.fileErrorCode})` : '';
+    throw new Error(`Pilot file logging could not complete the request${code}. Check the connector and configured destination.`);
+  }
+  return data;
 }
 export class IntensifiedRecorder {
   private state: RecorderState = { available: false, status: { ok: true, active: false }, pending: 0, droppedWorkflow: 0, droppedTranslation: 0, outboxError: false, error: '' };
@@ -136,13 +142,18 @@ export class IntensifiedRecorder {
             events.push({ code: 'browser.overflow', fields: { droppedWorkflow: this.outbox.droppedWorkflow, droppedTranslation: this.outbox.droppedTranslation }, at: new Date().toISOString(), elapsedMs: performance.now() - this.started, timezoneOffset: new Date().getTimezoneOffset() });
             this.outbox.batch = { batchId: id(), events }; this.persist();
           }
+          this.publish();
           const status = await this.api('events', { sessionId: this.outbox.sessionId, ...this.outbox.batch });
           this.outbox.batch = undefined; this.persist(); this.publish({ status, error: '', lastSavedAt: new Date().toISOString() });
           if (!status.active) break;
         }
         const status = await this.api('status'); this.publish({ status, error: '' });
         if (!status.active) { this.cleanup?.(); this.persist(); }
-      } catch { this.persist(); this.publish({ error: 'Some browser events are unsaved. Retry while the connector is running; download pending events before closing if needed.' }); }
+      } catch {
+        this.persist(); let status = this.state.status;
+        try { status = await this.api('status'); if (!status.active) this.cleanup?.(); } catch { /* Unreachable status remains explicitly uncertain. */ }
+        this.publish({ status, error: 'Some browser events are unsaved. Check recording status; retry while the connector is running or download pending events before closing.' });
+      }
     })().finally(() => { this.running = undefined; });
     return this.running;
   }

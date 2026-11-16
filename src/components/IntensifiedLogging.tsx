@@ -27,7 +27,7 @@ export function IntensifiedLogging({ screen }: { screen: string }) {
   const button = 'rounded border border-amber-600/50 px-2 py-1 text-xs disabled:opacity-50';
   return <section aria-label="Temporary intensified logging" className={`border-b px-4 py-2 text-xs ${warning ? 'bg-red-100 text-red-950 dark:bg-red-950 dark:text-red-100' : 'bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100'}`}>
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-      <strong>TEMPORARY INTENSIFIED LOGGING · {active ? 'RECORDING' : 'OFF'}</strong>
+      <strong>TEMPORARY INTENSIFIED LOGGING · {active ? state.error ? 'CHECK CONNECTION · BUFFERING' : 'RECORDING' : 'OFF'}</strong>
       <span>REMOVAL PRIORITY: HIGH — remove or reduce after investigation.</span>
       <button type="button" className="underline" aria-expanded={expanded || active} onClick={() => setExpanded(!expanded)}>{expanded || active ? 'Recording controls' : 'Open recording controls'}</button>
     </div>
@@ -62,7 +62,7 @@ export function IntensifiedLogging({ screen }: { screen: string }) {
       {(warning || notice) && <div role="alert" className="space-y-1">
         {notice && <p>{notice}</p>}{state.error && <p>{state.error}</p>}
         {state.outboxError && <p>Pending-event browser backup is unavailable. Keep this page open until its events are saved, or download pending events.</p>}
-        {state.status.fileError && <p>FILE WRITE FAILED. Recording stopped; inspect the destination before restarting.</p>}
+        {state.status.fileError && <p>FILE WRITE FAILED{state.status.fileErrorCode ? ` (${state.status.fileErrorCode})` : ''}. Recording stopped; inspect the destination before restarting.</p>}
         {state.status.limitReached && <p>CAPTURE LIMIT REACHED. Some events were not saved. Start a new recording to continue.</p>}
         {(state.droppedWorkflow > 0 || state.droppedTranslation > 0 || state.status.droppedWorkflow || state.status.droppedTranslation) ? <p>Dropped events: browser workflow {state.droppedWorkflow}, browser translation {state.droppedTranslation}, file workflow {state.status.droppedWorkflow || 0}, file translation {state.status.droppedTranslation || 0}.</p> : null}
       </div>}
