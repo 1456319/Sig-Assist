@@ -1,9 +1,10 @@
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { IntensifiedLogging } from '../src/components/IntensifiedLogging';
 import { INTENSIFIED_REMOVAL_MARKER } from '../src/lib/diagnostics/intensifiedLogging';
-afterEach(() => { cleanup(); vi.restoreAllMocks(); localStorage.clear(); });
+beforeEach(() => document.head.insertAdjacentHTML('beforeend', '<meta name="sig-assist-local-connector" content="pilot-v1">'));
+afterEach(() => { cleanup(); vi.restoreAllMocks(); localStorage.clear(); document.querySelector('meta[name="sig-assist-local-connector"]')?.remove(); });
 
 it('exposes opt-in recording from the first screen, marks removal priority, and saves its bundle in the connector folder', async () => {
   let active = false; let started = false;
@@ -31,4 +32,12 @@ it('keeps start disabled with an explanation when the intended recording root is
   render(<IntensifiedLogging screen="queue" />); await userEvent.click(screen.getByRole('button', { name: 'Open recording controls' }));
   expect(await screen.findByText(/Recording destination is not configured/)).toBeTruthy();
   expect((screen.getByRole('button', { name: 'Start pilot recording' }) as HTMLButtonElement).disabled).toBe(true);
+});
+
+it('does not probe a standalone HTTP demo server for logging endpoints', async () => {
+  document.querySelector('meta[name="sig-assist-local-connector"]')?.remove();
+  const fetchMock = vi.spyOn(globalThis, 'fetch'); render(<IntensifiedLogging screen="queue" />);
+  await userEvent.click(screen.getByRole('button', { name: 'Open recording controls' }));
+  expect(await screen.findByText(/Open Start-Iguana-Connector.bat from this build/)).toBeTruthy();
+  expect(fetchMock).not.toHaveBeenCalled();
 });

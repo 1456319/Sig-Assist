@@ -116,6 +116,9 @@ export class IntensifiedRecorder {
   async connect() {
     const generation = ++this.generation;
     if (!['http:', 'https:'].includes(location.protocol)) { this.publish({ error: 'Start-Iguana-Connector.bat enables local pilot file logging.' }); return; }
+    if (this.api === journalApi && !document.querySelector('meta[name="sig-assist-local-connector"][content="pilot-v1"]')) {
+      this.publish({ error: 'Open Start-Iguana-Connector.bat from this build to enable local pilot file logging.' }); return;
+    }
     try {
       const status = await this.api('status'); if (generation !== this.generation) return;
       this.restore(status.sessionId); this.publish({ available: true, status, error: '' });

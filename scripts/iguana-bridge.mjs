@@ -260,10 +260,11 @@ export function createBridge({ htmlPath = defaultHtmlPath(), fetchImpl = fetch, 
       const { html, profile } = await portablePage(htmlPath);
       response.writeHead(profile.ok ? 200 : 500, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       if (!profile.ok) { response.end(startupErrorPage(profile)); return; }
+      const localHtml = html.replace('</head>', '<meta name="sig-assist-local-connector" content="pilot-v1"></head>');
       if (startup.fallbackFrom) {
         const info = JSON.stringify(startup).replace(/</g, '\\u003c');
-        response.end(html.replace('</body>', `<script type="application/json" id="sig-assist-connector-startup">${info}</script><aside id="sig-assist-port-notice" role="status" style="position:fixed;bottom:16px;left:16px;right:16px;z-index:9999;background:#fff8dd;color:#292211;border:1px solid #b69539;padding:12px;border-radius:8px;font:14px system-ui">Connector opened on port ${startup.actualPort} because port ${startup.fallbackFrom} is busy. Saved browser cases belong to their original address. To return to that address, close your earlier Sig-Assist connector window and relaunch. <button id="sig-assist-dismiss-port-notice" type="button">Dismiss</button></aside></body>`));
-      } else response.end(html);
+        response.end(localHtml.replace('</body>', `<script type="application/json" id="sig-assist-connector-startup">${info}</script><aside id="sig-assist-port-notice" role="status" style="position:fixed;bottom:16px;left:16px;right:16px;z-index:9999;background:#fff8dd;color:#292211;border:1px solid #b69539;padding:12px;border-radius:8px;font:14px system-ui">Connector opened on port ${startup.actualPort} because port ${startup.fallbackFrom} is busy. Saved browser cases belong to their original address. To return to that address, close your earlier Sig-Assist connector window and relaunch. <button id="sig-assist-dismiss-port-notice" type="button">Dismiss</button></aside></body>`));
+      } else response.end(localHtml);
       return;
     }
     if (request.method === 'POST' && /^\/connector\/pilot\/(status|start|stop|events|checkpoint|export|bundle)$/.test(request.url ?? '')) {
