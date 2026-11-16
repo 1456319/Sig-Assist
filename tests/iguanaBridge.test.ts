@@ -1,7 +1,7 @@
 // @vitest-environment node
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createServer, type Server } from 'node:http';
-import type { AddressInfo } from 'node:net';
+import { Server as NetServer, type AddressInfo } from 'node:net';
 import { mkdtemp, writeFile, readFile, rm, copyFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -31,6 +31,18 @@ async function start(options: Record<string, unknown> = {}) {
 }
 
 describe('local read-only bridge', () => {
+  it('skips a reserved local port and allows the OS to select an available fallback', async () => {
+    const forced = vi.spyOn(NetServer.prototype, 'listen').mockImplementationOnce(function(this: NetServer) {
+      queueMicrotask(() => this.emit('error', Object.assign(new Error('Reserved local port'), { code: 'EACCES' }))); return this;
+    });
+    const notices: string[] = [];
+    try {
+      const result = await start({ port: 65535, onNotice: (notice: string) => notices.push(notice) });
+      const health = await (await fetch(new URL('/connector/health', result.url))).json();
+      expect(health.startup.fallbackFrom).toBe(65535);
+      expect(notices.some(n => n.includes('reserved or unavailable'))).toBe(true);
+    } finally { forced.mockRestore(); }
+  });
   it('reads login-page defaults afresh for each query without embedding or exporting them', async () => {
     const calls: string[] = []; let loginReads = 0;
     const upstream = await listen(createServer((request, response) => {

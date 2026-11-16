@@ -242,7 +242,7 @@ export function createBridge({ htmlPath = defaultHtmlPath(), fetchImpl = fetch, 
     if (observing || !journal.status().active || !journal.status().observeDesktop) return;
     observing = true;
     const sessionId = journal.status().sessionId;
-    try { await journal.desktop(await desktop('observe', { key: journal.observationKey() }), sessionId); }
+    try { const snapshot = await desktop('observe', { key: journal.observationKey() }); await journal.desktop({ ...snapshot, observedAt: new Date().toISOString() }, sessionId); }
     catch { /* File failure is exposed by journal.status; never break order entry. */ }
     finally { observing = false; }
   }
@@ -263,7 +263,7 @@ export function createBridge({ htmlPath = defaultHtmlPath(), fetchImpl = fetch, 
       const localHtml = html.replace('</head>', '<meta name="sig-assist-local-connector" content="pilot-v1"></head>');
       if (startup.fallbackFrom) {
         const info = JSON.stringify(startup).replace(/</g, '\\u003c');
-        response.end(localHtml.replace('</body>', `<script type="application/json" id="sig-assist-connector-startup">${info}</script><aside id="sig-assist-port-notice" role="status" style="position:fixed;bottom:16px;left:16px;right:16px;z-index:9999;background:#fff8dd;color:#292211;border:1px solid #b69539;padding:12px;border-radius:8px;font:14px system-ui">Connector opened on port ${startup.actualPort} because port ${startup.fallbackFrom} is busy. Saved browser cases belong to their original address. To return to that address, close your earlier Sig-Assist connector window and relaunch. <button id="sig-assist-dismiss-port-notice" type="button">Dismiss</button></aside></body>`));
+        response.end(localHtml.replace('</body>', `<script type="application/json" id="sig-assist-connector-startup">${info}</script><aside id="sig-assist-port-notice" role="status" style="position:fixed;bottom:16px;left:16px;right:16px;z-index:9999;background:#fff8dd;color:#292211;border:1px solid #b69539;padding:12px;border-radius:8px;font:14px system-ui">Connector opened on port ${startup.actualPort} because port ${startup.fallbackFrom} is unavailable. Saved browser cases belong to their original address. To return to that address, close your earlier Sig-Assist connector window and relaunch. <button id="sig-assist-dismiss-port-notice" type="button">Dismiss</button></aside></body>`));
       } else response.end(localHtml);
       return;
     }
@@ -403,16 +403,16 @@ export async function startBridge({ port = 4190, htmlPath = defaultHtmlPath(), o
     try {
       const actualPort = await listen(server, candidate);
       Object.assign(startup, { actualPort, ...(port && actualPort !== port ? { fallbackFrom: port } : {}) });
-      if (startup.fallbackFrom) onNotice(`Port ${port} is occupied. Using port ${actualPort}. Saved browser cases stay at their original address; close your earlier Sig-Assist connector and relaunch to return there.`);
+      if (startup.fallbackFrom) onNotice(`Port ${port} is unavailable. Using port ${actualPort}. Saved browser cases stay at their original address; close your earlier Sig-Assist connector and relaunch to return there.`);
       if (checkConnectionOnStart) void server.confirmConnection();
       return { server, reused: false, port: actualPort, url: `http://127.0.0.1:${actualPort}/` };
     } catch (error) {
-      if (error.code !== 'EADDRINUSE') throw error;
+      if (error.code !== 'EADDRINUSE' && !(error.code === 'EACCES' && candidate !== 0)) throw error;
       if (profile.ok && await matchingBridge(candidate, profile.sha256)) {
         onNotice(`Reusing the matching Sig-Assist connector already running on port ${candidate}. Keep its original console window open.`);
         return { server: null, reused: true, port: candidate, url: `http://127.0.0.1:${candidate}/` };
       }
-      onNotice(`Port ${candidate} is busy and does not match this Sig-Assist build. Checking another port.`);
+      onNotice(error.code === 'EACCES' ? `Port ${candidate} is reserved or unavailable to this account. Checking another local port.` : `Port ${candidate} is busy and does not match this Sig-Assist build. Checking another port.`);
     }
   }
   throw new Error('No local connector port could be opened.');

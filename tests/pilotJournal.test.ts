@@ -70,13 +70,14 @@ it('allowlists hostile browser/provider data, records field changes as keyed tok
   const raw = { code: 'trace', clientRef: 'a'.repeat(32), at: 'not a date', fields: { component: 'PRIVATE-NAME', messageLength: 4, rawXml: 'PRIVATE-XML', password: 'PRIVATE-SECRET', traceRef: 'PRIVATE-PON', outcome: 'ok' } };
   expect(safeBrowserEvent(raw)).toEqual({ code: 'trace', clientRef: 'a'.repeat(32), fields: { messageLength: 4, outcome: 'ok' } });
   expect(safeBrowserEvent({ code: 'trace', fields: null })).toEqual({ code: 'trace', fields: {} });
-  const c = { token: 'a'.repeat(32), parent: 'b'.repeat(32), automationId: 'RxEntryPrescription_QtyEdit', type: 'ControlType.Edit', valueToken: 'c'.repeat(32), valueLength: 3, name: 'PRIVATE-NAME', value: 'PRIVATE-VALUE', password: 'PRIVATE-SECRET' };
+  const c = { token: 'a'.repeat(32), parent: 'b'.repeat(32), automationId: 'RxEntryPrescription_QtyEdit', type: 'ControlType.Edit', label: 'quantity', x: -10, y: 15, width: 50, height: 20, valueToken: 'c'.repeat(32), valueLength: 3, name: 'PRIVATE-NAME', value: 'PRIVATE-VALUE', password: 'PRIVATE-SECRET' };
   const journal = createPilotJournal({ baseDir: await root(), sync: false }); const status = await journal.start({});
   await journal.desktop({ ok: true, code: 'OK', controls: [c], errors: 0 });
   await journal.desktop({ ok: true, code: 'OK', controls: [c], errors: 0 });
   await journal.desktop({ ok: true, code: 'OK', controls: [{ ...c, valueToken: 'd'.repeat(32) }], error: 'PRIVATE-ERROR' });
   const snapshots = (await lines(status.directory)).filter(x => x.code === 'desktop.snapshot');
   expect(snapshots[0].changed).toHaveLength(1); expect(snapshots[1].changed).toHaveLength(0); expect(snapshots[2].changed[0].valueToken).toBe('d'.repeat(32));
+  expect(snapshots[0].changed[0]).toMatchObject({ label: 'quantity', x: -10, y: 15, width: 50, height: 20 });
   await journal.desktop({ ok: true, code: 'OK', controls: [], partial: true });
   await journal.desktop({ ok: false, code: 'BUSY' });
   const partial = (await lines(status.directory)).filter(x => x.code === 'desktop.snapshot').slice(-2);

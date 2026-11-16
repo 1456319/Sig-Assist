@@ -7,6 +7,7 @@ import path from 'node:path';
 
 export const REMOVAL_PRIORITY = 'TEMPORARY_INTENSIFIED_LOGGING_REMOVAL_PRIORITY_HIGH';
 export const CONTROL_IDS = new Set(('ERxQueueButton ERxGrid ERxPatientOrderGrid FolderGridControl DirectionsView paneRichEdit RxEntryViewControl RxEntryPrescription_QtyEdit RxEntryPrescription_DaysSupplyEdit RxEntryPrescription_ProfileOnly ProductSelectionView CompoundAutoSuggestEdit RxBatch MoveRxBatchUserControl PatientViewControl chkPatientProfileReviewed WorkQueueView PART_Editor PART_OkButton PART_YesButton PART_NoButton PART_Item PART_GridControl PART_Content PART_DockLayoutManager Name Value Display Title CloseButton CancelButton OrderSigTextBox LinkedSigTextBox ERxWorkQueueWizardView ERxWorkQueueDirectionsView PrescriptionTabDirectionsView ERxWorkQueueView RxEntryView ERxTriageManagerView PatientOrdersView FrameworkEcmPopup').split(' '));
+const labels = new Set("sig|prescription sig|sig code|order sig|linked sig|directions|structured sig|preview sig|quantity|qty|days supply|days' supply|times/day|times per day|administration times|admin times|start date|delivery date|dispensed date|dispense date|effective date|expire date|status date|package type|profile only|cycle fill|unit dose|partial tablet|delivery id|rx batch|batch|product|drug|drug name|patient|patient id|facility|facility id|patient profile reviewed|allergies|no known allergies|allergy/adverse event information|refills|next|back|finish|cancel|ok|yes|no|save|continue saving|select compound/iv|search|accept|close|pon|prescriber order number".split('|'));
 const codes = new Set(('screen.open customization.count dictionary.save connector.request connector.response connector.failed desktop.response feedback.save browser.click browser.change browser.error browser.visibility browser.lifecycle browser.overflow checkpoint trace').split(' '));
 const enums = {
   outcome: ['ok', 'failed', 'unavailable', 'unknown', 'changed', 'file_system', 'browser_cache'],
@@ -48,6 +49,7 @@ export function safeBrowserEvent(raw) {
 export function safeDesktop(raw) {
   const reason = ['SELECTION_REQUIRED', 'WINDOW_UNAVAILABLE', 'OBSERVATION_FAILED', 'BUSY', 'OK'].includes(raw?.code) ? raw.code : 'OBSERVATION_FAILED';
   const result = { code: reason, ok: raw?.ok === true, partial: raw?.partial === true, ...safeFields(raw), controls: [] };
+  if (typeof raw?.observedAt === 'string' && Number.isFinite(Date.parse(raw.observedAt))) result.observedAt = new Date(raw.observedAt).toISOString();
   for (const c of Array.isArray(raw?.controls) ? raw.controls.slice(0, 800) : []) {
     if (!token(c.token)) continue;
     const item = { token: c.token };
@@ -55,6 +57,8 @@ export function safeDesktop(raw) {
     for (const k of ['idToken', 'classToken', 'nameToken', 'valueToken']) if (token(c[k])) item[k] = c[k];
     if (CONTROL_IDS.has(c.automationId)) item.automationId = c.automationId;
     if (CONTROL_IDS.has(c.view)) item.view = c.view;
+    if (labels.has(c.label)) item.label = c.label;
+    for (const k of ['x', 'y', 'width', 'height']) if (Number.isFinite(c[k]) && Math.abs(c[k]) < 100000 && (['x', 'y'].includes(k) || c[k] >= 0)) item[k] = Math.round(c[k]);
     if (Array.isArray(c.patterns)) item.patterns = c.patterns.filter(p => Number.isInteger(p) && p >= 10000 && p < 10100).slice(0, 30);
     if (typeof c.type === 'string' && /^ControlType\.(Button|Calendar|CheckBox|ComboBox|Edit|Hyperlink|Image|ListItem|List|Menu|MenuBar|MenuItem|ProgressBar|RadioButton|ScrollBar|Slider|Spinner|StatusBar|Tab|TabItem|Text|ToolBar|ToolTip|Tree|TreeItem|Custom|Group|Thumb|DataGrid|DataItem|Document|SplitButton|Window|Pane|Header|HeaderItem|Table|TitleBar|Separator)$/.test(c.type)) item.type = c.type;
     if (['known-view', 'winforms', 'wpf', 'other'].includes(c.family)) item.family = c.family;

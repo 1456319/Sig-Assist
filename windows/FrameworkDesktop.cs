@@ -1083,6 +1083,7 @@ public static class FrameworkDesktop {
         catch { return new { ok = false, code = "WINDOW_UNAVAILABLE" }; }
         var known = new HashSet<string>(("ERxQueueButton ERxGrid ERxPatientOrderGrid FolderGridControl DirectionsView paneRichEdit RxEntryViewControl RxEntryPrescription_QtyEdit RxEntryPrescription_DaysSupplyEdit RxEntryPrescription_ProfileOnly ProductSelectionView CompoundAutoSuggestEdit RxBatch MoveRxBatchUserControl PatientViewControl chkPatientProfileReviewed WorkQueueView PART_Editor PART_OkButton PART_YesButton PART_NoButton PART_Item PART_GridControl PART_Content PART_DockLayoutManager Name Value Display Title CloseButton CancelButton OrderSigTextBox LinkedSigTextBox ERxWorkQueueWizardView ERxWorkQueueDirectionsView PrescriptionTabDirectionsView ERxWorkQueueView RxEntryView ERxTriageManagerView PatientOrdersView FrameworkEcmPopup").Split(' '));
         byte[] key = Enumerable.Range(0, 32).Select(i => Convert.ToByte(secret.Substring(i * 2, 2), 16)).ToArray();
+        var labels = new HashSet<string>(("sig|prescription sig|sig code|order sig|linked sig|directions|structured sig|preview sig|quantity|qty|days supply|days' supply|times/day|times per day|administration times|admin times|start date|delivery date|dispensed date|dispense date|effective date|expire date|status date|package type|profile only|cycle fill|unit dose|partial tablet|delivery id|rx batch|batch|product|drug|drug name|patient|patient id|facility|facility id|patient profile reviewed|allergies|no known allergies|allergy/adverse event information|refills|next|back|finish|cancel|ok|yes|no|save|continue saving|select compound/iv|search|accept|close|pon|prescriber order number").Split('|'));
         var controls = new List<Dictionary<string, object>>(); int errors = 0, visited = 0;
         var watch = Stopwatch.StartNew(); var pending = new Stack<ScanNode>();
         pending.Push(new ScanNode { element = root, parentId = "", depth = 0 });
@@ -1105,6 +1106,13 @@ public static class FrameworkDesktop {
                     };
                     if (known.Contains(id)) item["automationId"] = id;
                     if (known.Contains(cls)) item["view"] = cls;
+                    string label = Regex.Replace(name.Replace("&", "").Trim().TrimEnd(':').Trim(), @"\s+", " ").ToLowerInvariant();
+                    if (labels.Contains(label)) item["label"] = label;
+                    var bounds = current.BoundingRectangle;
+                    if (!bounds.IsEmpty && new[] { bounds.X, bounds.Y, bounds.Width, bounds.Height }.All(v => !Double.IsNaN(v) && !Double.IsInfinity(v))) {
+                        item["x"] = Math.Round(bounds.X); item["y"] = Math.Round(bounds.Y);
+                        item["width"] = Math.Round(bounds.Width); item["height"] = Math.Round(bounds.Height);
+                    }
                     try { var patterns = node.element.GetSupportedPatterns(); item["patternCount"] = patterns.Length; item["patterns"] = patterns.Select(p => p.Id).ToArray(); } catch { errors++; }
                     object pattern;
                     if (node.element.TryGetCurrentPattern(ValuePattern.Pattern, out pattern)) {
