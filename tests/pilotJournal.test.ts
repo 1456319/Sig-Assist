@@ -1,0 +1,103 @@
+// @vitest-environment node
+import { afterEach, expect, it } from 'vitest';
+import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { type Server } from 'node:http';
+// @ts-expect-error Dependency-free native connector module.
+import { createPilotJournal, safeBrowserEvent, safeDesktop } from '../scripts/pilot-journal.mjs';
+// @ts-expect-error Dependency-free native connector module.
+import { createBridge } from '../scripts/iguana-bridge.mjs';
+
+const folders: string[] = []; const servers: Server[] = [];
+afterEach(async () => { for (const server of servers.splice(0)) await new Promise<void>(resolve => server.close(() => resolve())); for (const folder of folders.splice(0)) await rm(folder, { recursive: true, force: true }); });
+async function root() { const folder = await mkdtemp(path.join(tmpdir(), 'sig-pilot-')); folders.push(folder); return folder; }
+async function lines(directory: string) { const names = (await readdir(directory)).filter(n => n.endsWith('.jsonl') && !n.startsWith('TEMPORARY-')); return (await Promise.all(names.map(n => readFile(path.join(directory, n), 'utf8')))).flatMap(s => s.trim().split('\n').filter(Boolean).map(s => JSON.parse(s))); }
+
+it('saves more than the old 1000-event ring, rotates independent streams, acknowledges retry batches once, and bundles inside the configured folder', async () => {
+  const folder = await root(); const journal = createPilotJournal({ baseDir: folder, rotateBytes: 10000, sync: false });
+  const status = await journal.start({ appVersion: '0.1.7', observeDesktop: false });
+  for (let i = 0; i < 6; i++) {
+    const batch = { sessionId: status.sessionId, batchId: 'batch-' + i, events: Array.from({ length: 220 }, () => ({ code: 'trace', fields: { component: 'clinicalEngine', messageLength: 12, rawText: 'DO NOT WRITE', pon: 'PRIVATE-PON' } })) };
+    await journal.ingest(batch); await journal.ingest(batch);
+  }
+  await journal.record('checkpoint', { checkpoint: 'saved', password: 'PRIVATE-PASSWORD' });
+  const stopped = await journal.stop(); const saved = await lines(stopped.directory);
+  expect(stopped.translationEvents).toBe(1320); expect(saved.filter(x => x.code === 'trace')).toHaveLength(1320);
+  expect(saved.some(x => x.fields?.checkpoint === 'saved')).toBe(true);
+  expect(JSON.stringify(saved)).not.toMatch(/DO NOT WRITE|PRIVATE-PON|PRIVATE-PASSWORD/);
+  expect((await readdir(stopped.directory)).filter(n => n.startsWith('translation-')).length).toBeGreaterThan(1);
+  const bundle = await journal.saveBundle(); const output = await readFile(path.join(bundle.directory, bundle.bundleFile), 'utf8');
+  expect(output).toContain('TEMPORARY_INTENSIFIED_LOGGING_REMOVAL_PRIORITY_HIGH');
+  expect(output).not.toContain(folder); expect(path.dirname(bundle.directory)).toBe(folder);
+});
+
+it('rejects stale browser batches without stopping the current recording and ignores snapshots from an earlier session', async () => {
+  const journal = createPilotJournal({ baseDir: await root(), sync: false }); const first = await journal.start({});
+  await expect(journal.ingest({ sessionId: 'other', batchId: 'stale', events: [] })).rejects.toThrow();
+  expect(journal.status()).toMatchObject({ active: true, fileError: false });
+  await journal.stop(); const next = await journal.start({});
+  await journal.desktop({ ok: true, code: 'OK', controls: [] }, first.sessionId);
+  expect((await lines(next.directory)).some(x => x.code === 'desktop.snapshot')).toBe(false);
+});
+
+it('uses only the supplied roots, falls back to the configured mapped root, and never silently relocates a failed writer', async () => {
+  const folder = await root(); const missing = path.join(folder, 'missing-root');
+  const journal = createPilotJournal({ baseDirs: [missing, folder], sync: false }); const started = await journal.start({});
+  expect(path.dirname(started.directory)).toBe(folder); expect(await readdir(folder)).not.toContain('missing-root');
+  await rm(started.directory, { recursive: true });
+  await expect(journal.record('checkpoint', { checkpoint: 'saved' })).rejects.toThrow('could not write');
+  expect(journal.status()).toMatchObject({ active: false, fileError: true, directory: started.directory });
+  expect(await readdir(folder)).toEqual([]);
+  await expect(createPilotJournal({ baseDirs: [missing] }).start({})).rejects.toThrow();
+  expect(createPilotJournal().status()).toMatchObject({ active: false, configured: false });
+});
+
+it('shows translation drops without evicting workflow and uses monotonic duration even when wall-clock time moves backwards', async () => {
+  const folder = await root(); let wall = 1700000000000, elapsed = 0;
+  const journal = createPilotJournal({ baseDir: folder, maxStreamBytes: 2500, maxDurationMs: 100, now: () => wall, monotonic: () => elapsed, sync: false });
+  const status = await journal.start({});
+  await journal.ingest({ sessionId: status.sessionId, batchId: 'burst', events: Array.from({ length: 30 }, () => ({ code: 'trace', fields: { messageLength: 25 } })) });
+  wall -= 10000; elapsed = 50;
+  await journal.record('checkpoint', { checkpoint: 'sig-reviewed' });
+  expect(journal.status().droppedTranslation).toBeGreaterThan(0);
+  expect((await lines(status.directory)).some(x => x.fields?.checkpoint === 'sig-reviewed' && x.elapsedMs === 50)).toBe(true);
+  elapsed = 101; await journal.record('recorder.heartbeat');
+  expect(journal.status()).toMatchObject({ active: false, stopReason: 'DURATION_LIMIT' });
+});
+
+it('allowlists hostile browser/provider data, records field changes as keyed tokens, and omits unknown labels and raw errors', async () => {
+  const raw = { code: 'trace', clientRef: 'a'.repeat(32), at: 'not a date', fields: { component: 'PRIVATE-NAME', messageLength: 4, rawXml: 'PRIVATE-XML', password: 'PRIVATE-SECRET', traceRef: 'PRIVATE-PON', outcome: 'ok' } };
+  expect(safeBrowserEvent(raw)).toEqual({ code: 'trace', clientRef: 'a'.repeat(32), fields: { messageLength: 4, outcome: 'ok' } });
+  expect(safeBrowserEvent({ code: 'trace', fields: null })).toEqual({ code: 'trace', fields: {} });
+  const c = { token: 'a'.repeat(32), parent: 'b'.repeat(32), automationId: 'RxEntryPrescription_QtyEdit', type: 'ControlType.Edit', valueToken: 'c'.repeat(32), valueLength: 3, name: 'PRIVATE-NAME', value: 'PRIVATE-VALUE', password: 'PRIVATE-SECRET' };
+  const journal = createPilotJournal({ baseDir: await root(), sync: false }); const status = await journal.start({});
+  await journal.desktop({ ok: true, code: 'OK', controls: [c], errors: 0 });
+  await journal.desktop({ ok: true, code: 'OK', controls: [c], errors: 0 });
+  await journal.desktop({ ok: true, code: 'OK', controls: [{ ...c, valueToken: 'd'.repeat(32) }], error: 'PRIVATE-ERROR' });
+  const snapshots = (await lines(status.directory)).filter(x => x.code === 'desktop.snapshot');
+  expect(snapshots[0].changed).toHaveLength(1); expect(snapshots[1].changed).toHaveLength(0); expect(snapshots[2].changed[0].valueToken).toBe('d'.repeat(32));
+  await journal.desktop({ ok: true, code: 'OK', controls: [], partial: true });
+  await journal.desktop({ ok: false, code: 'BUSY' });
+  const partial = (await lines(status.directory)).filter(x => x.code === 'desktop.snapshot').slice(-2);
+  expect(partial.every(x => x.removed.length === 0)).toBe(true);
+  expect(JSON.stringify(snapshots)).not.toMatch(/PRIVATE/);
+  expect(safeDesktop({ code: 'PRIVATE', controls: [{ token: 'a'.repeat(32), automationId: 'PRIVATE-NAME', type: 'PRIVATE-TYPE' }] }).controls[0]).toEqual({ token: 'a'.repeat(32) });
+});
+
+it('serves recording controls only to same-origin JSON, never queries upstream for recording, and saves the bundle to its session root', async () => {
+  const folder = await root(); const calls: unknown[] = [];
+  const journal = createPilotJournal({ baseDir: folder, sync: false });
+  const server: Server = createBridge({ journal, desktop: async (action: string) => { calls.push(action); return { ok: false, code: 'SELECTION_REQUIRED' }; }, fetchImpl: () => { throw new Error('NO UPSTREAM'); }, observationIntervalMs: 20 });
+  servers.push(server); await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address() as { port: number }; const base = `http://127.0.0.1:${address.port}`;
+  const post = (action: string, body = {}, origin = base) => fetch(`${base}/connector/pilot/${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: origin }, body: JSON.stringify(body) });
+  expect((await post('start', {}, 'https://other.example')).status).toBe(403);
+  expect((await post('start', { appVersion: '0.1.7' })).ok).toBe(true);
+  await new Promise(resolve => setTimeout(resolve, 40));
+  const status = await (await post('status')).json(); expect(status.active).toBe(true); expect(calls).toContain('observe');
+  expect((await post('stop')).ok).toBe(true);
+  const bundle = await (await post('bundle')).json(); expect(path.dirname(bundle.directory)).toBe(folder);
+  expect(await readFile(path.join(bundle.directory, bundle.bundleFile), 'utf8')).toContain('SELECTION_REQUIRED');
+  const exported = await post('export'); expect(exported.headers.get('content-type')).toBe('application/x-ndjson'); expect(await exported.text()).not.toContain(folder);
+});

@@ -62,6 +62,9 @@ jobs:
       - name: Verify Iguana capture import and read-only localhost bridge in Edge
         if: runner.os == 'Windows'
         run: node scripts/smoke-iguana.mjs
+      - name: Verify temporary pilot file recording and same-folder bundle in Edge
+        if: runner.os == 'Windows'
+        run: node scripts/smoke-pilot-journal.mjs
       - name: Upload portable Windows demo
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4

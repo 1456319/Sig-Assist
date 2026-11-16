@@ -1,19 +1,27 @@
 import { createServer } from 'node:http';
 import { readFile, writeFile, access } from 'node:fs/promises';
-import { readFileSync } from 'node:fs';
+import { readFileSync, createReadStream } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { inflateRawSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { createDesktopSession, desktopBuildId } from './framework-desktop.mjs';
+import { createPilotJournal } from './pilot-journal.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const pilotLocationPath = process.env.SIG_ASSIST_PILOT_LOG_LOCATION || (path.basename(here) === 'scripts' ? path.join(here, '../config/pilot-log-location.json') : path.join(here, 'pilot-log-location.json'));
+let pilotLocationBytes;
+try { pilotLocationBytes = readFileSync(pilotLocationPath); } catch { pilotLocationBytes = Buffer.alloc(0); }
+export function pilotLogDirectories() {
+  try { const dirs = JSON.parse(pilotLocationBytes.toString('utf8')).directories; const configured = Array.isArray(dirs) ? dirs.filter(d => typeof d === 'string' && (path.isAbsolute(d) || path.win32.isAbsolute(d))) : []; if (configured.length) return configured; } catch { /* Generic deployments may use the environment instead. */ }
+  return process.env.SIG_ASSIST_PILOT_LOG_DIR ? [process.env.SIG_ASSIST_PILOT_LOG_DIR] : [];
+}
 const maxBytes = 32 * 1024 * 1024;
 const siteProfilePath = process.env.SIG_ASSIST_IGUANA_PROFILE || (path.basename(here) === 'scripts' ? path.join(here, '../config/iguana-site.json') : path.join(here, 'iguana-site.json'));
 let siteProfileBytes;
 try { siteProfileBytes = readFileSync(siteProfilePath); } catch { siteProfileBytes = Buffer.alloc(0); }
-const bridgeBuildId = createHash('sha256').update(readFileSync(fileURLToPath(import.meta.url))).update(siteProfileBytes).digest('hex');
+const bridgeBuildId = createHash('sha256').update(readFileSync(fileURLToPath(import.meta.url))).update(readFileSync(path.join(here, 'pilot-journal.mjs'))).update(pilotLocationBytes).update(siteProfileBytes).digest('hex');
 const service = 'sig-assist-iguana-connector';
 const log = (stage, details) => console.log(JSON.stringify({ time: new Date().toISOString(), stage, ...details }));
 const unavailableMessage = 'The order service is temporarily unavailable. Try the lookup again shortly; saved orders and manual translation are still available.';
@@ -222,11 +230,22 @@ async function executeQuery(config, { fetchImpl, signal, siteProfile, discoveryT
   return { ...result, authSource, error: result.ok ? undefined : unavailableMessage };
 }
 
-export function createBridge({ htmlPath = defaultHtmlPath(), fetchImpl = fetch, timeoutMs = 20000, discoveryTimeoutMs = 3000, siteProfile = loadSiteProfile(), startup = {}, desktop = createDesktopSession() } = {}) {
+export function createBridge({ htmlPath = defaultHtmlPath(), fetchImpl = fetch, timeoutMs = 20000, discoveryTimeoutMs = 3000, siteProfile = loadSiteProfile(), startup = {}, desktop = createDesktopSession(), journal = createPilotJournal({ baseDirs: pilotLogDirectories() }), observationIntervalMs = 3000 } = {}) {
   let connection = { state: 'not-checked' };
   let probe, probeController;
   const transport = { fetchImpl, siteProfile, discoveryTimeoutMs };
   let generation = 0;
+  // TEMPORARY_INTENSIFIED_LOGGING_REMOVAL_PRIORITY_HIGH: opt-in local journal.
+  let observationTimer, observing = false;
+  const journalRecord = (code, fields) => { void journal.record(code, fields).catch(() => {}); };
+  async function observe() {
+    if (observing || !journal.status().active || !journal.status().observeDesktop) return;
+    observing = true;
+    const sessionId = journal.status().sessionId;
+    try { await journal.desktop(await desktop('observe', { key: journal.observationKey() }), sessionId); }
+    catch { /* File failure is exposed by journal.status; never break order entry. */ }
+    finally { observing = false; }
+  }
   const record = (version, result) => {
     if (version === generation) connection = { state: result.ok ? 'connected' : 'unavailable', checkedAt: new Date().toISOString(), code: result.code, authSource: result.authSource };
   };
@@ -234,7 +253,7 @@ export function createBridge({ htmlPath = defaultHtmlPath(), fetchImpl = fetch, 
     const send = (status, object) => { response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(JSON.stringify(object)); };
     if (request.method === 'GET' && ['/connector/health', '/connector/diagnostics'].includes(request.url)) {
       const { profile } = await portablePage(htmlPath);
-      send(200, { ok: true, service, protocolVersion: 1, bridgeBuildId, desktopBuildId: await desktopBuildId(), readOnly: true, readOnlyScope: 'Iguana upstream', desktopTransfer: true, upstreamEndpoints: ['GET /login.html', 'GET /api_query'], runtime: process.version, pid: process.pid, page: profile, startup, connection }); return;
+      send(200, { ok: true, service, protocolVersion: 1, bridgeBuildId, desktopBuildId: await desktopBuildId(), pilotLogging: true, readOnly: true, readOnlyScope: 'Iguana upstream', desktopTransfer: true, upstreamEndpoints: ['GET /login.html', 'GET /api_query'], runtime: process.version, pid: process.pid, page: profile, startup, connection }); return;
     }
     if (request.method === 'GET' && request.url === '/favicon.ico') { response.writeHead(204); response.end(); return; }
     if (request.method === 'GET' && ['/', '/index.html'].includes(request.url)) {
@@ -247,13 +266,53 @@ export function createBridge({ htmlPath = defaultHtmlPath(), fetchImpl = fetch, 
       } else response.end(html);
       return;
     }
+    if (request.method === 'POST' && /^\/connector\/pilot\/(status|start|stop|events|checkpoint|export|bundle)$/.test(request.url ?? '')) {
+      if (request.headers['content-type'] !== 'application/json' || (request.headers.origin && request.headers.origin !== `http://${request.headers.host}`) || request.headers['sec-fetch-site'] === 'cross-site') {
+        send(403, { ok: false, error: 'Open this recorder through its local Sig-Assist connector.' }); return;
+      }
+      try {
+        const body = JSON.parse(await limitedText(request, 512 * 1024));
+        const action = request.url.split('/').pop();
+        if (action === 'status') { send(200, journal.status()); return; }
+        if (action === 'start') {
+          const status = await journal.start({ ...body, bridgeBuildId, desktopBuildId: await desktopBuildId() }); clearInterval(observationTimer);
+          observationTimer = setInterval(() => { journalRecord('recorder.heartbeat', {}); void observe(); }, observationIntervalMs); observationTimer.unref();
+          void observe(); send(200, status); return;
+        }
+        if (action === 'stop') { clearInterval(observationTimer); send(200, await journal.stop()); return; }
+        if (action === 'events') { send(200, await journal.ingest(body)); return; }
+        if (action === 'checkpoint') { await journal.record('checkpoint', body); await observe(); send(200, journal.status()); return; }
+        if (action === 'bundle') { send(200, await journal.saveBundle()); return; }
+        const exported = await journal.export();
+        response.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-store', 'Content-Disposition': `attachment; filename="sig-assist-TEMPORARY-INTENSIFIED-${exported.metadata.sessionId}.jsonl"` });
+        response.write(JSON.stringify({ code: 'session.manifest', ...exported.metadata }) + '\n');
+        for (const file of exported.files) {
+          if (file.bytes === 0) continue;
+          for await (const chunk of createReadStream(file.filename, { end: file.bytes - 1 })) {
+            if (response.destroyed) return;
+            if (!response.write(chunk)) await new Promise(resolve => { response.once('drain', resolve); response.once('close', resolve); });
+          }
+        }
+        response.end();
+      } catch {
+        if (response.headersSent) response.destroy();
+        else send(400, { ...journal.status(), ok: false, error: 'Pilot logging operation failed. Check recording status and the configured file destination.' });
+      }
+      return;
+    }
     if (request.method === 'POST' && /^\/connector\/desktop\/(detect|inspect|target|send|docutrack)$/.test(request.url ?? '')) {
       // Local UI writes require a JSON request from this served page, never a
       // form POST from another site. No CORS access is granted.
       if (request.headers['content-type'] !== 'application/json' || (request.headers.origin && request.headers.origin !== `http://${request.headers.host}`) || request.headers['sec-fetch-site'] === 'cross-site') {
         send(403, { ok: false, error: 'Open Sig-Assist through this local connector to use Framework integration.' }); return;
       }
-      try { send(200, await desktop(request.url.split('/').pop(), JSON.parse(await limitedText(request, 64 * 1024)))); }
+      try {
+        const action = request.url.split('/').pop(); const body = JSON.parse(await limitedText(request, 64 * 1024)); const started = Date.now();
+        journalRecord('desktop.begin', { operation: action, orderRef: journal.pseudonym(body.pon) });
+        const result = await desktop(action, body);
+        journalRecord('desktop.end', { operation: action, outcome: result.ok ? 'ok' : 'failed', durationMs: Date.now() - started, uncertain: result.uncertain, verified: result.verified, count: result.pons?.length, orderRef: journal.pseudonym(result.pon || body.pon) });
+        send(200, result);
+      }
       catch { send(400, { ok: false, error: 'Invalid desktop request.' }); }
       return;
     }
@@ -271,11 +330,13 @@ export function createBridge({ htmlPath = defaultHtmlPath(), fetchImpl = fetch, 
       }
       const query = makeQuery(config);
       if (sameServer(config, siteProfile) && config.channel === siteProfile.channel) version = ++generation;
-      log('query.begin', { requestId, method: 'GET', endpoint: '/api_query', ...query.params });
+      log('query.begin', { requestId, method: 'GET', endpoint: '/api_query', hasFilter: !!query.params.filter, limit: Number(query.params.limit) });
+      journalRecord('connector.begin', { hasFilter: !!config.filter, limit: Number(config.limit) });
       const { body, ...upstream } = await executeQuery(config, { ...transport, signal: controller.signal }, query);
       const result = { requestId, bridgeBuildId, runtime: process.version, ...upstream, elapsedMs: Date.now() - started };
       record(version, upstream);
       log('query.end', result);
+      journalRecord('connector.end', { outcome: upstream.ok ? 'ok' : 'failed', durationMs: Date.now() - started, httpStatus: upstream.status });
       send(200, { ...result, ...(upstream.ok ? { body } : {}) });
     } catch (error) {
       const code = controller.signal.aborted ? 'TIMEOUT_OR_STOPPED' : error.cause?.code ?? error.code ?? 'CONNECTOR_ERROR';
@@ -284,6 +345,7 @@ export function createBridge({ htmlPath = defaultHtmlPath(), fetchImpl = fetch, 
         : code === 'TIMEOUT_OR_STOPPED' ? 'Iguana request timed out or was stopped.' : code === 'ENOTFOUND' ? 'Iguana hostname could not be resolved from this computer.' : code === 'ECONNREFUSED' ? 'Iguana refused the connection; check host and port.' : code === 'CONNECTOR_ERROR' && error.message && !error.message.includes('http') ? error.message : `Iguana request failed (${code}); check network, URL, account, or TLS configuration.`;
       record(version, { ok: false, code });
       log('query.failed', { requestId, code, error: message, elapsedMs: Date.now() - started });
+      journalRecord('connector.failed', { outcome: 'failed', durationMs: Date.now() - started, reason: code });
       send(200, { requestId, ok: false, code, error: message, elapsedMs: Date.now() - started });
     } finally { clearTimeout(timer); }
   });
@@ -309,7 +371,7 @@ export function createBridge({ htmlPath = defaultHtmlPath(), fetchImpl = fetch, 
     });
     return probe;
   };
-  server.on('close', () => probeController?.abort());
+  server.on('close', () => { probeController?.abort(); clearInterval(observationTimer); void journal.stop('CONNECTOR_CLOSED').catch(() => {}); });
   return server;
 }
 

@@ -23,6 +23,7 @@ import { SettingsView } from './SettingsView';
 import { OrderQueueView } from './OrderQueueView';
 import { TraceLogDrawer } from './TraceLogDrawer';
 import { TechnicianFeedback } from './TechnicianFeedback';
+import { IntensifiedLogging } from './IntensifiedLogging';
 import { observeCustomizationCounts, recordPilotEvent } from '../lib/pilotDiagnostics';
 
 export type AppView = 'queue' | 'workbench' | 'dictionary' | 'rules' | 'expansions' | 'settings';
@@ -153,6 +154,7 @@ export function AppLayout() {
             </span>
           </div>
         </header>
+        <IntensifiedLogging screen={activeView} />
 
         {/* View */}
         <main className="flex-1 overflow-auto scrollbar-thin">

@@ -16,6 +16,7 @@ windows-demo/serve.ps1
 windows-demo/README.md
 *.local
 .env
+pilot-log-location.json
 *.tsbuildinfo
 
 # Editor directories and files

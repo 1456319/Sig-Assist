@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Web.Script.Serialization;
@@ -1071,6 +1072,68 @@ public static class FrameworkDesktop {
             throw new Exception("The folder or grid changed during the read. Refresh the Process list again.");
         return new { ok = true, diagnostics = new { confirmedFolders = 1, gridProviders = grids.Count, shapes, rows = count, unreadable }, capture = new { headers = cols.Select(c => c.h).ToArray(), rows, unreadable } };
     }
+    // TEMPORARY_INTENSIFIED_LOGGING_REMOVAL_PRIORITY_HIGH
+    // Passive and separate from Scan/ReadGrid: never activate, focus, scroll,
+    // realize a grid cell, enable accessibility recovery, invoke, or write.
+    static object Observe(EntryWindow entry, string secret, string testProcess) {
+        if (entry == null) return new { ok = false, code = "SELECTION_REQUIRED" };
+        if (!Regex.IsMatch(secret ?? "", "^[a-f0-9]{64}$")) return new { ok = false, code = "OBSERVATION_FAILED" };
+        AutomationElement root;
+        try { root = RememberedRoot(entry, testProcess); }
+        catch { return new { ok = false, code = "WINDOW_UNAVAILABLE" }; }
+        var known = new HashSet<string>(("ERxQueueButton ERxGrid ERxPatientOrderGrid FolderGridControl DirectionsView paneRichEdit RxEntryViewControl RxEntryPrescription_QtyEdit RxEntryPrescription_DaysSupplyEdit RxEntryPrescription_ProfileOnly ProductSelectionView CompoundAutoSuggestEdit RxBatch MoveRxBatchUserControl PatientViewControl chkPatientProfileReviewed WorkQueueView PART_Editor PART_OkButton PART_YesButton PART_NoButton PART_Item PART_GridControl PART_Content PART_DockLayoutManager Name Value Display Title CloseButton CancelButton OrderSigTextBox LinkedSigTextBox ERxWorkQueueWizardView ERxWorkQueueDirectionsView PrescriptionTabDirectionsView ERxWorkQueueView RxEntryView ERxTriageManagerView PatientOrdersView FrameworkEcmPopup").Split(' '));
+        byte[] key = Enumerable.Range(0, 32).Select(i => Convert.ToByte(secret.Substring(i * 2, 2), 16)).ToArray();
+        var controls = new List<Dictionary<string, object>>(); int errors = 0, visited = 0;
+        var watch = Stopwatch.StartNew(); var pending = new Stack<ScanNode>();
+        pending.Push(new ScanNode { element = root, parentId = "", depth = 0 });
+        using (var hmac = new HMACSHA256(key)) {
+            Func<string, string> hash = value => BitConverter.ToString(hmac.ComputeHash(Encoding.UTF8.GetBytes(value ?? ""))).Replace("-", "").ToLowerInvariant().Substring(0, 32);
+            while (pending.Count > 0 && visited < 1600 && controls.Count < 800 && watch.ElapsedMilliseconds < 1200) {
+                var node = pending.Pop(); visited++;
+                try {
+                    var current = node.element.Current;
+                    // A protected control's descendants are not visited either.
+                    if (current.IsPassword || current.ProcessId != entry.pid || current.IsOffscreen) continue;
+                    string id = current.AutomationId ?? "", name = current.Name ?? "", cls = current.ClassName ?? "";
+                    string controlToken = hash("control:" + Id(node.element));
+                    var item = new Dictionary<string, object> {
+                        { "token", controlToken }, { "parent", node.parentId }, { "depth", node.depth },
+                        { "idToken", hash("id:" + id) }, { "classToken", hash("class:" + cls) }, { "nameToken", hash("name:" + name) }, { "nameLength", name.Length },
+                        { "type", current.ControlType.ProgrammaticName }, { "enabled", current.IsEnabled },
+                        { "offscreen", false }, { "focused", current.HasKeyboardFocus },
+                        { "family", known.Contains(id) ? "known-view" : cls.StartsWith("WindowsForms") ? "winforms" : current.FrameworkId == "WPF" ? "wpf" : "other" }
+                    };
+                    if (known.Contains(id)) item["automationId"] = id;
+                    if (known.Contains(cls)) item["view"] = cls;
+                    try { var patterns = node.element.GetSupportedPatterns(); item["patternCount"] = patterns.Length; item["patterns"] = patterns.Select(p => p.Id).ToArray(); } catch { errors++; }
+                    object pattern;
+                    if (node.element.TryGetCurrentPattern(ValuePattern.Pattern, out pattern)) {
+                        item["hasValue"] = true; item["valueReadable"] = false;
+                        try {
+                            var value = ((ValuePattern)pattern).Current;
+                            string text = value.Value ?? "";
+                            item["writable"] = !value.IsReadOnly; item["valueLength"] = text.Length;
+                            item["valueToken"] = hash("value:" + text); item["valueReadable"] = true;
+                        } catch { errors++; }
+                    }
+                    if (node.element.TryGetCurrentPattern(TogglePattern.Pattern, out pattern)) item["toggle"] = (int)((TogglePattern)pattern).Current.ToggleState;
+                    if (node.element.TryGetCurrentPattern(SelectionItemPattern.Pattern, out pattern)) item["selected"] = ((SelectionItemPattern)pattern).Current.IsSelected;
+                    if (node.element.TryGetCurrentPattern(GridPattern.Pattern, out pattern)) {
+                        var grid = ((GridPattern)pattern).Current; item["rows"] = grid.RowCount; item["columns"] = grid.ColumnCount;
+                    }
+                    controls.Add(item);
+                    if (node.depth >= 24) { errors++; continue; }
+                    var child = TreeWalker.ControlViewWalker.GetFirstChild(node.element); int siblings = 0;
+                    while (child != null && siblings++ < 800 && pending.Count < 1600 && watch.ElapsedMilliseconds < 1200) {
+                        pending.Push(new ScanNode { element = child, parentId = controlToken, depth = node.depth + 1 });
+                        child = TreeWalker.ControlViewWalker.GetNextSibling(child);
+                    }
+                    if (child != null) errors++;
+                } catch { errors++; }
+            }
+        }
+        return new { ok = true, code = "OK", controls, nodeCount = controls.Count, visitedCount = visited, errors, elapsedMs = watch.ElapsedMilliseconds, partial = errors > 0 || pending.Count > 0 };
+    }
     [STAThread]
     public static int Main(string[] args) {
         Console.InputEncoding = Encoding.UTF8; Console.OutputEncoding = new UTF8Encoding(false);
@@ -1085,6 +1148,7 @@ public static class FrameworkDesktop {
             bool positionReview = input.ContainsKey("positionReview") && Object.Equals(input["positionReview"], true);
             if (action == "window") { Console.WriteLine(Serialize(ChooseEntryWindow(testProcess, positionReview))); return 0; }
             var entry = input.ContainsKey("entryWindow") ? InputWindow(input["entryWindow"]) : null;
+            if (action == "observe") { Console.WriteLine(Serialize(Observe(entry, input.ContainsKey("key") ? Text(input["key"]) : "", testProcess))); return 0; }
             if (action == "send") {
                 var fields = Map(Map(input["expected"])["fields"]); string field = Text(input["field"]);
                 if (!fields.ContainsKey(field)) throw new Exception("Choose the destination field in Framework first.");

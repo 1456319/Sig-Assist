@@ -52,13 +52,13 @@ export async function helperExecutable() {
 }
 export async function runDesktopHelper(input) {
   const exe = await helperExecutable();
-  return JSON.parse(await execute(exe, [], JSON.stringify(input), input.action === 'window' ? 55000 : ['detect', 'inspect', 'docutrack'].includes(input.action) ? 45000 : 20000));
+  return JSON.parse(await execute(exe, [], JSON.stringify(input), input.action === 'observe' ? 8000 : input.action === 'window' ? 55000 : ['detect', 'inspect', 'docutrack'].includes(input.action) ? 45000 : 20000));
 }
 
 // Bindings stay in this process, expire and are consumed before a write. The page
 // receives an opaque token, never a client-editable process/control selector.
 export function createDesktopSession({ run = runDesktopHelper, now = Date.now } = {}) {
-  const bindings = new Map(); let busy = false; let entryWindow;
+  const bindings = new Map(); let busy = false; let entryWindow, observationDone, finishObservation;
   function remember(result, selectEntry = false) {
     if (!result.ok) return result;
     if (selectEntry && result.entryWindow) entryWindow = { ...result.entryWindow };
@@ -72,10 +72,21 @@ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } 
       diagnostics: result.diagnostics };
   }
   return async function desktop(action, body = {}) {
-    if (busy) return { ok: false, error: 'A Framework desktop operation is already running.' };
+    // A clinical request waits for the bounded passive read already in flight;
+    // it must not fail merely because the recorder briefly owns the helper.
+    if (action !== 'observe' && observationDone) await observationDone;
+    if (busy) return { ok: false, code: 'BUSY', error: 'A Framework desktop operation is already running.' };
     busy = true;
+    if (action === 'observe') observationDone = new Promise(resolve => { finishObservation = resolve; });
     let writeStarted = false;
     try {
+      // TEMPORARY_INTENSIFIED_LOGGING_REMOVAL_PRIORITY_HIGH. Server-only caller;
+      // no discovery/recovery and never accepts a browser-supplied window selector.
+      if (action === 'observe') {
+        if (!entryWindow) return { ok: false, code: 'SELECTION_REQUIRED' };
+        try { return await run({ action: 'observe', entryWindow, key: body.key }); }
+        catch { return { ok: false, code: 'OBSERVATION_FAILED' }; }
+      }
       if (action === 'docutrack') return await run({ action: 'docutrack' });
       if (action === 'detect') {
         bindings.clear();
@@ -100,6 +111,6 @@ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } 
       if (result.ok && result.verified && result.detected?.ok) return { ok: true, verified: true, field: body.field, warnings: result.warnings ?? [], next: remember(result.detected) };
       return { ...result, ok: false };
     } catch (error) { return { ok: false, uncertain: writeStarted, error: error.message }; }
-    finally { busy = false; }
+    finally { busy = false; if (action === 'observe') { const finish = finishObservation; observationDone = undefined; finishObservation = undefined; finish?.(); } }
   };
 }

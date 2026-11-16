@@ -8,16 +8,20 @@ demo = Path(__file__).resolve().parent.parent / "windows-demo"
 parser = argparse.ArgumentParser()
 parser.add_argument("--check", action="store_true")
 parser.add_argument("--site-profile", type=Path)
+parser.add_argument("--pilot-log-location", type=Path)
+parser.add_argument("--workstation-update", action="store_true")
 parser.add_argument("--output", type=Path, default=demo / "Sig-Assist-Windows-Demo.zip")
 args = parser.parse_args()
-if args.site_profile and args.output.resolve().is_relative_to(demo.parent):
+if (args.site_profile or args.pilot_log_location or args.workstation_update) and args.output.resolve().is_relative_to(demo.parent):
     parser.error("Write site-specific distributions outside the repository.")
 files = ["Start-Sig-Assist.bat", "Start-Sig-Assist.cmd", "Start-Iguana-Connector.bat", "index.html",
-         "iguana-bridge.mjs", "framework-desktop.mjs", "FrameworkDesktop.cs", "TECHNICIAN-FEEDBACK.md"]
+         "iguana-bridge.mjs", "framework-desktop.mjs", "pilot-journal.mjs", "FrameworkDesktop.cs", "TECHNICIAN-FEEDBACK.md", "TEMPORARY-INTENSIFIED-LOGGING.md"]
 if args.site_profile:
     files.extend(["README.txt", "IGUANA-CONNECTOR.md", "FRAMEWORK-DESKTOP.md", "DOCUTRACK-EDC.md",
                   "DESKTOP-RECOVERY-2026-10-04.md", "TRANSLATOR-2026-10-04.md", "TRANSLATOR-2026-11-09.md"])
 sources = {
+    "TEMPORARY-INTENSIFIED-LOGGING.md": demo.parent / "docs" / "TEMPORARY-INTENSIFIED-LOGGING.md",
+    "pilot-journal.mjs": demo.parent / "scripts" / "pilot-journal.mjs",
     "TECHNICIAN-FEEDBACK.md": demo.parent / "docs" / "TECHNICIAN-FEEDBACK.md",
     "DOCUTRACK-EDC.md": demo.parent / "docs" / "DOCUTRACK-EDC.md",
     "TRANSLATOR-2026-11-09.md": demo.parent / "docs" / "TRANSLATOR-2026-11-09.md",
@@ -65,6 +69,19 @@ else:
         "For desktop access run Start-Iguana-Connector.bat in the same Windows session.\r\n"
         "Enter your Iguana server URL in Live connection settings if you use live lookup.\r\n"
     ).encode("utf-8")
+if args.pilot_log_location:
+    location = json.loads(args.pilot_log_location.read_text())
+    directories = location.get("directories")
+    if not isinstance(directories, list) or not directories or not all(isinstance(d, str) and d.strip() for d in directories):
+        parser.error("Pilot logging needs at least one configured directory.")
+    contents["pilot-log-location.json"] = args.pilot_log_location.read_bytes()
+if args.workstation_update:
+    # Intentionally omit iguana-site.json: update an existing workstation without
+    # replacing its connection profile or shipping credentials in this update.
+    launcher = (demo.parent / "windows" / "Start-Sig-Assist-LAN.cmd").read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+    for name in ("Start-Sig-Assist.bat", "Start-Sig-Assist.cmd"):
+        contents[name] = launcher
+    contents["README.txt"] = b"SIG-ASSIST WORKSTATION UPDATE\r\nExtract over the existing Sig-Assist folder. Its iguana-site.json is preserved.\r\nClose the old connector, then run Start-Sig-Assist.bat.\r\nUse pilot recording controls to start logging; the destination is shown after a successful start.\r\nNo pharmacy credentials are included in this update.\r\nSee TEMPORARY-INTENSIFIED-LOGGING.md for scope, limits, and removal priority.\r\n"
 if args.check:
     with ZipFile(args.output) as archive:
         assert set(archive.namelist()) == set(contents), "Download contains unexpected or missing files"

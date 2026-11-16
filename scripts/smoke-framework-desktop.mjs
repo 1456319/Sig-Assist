@@ -71,6 +71,24 @@ try {
   assert.equal(picked.ok, true, JSON.stringify(picked)); assert.equal(picked.fields.sig.manual, true);
   const manual = await run({ action: 'send', expected: picked, field: 'sig', value: 'APPROVED EXPLICIT TARGET' });
   assert.equal(manual.verified, true, JSON.stringify(manual));
+  // Passive pilot snapshots must not leak field values or change the form.
+  const key = '12'.repeat(32);
+  assert.equal((await run({ action: 'observe', key })).code, 'SELECTION_REQUIRED');
+  const observed = await run({ action: 'observe', key, entryWindow: entry.entryWindow });
+  assert.equal(observed.ok, true, JSON.stringify(observed)); assert.ok(observed.controls.length > 0);
+  assert.doesNotMatch(JSON.stringify(observed), /APPROVED EXPLICIT TARGET|SYNTHETIC-1|Synthetic tablet|PAT-1|FAC-1/);
+  const stable = await run({ action: 'observe', key, entryWindow: entry.entryWindow });
+  const overlap = stable.controls.filter(c => observed.controls.some(old => old.token === c.token));
+  assert.ok(overlap.length > 0);
+  for (const c of overlap) { const old = observed.controls.find(old => old.token === c.token); assert.equal(c.valueToken, old.valueToken); assert.equal(c.focused, old.focused); }
+  const valuesBefore = observed.controls.filter(c => c.valueToken).map(c => c.valueToken);
+  await command({ sig: 'SECOND PRIVATE VALUE' });
+  const changedObservation = await run({ action: 'observe', key, entryWindow: entry.entryWindow });
+  assert.notDeepEqual(changedObservation.controls.filter(c => c.valueToken).map(c => c.valueToken), valuesBefore);
+  assert.doesNotMatch(JSON.stringify(changedObservation), /SECOND PRIVATE VALUE/);
+  assert.equal((await run({ action: 'detect', entryWindow: entry.entryWindow })).fields.sig, undefined); // custom label remains unchanged
+  const unavailable = await run({ action: 'observe', key, entryWindow: { ...entry.entryWindow, id: 'replaced-window' } });
+  assert.equal(unavailable.code, 'WINDOW_UNAVAILABLE');
   console.log('Windows UI Automation passed: PON detection, SIG/times read-back, technician-approved context changes, multiple-PON warnings, readonly refusal and explicit field selection.');
 
 } finally { app?.kill(); await rm(folder, { recursive: true, force: true, maxRetries: 8, retryDelay: 150 }); }

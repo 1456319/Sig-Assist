@@ -29,6 +29,10 @@ export interface PilotFields {
 }
 export interface PilotEvent { at: string; code: PilotCode; fields: PilotFields }
 let volatileEvents: PilotEvent[] = [];
+const listeners = new Set<(event: PilotEvent) => void>();
+export function subscribePilotEvents(listener: (event: PilotEvent) => void) {
+  listeners.add(listener); return () => { listeners.delete(listener); };
+}
 
 function safeFields(value: PilotFields): PilotFields {
   const fields: PilotFields = {};
@@ -56,6 +60,7 @@ export function recordPilotEvent(code: PilotCode, values: PilotFields = {}): voi
   const events = [...readPilotEvents(), { at: new Date().toISOString(), code, fields: safeFields(values) }].slice(-80);
   volatileEvents = events;
   try { localStorage.setItem(EVENTS_KEY, JSON.stringify(events)); } catch { /* In-memory diagnostics remain available. */ }
+  for (const listener of listeners) { try { listener(events[events.length - 1]); } catch { /* Diagnostics cannot interrupt work. */ } }
 }
 
 function arrayCount(key: string) {

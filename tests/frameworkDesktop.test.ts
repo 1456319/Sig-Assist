@@ -5,6 +5,22 @@ import { createDesktopSession } from '../scripts/framework-desktop.mjs';
 
 const detection = () => ({ ok: true, pon: 'SYNTHETIC-PON', fields: { sig: { id: 'edit-1', value: 'OLD', label: 'SIG' }, times: { id: 'edit-2', value: '0800', label: 'Administration times' } }, binding: { pid: 7, started: '123', window: 'window-1', pon: 'SYNTHETIC-PON' } });
 describe('Framework desktop transfer binding', () => {
+  it('waits for an in-flight passive snapshot instead of rejecting an approved transfer as busy', async () => {
+    let finish: (value: unknown) => void = () => {};
+    const entryWindow = { pid: 41, started: '111', id: 'root-a', handle: 401, title: 'Entry' };
+    const run = vi.fn(async input => {
+      if (input.action === 'observe') return await new Promise(resolve => { finish = resolve; });
+      if (input.action === 'send') return { ok: true, verified: true, detected: { ...detection(), entryWindow } };
+      return { ...detection(), entryWindow };
+    });
+    const desktop = createDesktopSession({ run }); const found = await desktop('detect');
+    const observed = desktop('observe', { key: 'private-session-key' });
+    const sent = desktop('send', { token: found.token, pon: found.pon, field: 'sig', value: 'APPROVED', matched: true, approved: true });
+    expect(run).toHaveBeenCalledTimes(2);
+    finish({ ok: true, code: 'OK', controls: [] }); await observed;
+    expect(await sent).toMatchObject({ ok: true, verified: true });
+    expect(run).toHaveBeenCalledTimes(3);
+  });
   it('remembers the entry window beyond field-token expiry and ignores client-supplied selectors', async () => {
     let time = 0;
     const entry = { pid: 41, started: '111', id: 'root-a', handle: 401, title: 'Framework entry' };
