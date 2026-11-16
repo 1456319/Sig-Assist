@@ -93,6 +93,9 @@ The technician clarified that “this link” means the existing connection betw
 
 ## PSR as immediate supporting evidence
 
+The first three recordings have now been reviewed. See [the November 16 observation review](ERX-OBSERVATION-REVIEW-2026-11-16.md) for measured screenshot coverage, actual control identifiers, technician procedure observations, and the translation-log retention gap. Run 2 and Run 3 are sufficient current workflow references; no replacement recording is required to begin the connector observer.
+
+
 Where psr.exe is available and permitted in the workstation session, use it to document a few complete synthetic E-Rx workflows while the passive connector observer is developed. Microsoft documents screenshots, action descriptions, comments, timestamps, and application/UI details in a ZIP containing a web archive. These can help align the technician's visible sequence with the installer control maps. They do not establish a complete automation selector map, network/API trace, field-value history, or a verified save outcome.
 
 PSR does not keep ordinary typed text as a keystroke transcript. Text can nevertheless appear in screenshots and control descriptions. Use synthetic cases and review both the screenshots and the report's additional details before sharing; replacing names alone does not remove all identifying content.
