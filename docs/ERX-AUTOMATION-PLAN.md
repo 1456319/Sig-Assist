@@ -89,7 +89,32 @@ Use PILOT_DIAGNOSTICS_REVIEW_BEFORE_PRODUCTION for development-only capture/diag
 
 ## Observation access
 
-A Drive folder is a place to exchange files; it does not provide live access to the technician's Windows/Citrix session. No new observation/session link was attached to the priority-change message. Once supplied, check whether that link provides a recording, browser-accessible session, or another supported surface. A local observer is the independent fallback; it must be implemented and packaged before asking the technician to run it.
+The technician clarified that “this link” means the existing connection between the browser-based Sig-Assist program and FrameworkLTC.exe. No separate remote-view or recording URL is required. The browser sends requests to the local connector; its Windows helper reads or writes Framework controls in the same Windows/Citrix session. Extend that connector for ongoing observation. The chat itself has no continuous view of the workstation through this connection.
+
+## PSR as immediate supporting evidence
+
+Where psr.exe is available and permitted in the workstation session, use it to document a few complete synthetic E-Rx workflows while the passive connector observer is developed. Microsoft documents screenshots, action descriptions, comments, timestamps, and application/UI details in a ZIP containing a web archive. These can help align the technician's visible sequence with the installer control maps. They do not establish a complete automation selector map, network/API trace, field-value history, or a verified save outcome.
+
+PSR does not keep ordinary typed text as a keystroke transcript. Text can nevertheless appear in screenshots and control descriptions. Use synthetic cases and review both the screenshots and the report's additional details before sharing; replacing names alone does not remove all identifying content.
+
+Suggested first capture:
+
+1. Run PSR in the Windows/Citrix session hosting Framework when possible, so any application/control details refer to Framework rather than only its remote client. If PSR only runs locally, its screenshots may still explain the visible workflow; check whether its metadata identifies only Citrix.
+2. Keep screenshots enabled and raise the recent-screenshot retention setting enough to retain the entire workflow. A short recording per E-Rx is easier to review and reduces the risk of early screenshots being dropped.
+3. Start before opening the next E-Rx. Process one ordinary synthetic case through its normal completion and return to the queue. Wait for the visible result before stopping.
+4. Use Add Comment at useful decisions: why a product was selected, what Framework filled automatically, why a SIG/time/batch was changed, and what was checked before completion. Include the desired versus actual result of any correction.
+5. Save the complete ZIP, review the embedded screenshots and text, and share only the intentionally synthetic, reviewed recording. One baseline capture is enough to assess what this Framework build exposes before asking for more.
+
+Treat the capture as a first observation, not a requirement to perform a perfect demonstration. Turn each useful observation into a field/transition mapping, an example with an expected outcome, and a focused regression where it tests actual behavior. Unknowns and technician corrections should guide the next small iteration.
+
+PSR is deprecated and Microsoft plans to remove it in a future Windows release. It is useful as an available manual evidence tool; the program's ongoing observation capability should use its own local connector rather than depend on PSR.
+
+Microsoft references:
+
+- https://techcommunity.microsoft.com/blog/AskPerf/windows-7--windows-server-2008-r2-problem-steps-recorder/374398
+- https://learn.microsoft.com/en-us/microsoft-365/enterprise/performance-troubleshooting-plan
+- https://learn.microsoft.com/en-us/windows/whats-new/deprecated-features
+
 
 ## Primary implementation references
 
