@@ -50,6 +50,11 @@ async function check(file = launcher, environment = env) {
   if (result.code !== 0) throw new Error(result.output);
   return result.output;
 }
+async function stopTree(run) {
+  const killer = spawn(path.join(process.env.SystemRoot, 'System32/taskkill.exe'), ['/PID', String(run.child.pid), '/T', '/F'], { stdio: 'ignore' });
+  await new Promise(resolve => { killer.once('close', resolve); killer.once('error', resolve); });
+  await run.done;
+}
 try {
   const probe = spawnSync(process.env.ComSpec, ['/d', '/c', 'set PROCESSOR'], { env, encoding: 'utf8' });
   console.log(`Setup test architecture environment: ${probe.stdout.trim()}`);
@@ -106,7 +111,10 @@ try {
     } catch { await new Promise(resolve => setTimeout(resolve, 100)); }
   }
   assert.equal(healthy, true, live.output());
-  assert.equal(await (await fetch(`http://127.0.0.1:${port}/`)).text(), await readFile(path.join(folder, 'index.html'), 'utf8'));
+  const servedPage = await (await fetch(`http://127.0.0.1:${port}/`)).text();
+  const marker = '<meta name="sig-assist-local-connector" content="pilot-v1">';
+  assert.ok(servedPage.includes(marker));
+  assert.equal(servedPage.replace(marker, ''), await readFile(path.join(folder, 'index.html'), 'utf8'));
   console.log('PASS: downloaded runtime starts the real read-only connector and serves the portable app.');
   const duplicate = run(launcher, '--no-browser', { ...env, SIG_ASSIST_CONNECTOR_PORT: String(port) });
   duplicate.child.stdin.end('\r\n');
@@ -115,8 +123,7 @@ try {
   assert.match(reopened.output, /Reusing the matching Sig-Assist connector/);
   assert.equal((await fetch(`http://127.0.0.1:${port}/connector/health`)).status, 200);
   console.log('PASS: launching the actual BAT twice reuses the existing matching connector and preserves its origin.');
-  spawn(path.join(process.env.SystemRoot, 'System32/taskkill.exe'), ['/PID', String(live.child.pid), '/T', '/F']);
-  await live.done; live = undefined;
+  await stopTree(live); live = undefined;
 
   occupied = createHttpServer((_request, response) => response.end('Unrelated listener'));
   await new Promise(resolve => occupied.listen(0, '127.0.0.1', resolve));
@@ -135,8 +142,7 @@ try {
   assert.equal(fallbackHealth.startup.fallbackFrom, busyPort);
   assert.match(await (await fetch(fallbackUrl)).text(), /Saved browser cases belong to their original address/);
   console.log('PASS: an occupied port is handled by the actual BAT without stopping the unrelated listener; the page explains browser storage.');
-  spawn(path.join(process.env.SystemRoot, 'System32/taskkill.exe'), ['/PID', String(live.child.pid), '/T', '/F']);
-  await live.done; live = undefined;
+  await stopTree(live); live = undefined;
   await new Promise(resolve => { occupied.closeAllConnections(); occupied.close(resolve); }); occupied = undefined;
 
   // A failed verification must never create an executable cache. Change only
@@ -160,9 +166,8 @@ try {
   console.log('PASS: an unwritable user folder reports the cause and exits without elevation.');
 } finally {
   if (live) {
-    spawn(path.join(process.env.SystemRoot, 'System32/taskkill.exe'), ['/PID', String(live.child.pid), '/T', '/F']);
-    await live.done;
+    await stopTree(live);
   }
   if (occupied) await new Promise(resolve => { occupied.closeAllConnections(); occupied.close(resolve); });
-  await rm(temp, { recursive: true, force: true });
+  await rm(temp, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
 }
