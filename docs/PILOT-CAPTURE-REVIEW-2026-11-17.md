@@ -1,6 +1,6 @@
 # v0.1.9 workstation capture review
 
-Review in progress. Private source files and screenshots remain outside the
+Review completed. Private source files and screenshots remain outside the
 repository. This report contains aggregate evidence and generic workflow stages;
 it contains no PONs, patients, drugs, screenshots or workstation paths.
 
@@ -19,14 +19,22 @@ operations, and five terminal OBSERVATION_FAILED results. Readable samples have
 median 102 captured controls and 186 visited nodes; median native duration is
 1,201ms. 198 are partial and two complete. Site evidence now includes quantity,
 days supply, package type, SIG, preview SIG and administration-related labels,
-including the known quantity/days-supply editor IDs. A start-date label was not
-observed; other date labels do not prove start-date coverage.
+including the known quantity/days-supply editor IDs. Those two editors were
+actually readable and writable: quantity has five positive observations and
+days supply two. Package evidence is currently label text, not a confirmed
+editable package-value binding. A start-date label was not observed; other date
+labels do not prove start-date coverage. The whole-tree observation still uses
+most of its 1.2-second budget; this capture establishes better field reach, not
+a controlled before/after latency improvement.
 
 The last readable snapshot is 05:46:34.995. Five failures follow from
 05:46:44.581 to 05:47:20.583, nine seconds apart. This is consistent with the
 eight-second helper timeout plus polling cadence, but v0.1.9 collapses exceptions
 to OBSERVATION_FAILED and therefore cannot prove timeout or identify PSR as the
 cause. Earlier BUSY samples are temporary contention, not the terminal failure.
+Local OCR of the final PSR screenshot places Framework and Not Responding in the
+same title-bar row. This corroborates an unresponsive window; it does not prove
+PSR caused the hang. Workflow logging continues through technician Stop.
 
 ## Technician checkpoints and recoveries
 
@@ -59,11 +67,52 @@ local path and existing regressions cover colon handling. This does not establis
 the upstream Iguana filter grammar or prove the failed live lookup's cause.
 No speculative prefix/suffix stripping or character escaping is justified.
 
+The last lookup has a different keyed PON reference from the preceding order,
+and the late screenshots display the app's No matching orders/time-window
+message plus its Search the last 7 days option. There is no subsequent seven-day
+query in this journal. No translation was loaded for that last attempt; the six
+recorded translation executions belong to three earlier non-controlled orders.
+Consequently, their isControlled=false fields say nothing about recognition of
+the last controlled example.
+
+The remaining lookup possibilities include the time window, a different channel
+or identifier namespace, an absent message, or parsing/filter behavior. The
+journal deliberately omits response bodies and cannot discriminate these.
+The smallest further evidence is an empty-result lookup's connector diagnostics
+or a dummy/deidentified source entry for that same complete identifier, rather
+than another long recording.
+
+Vendor references reviewed:
+- [Iguana Log API](https://help.interfaceware.com/web_api/) describes after,
+  source, filter, refmsgid and message-type controls.
+- [Using the Logs](https://help.interfaceware.com/v6/using-the-logs) documents
+  indexed searches that can miss substrings and a slower `!` prefix in the log
+  UI. This is a testable lead; the API documentation does not establish identical
+  UI filter semantics on the installed version. No speculative API escaping or
+  automatic broad scan was added.
+
 The current passive recorder publishes keyed value tokens rather than PON text.
 Scheduling full Detect automatically would perform its accessibility recovery,
 scrolling and binding-reset behavior. A future automatic identification feature
 should use a separate passive current-PON read and retain technician review.
 
-Further review: reconstruct field transitions and the late PSR screenshots;
-preserve a structured, PHI-free helper failure reason so the next failure is
-actionable. No controlled-substance automatic processing is being enabled.
+## Source changes and next work
+
+The prototype now retains fixed helper failure categories (timeout, invalid
+output, process exit, startup failure, unknown failure) and bounded helper
+duration in desktop snapshots. Classification originates at process execution
+and parsing; raw error messages, paths, stdout and stderr are not copied into the
+observer journal. Success, BUSY, selection requirements and technician operations
+retain their existing behavior. This is a source change for the next build, not
+a change to the already-delivered v0.1.9 ZIP.
+
+Local verification: 1,111 tests across 66 files passed, including real synthetic
+child-process timeout/exit/start failures, invalid JSON, redaction and subsequent
+manual detection after a failed observation. Windows integration is to be
+confirmed by the associated CI run.
+
+Next functional increment: separate passive current-PON identification, coalesced
+lookup and explicit technician selection, followed by reliable bindings for
+package/start-date controls. Avoid polling full Detect, which can move the UI.
+Keep controlled examples for identification/layout evidence only. No
+controlled-substance automatic processing is enabled or planned for this pilot.

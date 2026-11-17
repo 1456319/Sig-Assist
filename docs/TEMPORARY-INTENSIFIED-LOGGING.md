@@ -45,6 +45,13 @@ Only descendants of the selected window are read; separate top-level dialogs and
 
 ## Durability and limits
 
+The next prototype source also records fixed `failureReason` categories and a
+bounded `helperDurationMs` when a passive helper fails. Categories distinguish
+timeout, invalid output, process exit, startup failure and unknown failure.
+Neither raw exception messages nor stdout/stderr/path text are exported with
+these observer failures. The delivered v0.1.9 ZIP predates this diagnostic
+addition; its generic OBSERVATION_FAILED cannot establish why a helper failed.
+
 Each stream rotates at 2 MB and retains up to 64 MB per recording. A recording has an eight-hour monotonic duration limit; start another to continue. Neither rotation nor starting another session deletes older files. Keep recordings as long as the investigation needs them, then remove them deliberately.
 
 File appends are serialized; accepted browser batches are synced before acknowledgment. Retries use a persisted batch ID, which the connector acknowledges once during that session. Export/bundle operations take a consistent snapshot of acknowledged files. A combined bundle groups log parts; use the global `seq` field to reconstruct cross-stream order. UTC times, timezone offsets and monotonic elapsed times distinguish midnight and wall-clock changes.
