@@ -211,9 +211,9 @@
     ],
     "drugName": "Santyl Topical Ointment 250 UNIT/GM",
     "rawProse": "Apply to 2nd digit on right foot topically every day shift for wound care cleanse with wound cleanser, pat dry, apply santyl, and cover with bordered guaze.  AND  Apply to 2nd digit on right foot topically as needed for soiled/dislodged",
-    "expected": "TO 2ND DIGIT ON RT FOOT:CLEANSE W/WOUND CLEANSER,PAT DRY,THEN APPLY SANTYL,COVER W/BORDERED GUAZE QD **SPLIT** AP TPCL TO 2ND DIGIT ON RT FOOT PRN FOR SOILED/DISLODGED",
+    "expected": "TO 2ND DIGIT ON RT FOOT:CLEANSE W/WOUND CLEANSER,PAT DRY,THEN APPLY SANTYL,COVER W/BORDERED GUAZE QD (DURING DAY SHIFT) FOR WOUND CARE **SPLIT** AP TPCL TO 2ND DIGIT ON RT FOOT PRN FOR SOILED/DISLODGED",
     "subOrders": [
-      "TO 2ND DIGIT ON RT FOOT:CLEANSE W/WOUND CLEANSER,PAT DRY,THEN APPLY SANTYL,COVER W/BORDERED GUAZE QD",
+      "TO 2ND DIGIT ON RT FOOT:CLEANSE W/WOUND CLEANSER,PAT DRY,THEN APPLY SANTYL,COVER W/BORDERED GUAZE QD (DURING DAY SHIFT) FOR WOUND CARE",
       "AP TPCL TO 2ND DIGIT ON RT FOOT PRN FOR SOILED/DISLODGED"
     ],
     "status": "translated",
@@ -1601,9 +1601,9 @@
     ],
     "drugName": "Vitamin A & D Topical Ointment",
     "rawProse": "Apply to Sacrum and perineal  topically every shift for Skin care",
-    "expected": "TO SACRUM/PERINEAL:APPLY VITAMIN A & D QS",
+    "expected": "TO SACRUM/PERINEAL:APPLY VITAMIN A & D QS FOR SKIN CARE",
     "subOrders": [
-      "TO SACRUM/PERINEAL:APPLY VITAMIN A & D QS"
+      "TO SACRUM/PERINEAL:APPLY VITAMIN A & D QS FOR SKIN CARE"
     ],
     "status": "translated",
     "reviewNote": ""
@@ -1724,9 +1724,9 @@
     ],
     "drugName": "Hydrocortisone Topical Cream 1 %",
     "rawProse": "Apply to Sacrum/Bilateral Buttocks topically every shift for Fungal Partial Thickness Cleanse with soap and water, pat dry, apply Greers Goo and Leave open to air  AND  Apply to Sacrum/Bilateral Buttocks topically every 24 hours as needed for Fungal Partial Thickness",
-    "expected": "TO SACRUM/BIL BUTTOCKS:CLEANSE W/SOAP AND WATER,PAT DRY,THEN APPLY GREERS GOO,LEAVE OPEN TO AIR QS **SPLIT** AP TPCL TO SACRUM/BILATERAL BUTTOCKS Q24H PRN FOR FUNGAL PARTIAL THICKNESS",
+    "expected": "TO SACRUM/BIL BUTTOCKS:CLEANSE W/SOAP AND WATER,PAT DRY,THEN APPLY GREERS GOO,LEAVE OPEN TO AIR QS FOR FUNGAL PARTIAL THICKNESS **SPLIT** AP TPCL TO SACRUM/BILATERAL BUTTOCKS Q24H PRN FOR FUNGAL PARTIAL THICKNESS",
     "subOrders": [
-      "TO SACRUM/BIL BUTTOCKS:CLEANSE W/SOAP AND WATER,PAT DRY,THEN APPLY GREERS GOO,LEAVE OPEN TO AIR QS",
+      "TO SACRUM/BIL BUTTOCKS:CLEANSE W/SOAP AND WATER,PAT DRY,THEN APPLY GREERS GOO,LEAVE OPEN TO AIR QS FOR FUNGAL PARTIAL THICKNESS",
       "AP TPCL TO SACRUM/BILATERAL BUTTOCKS Q24H PRN FOR FUNGAL PARTIAL THICKNESS"
     ],
     "status": "translated",
