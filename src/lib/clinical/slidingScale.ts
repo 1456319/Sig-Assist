@@ -8,6 +8,7 @@ export interface ParsedSlidingScale {
   route: string;
   abnormalities: AbnormalityFinding[];
   incomplete: boolean;
+  baseInstruction?: string;
 }
 
 // Conditions and actions are parsed separately. A matched range is not evidence
@@ -17,7 +18,30 @@ const comparison = '(?:[<>]=?|GREATER THAN(?: OR EQUALS?(?: TO)?)?|LESS THAN(?: 
 const threshold = `(?:${comparison})\\s*\\d+(?:\\.\\d+)?`;
 const glucose = '(?:(?:BS|BG|CBS|BLOOD (?:SUGAR|GLUCOSE))\\s*)?';
 const conditionList = `${glucose}${threshold}(?:\\s+(?:OR|AND)\\s+${glucose}${threshold})*`;
-const conditionPattern = /(?<![\d.])\b\d+(?:\.\d+)?\s*(?:-|TO)\s*\d+(?:\.\d+)?\s*(?==|:|GIVE\b|ADMINISTER\b)|\b\d+(?:\.\d+)?\s*\+|(?:[<>]=?|GREATER THAN(?: OR EQUALS?(?: TO)?)?|LESS THAN(?: OR EQUALS?(?: TO)?)?)\s*\d+(?:\.\d+)?/g;
+const conditionPattern = /(?<![\d.])\b\d+(?:\.\d+)?\s*(?:-|TO)\s*\d+(?:\.\d+)?\s*(?==|:|GIVE\b|ADMINISTER\b|INJECT\b|\d)|\b\d+(?:\.\d+)?\s*\+|(?:[<>]=?|GREATER THAN(?: OR EQUALS?(?: TO)?)?|LESS THAN(?: OR EQUALS?(?: TO)?)?)\s*\d+(?:\.\d+)?/g;
+
+function normalizeScale(raw: string): string {
+  return normalizeNumericDirections(raw).replace(/\bSLIDING[\s-]+SCALE\b/g, 'SLIDING SCALE').replace(/[–—−]/g, '-')
+    .replace(/≥/g, '>=').replace(/≤/g, '<=')
+    .replace(/([<>])\s*(?:OR\s*)?=/g, '$1=')
+    // Glucose concentration labels describe conditions, not insulin dose units.
+    .replace(/\bMG\s*\/\s*DL\b/g, '')
+    .replace(/\b(\d+(?:\.\d+)?)\s+(?:OR GREATER|AND (?:ABOVE|HIGHER)|OR MORE)\b/g, '>=$1')
+    // "400 or less than 60" contains two opposite thresholds. Do not turn 400 into <=400.
+    .replace(/\b(\d+(?:\.\d+)?)\s+(?:OR LESS(?!\s+THAN\b)|AND (?:BELOW|LOWER))\b/g, '<=$1');
+}
+
+/** Shared routing guard: never let a condition's dose become a fixed insulin dose. */
+export function looksLikeSlidingScale(raw: string, drugName = ''): boolean {
+  const upper = normalizeScale(raw);
+  if (/\b(?:(?:SLIDING|CORRECTION)\s+SCALE|PER\s+(?:THE\s+)?SCALE)\b/.test(upper)) return true;
+  const insulin = /\bINSULIN\b/i.test(drugName) || /\bINSULIN\b/.test(upper);
+  const markers = [...upper.matchAll(conditionPattern)];
+  if (!insulin || markers.length < 2) return false;
+  const dose = /(?:^|[=:\s])(?:GIVE\s+|ADMINISTER\s+|INJECT\s+)?\d+(?:\.\d+)?\s*(?:UNITS?|U|UNIS|UNITES)\b/;
+  return markers.some((marker, index) => dose.test(upper.slice(marker.index! + marker[0].length, markers[index + 1]?.index)))
+    && (markers.length > 1 || /\bHOLD\b/.test(upper));
+}
 
 function condition(value: string): { key: number; text: string } {
   const numbers = value.match(/\d+(?:\.\d+)?/g)!.map(Number);
@@ -30,9 +54,7 @@ function condition(value: string): { key: number; text: string } {
 
 export function parseSlidingScale(raw: string): ParsedSlidingScale {
   const abnormalities: AbnormalityFinding[] = [];
-  let upper = normalizeNumericDirections(raw).replace(/\bSLIDING[\s-]+SCALE\b/g, 'SLIDING SCALE').replace(/[–—−]/g, '-')
-    .replace(/≥/g, '>=').replace(/≤/g, '<=')
-    .replace(/([<>])\s*(?:OR\s*)?=/g, '$1=');
+  let upper = normalizeScale(raw);
   const fail = (message: string): ParsedSlidingScale => ({ bands: '', schedule: '', route: '', abnormalities: [...abnormalities,
     { id: 'incomplete_sliding_scale', tier: 'uncorrected_gap', title: 'Sliding Scale Requires Review', message,
       trigger: raw }], incomplete: true });

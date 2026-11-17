@@ -7,7 +7,7 @@ import { resolveDuration } from './durationEngine';
 import { SIG_CODE_REFERENCE } from './sigCodeReference';
 import { normalizeNumericDirections } from './numericDirections';
 import { hourlySchedule } from './hourlySchedule';
-import { parseSlidingScale } from './slidingScale';
+import { looksLikeSlidingScale, parseSlidingScale } from './slidingScale';
 
 export interface FrequencyScheduleResult {
   readonly frequencyToken: string;
@@ -22,8 +22,9 @@ export interface FrequencyScheduleResult {
   readonly requiresManualTranslation?: boolean;
 }
 
-function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?: string): FrequencyScheduleResult {
-  const upper = normalizeNumericDirections(splitSupplementalDirections(rawProse).primary)
+function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?: string, drugName?: string): FrequencyScheduleResult {
+  const scaleCandidate = looksLikeSlidingScale(rawProse, drugName);
+  const upper = normalizeNumericDirections(scaleCandidate ? rawProse : splitSupplementalDirections(rawProse).primary)
     .replace(/\bDAY\(S\)/g, 'DAYS')
     .replace(/\b(?:VIA|USING|WITH)\s+(?:A\s+)?NEBULI[ZS]ER\b/g, '').trim();
   const abnormalities: AbnormalityFinding[] = [];
@@ -42,7 +43,7 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     };
   }
 
-  if (/\bSLIDING[\s-]+SCALE\b/.test(upper)) {
+  if (scaleCandidate) {
     const scale = parseSlidingScale(upper);
     abnormalities.push(...scale.abnormalities);
     if (scale.incomplete) return { frequencyToken: '', abnormalities, requiresManualTranslation: true };
@@ -286,8 +287,8 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
   };
 }
 
-export function resolveFrequencyAndSchedule(rawProse: string, defaultTemplate?: string): FrequencyScheduleResult {
-  const result = resolveFrequencyAndScheduleInternal(rawProse, defaultTemplate);
+export function resolveFrequencyAndSchedule(rawProse: string, defaultTemplate?: string, drugName?: string): FrequencyScheduleResult {
+  const result = resolveFrequencyAndScheduleInternal(rawProse, defaultTemplate, drugName);
   traceLogger.debug('clinical', 'frequencyEngine', 'Resolved frequency and schedule tokens', {
     frequencyToken: result.frequencyToken,
     durationToken: result.durationToken,
