@@ -51,7 +51,6 @@ describe('sliding-scale completeness and grammar', () => {
     '0-199=0 units;200+=2 mg',
     '0-199=0 units;200+=an unspecified dose',
     '0-199=0 units;200+=^ units',
-    '0-199=0 units;200+=2 units call supervisor',
     '0-199=0 units;200+=2 units;200+=4 units',
     '199-100=2 units;200+=4 units',
   ])('retains the entire source when a band is unresolved: %s', bands => {
@@ -63,10 +62,24 @@ describe('sliding-scale completeness and grammar', () => {
   });
 
   it.each([
-    'Inject 5 units plus sliding scale: 0-199=0 units;200+=2 units, SQ TID',
     'Inject as per sliding scale: 0-199=0 units, SQ TID;200+=2 units',
-  ])('retains a fixed dose or a late band instead of silently dropping it', raw => {
+  ])('retains a late band instead of silently dropping it', raw => {
     expect(translate(raw).primarySig).toBe(raw.toUpperCase());
+  });
+
+  it('preserves every dose and an unknown recipient in a useful partial draft', () => {
+    const raw = 'Inject as per sliding scale: 0-199=0 units;200+=2 units call supervisor, SQ before meals for DM';
+    const r = translate(raw);
+    expect(r.primarySig).toBe('CBS AC SS 0-199=0U;200+=2U&CALL SUPERVISOR SQ FDM');
+    expect(r.abnormalities.some(a => a.id === 'sliding_scale_unparsed_action')).toBe(true);
+    expect(renderSig(parseSigOrder(raw, { drug: drugName }))).toBe(r.primarySig);
+  });
+
+  it('preserves the explicit additive base and every correction dose', () => {
+    const raw = 'Inject 5 units plus sliding scale: 0-199=0 units;200+=2 units, SQ TID';
+    const r = translate(raw);
+    expect(r.primarySig).toBe('INJ 5U PLUS CBS TID SS 0-199=0U;200+=2U SQ');
+    expect(renderSig(parseSigOrder(raw, { drug: drugName }))).toBe(r.primarySig);
   });
 
   it.each([

@@ -68,6 +68,12 @@ export function parseSlidingScale(raw: string): ParsedSlidingScale {
   if (/\b\d+(?:\.\d+)?\s*(?:ML|MILLILITERS?|MG)\b/.test(upper)) return fail('Scale dose units need review. Volumes and mass were not relabeled as insulin units.');
 
   const bands: Band[] = [];
+  const retainAction = (text: string) => {
+    abnormalities.push({ id: 'sliding_scale_unparsed_action', tier: 'uncorrected_gap', title: 'Scale Action Retained for Review',
+      message: `The recognized scale bands were translated. This additional instruction was retained verbatim for technician review: ${text}`,
+      trigger: text });
+    return text;
+  };
   // Shared notifications can precede or follow several conditions. Remove only
   // the matched notification clause, retaining every condition and recipient.
   const notifications = [
@@ -85,10 +91,31 @@ export function parseSlidingScale(raw: string): ParsedSlidingScale {
     });
   });
 
+  // Unknown recipients do not make recognized insulin doses ambiguous. Keep
+  // the source notification alongside each of its conditions and flag it.
+  upper = upper.replace(new RegExp(`\\b(NOTIFY|NOTIFIED|CALL)\\s+([^;:,.=<>]+?)\\s+(?:IF|FOR)\\s+(${conditionList})`, 'g'),
+    (_whole, verb: string, who: string, conditions: string) => {
+      const action = retainAction(`${verb} ${who.trim()}`);
+      for (const match of conditions.matchAll(new RegExp(threshold, 'g'))) {
+        const c = condition(match[0]); bands.push({ key: c.key, condition: c.text, action });
+      }
+      return ' ';
+    });
+
   const first = [...upper.matchAll(conditionPattern)][0];
   if (!first) return fail('No complete numeric sliding scale was found. Original directions were retained.');
-  const header = upper.slice(0, first.index);
-  if (/\d+(?:\.\d+)?\s*(?:UNITS?|U)\b/.test(header)) return fail('A fixed dose precedes the scale. Retain both instructions for technician review.');
+  let header = upper.slice(0, first.index);
+  let baseInstruction: string | undefined;
+  if (/\d+(?:\.\d+)?\s*(?:UNITS?|U)\b/.test(header)) {
+    const additive = header.match(/^(.*?)\bPLUS\s+(?:(?:THE\s+)?(?:SLIDING|CORRECTION)\s+SCALE)\b(.*)$/);
+    if (!additive) return fail('A fixed dose precedes the scale without an explicit additive instruction. Retain both instructions for technician review.');
+    const simpleBase = additive[1].match(/^\s*(?:INJECT|GIVE|ADMINISTER)\s+(\d+(?:\.\d+)?)\s*(?:UNITS?|U)\s*$/);
+    // A separately scheduled basal dose is kept as its own source clause;
+    // never assign the correction scale's schedule to that dose.
+    baseInstruction = simpleBase ? `INJ ${Number(simpleBase[1])}U PLUS` : `${additive[1].trim().replace(/[.;]+$/, '')}. PLUS`;
+    if (!simpleBase) retainAction(additive[1].trim());
+    header = additive[2];
+  }
   const after = upper.slice(first.index);
   // Route/schedule start the common tail. They must not be read from a dose or
   // a notification. Meal timing is optional: QHS/TID/QID/Q6H are valid too.
@@ -96,7 +123,7 @@ export function parseSlidingScale(raw: string): ParsedSlidingScale {
   const body = tailStart < 0 ? after : after.slice(0, tailStart);
   const tail = tailStart < 0 ? '' : after.slice(tailStart);
   if ([...tail.matchAll(conditionPattern)].length) return fail('An additional scale condition follows the schedule. Original directions were retained.');
-  const prefixSchedule = header.replace(/\b(?:SLIDING\s+SCALE|INJECT|GIVE|ADMINISTER|AS|PER|THE|IF|FOR BS|FOR BG)\b/g, '').replace(/[:;,]/g, ' ').trim();
+  const prefixSchedule = header.replace(/\b(?:(?:SLIDING|CORRECTION)\s+SCALE|SCALE|INJECT|GIVE|ADMINISTER|AS|PER|THE|IF|FOR BS|FOR BG)\b/g, '').replace(/[:;,]/g, ' ').trim();
   const common = `${prefixSchedule} ${tail}`;
   const route = /\b(?:SUBCUTANEOUS(?:LY)?|SQ|SUBQ|SC)\b/.test(common) ? 'SQ'
     : /\b(?:INTRAMUSCULAR(?:LY)?|IM)\b/.test(common) ? 'IM' : '';
@@ -125,10 +152,21 @@ export function parseSlidingScale(raw: string): ParsedSlidingScale {
       actions.push(`CALL ${who.replace(/\s*\/\s*/g, '/')}`); return '';
     });
     action = action.replace(/\bHOLD(?:\s+INSULIN)?\b/g, () => { actions.push('HOLD'); return ''; });
-    // Only connective scaffolding may remain. Unknown numbers, operators,
-    // recipients, repeat instructions or symbols (e.g. ^ units) cause review.
+    action = action.replace(/\bRECHECK\s+(?:(?:BS|BG|CBS|BLOOD SUGAR|BLOOD GLUCOSE)\s+)?IN\s+\d+(?:\.\d+)?\s+(?:HOURS?|MINUTES?)\b/g, value => {
+      actions.push(value); return '';
+    });
     const rest = action.replace(/\b(?:AND|FOR|IF|BS|BG|CBS|BLOOD SUGAR|BLOOD GLUCOSE)\b/g, '').replace(/[\s,;:.&]/g, '');
-    if (!actions.length || rest) return fail('A scale band contains an unresolved dose or action. Original directions were retained without dropping that instruction.');
+    if (!actions.length || /[\d^<>=+]/.test(rest)) return fail('A scale band contains an unresolved dose or action. Original directions were retained without dropping that instruction.');
+    if (rest) {
+      const retained = action.replace(/^[\s,;:.&]+|[\s,;:.&]+$/g, '').replace(/^(?:AND|FOR)\s+/, '').trim();
+      // Unknown dosing language is not a notification. Do not let a recognized
+      // CALL/HOLD action hide an absent or ambiguous insulin dose.
+      if (/\b(?:UNITS?|DOSES?|GIVE|ADMINISTER|INJECT|UNSPECIFIED|UNCLEAR)\b/.test(retained)
+        || (!dose && !/^(?:NOTIFY|NOTIFIED|CALL)\b/.test(retained))) {
+        return fail('A scale band contains an unresolved dose. Original directions were retained without dropping that instruction.');
+      }
+      actions.push(retainAction(retained));
+    }
     bands.push({ key: c.key, condition: c.text, action: actions.join('&') });
   }
   if (!bands.some(b => /\dU\b/.test(b.action))) return fail('No numeric insulin doses were found. Original directions were retained.');
@@ -160,5 +198,5 @@ export function parseSlidingScale(raw: string): ParsedSlidingScale {
       trigger: raw,
     });
   }
-  return { bands: ordered.map(b => `${b.condition}=${b.action}`).join(';'), schedule, route, abnormalities, incomplete: false };
+  return { bands: ordered.map(b => `${b.condition}=${b.action}`).join(';'), schedule, route, abnormalities, incomplete: false, baseInstruction };
 }

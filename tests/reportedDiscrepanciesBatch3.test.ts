@@ -104,7 +104,9 @@ describe('24 exported discrepancy records, 2026-10-01 batch 3', () => {
   it('retains an unfamiliar notification recipient instead of omitting it', () => {
     const r = cases.reports[22];
     const prose = r.rawProse.replace('Notify NP/PA', 'Notify on-call care team');
-    expect(translate(r.drugName, prose).primarySig).toBe(prose.toUpperCase());
+    const result = translate(r.drugName, prose);
+    expect(result.primarySig).toBe('CBS ACHS SS 151-200=2U;201-250=4U;251-300=6U;301-350=8U;351-400=10U;401+=12U&NOTIFY ON-CALL CARE TEAM SQ FDM');
+    expect(result.abnormalities.some(a => a.id === 'sliding_scale_unparsed_action')).toBe(true);
   });
 
   it.each(['5 days', '4 weeks'])('retains an unmarked course interval for review: %s', duration => {

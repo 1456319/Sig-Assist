@@ -56,14 +56,22 @@ describe('October 4 discrepancy report including overlapping previous cases', ()
 
 it.each([
   ['350 administer 10 units', '350 administer an unspecified dose'],
-  ['notified MD', 'notified supervisor'],
-  ['and call MD', 'and call supervisor'],
 ])('retains the whole scale when a condition or action cannot be resolved: %s → %s', (before, after) => {
   const c = cases[29];
   const raw = c.rawProse.replace(before, after);
   const r = translate(c.drugName, raw);
   expect(r.primarySig).toBe(raw.toUpperCase().replace(/\s+/g, ' '));
   expect(r.abnormalities.some(a => a.id === 'incomplete_sliding_scale')).toBe(true);
+});
+
+it.each([
+  ['notified MD', 'notified supervisor', '<70=HYPOGLYCEMIC PROTOCOL&CALL MD;150-199=2U;200-249=4U;250-299=6U;300-349=8U;350+=10U&NOTIFIED SUPERVISOR'],
+  ['and call MD', 'and call supervisor', '<70=HYPOGLYCEMIC PROTOCOL&CALL SUPERVISOR;150-199=2U;200-249=4U;250-299=6U;300-349=8U;350+=10U&CALL MD'],
+])('retains every dose and unfamiliar notification: %s → %s', (before, after, bands) => {
+  const c = cases[29];
+  const r = translate(c.drugName, c.rawProse.replace(before, after));
+  expect(r.primarySig).toBe(`CBS ACHS SS ${bands} SQ FDM1`);
+  expect(r.abnormalities.some(a => a.id === 'sliding_scale_unparsed_action')).toBe(true);
 });
 
 it('prioritizes explicit source dilution over a different optional default template', () => {

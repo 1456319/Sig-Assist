@@ -57,7 +57,7 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     let frequency = schedule.frequencyToken;
     if (frequency === 'TIDAC' && !/\b(?:3|THREE) TIMES|\bTID\b/.test(tail.primary)) frequency = 'AC';
     const prefix = `CBS ${frequency} SS`;
-    const core = [prefix, scale.bands, scale.route, schedule.prnToken, schedule.durationToken,
+    const core = [scale.baseInstruction, prefix, scale.bands, scale.route, schedule.prnToken, schedule.durationToken,
       schedule.indicationToken, schedule.holdToken, schedule.stopToken].filter(Boolean).join(' ');
     const slidingScaleString = tail.supplemental ? `${core}. ${tail.supplemental.toUpperCase()}` : core;
     return { frequencyToken: prefix, slidingScaleString, abnormalities: [...abnormalities, ...schedule.abnormalities] };
