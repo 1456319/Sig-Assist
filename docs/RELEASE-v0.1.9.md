@@ -1,7 +1,7 @@
 # Sig-Assist v0.1.9 workstation build
 
-Release candidate assembled from the reconstructed, cross-platform-validated
-prototype. The versioned package is undergoing its final Windows release checks.
+Released November 17, 2026 from the reconstructed, cross-platform-validated
+prototype. The versioned package passed its final Windows and Linux checks.
 
 ## Changes since v0.1.8
 
@@ -38,8 +38,19 @@ failure reporting and removal work.
 
 ## Verification and downloads
 
-The repaired source passed 1,096 tests and the Windows/Linux integration pipeline
-before versioning. Local versioned build/package verification also passed. Final
-release CI and the verified download will be recorded here after completion.
-The public repository ZIP is a generic demo. The configured workstation update
-is distributed separately so private paths remain outside the repository.
+The versioned build passed all 1,096 tests on Windows and Linux, lint/type checks,
+native DocuTrack and Framework fixtures, builds/packages, Windows launchers, UNC
+paths, Edge clipboard/direct-file workflows, Iguana and pilot recording checks.
+[Release CI 44054605684](https://github.com/1456319/Sig-Assist/actions/runs/44054605684)
+validated commit `bfd2fb2d22f824a7109ad171d43d95fe34fd8da0`.
+
+[Public generic demo ZIP](../windows-demo/Sig-Assist-Windows-Demo.zip).
+The configured workstation update is distributed separately in the existing
+Prototype builds folder; its private paths and connection profile are not in the
+public ZIP. The configured upload was downloaded and verified byte-for-byte.
+Its eight core files also match the Windows-tested CI artifact byte-for-byte.
+
+- Configured filename: `Sig-Assist-Workstation-v0.1.9.zip`
+- Size: 268,762 bytes.
+- SHA-256: `bd57a72a267fa0df4f46b2967370aceb77578bfd9e63441853b12e68b5ce4ae3`
+- App build ID: `0eb8cbb9c8821c4c1659a468a79af1be351bd70612de6c158f0d83a5485a0f78`

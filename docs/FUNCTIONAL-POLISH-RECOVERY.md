@@ -1,5 +1,9 @@
 # Functional polish reconstruction
 
+The validated repairs were subsequently packaged as
+[workstation v0.1.9](RELEASE-v0.1.9.md). The source-repair history below precedes
+that release.
+
 The previous temporary checkout was removed by automated workspace maintenance.
 This repair reconstructs the source changes described in
 [the historical checkpoint](FUNCTIONAL-POLISH-CONTINUATION.md). The recovered
