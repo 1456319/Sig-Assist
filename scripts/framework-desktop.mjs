@@ -59,9 +59,15 @@ export async function runDesktopHelper(input) {
 // receives an opaque token, never a client-editable process/control selector.
 export function createDesktopSession({ run = runDesktopHelper, now = Date.now } = {}) {
   const bindings = new Map(); let busy = false; let entryWindow, observationDone, finishObservation;
+  // The helper is short lived. Keep passive traversal progress here, never in a
+  // page-supplied selector or in the native helper's static state.
+  let observationScanOffset = 0;
   function remember(result, selectEntry = false) {
     if (!result.ok) return result;
-    if (selectEntry && result.entryWindow) entryWindow = { ...result.entryWindow };
+    if (selectEntry && result.entryWindow) {
+      if (!entryWindow || ['pid', 'started', 'id', 'handle'].some(k => entryWindow[k] !== result.entryWindow[k])) observationScanOffset = 0;
+      entryWindow = { ...result.entryWindow };
+    }
     const token = randomUUID(); const expiresAt = now() + 5 * 60 * 1000;
     bindings.set(token, { detected: result, expiresAt });
     for (const [key, item] of bindings) if (item.expiresAt < now() || bindings.size > 20) bindings.delete(key);
@@ -84,7 +90,9 @@ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } 
       // no discovery/recovery and never accepts a browser-supplied window selector.
       if (action === 'observe') {
         if (!entryWindow) return { ok: false, code: 'SELECTION_REQUIRED' };
-        try { return await run({ action: 'observe', entryWindow, key: body.key }); }
+        const scanOffset = observationScanOffset;
+        observationScanOffset = (observationScanOffset + 173) % 1600;
+        try { return await run({ action: 'observe', entryWindow, key: body.key, scanOffset }); }
         catch { return { ok: false, code: 'OBSERVATION_FAILED' }; }
       }
       if (action === 'docutrack') return await run({ action: 'docutrack' });

@@ -23,7 +23,7 @@ const enums = {
   state: ['visible', 'hidden', 'pagehide', 'pageshow'],
   reason: ['AUTOMATIC_AUTH_UNAVAILABLE', 'ENOTFOUND', 'ECONNREFUSED', 'ECONNRESET', 'TIMEOUT_OR_STOPPED', 'INVALID_LOG_EXPORT', 'IGUANA_HTTP_401', 'IGUANA_HTTP_403', 'BRIDGE_UNREACHABLE', 'UNCLASSIFIED'],
 };
-const numbers = new Set(('durationMs count beforeCount afterCount httpStatus port headers unreadable messageLength valueLength rawProseLength primarySigLength drugNameLength abnormalitiesCount splitPartsCount droppedWorkflow droppedTranslation recovered pendingCount nodeCount visitedCount errors elapsedMs limit rowCount columnCount').split(' '));
+const numbers = new Set(('durationMs count beforeCount afterCount httpStatus port headers unreadable messageLength valueLength rawProseLength primarySigLength drugNameLength abnormalitiesCount splitPartsCount droppedWorkflow droppedTranslation recovered pendingCount nodeCount visitedCount errors elapsedMs limit rowCount columnCount scanOffset cacheReads prioritySeeds').split(' '));
 const booleans = new Set(('uncertain verified checked isControlled isPaxitSolid requiresSplit hasPackagingNotice isApap hidden disabled writable hasFilter').split(' '));
 const version = x => typeof x === 'string' && /^[0-9]+\.[0-9]+\.[0-9]+$/.test(x) ? x : 'unknown';
 const fileCodes = ['EACCES', 'EPERM', 'ENOENT', 'ENOSPC', 'EIO', 'EROFS', 'ETIMEDOUT', 'ECONNRESET', 'ENOTCONN', 'EBUSY', 'DESTINATION_UNAVAILABLE'];

@@ -173,6 +173,12 @@ sealed class ScanNode {
     public int depth;
     public bool hidden, inOpenErx, inTriage;
 }
+sealed class ObservationNode {
+    public AutomationElement element, firstSibling;
+    public string parentId, siblingStartId;
+    public int depth, siblingCount;
+    public bool siblingWrapped;
+}
 public sealed class DesktopSnapshot {
     public string format = "sig-assist-framework-desktop";
     public int schemaVersion = 7;
@@ -1075,7 +1081,35 @@ public static class FrameworkDesktop {
     // TEMPORARY_INTENSIFIED_LOGGING_REMOVAL_PRIORITY_HIGH
     // Passive and separate from Scan/ReadGrid: never activate, focus, scroll,
     // realize a grid cell, enable accessibility recovery, invoke, or write.
-    static object Observe(EntryWindow entry, string secret, string testProcess) {
+    static CacheRequest ObservationIdentityRequest() {
+        // Element scope is intentional: no whole-window/subtree provider call.
+        // Identity and capability availability share one cross-process read.
+        var request = new CacheRequest { TreeScope = TreeScope.Element, AutomationElementMode = AutomationElementMode.Full };
+        foreach (var property in new[] { AutomationElement.AutomationIdProperty, AutomationElement.NameProperty,
+            AutomationElement.ClassNameProperty, AutomationElement.ControlTypeProperty, AutomationElement.FrameworkIdProperty,
+            AutomationElement.ProcessIdProperty, AutomationElement.IsPasswordProperty, AutomationElement.IsOffscreenProperty,
+            AutomationElement.IsEnabledProperty, AutomationElement.HasKeyboardFocusProperty, AutomationElement.BoundingRectangleProperty,
+            AutomationElement.IsValuePatternAvailableProperty, AutomationElement.IsTogglePatternAvailableProperty,
+            AutomationElement.IsSelectionItemPatternAvailableProperty, AutomationElement.IsGridPatternAvailableProperty }) request.Add(property);
+        return request;
+    }
+    static ObservationNode ObservationChildren(ObservationNode parent, string parentToken, CacheRequest request,
+        int scanOffset, Stopwatch watch, ref int cacheReads, ref bool limited) {
+        var first = TreeWalker.ControlViewWalker.GetFirstChild(parent.element, request); cacheReads++;
+        if (first == null) return null;
+        var prefix = new List<AutomationElement> { first }; var child = first;
+        // Rotate the starting sibling, including wide groups. Do not eagerly
+        // enumerate and push every sibling before reading the first field.
+        for (int skip = 0; skip < scanOffset && watch.ElapsedMilliseconds < 1200; skip++) {
+            var next = TreeWalker.ControlViewWalker.GetNextSibling(child, request); cacheReads++;
+            if (next == null) { child = prefix[scanOffset % prefix.Count]; break; }
+            prefix.Add(next); child = next;
+        }
+        if (watch.ElapsedMilliseconds >= 1200) { limited = true; return null; }
+        return new ObservationNode { element = child, firstSibling = first, siblingStartId = Id(child),
+            parentId = parentToken, depth = parent.depth + 1, siblingCount = 1 };
+    }
+    static object Observe(EntryWindow entry, string secret, string testProcess, int scanOffset) {
         if (entry == null) return new { ok = false, code = "SELECTION_REQUIRED" };
         if (!Regex.IsMatch(secret ?? "", "^[a-f0-9]{64}$")) return new { ok = false, code = "OBSERVATION_FAILED" };
         AutomationElement root;
@@ -1084,63 +1118,137 @@ public static class FrameworkDesktop {
         var known = new HashSet<string>(("ERxQueueButton ERxGrid ERxPatientOrderGrid FolderGridControl DirectionsView paneRichEdit RxEntryViewControl RxEntryPrescription_QtyEdit RxEntryPrescription_DaysSupplyEdit RxEntryPrescription_ProfileOnly ProductSelectionView CompoundAutoSuggestEdit RxBatch MoveRxBatchUserControl PatientViewControl chkPatientProfileReviewed WorkQueueView PART_Editor PART_OkButton PART_YesButton PART_NoButton PART_Item PART_GridControl PART_Content PART_DockLayoutManager Name Value Display Title CloseButton CancelButton OrderSigTextBox LinkedSigTextBox ERxWorkQueueWizardView ERxWorkQueueDirectionsView PrescriptionTabDirectionsView ERxWorkQueueView RxEntryView ERxTriageManagerView PatientOrdersView FrameworkEcmPopup").Split(' '));
         byte[] key = Enumerable.Range(0, 32).Select(i => Convert.ToByte(secret.Substring(i * 2, 2), 16)).ToArray();
         var labels = new HashSet<string>(("sig|prescription sig|sig code|order sig|linked sig|directions|structured sig|preview sig|quantity|qty|days supply|days' supply|times/day|times per day|administration times|admin times|start date|delivery date|dispensed date|dispense date|effective date|expire date|status date|package type|profile only|cycle fill|unit dose|partial tablet|delivery id|rx batch|batch|product|drug|drug name|patient|patient id|facility|facility id|patient profile reviewed|allergies|no known allergies|allergy/adverse event information|refills|next|back|finish|cancel|ok|yes|no|save|continue saving|select compound/iv|search|accept|close|pon|prescriber order number").Split('|'));
-        var controls = new List<Dictionary<string, object>>(); int errors = 0, visited = 0;
-        var watch = Stopwatch.StartNew(); var pending = new Stack<ScanNode>();
-        pending.Push(new ScanNode { element = root, parentId = "", depth = 0 });
+        scanOffset = Math.Max(0, Math.Min(1599, scanOffset));
+        var controls = new List<Dictionary<string, object>>(); int errors = 0, visited = 0, cacheReads = 0, prioritySeeds = 0;
+        bool limited = false; var watch = Stopwatch.StartNew(); var pending = new Stack<ObservationNode>();
+        var seen = new HashSet<string>(); var identityRequest = ObservationIdentityRequest();
+        var views = new HashSet<string>(("RxEntryViewControl RxEntryView DirectionsView PrescriptionTabDirectionsView ERxWorkQueueWizardView ERxWorkQueueDirectionsView ERxWorkQueueView ERxTriageManagerView PatientOrdersView ProductSelectionView WorkQueueView").Split(' '));
         using (var hmac = new HMACSHA256(key)) {
             Func<string, string> hash = value => BitConverter.ToString(hmac.ComputeHash(Encoding.UTF8.GetBytes(value ?? ""))).Replace("-", "").ToLowerInvariant().Substring(0, 32);
+            try {
+                root = root.GetUpdatedCache(identityRequest); cacheReads++;
+                pending.Push(new ObservationNode { element = root, parentId = "", depth = 0 });
+                // Establish ancestry first. Focus in another window must never
+                // seed a read, even when it belongs to the same process.
+                var focused = AutomationElement.FocusedElement;
+                var lineage = new List<AutomationElement>(); bool inside = false;
+                if (focused != null && Object.Equals(focused.GetCurrentPropertyValue(AutomationElement.ProcessIdProperty), entry.pid)) {
+                    var cursor = focused;
+                    for (int depth = 0; cursor != null && depth <= 24 && watch.ElapsedMilliseconds < 1200; depth++) {
+                        if (Id(cursor) == entry.id) { inside = true; break; }
+                        lineage.Add(cursor); cursor = TreeWalker.RawViewWalker.GetParent(cursor);
+                    }
+                }
+                if (inside) {
+                    var cachedLineage = new List<AutomationElement>();
+                    foreach (var element in lineage) {
+                        if (watch.ElapsedMilliseconds >= 1200) { limited = true; break; }
+                        cachedLineage.Add(element.GetUpdatedCache(identityRequest)); cacheReads++;
+                    }
+                    if (cachedLineage.Count == lineage.Count && !cachedLineage.Any(e => Object.Equals(Cached(e, AutomationElement.IsPasswordProperty), true))) {
+                        var seeds = new HashSet<int>();
+                        for (int i = 0; i < cachedLineage.Count; i++) {
+                            var element = cachedLineage[i];
+                            if (views.Contains(Text(Cached(element, AutomationElement.AutomationIdProperty))) || views.Contains(Text(Cached(element, AutomationElement.ClassNameProperty)))) { seeds.Add(i); break; }
+                        }
+                        if (cachedLineage.Count > 1) seeds.Add(1);
+                        if (cachedLineage.Count > 0) seeds.Add(0);
+                        foreach (int i in seeds.OrderByDescending(i => i)) {
+                            pending.Push(new ObservationNode { element = cachedLineage[i], depth = lineage.Count - i,
+                                parentId = hash("control:" + (i + 1 < lineage.Count ? Id(lineage[i + 1]) : entry.id)) }); prioritySeeds++;
+                        }
+                    }
+                }
+            } catch { errors++; }
             while (pending.Count > 0 && visited < 1600 && controls.Count < 800 && watch.ElapsedMilliseconds < 1200) {
                 var node = pending.Pop(); visited++;
                 try {
-                    var current = node.element.Current;
+                    // A sibling continuation remains below this node's children.
+                    // One complete wrap ends the group; no repeated root-first DFS.
+                    if (node.firstSibling != null) {
+                        var sibling = TreeWalker.ControlViewWalker.GetNextSibling(node.element, identityRequest); cacheReads++;
+                        bool wrapped = node.siblingWrapped;
+                        if (sibling == null && !wrapped) { sibling = node.firstSibling; wrapped = true; }
+                        if (sibling != null && Id(sibling) != node.siblingStartId) {
+                            if (node.siblingCount >= 1600) limited = true;
+                            else pending.Push(new ObservationNode { element = sibling, firstSibling = node.firstSibling,
+                                siblingStartId = node.siblingStartId, siblingWrapped = wrapped, siblingCount = node.siblingCount + 1,
+                                parentId = node.parentId, depth = node.depth });
+                        }
+                    }
+                    string runtimeId = Id(node.element);
+                    if (!seen.Add(runtimeId)) continue;
                     // A protected control's descendants are not visited either.
-                    if (current.IsPassword || current.ProcessId != entry.pid || current.IsOffscreen) continue;
-                    string id = current.AutomationId ?? "", name = current.Name ?? "", cls = current.ClassName ?? "";
-                    string controlToken = hash("control:" + Id(node.element));
+                    if (!Object.Equals(Cached(node.element, AutomationElement.IsPasswordProperty), false)
+                        || !Object.Equals(Cached(node.element, AutomationElement.ProcessIdProperty), entry.pid)) continue;
+                    bool offscreen = !Object.Equals(Cached(node.element, AutomationElement.IsOffscreenProperty), false);
+                    string id = Text(Cached(node.element, AutomationElement.AutomationIdProperty)), name = Text(Cached(node.element, AutomationElement.NameProperty)), cls = Text(Cached(node.element, AutomationElement.ClassNameProperty));
+                    string controlToken = hash("control:" + runtimeId);
+                    var type = Cached(node.element, AutomationElement.ControlTypeProperty) as ControlType;
+                    // Offscreen layout wrappers can contain visible editors. Walk
+                    // through them, but do not read or report their values.
+                    if (!offscreen) {
                     var item = new Dictionary<string, object> {
                         { "token", controlToken }, { "parent", node.parentId }, { "depth", node.depth },
                         { "idToken", hash("id:" + id) }, { "classToken", hash("class:" + cls) }, { "nameToken", hash("name:" + name) }, { "nameLength", name.Length },
-                        { "type", current.ControlType.ProgrammaticName }, { "enabled", current.IsEnabled },
-                        { "offscreen", false }, { "focused", current.HasKeyboardFocus },
-                        { "family", known.Contains(id) ? "known-view" : cls.StartsWith("WindowsForms") ? "winforms" : current.FrameworkId == "WPF" ? "wpf" : "other" }
+                        { "type", type == null ? "" : type.ProgrammaticName }, { "enabled", Object.Equals(Cached(node.element, AutomationElement.IsEnabledProperty), true) },
+                        { "offscreen", false }, { "focused", Object.Equals(Cached(node.element, AutomationElement.HasKeyboardFocusProperty), true) },
+                        { "family", known.Contains(id) ? "known-view" : cls.StartsWith("WindowsForms") ? "winforms" : Text(Cached(node.element, AutomationElement.FrameworkIdProperty)) == "WPF" ? "wpf" : "other" }
                     };
                     if (known.Contains(id)) item["automationId"] = id;
                     if (known.Contains(cls)) item["view"] = cls;
                     string label = Regex.Replace(name.Replace("&", "").Trim().TrimEnd(':').Trim(), @"\s+", " ").ToLowerInvariant();
                     if (labels.Contains(label)) item["label"] = label;
-                    var bounds = current.BoundingRectangle;
+                    var boundsValue = Cached(node.element, AutomationElement.BoundingRectangleProperty);
+                    var bounds = boundsValue is System.Windows.Rect ? (System.Windows.Rect)boundsValue : System.Windows.Rect.Empty;
                     if (!bounds.IsEmpty && new[] { bounds.X, bounds.Y, bounds.Width, bounds.Height }.All(v => !Double.IsNaN(v) && !Double.IsInfinity(v))) {
                         item["x"] = Math.Round(bounds.X); item["y"] = Math.Round(bounds.Y);
                         item["width"] = Math.Round(bounds.Width); item["height"] = Math.Round(bounds.Height);
                     }
-                    try { var patterns = node.element.GetSupportedPatterns(); item["patternCount"] = patterns.Length; item["patterns"] = patterns.Select(p => p.Id).ToArray(); } catch { errors++; }
-                    object pattern;
-                    if (node.element.TryGetCurrentPattern(ValuePattern.Pattern, out pattern)) {
-                        item["hasValue"] = true; item["valueReadable"] = false;
+                    bool hasValue = Object.Equals(Cached(node.element, AutomationElement.IsValuePatternAvailableProperty), true),
+                        hasToggle = Object.Equals(Cached(node.element, AutomationElement.IsTogglePatternAvailableProperty), true),
+                        hasSelection = Object.Equals(Cached(node.element, AutomationElement.IsSelectionItemPatternAvailableProperty), true),
+                        hasGrid = Object.Equals(Cached(node.element, AutomationElement.IsGridPatternAvailableProperty), true);
+                    // These are the four surveyed capabilities, not a full UIA
+                    // pattern inventory. Never call GetSupportedPatterns per node.
+                    var patterns = new List<int>();
+                    var freshRequest = new CacheRequest { TreeScope = TreeScope.Element, AutomationElementMode = AutomationElementMode.None };
+                    if (hasValue) { patterns.Add(ValuePattern.Pattern.Id); freshRequest.Add(ValuePattern.ValueProperty); freshRequest.Add(ValuePattern.IsReadOnlyProperty); item["hasValue"] = true; item["valueReadable"] = false; }
+                    if (hasToggle) { patterns.Add(TogglePattern.Pattern.Id); freshRequest.Add(TogglePattern.ToggleStateProperty); }
+                    if (hasSelection) { patterns.Add(SelectionItemPattern.Pattern.Id); freshRequest.Add(SelectionItemPattern.IsSelectedProperty); }
+                    if (hasGrid) { patterns.Add(GridPattern.Pattern.Id); freshRequest.Add(GridPattern.RowCountProperty); freshRequest.Add(GridPattern.ColumnCountProperty); }
+                    item["patternCount"] = patterns.Count; item["patterns"] = patterns.ToArray();
+                    if (patterns.Count > 0 && watch.ElapsedMilliseconds < 1200) {
                         try {
-                            var value = ((ValuePattern)pattern).Current;
-                            string text = value.Value ?? "";
-                            item["writable"] = !value.IsReadOnly; item["valueLength"] = text.Length;
-                            item["valueToken"] = hash("value:" + text); item["valueReadable"] = true;
+                            // Values are fetched freshly only after this element's
+                            // password/process/visibility checks. No value cache
+                            // survives this observation or includes descendants.
+                            var fresh = node.element.GetUpdatedCache(freshRequest); cacheReads++;
+                            var value = hasValue ? Cached(fresh, ValuePattern.ValueProperty) : null;
+                            if (value is string) { item["valueLength"] = ((string)value).Length; item["valueToken"] = hash("value:" + (string)value); item["valueReadable"] = true; }
+                            var readOnly = hasValue ? Cached(fresh, ValuePattern.IsReadOnlyProperty) : null;
+                            if (readOnly is bool) item["writable"] = !(bool)readOnly;
+                            var toggle = hasToggle ? Cached(fresh, TogglePattern.ToggleStateProperty) : null;
+                            if (toggle is ToggleState) item["toggle"] = (int)(ToggleState)toggle;
+                            var selected = hasSelection ? Cached(fresh, SelectionItemPattern.IsSelectedProperty) : null;
+                            if (selected is bool) item["selected"] = (bool)selected;
+                            var rows = hasGrid ? Cached(fresh, GridPattern.RowCountProperty) : null;
+                            var columns = hasGrid ? Cached(fresh, GridPattern.ColumnCountProperty) : null;
+                            if (rows is int) item["rows"] = (int)rows;
+                            if (columns is int) item["columns"] = (int)columns;
                         } catch { errors++; }
                     }
-                    if (node.element.TryGetCurrentPattern(TogglePattern.Pattern, out pattern)) item["toggle"] = (int)((TogglePattern)pattern).Current.ToggleState;
-                    if (node.element.TryGetCurrentPattern(SelectionItemPattern.Pattern, out pattern)) item["selected"] = ((SelectionItemPattern)pattern).Current.IsSelected;
-                    if (node.element.TryGetCurrentPattern(GridPattern.Pattern, out pattern)) {
-                        var grid = ((GridPattern)pattern).Current; item["rows"] = grid.RowCount; item["columns"] = grid.ColumnCount;
-                    }
                     controls.Add(item);
-                    if (node.depth >= 24) { errors++; continue; }
-                    var child = TreeWalker.ControlViewWalker.GetFirstChild(node.element); int siblings = 0;
-                    while (child != null && siblings++ < 800 && pending.Count < 1600 && watch.ElapsedMilliseconds < 1200) {
-                        pending.Push(new ScanNode { element = child, parentId = controlToken, depth = node.depth + 1 });
-                        child = TreeWalker.ControlViewWalker.GetNextSibling(child);
                     }
-                    if (child != null) errors++;
+                    if (node.depth >= 24) { errors++; continue; }
+                    if (watch.ElapsedMilliseconds >= 1200) { limited = true; break; }
+                    var child = ObservationChildren(node, controlToken, identityRequest, scanOffset, watch, ref cacheReads, ref limited);
+                    if (child != null) pending.Push(child);
                 } catch { errors++; }
             }
         }
-        return new { ok = true, code = "OK", controls, nodeCount = controls.Count, visitedCount = visited, errors, elapsedMs = watch.ElapsedMilliseconds, partial = errors > 0 || pending.Count > 0 };
+        return new { ok = true, code = "OK", controls, nodeCount = controls.Count, visitedCount = visited, errors, scanOffset, cacheReads, prioritySeeds,
+            elapsedMs = watch.ElapsedMilliseconds, partial = limited || errors > 0 || pending.Count > 0 };
     }
     [STAThread]
     public static int Main(string[] args) {
@@ -1156,7 +1264,8 @@ public static class FrameworkDesktop {
             bool positionReview = input.ContainsKey("positionReview") && Object.Equals(input["positionReview"], true);
             if (action == "window") { Console.WriteLine(Serialize(ChooseEntryWindow(testProcess, positionReview))); return 0; }
             var entry = input.ContainsKey("entryWindow") ? InputWindow(input["entryWindow"]) : null;
-            if (action == "observe") { Console.WriteLine(Serialize(Observe(entry, input.ContainsKey("key") ? Text(input["key"]) : "", testProcess))); return 0; }
+            if (action == "observe") { Console.WriteLine(Serialize(Observe(entry, input.ContainsKey("key") ? Text(input["key"]) : "", testProcess,
+                input.ContainsKey("scanOffset") ? Convert.ToInt32(input["scanOffset"]) : 0))); return 0; }
             if (action == "send") {
                 var fields = Map(Map(input["expected"])["fields"]); string field = Text(input["field"]);
                 if (!fields.ContainsKey(field)) throw new Exception("Choose the destination field in Framework first.");
