@@ -43,8 +43,24 @@ Local Linux verification on the reconstructed source passed:
 - Demo packaging and byte-for-byte package source verification.
 
 Windows compilation and all existing native, browser, UNC, clipboard, Iguana and
-pilot recording smoke checks are run by `.github/workflows/checks.yml`. Their
-remote result must be verified before treating the native reader as validated.
+pilot recording smoke checks are run by `.github/workflows/checks.yml`.
+A focused Windows-only observer check also runs without npm dependencies to
+shorten feedback during native repairs.
+
+The first Windows coverage run exposed an actual container-traversal defect:
+suppressing UIA default property values made ordinary containers look as though
+their non-password status was unavailable, pruning their children. The repair
+preserves standard Boolean defaults, batches focused-view child identities,
+prioritizes critical editors and caches runtime IDs. Coverage assertions were
+retained; failure output now includes safe synthetic labels/counters.
+
+[Focused Windows run 44004999638](https://github.com/1456319/Sig-Assist/actions/runs/44004999638)
+passed on source commit `58fb327`, including all four critical fields, changed
+quantity tokens, unchanged focus and excluded protected/hidden values.
+[Integrated run 44004999693](https://github.com/1456319/Sig-Assist/actions/runs/44004999693)
+is the final cross-platform check for this source; Linux has passed and the
+Windows result remains to be confirmed at this checkpoint.
+
 A short workstation field-coverage check is still needed before making claims
 about the real Framework installation's coverage or latency.
 
