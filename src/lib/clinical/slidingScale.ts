@@ -18,29 +18,29 @@ const comparison = '(?:[<>]=?|GREATER THAN(?: OR EQUALS?(?: TO)?)?|LESS THAN(?: 
 const threshold = `(?:${comparison})\\s*\\d+(?:\\.\\d+)?`;
 const glucose = '(?:(?:BS|BG|CBS|BLOOD (?:SUGAR|GLUCOSE))\\s*)?';
 const conditionList = `${glucose}${threshold}(?:\\s+(?:OR|AND)\\s+${glucose}${threshold})*`;
-const conditionPattern = /(?<![\d.])\b\d+(?:\.\d+)?\s*(?:-|TO)\s*\d+(?:\.\d+)?\s*(?==|:|GIVE\b|ADMINISTER\b|INJECT\b|\d)|\b\d+(?:\.\d+)?\s*\+|(?:[<>]=?|GREATER THAN(?: OR EQUALS?(?: TO)?)?|LESS THAN(?: OR EQUALS?(?: TO)?)?)\s*\d+(?:\.\d+)?/g;
+const conditionPattern = /(?<![\d.])\b\d+(?:\.\d+)?\s*(?:-|TO)\s*\d+(?:\.\d+)?|\b\d+(?:\.\d+)?\s*\+|(?:[<>]=?|GREATER THAN(?: OR EQUALS?(?: TO)?)?|LESS THAN(?: OR EQUALS?(?: TO)?)?)\s*\d+(?:\.\d+)?/g;
 
 function normalizeScale(raw: string): string {
   return normalizeNumericDirections(raw).replace(/\bSLIDING[\s-]+SCALE\b/g, 'SLIDING SCALE').replace(/[–—−]/g, '-')
     .replace(/≥/g, '>=').replace(/≤/g, '<=')
     .replace(/([<>])\s*(?:OR\s*)?=/g, '$1=')
-    // Glucose concentration labels describe conditions, not insulin dose units.
-    .replace(/\bMG\s*\/\s*DL\b/g, '')
     .replace(/\b(\d+(?:\.\d+)?)\s+(?:OR GREATER|AND (?:ABOVE|HIGHER)|OR MORE)\b/g, '>=$1')
     // "400 or less than 60" contains two opposite thresholds. Do not turn 400 into <=400.
-    .replace(/\b(\d+(?:\.\d+)?)\s+(?:OR LESS(?!\s+THAN\b)|AND (?:BELOW|LOWER))\b/g, '<=$1');
+    .replace(/\b(\d+(?:\.\d+)?)\s+(?:OR LESS(?!\s+THAN\b)|AND (?:BELOW|LOWER))\b/g, '<=$1')
+    // Only a label immediately following a glucose condition is removable.
+    // A purported dose of "2 mg/dL" must still fail the dose-unit check.
+    .replace(/((?<![\d.])\b\d+(?:\.\d+)?\s*(?:-|TO)\s*\d+(?:\.\d+)?|\b\d+(?:\.\d+)?\s*\+|(?:[<>]=?|GREATER THAN(?: OR EQUALS?(?: TO)?)?|LESS THAN(?: OR EQUALS?(?: TO)?)?)\s*\d+(?:\.\d+)?)\s*MG\s*\/\s*DL\b/g, '$1');
 }
 
 /** Shared routing guard: never let a condition's dose become a fixed insulin dose. */
 export function looksLikeSlidingScale(raw: string, drugName = ''): boolean {
   const upper = normalizeScale(raw);
   if (/\b(?:(?:SLIDING|CORRECTION)\s+SCALE|PER\s+(?:THE\s+)?SCALE)\b/.test(upper)) return true;
-  const insulin = /\bINSULIN\b/i.test(drugName) || /\bINSULIN\b/.test(upper);
+  const insulin = /\b(?:INSULIN|LISPRO|ASPART|GLULISINE|HUMALOG|HUMULIN|NOVOLOG|NOVOLIN|APIDRA|ADMELOG|FIASP|LYUMJEV)\b/i.test(drugName) || /\bINSULIN\b/.test(upper);
   const markers = [...upper.matchAll(conditionPattern)];
   if (!insulin || markers.length < 2) return false;
-  const dose = /(?:^|[=:\s])(?:GIVE\s+|ADMINISTER\s+|INJECT\s+)?\d+(?:\.\d+)?\s*(?:UNITS?|U|UNIS|UNITES)\b/;
-  return markers.some((marker, index) => dose.test(upper.slice(marker.index! + marker[0].length, markers[index + 1]?.index)))
-    && (markers.length > 1 || /\bHOLD\b/.test(upper));
+  const dose = /^[\s,:=]*(?:(?:GIVE|ADMINISTER|INJECT)\s+)?\d+(?:\.\d+)?(?:\s*(?:UNITS?|U|UNIS|UNITES)\b)?(?=$|[\s,;:.&])/;
+  return markers.some((marker, index) => dose.test(upper.slice(marker.index! + marker[0].length, markers[index + 1]?.index)));
 }
 
 function condition(value: string): { key: number; text: string } {
@@ -93,14 +93,20 @@ export function parseSlidingScale(raw: string): ParsedSlidingScale {
 
   // Unknown recipients do not make recognized insulin doses ambiguous. Keep
   // the source notification alongside each of its conditions and flag it.
-  upper = upper.replace(new RegExp(`\\b(NOTIFY|NOTIFIED|CALL)\\s+([^;:,.=<>]+?)\\s+(?:IF|FOR)\\s+(${conditionList})`, 'g'),
-    (_whole, verb: string, who: string, conditions: string) => {
-      const action = retainAction(`${verb} ${who.trim()}`);
+  const unknownNotifications = [
+    new RegExp(`\\b(NOTIFY|NOTIFIED|CALL)\\s+([^;:,.=<>]+?)\\s+(?:IF|FOR)\\s+(${conditionList})`, 'g'),
+    new RegExp(`(${conditionList})\\s+(NOTIFY|NOTIFIED|CALL)\\s+([^;:,.=<>]+?)(?=[,;.]|$|\\s+(?:SUBCUTANEOUS(?:LY)?|SQ|SUBQ|SC|BEFORE|AFTER|AT BEDTIME)\\b)`, 'g'),
+  ];
+  unknownNotifications.forEach((pattern, index) => {
+    upper = upper.replace(pattern, (_whole, first: string, second: string, third: string) => {
+      const conditions = index ? first : third;
+      const action = retainAction(index ? `${second} ${third.trim()}` : `${first} ${second.trim()}`);
       for (const match of conditions.matchAll(new RegExp(threshold, 'g'))) {
         const c = condition(match[0]); bands.push({ key: c.key, condition: c.text, action });
       }
       return ' ';
     });
+  });
 
   const first = [...upper.matchAll(conditionPattern)][0];
   if (!first) return fail('No complete numeric sliding scale was found. Original directions were retained.');
