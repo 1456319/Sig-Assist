@@ -87,7 +87,7 @@ try {
   await livePage.goto(bridge);
   await livePage.locator('#sig-assist-startup').waitFor({ state: 'hidden' });
   await livePage.getByRole('button', { name: 'Load recent E-Rx', exact: true }).click();
-  await livePage.getByText('Search complete: 2 logs · 1 added. Choose a matching E‑Rx below.', { exact: true }).waitFor();
+  await livePage.getByText('Search complete: 2 logs · 1 added · 1 matching. Choose a matching E‑Rx below.', { exact: true }).waitFor();
   await livePage.locator('section[aria-label="Orders"]').getByRole('button').click();
   await livePage.getByText('Live connection settings', { exact: true }).click();
   assert.equal(await livePage.getByLabel('Iguana base URL', { exact: true }).inputValue(), '');
@@ -115,7 +115,7 @@ try {
   await livePage.getByText('Live connection settings', { exact: true }).click();
   await livePage.getByLabel('PON, patient reference, facility or drug', { exact: true }).fill('DEMO-PON-1');
   await livePage.getByRole('button', { name: 'Find E-Rx', exact: true }).click();
-  await livePage.getByText('Search complete: 2 logs · 0 added. Choose a matching E‑Rx below.', { exact: true }).waitFor();
+  await livePage.getByText('Search complete: 2 logs · 0 added · 1 matching. Choose a matching E‑Rx below.', { exact: true }).waitFor();
   assert.equal(await livePage.getByLabel('Final SIG · editable, uppercase').count(), 0);
   await livePage.locator('section[aria-label="Orders"]').getByRole('button').click();
   assert.equal(await livePage.getByLabel('Final SIG · editable, uppercase').inputValue(), '1T PO BID FOR EXAMPLE SYMPTOMS');
