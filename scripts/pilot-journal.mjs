@@ -22,6 +22,7 @@ const enums = {
   inputType: ['text', 'number', 'checkbox', 'radio', 'date', 'datetime-local', 'search', 'button', 'submit', 'other'],
   state: ['visible', 'hidden', 'pagehide', 'pageshow'],
   reason: ['AUTOMATIC_AUTH_UNAVAILABLE', 'ENOTFOUND', 'ECONNREFUSED', 'ECONNRESET', 'TIMEOUT_OR_STOPPED', 'INVALID_LOG_EXPORT', 'IGUANA_HTTP_401', 'IGUANA_HTTP_403', 'BRIDGE_UNREACHABLE', 'UNCLASSIFIED'],
+  failureReason: ['HELPER_TIMEOUT', 'INVALID_OUTPUT', 'HELPER_PROCESS_EXIT', 'HELPER_STARTUP_FAILED', 'UNKNOWN_FAILURE'],
 };
 const numbers = new Set(('durationMs count beforeCount afterCount httpStatus port headers unreadable messageLength valueLength rawProseLength primarySigLength drugNameLength abnormalitiesCount splitPartsCount droppedWorkflow droppedTranslation recovered pendingCount nodeCount visitedCount errors elapsedMs limit rowCount columnCount scanOffset cacheReads prioritySeeds').split(' '));
 const booleans = new Set(('uncertain verified checked isControlled isPaxitSolid requiresSplit hasPackagingNotice isApap hidden disabled writable hasFilter').split(' '));
@@ -34,6 +35,7 @@ export function safeFields(raw = {}) {
   for (const [k, values] of Object.entries(enums)) if (values.includes(raw[k])) out[k] = raw[k];
   for (const k of numbers) if (Number.isFinite(raw[k]) && raw[k] >= 0) out[k] = Math.min(1e12, Math.round(raw[k]));
   for (const k of booleans) if (typeof raw[k] === 'boolean') out[k] = raw[k];
+  if (Number.isFinite(raw.helperDurationMs) && raw.helperDurationMs >= 0) out.helperDurationMs = Math.min(60000, Math.round(raw.helperDurationMs));
   if (typeof raw.traceRef === 'string' && /^trace-[0-9]{1,8}$/.test(raw.traceRef)) out.traceRef = raw.traceRef;
   return out;
 }

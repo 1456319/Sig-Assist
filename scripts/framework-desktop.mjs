@@ -17,10 +17,29 @@ const loadedDesktopBuildId = (async () => {
   } catch { return 'unavailable'; }
 })();
 export async function desktopBuildId() { return loadedDesktopBuildId; }
-function execute(file, args, input, timeout = 20000) {
+const failureReasons = new Set(['HELPER_TIMEOUT', 'INVALID_OUTPUT', 'HELPER_PROCESS_EXIT', 'HELPER_STARTUP_FAILED', 'UNKNOWN_FAILURE']);
+function helperDuration(value) { return Number.isFinite(value) && value >= 0 ? Math.min(60000, Math.round(value)) : undefined; }
+function helperFailure(message, failureReason, helperDurationMs) {
+  const error = new Error(message);
+  error.failureReason = failureReasons.has(failureReason) ? failureReason : 'UNKNOWN_FAILURE';
+  const duration = helperDuration(helperDurationMs);
+  if (duration !== undefined) error.helperDurationMs = duration;
+  return error;
+}
+export function executeDesktopHelper(file, args, input, timeout = 20000) {
+  const started = performance.now();
   return new Promise((resolve, reject) => {
     const child = execFile(file, args, { windowsHide: true, timeout, maxBuffer: 4 * 1024 * 1024, encoding: 'utf8' }, (error, stdout, stderr) => {
-      if (error) reject(new Error(error.killed ? 'Desktop helper timed out. If sending, inspect Framework before retrying.' : `Desktop helper could not run (${error.code ?? 'PROCESS_ERROR'}). ${(stderr.trim() || (file.toLowerCase().endsWith('csc.exe') ? stdout.trim() : '')).slice(0, 1000)}`));
+      if (error) {
+        // Classify process metadata at its origin, never exception prose. A
+        // maxBuffer termination is invalid output rather than a helper timeout.
+        const reason = error.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER' ? 'INVALID_OUTPUT'
+          : error.killed ? 'HELPER_TIMEOUT'
+          : typeof error.code === 'number' || error.signal ? 'HELPER_PROCESS_EXIT'
+          : ['ENOENT', 'EACCES', 'EPERM', 'ENOEXEC', 'ENOTDIR', 'EISDIR', 'E2BIG', 'ENOMEM', 'EMFILE', 'ENFILE', 'ETXTBSY'].includes(error.code) ? 'HELPER_STARTUP_FAILED'
+          : 'UNKNOWN_FAILURE';
+        reject(helperFailure(error.killed ? 'Desktop helper timed out. If sending, inspect Framework before retrying.' : `Desktop helper could not run (${error.code ?? 'PROCESS_ERROR'}). ${(stderr.trim() || (file.toLowerCase().endsWith('csc.exe') ? stdout.trim() : '')).slice(0, 1000)}`, reason, performance.now() - started));
+      }
       else resolve(stdout.replace(/^\uFEFF/, ''));
     });
     child.stdin.on('error', () => {});
@@ -41,7 +60,7 @@ export async function helperExecutable() {
     const compiler = path.join(framework, 'csc.exe');
     try { await access(compiler); } catch { throw new Error('Windows .NET Framework 4 compiler is unavailable. Desktop detection needs .NET Framework 4; normal E-Rx search still works.'); }
     await mkdir(folder, { recursive: true });
-    await execute(compiler, ['/nologo', '/target:exe', '/platform:anycpu', `/out:${exe}`,
+    await executeDesktopHelper(compiler, ['/nologo', '/target:exe', '/platform:anycpu', `/out:${exe}`,
       `/reference:${path.join(framework, 'WPF', 'UIAutomationClient.dll')}`,
       `/reference:${path.join(framework, 'WPF', 'UIAutomationTypes.dll')}`,
       `/reference:${path.join(framework, 'WPF', 'WindowsBase.dll')}`,
@@ -50,9 +69,19 @@ export async function helperExecutable() {
   })();
   try { return await compiling; } catch (error) { compiling = undefined; throw error; }
 }
-export async function runDesktopHelper(input) {
-  const exe = await helperExecutable();
-  return JSON.parse(await execute(exe, [], JSON.stringify(input), input.action === 'observe' ? 8000 : input.action === 'window' ? 55000 : ['detect', 'inspect', 'docutrack'].includes(input.action) ? 45000 : 20000));
+export async function runDesktopHelper(input, { getExecutable = helperExecutable, execute = executeDesktopHelper } = {}) {
+  const started = performance.now();
+  let exe;
+  try { exe = await getExecutable(); }
+  catch (error) { throw helperFailure(error?.message || 'Desktop helper could not start.', failureReasons.has(error?.failureReason) ? error.failureReason : 'HELPER_STARTUP_FAILED', error?.helperDurationMs ?? performance.now() - started); }
+  let output;
+  try { output = await execute(exe, [], JSON.stringify(input), input.action === 'observe' ? 8000 : input.action === 'window' ? 55000 : ['detect', 'inspect', 'docutrack'].includes(input.action) ? 45000 : 20000); }
+  catch (error) { throw helperFailure(error?.message || 'Desktop helper could not run.', error?.failureReason, error?.helperDurationMs ?? performance.now() - started); }
+  try {
+    const result = JSON.parse(output);
+    if (!result || typeof result !== 'object' || Array.isArray(result) || typeof result.ok !== 'boolean') throw new Error();
+    return result;
+  } catch { throw helperFailure('Desktop helper returned invalid output.', 'INVALID_OUTPUT', performance.now() - started); }
 }
 
 // Bindings stay in this process, expire and are consumed before a write. The page
@@ -93,7 +122,12 @@ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } 
         const scanOffset = observationScanOffset;
         observationScanOffset = (observationScanOffset + 173) % 1600;
         try { return await run({ action: 'observe', entryWindow, key: body.key, scanOffset }); }
-        catch { return { ok: false, code: 'OBSERVATION_FAILED' }; }
+        catch (error) {
+          const result = { ok: false, code: 'OBSERVATION_FAILED', failureReason: failureReasons.has(error?.failureReason) ? error.failureReason : 'UNKNOWN_FAILURE' };
+          const duration = helperDuration(error?.helperDurationMs);
+          if (duration !== undefined) result.helperDurationMs = duration;
+          return result;
+        }
       }
       if (action === 'docutrack') return await run({ action: 'docutrack' });
       if (action === 'detect') {

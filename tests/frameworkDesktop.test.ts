@@ -1,10 +1,65 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 // @ts-expect-error Native Node module is deliberately dependency-free.
-import { createDesktopSession } from '../scripts/framework-desktop.mjs';
+import { createDesktopSession, executeDesktopHelper, runDesktopHelper } from '../scripts/framework-desktop.mjs';
 
 const detection = () => ({ ok: true, pon: 'SYNTHETIC-PON', fields: { sig: { id: 'edit-1', value: 'OLD', label: 'SIG' }, times: { id: 'edit-2', value: '0800', label: 'Administration times' } }, binding: { pid: 7, started: '123', window: 'window-1', pon: 'SYNTHETIC-PON' } });
+describe('desktop helper failure origins', () => {
+  it('classifies process timeouts, nonzero exits and startup errors before observation redaction', async () => {
+    await expect(executeDesktopHelper(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], '', 25)).rejects.toMatchObject({ failureReason: 'HELPER_TIMEOUT', helperDurationMs: expect.any(Number) });
+    await expect(executeDesktopHelper(process.execPath, ['-e', 'process.stderr.write("PRIVATE-NAME PRIVATE-PON"); process.exit(7)'], '')).rejects.toMatchObject({ failureReason: 'HELPER_PROCESS_EXIT', helperDurationMs: expect.any(Number) });
+    await expect(executeDesktopHelper('SYNTHETIC-HELPER-DOES-NOT-EXIST', [], '')).rejects.toMatchObject({ failureReason: 'HELPER_STARTUP_FAILED', helperDurationMs: expect.any(Number) });
+  });
+  it.each(['PRIVATE-NAME: not JSON', 'null', '[]', '{}'])('reports invalid helper output without retaining its contents: %s', async output => {
+    const run = (input: { action: string }) => runDesktopHelper(input, { getExecutable: async () => 'synthetic-helper', execute: async () => output });
+    await expect(run({ action: 'observe' })).rejects.toMatchObject({ message: 'Desktop helper returned invalid output.', failureReason: 'INVALID_OUTPUT', helperDurationMs: expect.any(Number) });
+    const entryWindow = { pid: 41, started: '111', id: 'root-a', handle: 401, title: 'Entry' };
+    const desktop = createDesktopSession({ run: (input: { action: string }) => input.action === 'observe' ? run(input) : Promise.resolve({ ...detection(), entryWindow }) });
+    await desktop('detect');
+    const failed = await desktop('observe');
+    expect(failed).toEqual({ ok: false, code: 'OBSERVATION_FAILED', failureReason: 'INVALID_OUTPUT', helperDurationMs: expect.any(Number) });
+    expect(JSON.stringify(failed)).not.toContain('PRIVATE');
+    expect(await desktop('detect')).toMatchObject({ ok: true });
+  });
+  it('marks helper preparation failures without using arbitrary process codes and preserves successful output', async () => {
+    await expect(runDesktopHelper({ action: 'observe' }, { getExecutable: async () => { throw Object.assign(new Error('PRIVATE-PATH'), { code: 'PRIVATE-CODE' }); } })).rejects.toMatchObject({ failureReason: 'HELPER_STARTUP_FAILED', helperDurationMs: expect.any(Number) });
+    const observed = { ok: true, code: 'OK', controls: [], elapsedMs: 19 };
+    expect(await runDesktopHelper({ action: 'observe' }, { getExecutable: async () => 'synthetic-helper', execute: async () => JSON.stringify(observed) })).toEqual(observed);
+  });
+});
 describe('Framework desktop transfer binding', () => {
+  it.each(['HELPER_TIMEOUT', 'INVALID_OUTPUT', 'HELPER_PROCESS_EXIT', 'HELPER_STARTUP_FAILED', 'UNKNOWN_FAILURE'])('records only typed observer failure metadata and releases the lock after %s', async failureReason => {
+    const entryWindow = { pid: 41, started: '111', id: 'root-a', handle: 401, title: 'Entry' };
+    const run = vi.fn().mockResolvedValueOnce({ ...detection(), entryWindow })
+      .mockRejectedValueOnce(Object.assign(new Error('PRIVATE-NAME PRIVATE-PON'), { failureReason, helperDurationMs: 8001.4, stdout: 'PRIVATE-XML', stderr: 'PRIVATE-PATH', code: 'PRIVATE-CODE' }))
+      .mockResolvedValueOnce({ ...detection(), entryWindow });
+    const desktop = createDesktopSession({ run }); await desktop('detect');
+    expect(await desktop('observe', { key: 'session-key' })).toEqual({ ok: false, code: 'OBSERVATION_FAILED', failureReason, helperDurationMs: 8001 });
+    expect(await desktop('detect')).toMatchObject({ ok: true, pon: 'SYNTHETIC-PON' });
+  });
+  it('does not classify observer failures from arbitrary error messages or codes', async () => {
+    const entryWindow = { pid: 41, started: '111', id: 'root-a', handle: 401, title: 'Entry' };
+    const desktop = createDesktopSession({ run: vi.fn().mockResolvedValueOnce({ ...detection(), entryWindow })
+      .mockRejectedValueOnce(Object.assign(new Error('timeout PRIVATE-NAME'), { code: 'ETIMEDOUT', failureReason: 'PRIVATE-PON', helperDurationMs: Number.POSITIVE_INFINITY })) });
+    await desktop('detect');
+    expect(await desktop('observe')).toEqual({ ok: false, code: 'OBSERVATION_FAILED', failureReason: 'UNKNOWN_FAILURE' });
+  });
+  it('bounds available helper duration without changing the failure classification', async () => {
+    const entryWindow = { pid: 41, started: '111', id: 'root-a', handle: 401, title: 'Entry' };
+    const desktop = createDesktopSession({ run: vi.fn().mockResolvedValueOnce({ ...detection(), entryWindow })
+      .mockRejectedValueOnce({ failureReason: 'HELPER_TIMEOUT', helperDurationMs: 99999999 }) });
+    await desktop('detect');
+    expect(await desktop('observe')).toEqual({ ok: false, code: 'OBSERVATION_FAILED', failureReason: 'HELPER_TIMEOUT', helperDurationMs: 60000 });
+  });
+  it('keeps unselected and busy observer statuses distinct from helper failures', async () => {
+    let finish: (value: unknown) => void = () => {};
+    const run = vi.fn(() => new Promise(resolve => { finish = resolve; }));
+    const desktop = createDesktopSession({ run });
+    expect(await desktop('observe')).toEqual({ ok: false, code: 'SELECTION_REQUIRED' });
+    const detected = desktop('detect');
+    expect(await desktop('observe')).toMatchObject({ ok: false, code: 'BUSY' });
+    finish(detection()); expect(await detected).toMatchObject({ ok: true });
+  });
   it('owns passive scan rotation on the connector and resets it only for a different selected window', async () => {
     let entryWindow = { pid: 41, started: '111', id: 'root-a', handle: 401, title: 'Entry' };
     const run = vi.fn(async input => input.action === 'observe'

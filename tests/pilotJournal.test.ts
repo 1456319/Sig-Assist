@@ -89,6 +89,19 @@ it('allowlists hostile browser/provider data, records field changes as keyed tok
   expect(safeDesktop({ code: 'PRIVATE', controls: [{ token: 'a'.repeat(32), automationId: 'PRIVATE-NAME', type: 'PRIVATE-TYPE' }] }).controls[0]).toEqual({ token: 'a'.repeat(32) });
 });
 
+it('preserves fixed observer failure reasons and bounded duration in saved snapshots without raw exception data', async () => {
+  const journal = createPilotJournal({ baseDir: await root(), sync: false }); const status = await journal.start({});
+  const reasons = ['HELPER_TIMEOUT', 'INVALID_OUTPUT', 'HELPER_PROCESS_EXIT', 'HELPER_STARTUP_FAILED', 'UNKNOWN_FAILURE'];
+  for (const failureReason of reasons) await journal.desktop({ ok: false, code: 'OBSERVATION_FAILED', failureReason, helperDurationMs: 8002.4, message: 'PRIVATE-NAME', stdout: 'PRIVATE-PON', stderr: 'PRIVATE-PATH', errorCode: 'PRIVATE-CODE' });
+  const snapshots = (await lines(status.directory)).filter(x => x.code === 'desktop.snapshot');
+  expect(snapshots.map(x => x.summary.failureReason)).toEqual(reasons);
+  expect(snapshots.every(x => x.summary.helperDurationMs === 8002 && x.summary.code === 'OBSERVATION_FAILED')).toBe(true);
+  expect(JSON.stringify(snapshots)).not.toContain('PRIVATE');
+  expect(safeDesktop({ code: 'OBSERVATION_FAILED', failureReason: 'PRIVATE-NAME', helperDurationMs: 1e12 })).toEqual({ code: 'OBSERVATION_FAILED', ok: false, partial: false, helperDurationMs: 60000, controls: [] });
+  for (const helperDurationMs of [-1, Number.POSITIVE_INFINITY, Number.NaN, 'PRIVATE']) expect(safeDesktop({ helperDurationMs })).not.toHaveProperty('helperDurationMs');
+  for (const code of ['BUSY', 'SELECTION_REQUIRED', 'OK']) expect(safeDesktop({ code }).code).toBe(code);
+});
+
 it('serves recording controls only to same-origin JSON, never queries upstream for recording, and saves the bundle to its session root', async () => {
   const folder = await root(); const calls: unknown[] = [];
   const journal = createPilotJournal({ baseDir: folder, sync: false });
