@@ -154,9 +154,10 @@ export async function fetchAllSigEntries(): Promise<SigDictionaryEntry[]> {
       const { data, error } = await supabase.from('sig_dictionary').select('*').order('sig_code', { ascending: true });
       if (!error && Array.isArray(data) && data.every(isEntry)) remote = data;
     } catch { /* The complete local archive remains available offline. */ }
+    // A local save/delete may have completed while the request was pending,
+    // including when the shared request failed: return the latest local state.
+    state = getLocalState();
     if (remote) {
-      // A local save/delete may have completed while the request was pending.
-      state = getLocalState();
       const byId = new Map(state.entries.map(e => [e.id, e]));
       const byCode = new Map(state.entries.map(e => [codeKey(e.sig_code), e]));
       const deletedIds = new Set(state.deleted.map(d => d.id));
