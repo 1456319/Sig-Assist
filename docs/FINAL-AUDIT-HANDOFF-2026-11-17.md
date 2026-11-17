@@ -1,9 +1,9 @@
 # Final audit handoff — 2026-11-17
 
-Status: primary-active. The primary coordinator owns source edits and Git writes.
+Status: complete. All audit jobs and integration decisions are handled; no further autonomous audit or implementation is scheduled.
 Baseline safely pushed and verified before audit: b853b88cb7bc6c96f262d06b8240c434f0174a13.
-Latest source checkpoint: 9128bedd5c9310f76259493590ec1a94354a2355. Final local validation completed after this checkpoint; Windows CI remains active.
-Do not start competing implementation while primary is active. Background checks may poll and answer supported technical clarification using public/synthetic information only.
+Verified final source checkpoint: 9128bedd5c9310f76259493590ec1a94354a2355. Final local and Windows/Linux CI checks passed. Completion recorded 2026-11-17T13:49Z (08:49 Eastern).
+Completion documentation follows this source checkpoint on prototype. Use this file's final commit as the remote completion record. Do not restart completed lab prompts or scheduled checks.
 
 ## Existing labs and new follow-up jobs
 
@@ -38,7 +38,7 @@ The scheduler rejects minute-based recurrence. Three separate checks were create
 - 08:26 Eastern: Automation_a1b0f39218d08191b68c07d1efdf6b34
 - 08:36 Eastern: Automation_87097ebad6dc8191bc883698e6f8e2b1
 
-These poll this handoff/jobs and avoid competing writes while primary-active. Cancel remaining checks after all findings are handled. No indefinite daily credit-spending task was created.
+These were scoped to poll this handoff/jobs and avoid competing writes while primary-active. All are now disabled. No indefinite daily credit-spending task was created.
 Recorded execution evidence: the first two scheduled attempts failed without a result. The primary coordinator polled and handled every lab directly; do not claim the scheduled jobs answered or implemented anything. All three checks have now been disabled after lab completion.
 
 ## Implementation and stop condition
@@ -74,10 +74,28 @@ Raw lab reports, candidate patches and synthetic tests are preserved in `docs/re
 - Final full suite: 1206 tests in 73 files passed (95 new regressions vs baseline 1111/66). Earlier integration passed 1174/71 before the final 32 cases.
 - Full ESLint, app typecheck and demo build passed; 388-code reference check passed.
 - Python demo packaging and archive/source verification passed; Node Windows packaging passed.
-- Local `npm run demo:test` could not start because this Linux environment has no `pwsh` (spawn ENOENT). Actual Windows launcher/browser/native checks are running in CI, not claimed as locally executed.
+- Local `npm run demo:test` could not start because this Linux environment has no `pwsh` (spawn ENOENT). The same check and all actual Windows launcher/browser/native checks passed in the final Windows CI job; they are not claimed as locally executed.
 - First integrated Windows/Linux CI: https://github.com/1456319/Sig-Assist/actions/runs/44093247422 . Linux passed; Windows passed native, launcher, UNC and Edge clipboard/direct-file checks, then exposed two old exact status assertions in smoke-iguana.mjs. Corrected the assertions to require the matching count in 9cf1df3, without weakening them.
-- Follow-up CI 44094550708: Linux passed; Windows failed before product checks because the unchanged synthetic DocuTrack fixture did not signal ready. It had passed in the preceding run. No native timeout/assertion was weakened; the final source receives a fresh complete run.
-- Final Windows/Linux CI for 9128bed: https://github.com/1456319/Sig-Assist/actions/runs/44095074161 (pending at this checkpoint).
+- Follow-up CI 44094550708: Linux passed; Windows failed before product checks because the unchanged synthetic DocuTrack fixture did not signal ready. It passed in both the preceding and final runs. No native timeout/assertion was weakened.
+- Final Windows/Linux CI for 9128bed: https://github.com/1456319/Sig-Assist/actions/runs/44095074161 — both jobs passed. This includes 1206 tests, lint/typecheck, native DocuTrack/Framework fixtures, reviewed transfer/passive observation, user-only Node bootstrap, packaging/source verification, PowerShell/UNC launchers, Edge HTTP/direct-file clipboard/review workflows, live synthetic Iguana bridge/import and temporary recorder/quota/discrepancy persistence checks.
 - Replayed the separate 20-order clinical corpus against the integration: exactly H1/S5/N1/N3 output changed as expected; the other 16 outputs are unchanged. Baseline, lab partial after and complete integrated after are retained as distinct JSONL artifacts. The partial lab output is evidence, not the expected final output.
 
-Final QA response is fully handled; final CI completion remains pending. The delivered ZIP remains unchanged v0.1.9; local regenerated packaging is test output and is not a new delivered build.
+Final QA response and all required checks are complete. No runtime source is left unpreserved and no lab job remains pending.
+
+## Build and preservation distinction
+
+The existing checked-in and Drive-delivered v0.1.9 ZIP is unchanged. The passing final CI run contains a newly compiled `Sig-Assist-Windows-Demo` artifact from source 9128bed; this is a test build with the existing version number and a new deterministic source fingerprint, not a separately versioned workstation release.
+
+- Download: the Artifacts section of https://github.com/1456319/Sig-Assist/actions/runs/44095074161 .
+- Artifact ID: 14332414470; size 270108 bytes; recorded expiry 2027-02-15.
+- GitHub artifact archive digest: `sha256:0ccfb1ffb0ca667c63d56a5838891d37a741c10b6c9656124c1a2c6ba30d9371`. This is the outer GitHub artifact archive, not the inner application ZIP.
+- Source, executable regressions, raw review artifacts and coordinator decisions were pushed incrementally to prototype. The final remote documentation commit records completion after the verified source checkpoint; no dependency on transient lab or local scratch copies remains.
+- The refreshed local generated bundle/ZIP and TypeScript cache are verification output, not additional uncommitted product changes. The checkout is restored to its committed artifacts after verification.
+
+## Concrete next-session work
+
+1. Start from the final source checkpoint and this handoff; do not reconstruct from lab scratch copies or reapply candidate patches. All accepted changes have dedicated repository tests. No lab job remains to answer.
+2. For the live empty PON lookup, obtain one small dummy/deidentified source entry or its connector diagnostic result with the complete identifier, channel and time window. Test the upstream filter grammar on that evidence. Current colon/underscore preservation is established locally; an HTTP200 response does not establish an upstream match. Do not strip identifier suffixes speculatively.
+3. Build a separate passive current-PON read against the remembered entry window. Reuse cached/known-control UIA reads; do not schedule Detect's active scrolling/recovery behavior as an observer. Add a targeted Windows fixture and a short workstation comparison before claiming coverage or speed.
+4. Bind actual package/start-date value controls and an observable post-save result before extending reviewed transfer into full ERX processing. Quantity/days-supply editor identities are established; package labels and other date labels alone are insufficient. The final controlled-substance example remains identification/layout evidence only.
+5. Keep E-DC automation earmarked until non-control test documents are available. For SIG improvements, use a few genuinely failing treatment/scale examples with technician-accepted outputs and optional comments; fixture permutations or metadata-only recordings do not measure technician acceptance. Keep feedback/discrepancy recovery and the visible intensified-logging removal marker active.
