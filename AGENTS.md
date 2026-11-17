@@ -20,3 +20,17 @@ committed. Local files and agent messages are not backups of source code.
 
 Never commit PHI, private captures, workstation-specific paths or credentials.
 FWDirect is excluded from this project by the user's explicit instruction.
+
+## Final run or approaching deadline
+
+When the user identifies the final message/run of the day, push any current
+unpreserved authorized work before starting an extended retrospective or audit.
+Checkpoint audit findings and fixes as they develop; do not leave preservation
+until the end of the review. Near the deadline, prioritize a verified remote
+checkpoint and continuation note before expanding scope.
+
+Before ending, verify the remote branch contains all intended source changes and
+findings. Record the remote commit, completed checks, pending checks and concrete
+next steps in the repository handoff, and report any preservation failure plainly.
+Local working trees, local commits, stashes and agent transcripts are not the
+remote backup.
