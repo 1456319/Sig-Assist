@@ -1,6 +1,6 @@
 import { doseForSolidQuantity, doseForVolume, toMedicationUnit, volumeForDose } from './sigMath';
 import { isUnknownElementalCandidate } from './formulationEquivalences';
-import { parseSlidingScale } from './clinical/slidingScale';
+import { looksLikeSlidingScale, parseSlidingScale } from './clinical/slidingScale';
 import { resolveFrequencyAndSchedule } from './clinical/frequencyEngine';
 
 /**
@@ -44,9 +44,10 @@ function drugStrength(drug: string): Concentration | undefined {
   return strength ? { amount: Number(strength[1]), unit: unit(strength[2]) } : undefined;
 }
 function parseDose(text: string, strength?: Concentration): Dose | undefined {
-  const match = text.match(/(?:give|take|inject|apply|administer|adm)?\s*(\d+(?:\.\d+)?|\d+\/\d+)\s*(tablets?|capsules?|packets?|milliliters?|ml|mg|mcg|grams?|gm|units?|patch(?:es)?)/i);
+  const match = text.match(/(?:\b(?:give|take|inject|apply|administer|adm)\s+)?(?<![\w./])(\d+\/\d+|\d+(?:\.\d+)?)\s*(tablets?|capsules?|packets?|milliliters?|ml|mg|mcg|grams?|gm|units?|patch(?:es)?)\b/i);
   if (!match) return undefined;
   const quantity = match[1].includes('/') ? Number(match[1].split('/')[0]) / Number(match[1].split('/')[1]) : Number(match[1]);
+  if (!Number.isFinite(quantity)) return undefined;
   const label = match[2].toLowerCase();
   const doseUnit: DoseUnit = label.startsWith('tablet') ? 'tablet' : label.startsWith('capsule') ? 'capsule' : label.startsWith('packet') ? 'packet' : label.startsWith('mill') || label === 'ml' ? 'ml' : label === 'mg' ? 'mg' : label === 'mcg' ? 'mcg' : label.startsWith('gram') || label === 'gm' ? 'gm' : label.startsWith('unit') ? 'unit' : 'patch';
   const requestedUnit = doseUnit === 'mg' ? 'MG' : doseUnit === 'mcg' ? 'MCG' : doseUnit === 'gm' ? 'GM' : undefined;
@@ -71,8 +72,8 @@ function frequency(text: string): Frequency | undefined {
   // must precede the standalone "daily" match, or BID/TID/QID become QD.
   return [[/\b(?:2 times|2 daily|bid)\b/, 'BID'], [/\b(?:3 times|3 daily|tid)\b/, 'TID'], [/\b(?:4 times|4 daily|qid)\b/, 'QID'], [/\b(?:every 4 hours|q4h)\b/, 'Q4H'], [/\b(?:every 6 hours|q6h)\b/, 'Q6H'], [/\b(?:every 12 hours|q12h)\b/, 'Q12H'], [/\b(?:1 time|daily|qd)\b/, 'QD']].find(([pattern]) => (pattern as RegExp).test(text))?.[1] as Frequency | undefined;
 }
-function scale(text: string): SlidingScaleBand[] | undefined {
-  if (!/sliding[\s-]+scale/i.test(text)) return undefined;
+function scale(text: string, drugName?: string): SlidingScaleBand[] | undefined {
+  if (!looksLikeSlidingScale(text, drugName)) return undefined;
   const parsed = parseSlidingScale(text);
   if (parsed.incomplete) return undefined;
   const bands: SlidingScaleBand[] = [];
@@ -97,10 +98,10 @@ function validateScale(bands: SlidingScaleBand[], issues: SigIssue[]): void {
 export function parseSigOrder(raw: string, options: SigParseOptions): ParsedSigOrder {
   const dateStripped = /until\s+\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}:\d{2})?/i.test(raw);
   const normalized = normalizeSigText(raw).replace(/until\s+\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}:\d{2})?/i, '').trim();
-  const issues: SigIssue[] = []; const slidingScale = scale(normalized);
+  const issues: SigIssue[] = []; const slidingScale = scale(normalized, options.drug);
   const order: ParsedSigOrder = { raw, normalized, drug: options.drug, dose: parseDose(normalized, drugStrength(options.drug)), route: route(normalized), frequency: frequency(normalized), prn: /as needed|\bprn\b/.test(normalized), durationDays: Number(normalized.match(/for\s+(\d+)\s+days?/)?.[1]) || undefined, indication: indication(normalized), slidingScale, dateStripped, issues };
-  if (/\bSLIDING[\s-]+SCALE\b/i.test(raw)) {
-    const resolved = resolveFrequencyAndSchedule(raw);
+  if (looksLikeSlidingScale(raw, options.drug)) {
+    const resolved = resolveFrequencyAndSchedule(raw, undefined, options.drug);
     order.slidingScaleSig = resolved.slidingScaleString || raw.replace(/\s+/g, ' ').trim().toUpperCase();
     if (!resolved.slidingScaleString) issues.push({ code: 'incomplete-sliding-scale', severity: 'warning', message: 'The complete scale needs technician review; original directions were retained.' });
   }

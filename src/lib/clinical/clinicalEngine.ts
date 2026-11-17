@@ -11,6 +11,7 @@ import { splitMixedTabletDose } from './paxitFractionalDose';
 import { applyOutputCodePolicy } from './outputCodePolicy';
 import { resolveTreatmentOrder } from './treatmentOrderEngine';
 import { resolveLidocainePatch } from './lidocainePatch';
+import { looksLikeSlidingScale } from './slidingScale';
 
 function assembleSig(
   drugName: string,
@@ -22,9 +23,11 @@ function assembleSig(
   const repeated = mergeRepeatedSolidDirections(drugName, rawProse);
   rawProse = repeated.prose;
   const doseRes = calculateDoseAndVolume(drugName, rawProse);
-  const clauses = splitSupplementalDirections(doseRes.scheduleProse || rawProse);
+  const clauses = looksLikeSlidingScale(rawProse, drugName)
+    ? { primary: rawProse, supplemental: '' }
+    : splitSupplementalDirections(doseRes.scheduleProse || rawProse);
   const preparationTemplate = doseRes.preparationWasExplicit ? doseRes.preparationTemplate : defaultTemplate?.trim() || doseRes.preparationTemplate;
-  const freqRes = resolveFrequencyAndSchedule(clauses.primary, preparationTemplate);
+  const freqRes = resolveFrequencyAndSchedule(clauses.primary, preparationTemplate, drugName);
   const allAbnormalities = [...doseRes.abnormalities, ...freqRes.abnormalities];
   if (/\bNAUSEA AND VOMITING\b/i.test(rawProse)) allAbnormalities.push({ id: 'site_fnv_alias', tier: 'applied_correction', title: 'Site Nausea/Vomiting Code Applied',
     message: 'FNV replaces nausea and vomiting under the reported site packaging convention. The root expansion says nausea OR vomiting; verify the source indication.', correction: 'NAUSEA AND VOMITING → FNV', trigger: rawProse });
@@ -253,7 +256,7 @@ function translateClinicalSigInternal(inbound: InboundOrder, preferences?: Parti
           id: `treatment_order_${inbound.id}`,
           tier: 'applied_correction',
           title: 'Wound Care Treatment Order Formatted',
-          message: 'Treatment directions formatted with condensed procedural syntax. Complete instructions are retained; suggestions exceeding the destination limit are flagged for review.',
+          message: 'Treatment actions were condensed in source order. Review retained wording, schedule findings and the destination length limit against the original directions.',
           correction: treatmentEval.singleSig!,
           trigger: inbound.rawProse
         }
