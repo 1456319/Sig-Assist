@@ -1,5 +1,10 @@
 # Sig-Assist continuation checkpoint
 
+**Historical checkpoint:** the missing implementation has subsequently been
+reconstructed and committed incrementally. See
+[functional polish recovery](FUNCTIONAL-POLISH-RECOVERY.md) for restored behavior,
+verification and remaining workstation checks.
+
 This checkpoint preserves the implementation state from the interrupted functional-polish turn. The execution workspace subsequently became unavailable. It is not a release announcement.
 
 ## Published baseline and recovered research
