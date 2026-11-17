@@ -15,6 +15,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/t
 type SortField = 'sig_code' | 'translation' | 'status' | 'is_high_risk';
 type SortDir = 'asc' | 'desc';
 type StatusFilter = 'ALL' | 'ACTIVE' | 'OBSOLETE';
+type EditableEntry = SigDictionaryInsert & { id?: string };
 
 const EMPTY_FORM: SigDictionaryInsert = {
   sig_code: '',
@@ -69,11 +70,11 @@ function EntryModal({
   open, entry, onClose, onSave,
 }: {
   open: boolean;
-  entry: SigDictionaryInsert | null;
+  entry: EditableEntry | null;
   onClose: () => void;
-  onSave: (data: SigDictionaryInsert) => Promise<void>;
+  onSave: (data: EditableEntry) => Promise<void>;
 }) {
-  const [form, setForm] = useState<SigDictionaryInsert>(entry ?? EMPTY_FORM);
+  const [form, setForm] = useState<EditableEntry>(entry ?? EMPTY_FORM);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -90,6 +91,8 @@ function EntryModal({
     try {
       await onSave(form);
       onClose();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save SIG entry');
     } finally {
       setSaving(false);
     }
@@ -199,7 +202,7 @@ export function DictionaryView() {
   const [sortField, setSortField] = useState<SortField>('sig_code');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [modalOpen, setModalOpen] = useState(false);
-  const [editEntry, setEditEntry] = useState<SigDictionaryInsert | null>(null);
+  const [editEntry, setEditEntry] = useState<EditableEntry | null>(null);
   const [bulkImporting, setBulkImporting] = useState(false);
 
   const load = useCallback(async () => {
@@ -207,8 +210,8 @@ export function DictionaryView() {
     try {
       const data = await fetchAllSigEntries();
       setEntries(data);
-    } catch {
-      toast.error('Failed to load SIG dictionary');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load SIG dictionary');
     } finally {
       setLoading(false);
     }
@@ -221,14 +224,10 @@ export function DictionaryView() {
     else { setSortField(field); setSortDir('asc'); }
   };
 
-  const handleSave = async (data: SigDictionaryInsert) => {
-    try {
-      await upsertSigEntry(data);
-      toast.success(`SIG code "${data.sig_code}" saved`);
-      await load();
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save SIG entry');
-    }
+  const handleSave = async (data: EditableEntry) => {
+    await upsertSigEntry(data);
+    toast.success(`SIG code "${data.sig_code}" saved`);
+    await load();
   };
 
   const handleDelete = async (entry: SigDictionaryEntry) => {
@@ -237,8 +236,8 @@ export function DictionaryView() {
       await deleteSigEntry(entry.id);
       toast.success(`Deleted "${entry.sig_code}"`);
       await load();
-    } catch {
-      toast.error('Failed to delete entry');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete entry');
     }
   };
 
@@ -254,8 +253,8 @@ export function DictionaryView() {
       const count = await bulkImportSigEntries(arr);
       toast.success(`Imported ${count} entries`);
       await load();
-    } catch {
-      toast.error('Bulk import failed — ensure valid JSON array');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Bulk import failed — ensure valid JSON array');
     } finally {
       setBulkImporting(false);
     }
@@ -452,6 +451,7 @@ export function DictionaryView() {
                     <button
                       onClick={() => {
                         setEditEntry({
+                          id: entry.id,
                           sig_code: entry.sig_code,
                           translation: entry.translation,
                           status: entry.status,
