@@ -32,7 +32,7 @@ interface TreatmentAction extends TreatmentModifiers {
   kind: 'cleanse' | 'dry' | 'apply' | 'dress' | 'leave' | 'followup' | 'unknown';
   site?: string;
 }
-const ACTION_START = /\b(?:CLEANSE|PAT\s+DRY|APPLY|COVER|DRESS|WRAP|LEAVE\s+(?:OPEN\s+TO\s+AIR|OTA)|NOTIFY|CALL|RECHECK|HOLD|DO\s+NOT|REMOVE|MEASURE|MASSAGE)\b/g;
+const ACTION_START = /\b(?:DO\s+NOT\b[^.;]*|CLEANSE|PAT\s+DRY|APPLY|COVER|DRESS|WRAP|LEAVE\s+(?:OPEN\s+TO\s+AIR|OTA)|NOTIFY|CALL|RECHECK|HOLD|REMOVE|MEASURE|MASSAGE)\b/g;
 const DAY = '(?:MON(?:DAY)?|TUE(?:S(?:DAY)?)?|WED(?:NESDAY)?|THU(?:R(?:S(?:DAY)?)?)?|FRI(?:DAY)?|SAT(?:URDAY)?|SUN(?:DAY)?)S?';
 const WEEKDAYS = `(?:EVERY|ON)\\s+${DAY}(?:\\s*(?:,|/|AND|&|TO|THROUGH|-)?\\s*(?:(?:EVERY|ON)\\s+)?${DAY})*`;
 const SCHEDULE = new RegExp(`\\b(?:${WEEKDAYS}|(?:EVERY|EACH)\\s+(?:(?:DAY|EVENING|NIGHT)(?:\\s+AND\\s+(?:DAY|EVENING|NIGHT))?\\s+)?SHIFT|Q[/-]?SHIFT|EVERY\\s+(?:(?:OTHER|TWO|THREE|\\d+)\\s+DAYS?|(?:\\d+|TWO|THREE)\\s+HOURS?|DAY|MORNING|EVENING)|(?:FOUR|THREE|TWO|[234])\\s+TIMES\\s+(?:(?:A|PER|EACH)\\s+DAY|DAILY)|TWICE\\s+(?:A\\s+DAY|DAILY)|ONCE\\s+(?:A\\s+)?(?:DAY|WEEK)|TWICE\\s+(?:A\\s+)?WEEK|IN\\s+THE\\s+(?:MORNING|EVENING)|AT\\s+BEDTIME|DAILY|WEEKLY|Q\\d+H|Q3D|QOD|QWEEK|BIW|QS|QD|BID|TID|QID|QAM|QPM|QHS)\\b`, 'g');
@@ -62,7 +62,7 @@ function parseModifiers(source: string): TreatmentModifiers {
   body = body.replace(/\b(?:FOR\s+(?:UP\s+TO\s+)?|X\s*)\d+(?:\.\d+|\s*[-/]\s*\d+)?\s*(?:DAYS?|D\b|WEEKS?|WKS?|MONTHS?|MOS?|HOURS?|HRS?|H\b)\b/g, match => {
     const duration = resolveFrequencyAndSchedule(`DAILY ${match}`);
     result.abnormalities.push(...duration.abnormalities);
-    result.duration = [result.duration, duration.durationToken || match].filter(Boolean).join(' ');
+    result.duration = [result.duration, /\bUP TO\b/.test(match) ? match : duration.durationToken || match].filter(Boolean).join(' ');
     return '';
   });
   let firstSchedule = -1;
@@ -88,6 +88,11 @@ function parseModifiers(source: string): TreatmentModifiers {
     message: 'This source qualifier was retained beside the translated procedure. Verify its wording before copying.', trigger: result.qualifier,
   });
   result.body = body.replace(/\s+/g, ' ').replace(/[,. ;:]+$/, '').replace(/\s+(?:AND|THEN)$/, '').trim();
+  const residual = result.body.match(/[,;]\s*(.+)/)?.[1];
+  if (residual) result.abnormalities.push({
+    id: 'treatment_untranslated_clause', tier: 'uncorrected_gap', title: 'Treatment Clause Retained for Review',
+    message: 'This source clause was retained beside the translated procedure. Verify its wording before copying.', trigger: residual,
+  });
   return result;
 }
 
@@ -211,7 +216,11 @@ export function resolveTreatmentOrder(drugName: string, rawProse: string): Treat
   const frequencies = [...new Set(procedure.map(a => a.frequency).filter(Boolean))];
   const hasPrn = procedure.some(a => a.prn);
   const lastProcedure = procedure[procedure.length - 1];
-  const globalSchedule = frequencies.length <= 1 && procedure.every(a => !a.frequency || a === header || a === lastProcedure);
+  const globalSchedule = frequencies.length <= 1 && procedure.every(a => !a.frequency || a === header || a === lastProcedure)
+    && procedure.every(a => !a.duration || a === lastProcedure || (a === header && header.kind === 'apply' && hasApplication));
+  // A header cannot be discarded when its metadata belongs to a different site
+  // or separate action-local courses prevent a shared procedure schedule.
+  if (header?.kind === 'apply' && header.site && hasApplication && (!globalSchedule || sites.length > 1)) header.body = `APPLY ${productCore(upperDrug)}`;
   const routineFrequency = globalSchedule ? frequencies[0] || '' : '';
   const globalPrn = globalSchedule && hasPrn;
   // A constrained PRN schedule (BID PRN) is one order. Only an explicit AND PRN

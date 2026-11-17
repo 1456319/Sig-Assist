@@ -239,4 +239,31 @@ describe('Treatment source instruction retention', () => {
     expect(result.primarySig).toContain('NOTIFY MD IF DRAINAGE INCREASES');
     expect(result.primarySig).not.toContain('Q2H');
   });
+
+  it('preserves an up-to duration qualifier instead of asserting an exact course', () => {
+    const result = translate('Zinc Oxide Topical Paste', 'Cleanse sacrum with normal saline, apply zinc oxide daily for up to 14 days');
+    expect(result.primarySig).toContain('QD FOR UP TO 14 DAYS');
+    expect(result.primarySig).not.toContain('QD X14D');
+  });
+
+  it('keeps a negative instruction and its action together', () => {
+    const result = translate('Foam Dressing', 'Cleanse sacrum with normal saline daily. Do not cover with gauze. Notify MD if drainage increases');
+    expect(result.primarySig).toContain('CLEANSE W/NORMAL SALINE QD');
+    expect(result.primarySig).toContain('DO NOT COVER WITH GAUZE');
+    expect(result.primarySig).not.toContain('DO NOT,COVER');
+  });
+
+  it('retains separate action-specific course durations beside their actions', () => {
+    const result = translate('Foam Dressing', 'Cleanse sacrum with normal saline daily for 5 days; cover with foam every 3 days for 14 days');
+    expect(result.primarySig).toContain('CLEANSE W/NORMAL SALINE QD X5D');
+    expect(result.primarySig).toContain('COVER W/FOAM Q3D X14D');
+  });
+
+  it('surfaces an unrecognized residual clause beside translated cleansing text', () => {
+    const result = translate('Foam Dressing', 'Cleanse sacrum with normal saline, blot carefully daily');
+    expect(result.primarySig).toContain('CLEANSE W/NORMAL SALINE');
+    expect(result.primarySig).toContain('BLOT CAREFULLY');
+    expect(result.abnormalities.some(a => a.id === 'treatment_untranslated_clause' && a.trigger === 'BLOT CAREFULLY')).toBe(true);
+  });
+
 });
