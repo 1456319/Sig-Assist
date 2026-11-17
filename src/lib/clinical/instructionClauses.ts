@@ -17,8 +17,12 @@ export function splitSupplementalDirections(rawProse: string, options?: { allowS
     // A later action can begin with its own time, phase, or negation. Move that
     // entire clause together so its qualifier cannot be absorbed by the primary dose.
     const clauseBoundary = /[.;]|,|\b(?:AND\s+)?THEN\b|\bAND\b/gi;
+    // Only an isolated scale tail can use its route as the start of a scoped
+    // modifier, for example 'SQ BEFORE BREAKFAST GIVE HALF'.
+    const boundaryPattern = options?.allowScaleActions
+      ? /[.;]|,|\b(?:AND\s+)?THEN\b|\bAND\b|\b(?:SUBCUTANEOUS(?:LY)?|SQ|SUBQ|SC|INTRAMUSCULAR(?:LY)?|IM)\b/gi : clauseBoundary;
     let supplementalStart = match.index;
-    const boundaries = [...beforeAction.matchAll(clauseBoundary)].map(boundary => ({
+    const boundaries = [...beforeAction.matchAll(boundaryPattern)].map(boundary => ({
       start: boundary.index!, end: boundary.index! + boundary[0].length, text: boundary[0],
     }));
     if (options?.allowScaleActions) boundaries.unshift({ start: 0, end: 0, text: '' });
@@ -31,6 +35,9 @@ export function splitSupplementalDirections(rawProse: string, options?: { allowS
       const afterBoundary = boundary.end;
       const prefix = beforeAction.slice(afterBoundary).trimStart();
       if (/[.;]/.test(prefix)) continue;
+      // A comma-terminated qualifier after a comma/conjunction is still part
+      // of the primary schedule ('PO, BEFORE BREAKFAST, DO NOT CRUSH').
+      if (/,/.test(prefix) && /^(?:,|AND|(?:AND\s+)?THEN)$/i.test(boundary.text)) continue;
       if (!/^(?:AT|AFTER|BEFORE|DURING|WHEN|UNLESS|UNTIL|ONLY|NEVER|NOT|IN\s+THE\s+(?:MORNING|AFTERNOON|EVENING)|FOR\s+(?:THE\s+NEXT\s+)?\d+\s+(?:DAYS?|WEEKS?|MONTHS?))\b/i.test(prefix)) continue;
       // THEN expresses a phase change and remains part of the retained clause.
       supplementalStart = /\bTHEN\b/i.test(boundary.text) ? boundary.start : afterBoundary;
