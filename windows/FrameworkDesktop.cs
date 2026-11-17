@@ -177,7 +177,7 @@ sealed class ObservationNode {
     public AutomationElement element, firstSibling;
     public string parentId, siblingStartId;
     public int depth, siblingCount;
-    public bool siblingWrapped;
+    public bool siblingWrapped, priority, deferChildren;
 }
 public sealed class DesktopSnapshot {
     public string format = "sig-assist-framework-desktop";
@@ -1093,6 +1093,15 @@ public static class FrameworkDesktop {
             AutomationElement.IsSelectionItemPatternAvailableProperty, AutomationElement.IsGridPatternAvailableProperty }) request.Add(property);
         return request;
     }
+    static int ObservationFieldPriority(AutomationElement element) {
+        string id = Text(Cached(element, AutomationElement.AutomationIdProperty));
+        string label = Regex.Replace(Text(Cached(element, AutomationElement.NameProperty)).Replace("&", "").Trim().TrimEnd(':').Trim(), @"\s+", " ").ToLowerInvariant();
+        if (id == "RxEntryPrescription_QtyEdit" || label == "quantity" || label == "qty") return 0;
+        if (id == "RxEntryPrescription_DaysSupplyEdit" || label == "days supply" || label == "days' supply") return 1;
+        if (label == "package type") return 2;
+        if (label == "start date") return 3;
+        return 4;
+    }
     static ObservationNode ObservationChildren(ObservationNode parent, string parentToken, CacheRequest request,
         int scanOffset, Stopwatch watch, ref int cacheReads, ref bool limited) {
         var first = TreeWalker.ControlViewWalker.GetFirstChild(parent.element, request); cacheReads++;
@@ -1121,7 +1130,7 @@ public static class FrameworkDesktop {
         scanOffset = Math.Max(0, Math.Min(1599, scanOffset));
         var controls = new List<Dictionary<string, object>>(); int errors = 0, visited = 0, cacheReads = 0, prioritySeeds = 0;
         bool limited = false; var watch = Stopwatch.StartNew(); var pending = new Stack<ObservationNode>();
-        var seen = new HashSet<string>(); var identityRequest = ObservationIdentityRequest();
+        var seen = new HashSet<string>(); var expanded = new HashSet<string>(); var identityRequest = ObservationIdentityRequest();
         var views = new HashSet<string>(("RxEntryViewControl RxEntryView DirectionsView PrescriptionTabDirectionsView ERxWorkQueueWizardView ERxWorkQueueDirectionsView ERxWorkQueueView ERxTriageManagerView PatientOrdersView ProductSelectionView WorkQueueView").Split(' '));
         using (var hmac = new HMACSHA256(key)) {
             Func<string, string> hash = value => BitConverter.ToString(hmac.ComputeHash(Encoding.UTF8.GetBytes(value ?? ""))).Replace("-", "").ToLowerInvariant().Substring(0, 32);
@@ -1155,7 +1164,8 @@ public static class FrameworkDesktop {
                         if (cachedLineage.Count > 0) seeds.Add(0);
                         foreach (int i in seeds.OrderByDescending(i => i)) {
                             pending.Push(new ObservationNode { element = cachedLineage[i], depth = lineage.Count - i,
-                                parentId = hash("control:" + (i + 1 < lineage.Count ? Id(lineage[i + 1]) : entry.id)) }); prioritySeeds++;
+                                parentId = hash("control:" + (i + 1 < lineage.Count ? Id(lineage[i + 1]) : entry.id)),
+                                priority = i > 0, deferChildren = i == 0 }); prioritySeeds++;
                         }
                     }
                 }
@@ -1177,7 +1187,8 @@ public static class FrameworkDesktop {
                         }
                     }
                     string runtimeId = Id(node.element);
-                    if (!seen.Add(runtimeId)) continue;
+                    bool capture = seen.Add(runtimeId);
+                    if (!capture && (node.deferChildren || expanded.Contains(runtimeId))) continue;
                     // A protected control's descendants are not visited either.
                     if (!Object.Equals(Cached(node.element, AutomationElement.IsPasswordProperty), false)
                         || !Object.Equals(Cached(node.element, AutomationElement.ProcessIdProperty), entry.pid)) continue;
@@ -1187,7 +1198,7 @@ public static class FrameworkDesktop {
                     var type = Cached(node.element, AutomationElement.ControlTypeProperty) as ControlType;
                     // Offscreen layout wrappers can contain visible editors. Walk
                     // through them, but do not read or report their values.
-                    if (!offscreen) {
+                    if (!offscreen && capture) {
                     var item = new Dictionary<string, object> {
                         { "token", controlToken }, { "parent", node.parentId }, { "depth", node.depth },
                         { "idToken", hash("id:" + id) }, { "classToken", hash("class:" + cls) }, { "nameToken", hash("name:" + name) }, { "nameLength", name.Length },
@@ -1240,8 +1251,33 @@ public static class FrameworkDesktop {
                     }
                     controls.Add(item);
                     }
+                    if (node.deferChildren || !expanded.Add(runtimeId)) continue;
                     if (node.depth >= 24) { errors++; continue; }
                     if (watch.ElapsedMilliseconds >= 1200) { limited = true; break; }
+                    if (node.priority) {
+                        try {
+                            // Only the validated focused parent/known view gets a
+                            // shallow identity batch. No values and no Subtree
+                            // scope: avoid a provider round trip per sibling.
+                            var childRequest = ObservationIdentityRequest();
+                            childRequest.TreeScope = TreeScope.Element | TreeScope.Children;
+                            childRequest.TreeFilter = Automation.ControlViewCondition;
+                            var batch = node.element.GetUpdatedCache(childRequest); cacheReads++;
+                            var cachedChildren = batch.CachedChildren;
+                            var children = cachedChildren.Cast<AutomationElement>().Take(1600).ToArray();
+                            if (cachedChildren.Count > children.Length) limited = true;
+                            var ordered = Enumerable.Range(0, children.Length).Select(i => children[(i + scanOffset) % children.Length])
+                                .OrderBy(ObservationFieldPriority).ToArray();
+                            // Read critical sibling editors before descending
+                            // into any one editor's provider children. Normal
+                            // copies below retain eventual child traversal.
+                            for (int i = ordered.Length - 1; i >= 0; i--) pending.Push(new ObservationNode {
+                                element = ordered[i], parentId = controlToken, depth = node.depth + 1 });
+                            for (int i = ordered.Length - 1; i >= 0; i--) if (ObservationFieldPriority(ordered[i]) < 4) pending.Push(new ObservationNode {
+                                element = ordered[i], parentId = controlToken, depth = node.depth + 1, deferChildren = true });
+                            continue;
+                        } catch { errors++; }
+                    }
                     var child = ObservationChildren(node, controlToken, identityRequest, scanOffset, watch, ref cacheReads, ref limited);
                     if (child != null) pending.Push(child);
                 } catch { errors++; }

@@ -83,7 +83,15 @@ try {
   assert.equal(observed.scanOffset, 0);
   const stable = await run({ action: 'observe', key, entryWindow: entry.entryWindow, scanOffset: 173 });
   const reached = new Set([...observed.controls, ...stable.controls].map(c => c.label));
-  for (const label of ['quantity', 'days supply', 'package type', 'start date']) assert.ok(reached.has(label), `Wide fixture did not reach ${label}`);
+  // This fixture contains synthetic values only. Keep diagnostics to safe
+  // labels and counters so a failed Windows run explains its field reach.
+  const reachDiagnostics = [observed, stable].map(snapshot => ({
+    scanOffset: snapshot.scanOffset, elapsedMs: snapshot.elapsedMs, nodeCount: snapshot.nodeCount,
+    visitedCount: snapshot.visitedCount, cacheReads: snapshot.cacheReads, prioritySeeds: snapshot.prioritySeeds,
+    errors: snapshot.errors, partial: snapshot.partial,
+    labels: snapshot.controls.filter(c => c.label).map(c => c.label),
+  }));
+  for (const label of ['quantity', 'days supply', 'package type', 'start date']) assert.ok(reached.has(label), `Wide fixture did not reach ${label}: ${JSON.stringify(reachDiagnostics)}`);
   assert.equal(stable.scanOffset, 173);
   const overlap = stable.controls.filter(c => observed.controls.some(old => old.token === c.token));
   assert.ok(overlap.length > 0);
