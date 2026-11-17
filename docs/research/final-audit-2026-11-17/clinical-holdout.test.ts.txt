@@ -1,0 +1,41 @@
+import { describe, it, expect } from 'vitest';
+import { translateClinicalSig } from '../src/lib/clinical/clinicalEngine';
+
+const run = (drugName: string, rawProse: string) =>
+  translateClinicalSig({ id: 'h', pon: 'h', drugName, rawProse, sourceFormat: 'manual_text' });
+const ids = (r: ReturnType<typeof run>) => r.abnormalities.map(a => a.id);
+
+describe('2026-11-17 holdout: no silent loss or scope change', () => {
+  it('F1 keeps a monitoring sentence that precedes a notification', () => {
+    const r = run('METFORMIN 500 MG TABLET', 'Take 1 tablet by mouth twice daily with meals. Check blood sugar 2 times a day, call MD if over 300.');
+    expect(r.primarySig).toMatch(/^1T PO WMBID\b/);
+    expect(r.primarySig).toContain('CHECK BLOOD SUGAR 2 TIMES A DAY');
+    expect(r.primarySig).toContain('CALL MD IF OVER 300');
+  });
+  it('F1 keeps a daily weight instruction', () => {
+    const r = run('FUROSEMIDE 20 MG TABLET', 'Take 1 tablet by mouth daily. Weigh daily, notify MD if weight gain greater than 3 lbs in 2 days.');
+    expect(r.primarySig).toMatch(/^1T PO QD\b/);
+    expect(r.primarySig).toContain('WEIGH DAILY');
+  });
+  it('F2 does not drop a bedtime dose modifier after a scale', () => {
+    const r = run('INSULIN LISPRO 100 UNIT/ML INJECTION', 'Inject per sliding scale subcutaneously before meals and at bedtime: 150-199 2 units, 200-249 4 units. At bedtime give half the scale dose.');
+    expect(r.primarySig).toContain('150-199=2U;200-249=4U');
+    expect(r.primarySig).toContain('GIVE HALF THE SCALE DOSE');
+  });
+  it('F3 keeps a sequential treatment schedule in source order', () => {
+    const r = run('ZINC OXIDE 20% PASTE', 'Cleanse sacrum with normal saline, pat dry, apply zinc oxide twice daily for 7 days then daily.');
+    expect(r.primarySig).not.toMatch(/BID QD/);
+    expect(r.primarySig).toContain('TWICE DAILY FOR 7 DAYS THEN DAILY');
+    expect(r.primarySig).toMatch(/^TO SACRUM:CLEANSE W\/NORMAL SALINE,PAT DRY,THEN APPLY ZINC OXIDE/);
+    expect(ids(r)).toContain('treatment_sequential_schedule');
+    expect(ids(r)).not.toContain('treatment_frequency_missing');
+  });
+  it('controls: already-correct variants stay unchanged', () => {
+    expect(run('ZINC OXIDE 20% PASTE', 'Cleanse sacrum with normal saline, pat dry, apply zinc oxide daily x 14 days.').primarySig)
+      .toBe('TO SACRUM:CLEANSE W/NORMAL SALINE,PAT DRY,THEN APPLY ZINC OXIDE QD X14D');
+    expect(run('INSULIN LISPRO 100 UNIT/ML INJECTION', 'Inject per sliding scale subcutaneously before meals: 150-199 2 units, 200-249 4 units, 250-299 6 units, 300 or greater 8 units and call MD.').primarySig)
+      .toBe('CBS AC SS 150-199=2U;200-249=4U;250-299=6U;300+=8U&CALL MD SQ');
+    expect(run('LISINOPRIL 10 MG TABLET', 'Take 1 tablet by mouth daily. Hold if SBP less than 100 or HR less than 60.').primarySig).toBe('1T PO QD HR60SBP100');
+  });
+});
+

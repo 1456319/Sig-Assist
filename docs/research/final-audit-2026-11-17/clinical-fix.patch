@@ -1,0 +1,32 @@
+--- a/src/lib/clinical/instructionClauses.ts
++++ b/src/lib/clinical/instructionClauses.ts
+@@ -2,7 +2,7 @@
+ export function splitSupplementalDirections(rawProse: string): { primary: string; supplemental?: string } {
+   // Every action within an insulin scale belongs to that scale.
+   if (/\bSLIDING[\s-]+SCALE\b/i.test(rawProse)) return { primary: rawProse.trim() };
+-  const actions = /\b(?:MAY\s+(?:GIVE|TAKE|ADMINISTER|USE|APPLY)|DO\s+NOT\b|NOT\s+TO\s+EXCEED|(?:MAXIMUM|MAX)\s+(?:OF\s+)?(?=\d)|(?:TAKE|GIVE|ADMINISTER)\s+(?=\d|ONE\b|TWO\b)|TAKE\s+FOR\s+(?:BLOOD|BP|SBP)\b|(?:X\s*|FOR\s+(?:UP\s+TO\s+)?)(?=\d+\s+DOSES\b)|APPLY\b|WORK\s+(?:IT\s+)?IN\b|ALLOW\s+(?:IT\s+)?TO\s+SIT\b|LEAVE\s+(?:IT\s+)?(?:ON|IN)\b|REMOVE\s+PER\s+SCHEDULE\b|RINSE\b|CAN\s+SHAMPOO\b|FOLLOW\s+(?:THE\s+)?(?:TAR|MAR)\b|DRINK\s+WITH\b|ALTERNAT(?:E|ES)\s+WITH\b|HOSPICE\s+RESIDENT\b|MIX(?:ED)?\b|DISSOLVE\s+IN\b|PUT\s+(?:IN|ON)\b|REPEAT\b|DISCONTINUE\s+(?:ONCE|IF|WHEN)\b|IF\b|CALL\b|NOTIFY\b)/gi;
++  const actions = /\b(?:MAY\s+(?:GIVE|TAKE|ADMINISTER|USE|APPLY)|DO\s+NOT\b|NOT\s+TO\s+EXCEED|(?:MAXIMUM|MAX)\s+(?:OF\s+)?(?=\d)|(?:TAKE|GIVE|ADMINISTER)\s+(?=\d|ONE\b|TWO\b|HALF\b)|CHECK\b|MONITOR\b|WEIGH\b|RECHECK\b|TAKE\s+FOR\s+(?:BLOOD|BP|SBP)\b|(?:X\s*|FOR\s+(?:UP\s+TO\s+)?)(?=\d+\s+DOSES\b)|APPLY\b|WORK\s+(?:IT\s+)?IN\b|ALLOW\s+(?:IT\s+)?TO\s+SIT\b|LEAVE\s+(?:IT\s+)?(?:ON|IN)\b|REMOVE\s+PER\s+SCHEDULE\b|RINSE\b|CAN\s+SHAMPOO\b|FOLLOW\s+(?:THE\s+)?(?:TAR|MAR)\b|DRINK\s+WITH\b|ALTERNAT(?:E|ES)\s+WITH\b|HOSPICE\s+RESIDENT\b|MIX(?:ED)?\b|DISSOLVE\s+IN\b|PUT\s+(?:IN|ON)\b|REPEAT\b|DISCONTINUE\s+(?:ONCE|IF|WHEN)\b|IF\b|CALL\b|NOTIFY\b)/gi;
+   for (const match of rawProse.matchAll(actions)) {
+     if (match.index === undefined || match.index === 0 || !rawProse.slice(0, match.index).trim()) continue;
+     // Keep a hold condition and its notification together for the hold parser.
+--- a/src/lib/clinical/treatmentOrderEngine.ts
++++ b/src/lib/clinical/treatmentOrderEngine.ts
+@@ -52,6 +52,17 @@
+   // Follow-up times are instructions in their own right, never treatment frequency/course.
+   if (/^(?:NOTIFY|CALL|RECHECK|HOLD|DO NOT|REMOVE|MEASURE|MASSAGE)\b/.test(source)) return result;
+   let body = source;
++  // A sequential course (BID X7D THEN QD) is one ordered schedule. Keep it verbatim
++  // instead of merging both frequencies and the duration into one simultaneous token.
++  const scheduleAt = body.search(new RegExp(SCHEDULE.source));
++  const sequence = scheduleAt < 0 ? null : body.slice(scheduleAt).match(new RegExp(`^.*?\\bTHEN\\b.*?(?:${SCHEDULE.source})`));
++  if (sequence) {
++    result.frequency = body.slice(scheduleAt).replace(/[,.;:\s]+$/, '');
++    result.body = body.slice(0, scheduleAt).replace(/[,. ;:]+$/, '').trim();
++    result.abnormalities.push({ id: 'treatment_sequential_schedule', tier: 'uncorrected_gap', title: 'Sequential Treatment Schedule Retained',
++      message: 'The source changes schedule over time. Its wording was kept in order; enter or split the sequence before copying.', trigger: result.frequency });
++    return result;
++  }
+   const prn = body.match(/\b(?:(AND|&)\s+)?(?:AS\s+NEEDED|PRN)\b(?:\s+FOR\s+([^.;]+))?/);
+   if (prn) {
+     result.prn = true;
+
