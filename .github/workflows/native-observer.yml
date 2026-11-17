@@ -1,0 +1,26 @@
+name: Native observer check
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/native-observer.yml
+      - windows/FrameworkDesktop.cs
+      - tests/fixtures/FrameworkDesktopFixture.cs
+      - scripts/framework-desktop.mjs
+      - scripts/smoke-framework-desktop.mjs
+permissions:
+  contents: read
+jobs:
+  desktop:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # Built-in Node modules only: exercise the Windows-only reader without
+      # waiting for the unrelated full regression/dependency installation.
+      # MVP checks still verifies the complete integrated prototype separately.
+      - name: Verify passive observation and reviewed desktop transfer
+        run: node scripts/smoke-framework-desktop.mjs
