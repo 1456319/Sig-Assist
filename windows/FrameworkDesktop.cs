@@ -1085,13 +1085,25 @@ public static class FrameworkDesktop {
         // Element scope is intentional: no whole-window/subtree provider call.
         // Identity and capability availability share one cross-process read.
         var request = new CacheRequest { TreeScope = TreeScope.Element, AutomationElementMode = AutomationElementMode.Full };
-        foreach (var property in new[] { AutomationElement.AutomationIdProperty, AutomationElement.NameProperty,
+        foreach (var property in new[] { AutomationElement.RuntimeIdProperty, AutomationElement.AutomationIdProperty, AutomationElement.NameProperty,
             AutomationElement.ClassNameProperty, AutomationElement.ControlTypeProperty, AutomationElement.FrameworkIdProperty,
             AutomationElement.ProcessIdProperty, AutomationElement.IsPasswordProperty, AutomationElement.IsOffscreenProperty,
             AutomationElement.IsEnabledProperty, AutomationElement.HasKeyboardFocusProperty, AutomationElement.BoundingRectangleProperty,
             AutomationElement.IsValuePatternAvailableProperty, AutomationElement.IsTogglePatternAvailableProperty,
             AutomationElement.IsSelectionItemPatternAvailableProperty, AutomationElement.IsGridPatternAvailableProperty }) request.Add(property);
         return request;
+    }
+    static string ObservationId(AutomationElement element) {
+        var runtimeId = Cached(element, AutomationElement.RuntimeIdProperty) as int[];
+        return runtimeId != null && runtimeId.Length > 0 ? String.Join(".", runtimeId.Select(x => x.ToString()).ToArray()) : Id(element);
+    }
+    static bool ObservationBoolean(AutomationElement element, AutomationProperty property) {
+        // Non-edit containers commonly omit IsPassword; UIA's standard default
+        // is false, as exposed by Current.IsPassword. Cached(..., true) suppresses
+        // that default and would incorrectly prune the root and focused parent.
+        var value = element.GetCachedPropertyValue(property, false);
+        if (!(value is bool)) throw new InvalidOperationException("UI Automation did not expose a Boolean observation property.");
+        return (bool)value;
     }
     static int ObservationFieldPriority(AutomationElement element) {
         string id = Text(Cached(element, AutomationElement.AutomationIdProperty));
@@ -1115,7 +1127,7 @@ public static class FrameworkDesktop {
             prefix.Add(next); child = next;
         }
         if (watch.ElapsedMilliseconds >= 1200) { limited = true; return null; }
-        return new ObservationNode { element = child, firstSibling = first, siblingStartId = Id(child),
+        return new ObservationNode { element = child, firstSibling = first, siblingStartId = ObservationId(child),
             parentId = parentToken, depth = parent.depth + 1, siblingCount = 1 };
     }
     static object Observe(EntryWindow entry, string secret, string testProcess, int scanOffset) {
@@ -1154,7 +1166,7 @@ public static class FrameworkDesktop {
                         if (watch.ElapsedMilliseconds >= 250) break;
                         cachedLineage.Add(element.GetUpdatedCache(identityRequest)); cacheReads++;
                     }
-                    if (cachedLineage.Count == lineage.Count && !cachedLineage.Any(e => Object.Equals(Cached(e, AutomationElement.IsPasswordProperty), true))) {
+                    if (cachedLineage.Count == lineage.Count && !cachedLineage.Any(e => ObservationBoolean(e, AutomationElement.IsPasswordProperty))) {
                         var seeds = new HashSet<int>();
                         for (int i = 0; i < cachedLineage.Count; i++) {
                             var element = cachedLineage[i];
@@ -1164,7 +1176,7 @@ public static class FrameworkDesktop {
                         if (cachedLineage.Count > 0) seeds.Add(0);
                         foreach (int i in seeds.OrderByDescending(i => i)) {
                             pending.Push(new ObservationNode { element = cachedLineage[i], depth = lineage.Count - i,
-                                parentId = hash("control:" + (i + 1 < lineage.Count ? Id(lineage[i + 1]) : entry.id)),
+                                parentId = hash("control:" + (i + 1 < cachedLineage.Count ? ObservationId(cachedLineage[i + 1]) : entry.id)),
                                 priority = i > 0, deferChildren = i == 0 }); prioritySeeds++;
                         }
                     }
@@ -1179,20 +1191,20 @@ public static class FrameworkDesktop {
                         var sibling = TreeWalker.ControlViewWalker.GetNextSibling(node.element, identityRequest); cacheReads++;
                         bool wrapped = node.siblingWrapped;
                         if (sibling == null && !wrapped) { sibling = node.firstSibling; wrapped = true; }
-                        if (sibling != null && Id(sibling) != node.siblingStartId) {
+                        if (sibling != null && ObservationId(sibling) != node.siblingStartId) {
                             if (node.siblingCount >= 1600) limited = true;
                             else pending.Push(new ObservationNode { element = sibling, firstSibling = node.firstSibling,
                                 siblingStartId = node.siblingStartId, siblingWrapped = wrapped, siblingCount = node.siblingCount + 1,
                                 parentId = node.parentId, depth = node.depth });
                         }
                     }
-                    string runtimeId = Id(node.element);
+                    string runtimeId = ObservationId(node.element);
                     bool capture = seen.Add(runtimeId);
                     if (!capture && (node.deferChildren || expanded.Contains(runtimeId))) continue;
                     // A protected control's descendants are not visited either.
-                    if (!Object.Equals(Cached(node.element, AutomationElement.IsPasswordProperty), false)
+                    if (ObservationBoolean(node.element, AutomationElement.IsPasswordProperty)
                         || !Object.Equals(Cached(node.element, AutomationElement.ProcessIdProperty), entry.pid)) continue;
-                    bool offscreen = !Object.Equals(Cached(node.element, AutomationElement.IsOffscreenProperty), false);
+                    bool offscreen = ObservationBoolean(node.element, AutomationElement.IsOffscreenProperty);
                     string id = Text(Cached(node.element, AutomationElement.AutomationIdProperty)), name = Text(Cached(node.element, AutomationElement.NameProperty)), cls = Text(Cached(node.element, AutomationElement.ClassNameProperty));
                     string controlToken = hash("control:" + runtimeId);
                     var type = Cached(node.element, AutomationElement.ControlTypeProperty) as ControlType;
