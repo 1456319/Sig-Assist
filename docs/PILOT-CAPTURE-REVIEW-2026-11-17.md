@@ -27,6 +27,9 @@ labels do not prove start-date coverage. The whole-tree observation still uses
 most of its 1.2-second budget; this capture establishes better field reach, not
 a controlled before/after latency improvement.
 
+These are positive changed-control records. A field absent from a partial
+snapshot's changed list is not proof that it was absent from the screen.
+
 The last readable snapshot is 05:46:34.995. Five failures follow from
 05:46:44.581 to 05:47:20.583, nine seconds apart. This is consistent with the
 eight-second helper timeout plus polling cadence, but v0.1.9 collapses exceptions
@@ -52,6 +55,20 @@ Framework prescription audit. Mistimed checkpoints/backtracking do not invalidat
 the other attempts. A successful helper call with zero PONs is distinct from a
 successful PON match. HTTP 200 is distinct from a matching parsed order.
 
+## Reusable workflow map
+
+| Stage | Exposed controls/views seen in the recording | Next automation evidence |
+|---|---|---|
+| Open the next order | ERxQueueButton, ERxGrid, ERxPatientOrderGrid | Read one stable current PON without activating/recovering/scrolling the UI. |
+| Choose the product | ProductSelectionView, CompoundAutoSuggestEdit, Next | Record candidate selection and the resulting product identity before filling dependent fields. |
+| Review directions | DirectionsView, PrescriptionTabDirectionsView, paneRichEdit, SIG/preview labels | Existing reviewed SIG transfer remains separate from confirming the complete expanded preview. |
+| Quantity and days supply | RxEntryPrescription_QtyEdit, RxEntryPrescription_DaysSupplyEdit | Real readable/writable editor identities are now established; verify the active order before later field writes. |
+| Packaging and delivery | Package type, Rx batch, delivery ID/date and administration labels | Bind actual value controls and start-date identity; label presence alone is insufficient. |
+| Finish/save | Next/confirmation interactions plus four Saved checkpoints | Add a specific post-save result read before later automation claims a completed order. |
+
+The controlled final example contributes layout/identification evidence only;
+its special rules are not a template for non-controlled order processing.
+
 ## PSR and PON investigation
 
 PSR contains 255 actions over 05:35:08–05:46:57 and 25 screenshots, attached only
@@ -69,8 +86,10 @@ No speculative prefix/suffix stripping or character escaping is justified.
 
 The last lookup has a different keyed PON reference from the preceding order,
 and the late screenshots display the app's No matching orders/time-window
-message plus its Search the last 7 days option. There is no subsequent seven-day
-query in this journal. No translation was loaded for that last attempt; the six
+message plus its Search the last 7 days option. Three independently OCR-checked
+screenshots also show Search complete: 0 logs / 0 added. Thus this is an empty
+parsed-log result, not just a missing selected row. There is no subsequent
+seven-day query in this journal. No translation was loaded for that last attempt; the six
 recorded translation executions belong to three earlier non-controlled orders.
 Consequently, their isControlled=false fields say nothing about recognition of
 the last controlled example.
@@ -108,8 +127,11 @@ a change to the already-delivered v0.1.9 ZIP.
 
 Local verification: 1,111 tests across 66 files passed, including real synthetic
 child-process timeout/exit/start failures, invalid JSON, redaction and subsequent
-manual detection after a failed observation. Windows integration is to be
-confirmed by the associated CI run.
+manual detection after a failed observation. Lint, TypeScript, build and packaging
+verification passed locally. Both Windows and Linux passed
+[integration run 44072365655](https://github.com/1456319/Sig-Assist/actions/runs/44072365655)
+on commit `4a6179c`, including native desktop, browser/clipboard, UNC, Iguana and
+pilot recording checks.
 
 Next functional increment: separate passive current-PON identification, coalesced
 lookup and explicit technician selection, followed by reliable bindings for
