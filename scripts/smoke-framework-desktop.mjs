@@ -4,6 +4,7 @@ import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import { createHmac } from 'node:crypto';
 import { helperExecutable } from './framework-desktop.mjs';
 const exec = promisify(execFile);
 if (process.platform !== 'win32') throw new Error('This smoke test needs Windows UI Automation.');
@@ -74,21 +75,42 @@ try {
   // Passive pilot snapshots must not leak field values or change the form.
   const key = '12'.repeat(32);
   assert.equal((await run({ action: 'observe', key })).code, 'SELECTION_REQUIRED');
-  const observed = await run({ action: 'observe', key, entryWindow: entry.entryWindow });
+  await command({ wide: 'true', focus: 'quantity', snapshot: 'true' });
+  assert.deepEqual(JSON.parse(await readFile(path.join(folder, 'state.json'), 'utf8')), { focus: 'quantity', decorativeControls: 1000 });
+  const observed = await run({ action: 'observe', key, entryWindow: entry.entryWindow, scanOffset: 0 });
   assert.equal(observed.ok, true, JSON.stringify(observed)); assert.ok(observed.controls.length > 0);
-  assert.doesNotMatch(JSON.stringify(observed), /APPROVED EXPLICIT TARGET|SYNTHETIC-1|Synthetic tablet|PAT-1|FAC-1/);
-  const stable = await run({ action: 'observe', key, entryWindow: entry.entryWindow });
+  assert.ok(observed.cacheReads > 0); assert.ok(observed.prioritySeeds > 0);
+  assert.equal(observed.scanOffset, 0);
+  const stable = await run({ action: 'observe', key, entryWindow: entry.entryWindow, scanOffset: 173 });
+  const reached = new Set([...observed.controls, ...stable.controls].map(c => c.label));
+  for (const label of ['quantity', 'days supply', 'package type', 'start date']) assert.ok(reached.has(label), `Wide fixture did not reach ${label}`);
+  assert.equal(stable.scanOffset, 173);
   const overlap = stable.controls.filter(c => observed.controls.some(old => old.token === c.token));
   assert.ok(overlap.length > 0);
   for (const c of overlap) { const old = observed.controls.find(old => old.token === c.token); assert.equal(c.valueToken, old.valueToken); assert.equal(c.focused, old.focused); }
-  const valuesBefore = observed.controls.filter(c => c.valueToken).map(c => c.valueToken);
-  await command({ sig: 'SECOND PRIVATE VALUE' });
-  const changedObservation = await run({ action: 'observe', key, entryWindow: entry.entryWindow });
-  assert.notDeepEqual(changedObservation.controls.filter(c => c.valueToken).map(c => c.valueToken), valuesBefore);
-  assert.doesNotMatch(JSON.stringify(changedObservation), /SECOND PRIVATE VALUE/);
+  const quantityBefore = observed.controls.find(c => c.label === 'quantity');
+  assert.ok(quantityBefore?.valueToken); assert.equal(quantityBefore.focused, true);
+  await command({ sig: 'SECOND PRIVATE VALUE', quantity: 'CHANGED QUANTITY PRIVATE VALUE' });
+  const changedObservation = await run({ action: 'observe', key, entryWindow: entry.entryWindow, scanOffset: 346 });
+  const quantityAfter = changedObservation.controls.find(c => c.label === 'quantity');
+  assert.ok(quantityAfter?.valueToken); assert.equal(quantityAfter.token, quantityBefore.token);
+  assert.notEqual(quantityAfter.valueToken, quantityBefore.valueToken); assert.equal(quantityAfter.focused, true);
+  for (const snapshot of [observed, stable, changedObservation]) {
+    const serialized = JSON.stringify(snapshot);
+    assert.doesNotMatch(serialized, /APPROVED EXPLICIT TARGET|SECOND PRIVATE VALUE|SYNTHETIC-1|Synthetic tablet|PAT-1|FAC-1|QUANTITY PRIVATE VALUE|DAYS PRIVATE VALUE|PACKAGE PRIVATE VALUE|START PRIVATE VALUE|PASSWORD PRIVATE VALUE|HIDDEN PRIVATE VALUE/);
+    for (const privateValue of ['PASSWORD PRIVATE VALUE', 'HIDDEN PRIVATE VALUE']) {
+      const privateToken = createHmac('sha256', Buffer.from(key, 'hex')).update('value:' + privateValue).digest('hex').slice(0, 32);
+      assert.ok(!serialized.includes(privateToken), 'Protected/hidden value was tokenized');
+    }
+    assert.ok(snapshot.controls.every(c => c.patternCount >= 0 && c.patternCount <= 4));
+    assert.ok(!snapshot.controls.some(c => c.label === 'refills' || c.label === 'delivery date'));
+  }
+  await command({ snapshot: 'true' });
+  assert.deepEqual(JSON.parse(await readFile(path.join(folder, 'state.json'), 'utf8')), { focus: 'quantity', decorativeControls: 1000 });
+  await command({ wide: 'false' });
   assert.equal((await run({ action: 'detect', entryWindow: entry.entryWindow })).fields.sig, undefined); // custom label remains unchanged
   const unavailable = await run({ action: 'observe', key, entryWindow: { ...entry.entryWindow, id: 'replaced-window' } });
   assert.equal(unavailable.code, 'WINDOW_UNAVAILABLE');
-  console.log('Windows UI Automation passed: PON detection, SIG/times read-back, technician-approved context changes, multiple-PON warnings, readonly refusal and explicit field selection.');
+  console.log('Windows UI Automation passed: PON detection, SIG/times read-back, reviewed transfer, readonly refusal, explicit selection, wide-tree field reach, fresh value tokens and passive focus/privacy checks.');
 
 } finally { app?.kill(); await rm(folder, { recursive: true, force: true, maxRetries: 8, retryDelay: 150 }); }

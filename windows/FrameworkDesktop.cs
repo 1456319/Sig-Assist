@@ -1134,7 +1134,7 @@ public static class FrameworkDesktop {
                 var lineage = new List<AutomationElement>(); bool inside = false;
                 if (focused != null && Object.Equals(focused.GetCurrentPropertyValue(AutomationElement.ProcessIdProperty), entry.pid)) {
                     var cursor = focused;
-                    for (int depth = 0; cursor != null && depth <= 24 && watch.ElapsedMilliseconds < 1200; depth++) {
+                    for (int depth = 0; cursor != null && depth <= 24 && watch.ElapsedMilliseconds < 250; depth++) {
                         if (Id(cursor) == entry.id) { inside = true; break; }
                         lineage.Add(cursor); cursor = TreeWalker.RawViewWalker.GetParent(cursor);
                     }
@@ -1142,7 +1142,7 @@ public static class FrameworkDesktop {
                 if (inside) {
                     var cachedLineage = new List<AutomationElement>();
                     foreach (var element in lineage) {
-                        if (watch.ElapsedMilliseconds >= 1200) { limited = true; break; }
+                        if (watch.ElapsedMilliseconds >= 250) break;
                         cachedLineage.Add(element.GetUpdatedCache(identityRequest)); cacheReads++;
                     }
                     if (cachedLineage.Count == lineage.Count && !cachedLineage.Any(e => Object.Equals(Cached(e, AutomationElement.IsPasswordProperty), true))) {

@@ -5,6 +5,23 @@ import { createDesktopSession } from '../scripts/framework-desktop.mjs';
 
 const detection = () => ({ ok: true, pon: 'SYNTHETIC-PON', fields: { sig: { id: 'edit-1', value: 'OLD', label: 'SIG' }, times: { id: 'edit-2', value: '0800', label: 'Administration times' } }, binding: { pid: 7, started: '123', window: 'window-1', pon: 'SYNTHETIC-PON' } });
 describe('Framework desktop transfer binding', () => {
+  it('owns passive scan rotation on the connector and resets it only for a different selected window', async () => {
+    let entryWindow = { pid: 41, started: '111', id: 'root-a', handle: 401, title: 'Entry' };
+    const run = vi.fn(async input => input.action === 'observe'
+      ? { ok: true, code: 'OK', controls: [], scanOffset: input.scanOffset }
+      : { ...detection(), entryWindow });
+    const desktop = createDesktopSession({ run });
+    await desktop('detect');
+    await desktop('observe', { key: 'session-key', scanOffset: 1599, entryWindow: { pid: 99 } });
+    expect(run).toHaveBeenLastCalledWith({ action: 'observe', key: 'session-key', entryWindow, scanOffset: 0 });
+    await desktop('observe', { key: 'session-key', scanOffset: -1 });
+    expect(run).toHaveBeenLastCalledWith({ action: 'observe', key: 'session-key', entryWindow, scanOffset: 173 });
+    await desktop('detect'); await desktop('observe', { key: 'session-key' });
+    expect(run).toHaveBeenLastCalledWith({ action: 'observe', key: 'session-key', entryWindow, scanOffset: 346 });
+    entryWindow = { pid: 42, started: '222', id: 'root-b', handle: 402, title: 'Other entry' };
+    await desktop('detect', { chooseWindow: true }); await desktop('observe', { key: 'session-key' });
+    expect(run).toHaveBeenLastCalledWith({ action: 'observe', key: 'session-key', entryWindow, scanOffset: 0 });
+  });
   it('waits for an in-flight passive snapshot instead of rejecting an approved transfer as busy', async () => {
     let finish: (value: unknown) => void = () => {};
     const entryWindow = { pid: 41, started: '111', id: 'root-a', handle: 401, title: 'Entry' };
