@@ -165,7 +165,7 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     frequencyToken = scheduleProse.includes('IN THE EVENING') ? 'QDP/D IN THE EVENING' : 'QDP/D';
   } else if (/\b(?:AFTER\s+(?:EACH\s+)?MEALS?\s+(?:AND|&)\s+(?:AT\s+)?BEDTIME|PCHS)\b/i.test(scheduleProse)) {
     frequencyToken = 'PCHS';
-  } else if (/\b(?:BEFORE\s+(?:EACH\s+)?MEALS?\s+(?:AND|&)\s+(?:AT\s+)?BEDTIME|ACHS)\b/i.test(scheduleProse)) {
+  } else if (/\b(?:BEFORE\s+(?:EACH\s+)?MEALS?\s+(?:AND|&)\s+(?:AT\s+)?BEDTIME|ACHS|AC\s*\/\s*HS)\b/i.test(scheduleProse)) {
     frequencyToken = 'ACHS';
   } else if (/\b(?:WITH\s+(?:EACH\s+)?MEALS?\s+(?:AND|&)\s+(?:AT\s+)?BEDTIME|WMHS)\b/i.test(scheduleProse)) {
     frequencyToken = 'WMHS';
