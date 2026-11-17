@@ -21,6 +21,7 @@ export interface TreatmentOrderEvaluation {
 interface TreatmentModifiers {
   body: string;
   frequency: string;
+  sequentialSchedule: boolean;
   prn: boolean;
   separatePrn: boolean;
   prnReason: string;
@@ -37,7 +38,7 @@ const DAY = '(?:MON(?:DAY)?|TUE(?:S(?:DAY)?)?|WED(?:NESDAY)?|THU(?:R(?:S(?:DAY)?
 const WEEKDAYS = `(?:EVERY|ON)\\s+${DAY}(?:\\s*(?:,|/|AND|&|TO|THROUGH|-)?\\s*(?:(?:EVERY|ON)\\s+)?${DAY})*`;
 const SCHEDULE = new RegExp(`\\b(?:${WEEKDAYS}|(?:EVERY|EACH)\\s+(?:(?:DAY|EVENING|NIGHT)(?:\\s+AND\\s+(?:DAY|EVENING|NIGHT))?\\s+)?SHIFT|Q[/-]?SHIFT|EVERY\\s+(?:(?:OTHER|TWO|THREE|\\d+)\\s+DAYS?|(?:\\d+|TWO|THREE)\\s+HOURS?|DAY|MORNING|EVENING)|(?:FOUR|THREE|TWO|[234])\\s+TIMES\\s+(?:(?:A|PER|EACH)\\s+DAY|DAILY)|TWICE\\s+(?:A\\s+DAY|DAILY)|ONCE\\s+(?:A\\s+)?(?:DAY|WEEK)|TWICE\\s+(?:A\\s+)?WEEK|IN\\s+THE\\s+(?:MORNING|EVENING)|AT\\s+BEDTIME|DAILY|WEEKLY|Q\\d+H|Q3D|QOD|QWEEK|BIW|QS|QD|BID|TID|QID|QAM|QPM|QHS)\\b`, 'g');
 function emptyModifiers(): Omit<TreatmentModifiers, 'body'> {
-  return { frequency: '', prn: false, separatePrn: false, prnReason: '', duration: '', qualifier: '', abnormalities: [] };
+  return { frequency: '', sequentialSchedule: false, prn: false, separatePrn: false, prnReason: '', duration: '', qualifier: '', abnormalities: [] };
 }
 function normalizeSite(site: string): string {
   return site.replace(/^THE\s+/, '').replace(/\bBILATERAL\b|\bB\/L\b/g, 'BIL').replace(/\bLEFT\b/g, 'LT').replace(/\bRIGHT\b/g, 'RT')
@@ -52,6 +53,20 @@ function parseModifiers(source: string): TreatmentModifiers {
   // Follow-up times are instructions in their own right, never treatment frequency/course.
   if (/^(?:NOTIFY|CALL|RECHECK|HOLD|DO NOT|REMOVE|MEASURE|MASSAGE)\b/.test(source)) return result;
   let body = source;
+  // Extracting each frequency/course independently turns ordered phases into a
+  // simultaneous schedule. Keep the action's whole schedule, including PRN
+  // reasons and durations, before any modifier can consume part of a phase.
+  const schedules = [...source.matchAll(new RegExp(`${SCHEDULE.source}|\\b(?:AS\\s+NEEDED|PRN)\\b`, 'g'))];
+  const firstScheduleAt = schedules[0]?.index;
+  if (firstScheduleAt !== undefined && schedules.slice(1).some(match =>
+    /\bTHEN\b/.test(source.slice(firstScheduleAt + schedules[0][0].length, match.index)))) {
+    result.frequency = source.slice(firstScheduleAt).replace(/[,.;:\s]+$/, '');
+    result.body = source.slice(0, firstScheduleAt).replace(/[,. ;:]+$/, '').trim();
+    result.sequentialSchedule = true;
+    result.abnormalities.push({ id: 'treatment_sequential_schedule', tier: 'uncorrected_gap', title: 'Sequential Treatment Schedule Retained',
+      message: 'The source changes schedule over time. Its wording was kept in order for technician review.', trigger: result.frequency });
+    return result;
+  }
   const prn = body.match(/\b(?:(AND|&)\s+)?(?:AS\s+NEEDED|PRN)\b(?:\s+FOR\s+([^.;]+))?/);
   if (prn) {
     result.prn = true;
@@ -216,7 +231,7 @@ export function resolveTreatmentOrder(drugName: string, rawProse: string): Treat
   const frequencies = [...new Set(procedure.map(a => a.frequency).filter(Boolean))];
   const hasPrn = procedure.some(a => a.prn);
   const lastProcedure = procedure[procedure.length - 1];
-  const globalSchedule = frequencies.length <= 1 && procedure.every(a => !a.frequency || a === header || a === lastProcedure)
+  const globalSchedule = !procedure.some(a => a.sequentialSchedule) && frequencies.length <= 1 && procedure.every(a => !a.frequency || a === header || a === lastProcedure)
     && procedure.every(a => !a.duration || a === lastProcedure || (a === header && header.kind === 'apply' && hasApplication));
   // A header cannot be discarded when its metadata belongs to a different site
   // or separate action-local courses prevent a shared procedure schedule.
