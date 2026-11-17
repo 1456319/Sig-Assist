@@ -1,0 +1,55 @@
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import type { SigDictionaryEntry, SigDictionaryInsert } from '../src/lib/types';
+
+// Synthetic, PHI-free race checks for the local-first SIG dictionary (audit 2026-11-17).
+const remote = vi.hoisted(() => ({ enabled: false, from: vi.fn() }));
+vi.mock('../src/lib/supabase', () => ({ get supabase() { return remote.enabled ? { from: remote.from } : null; } }));
+import { deleteSigEntry, fetchAllSigEntries, upsertSigEntry } from '../src/lib/sigDictionaryService';
+
+const KEY = 'sig_assist_local_sig_dictionary';
+const input = (code: string, translation = `Meaning of ${code}`): SigDictionaryInsert => ({
+  sig_code: code, translation, status: 'ACTIVE', redirect_codes: [], is_high_risk: false, high_risk_warning: '',
+});
+const entry = (code: string, id = `id-${code}`): SigDictionaryEntry => ({
+  ...input(code), id, created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z',
+});
+function deferred<T>() { let resolve!: (v: T) => void; const promise = new Promise<T>(r => { resolve = r; }); return { promise, resolve }; }
+function serve(select: () => Promise<unknown>) {
+  remote.enabled = true;
+  remote.from.mockReturnValue({
+    select: vi.fn().mockReturnValue({ order: vi.fn().mockImplementation(select) }),
+    upsert: vi.fn().mockResolvedValue({ error: null }),
+    delete: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }),
+  });
+}
+
+beforeEach(() => { localStorage.clear(); remote.enabled = false; remote.from.mockReset(); });
+afterEach(() => vi.restoreAllMocks());
+
+describe('dictionary lookups that overlap local saves', () => {
+  it.each([
+    ['shared request returns an error', (d: ReturnType<typeof deferred<unknown>>) => d.resolve({ data: null, error: { message: 'timeout' } })],
+    ['shared request returns a malformed body', (d: ReturnType<typeof deferred<unknown>>) => d.resolve({ data: [{ bogus: true }], error: null })],
+  ])('includes a code saved while a slow lookup was pending when the %s', async (_label, finish) => {
+    localStorage.setItem(KEY, JSON.stringify([entry('OLD')]));
+    const slow = deferred<unknown>();
+    serve(() => slow.promise);
+    const lookup = fetchAllSigEntries();
+    await upsertSigEntry(input('NEWCODE'));
+    finish(slow);
+    const shown = await lookup;
+    // Baseline returns the pre-request snapshot: the just-saved code vanishes from the list.
+    expect(shown.map(e => e.sig_code)).toEqual(['NEWCODE', 'OLD']);
+  });
+
+  it('omits a code deleted while a slow failed lookup was pending', async () => {
+    localStorage.setItem(KEY, JSON.stringify([entry('GONE'), entry('KEEP')]));
+    const slow = deferred<unknown>();
+    serve(() => slow.promise);
+    const lookup = fetchAllSigEntries();
+    await deleteSigEntry('id-GONE');
+    slow.resolve({ data: null, error: { message: 'offline' } });
+    expect((await lookup).map(e => e.sig_code)).toEqual(['KEEP']);
+  });
+});
+

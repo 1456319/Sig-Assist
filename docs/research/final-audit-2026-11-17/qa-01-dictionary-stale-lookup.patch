@@ -1,0 +1,16 @@
+--- a/src/lib/sigDictionaryService.ts	2026-11-17 13:05:35.887988130 +0000
++++ b/src/lib/sigDictionaryService.ts	2026-11-17 13:05:54.459516612 +0000
+@@ -154,9 +154,10 @@
+       const { data, error } = await supabase.from('sig_dictionary').select('*').order('sig_code', { ascending: true });
+       if (!error && Array.isArray(data) && data.every(isEntry)) remote = data;
+     } catch { /* The complete local archive remains available offline. */ }
++    // A local save/delete may have completed while the request was pending,
++    // including when the shared request failed: never return the pre-request snapshot.
++    state = getLocalState();
+     if (remote) {
+-      // A local save/delete may have completed while the request was pending.
+-      state = getLocalState();
+       const byId = new Map(state.entries.map(e => [e.id, e]));
+       const byCode = new Map(state.entries.map(e => [codeKey(e.sig_code), e]));
+       const deletedIds = new Set(state.deleted.map(d => d.id));
+

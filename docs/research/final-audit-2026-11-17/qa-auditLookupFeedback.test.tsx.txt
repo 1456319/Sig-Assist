@@ -1,0 +1,46 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useState } from 'react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { ReviewContext } from '../src/hooks/use-review-session';
+import { OrderQueueView } from '../src/components/OrderQueueView';
+import type { QueueOrder } from '../src/lib/orderQueue';
+import { attributeExport, newRx } from './iguanaFixtures';
+
+// Synthetic audit 2026-11-17: technician lookup feedback after a detected PON.
+function Harness() {
+  const [orders, setOrders] = useState<QueueOrder[]>([]);
+  return <ReviewContext.Provider value={{ ready: true, orders, setOrders, exclusions: [], policyRevision: 0, setExclusions: () => {} }}><OrderQueueView /></ReviewContext.Provider>;
+}
+beforeEach(() => localStorage.clear());
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+
+const pon = '123456789:0000123456';
+const detected = { ok: true, pon, token: 'opaque-test-token', expiresAt: Date.now() + 300000, fields: {} };
+function stub(bodies: string[]) {
+  const fetcher = vi.fn().mockImplementation(async (url: string) => new Response(JSON.stringify(
+    url.endsWith('/detect') ? detected : { ok: true, status: 200, body: bodies.shift() ?? attributeExport([]) }
+  ), { headers: { 'content-type': 'application/json' } }));
+  vi.stubGlobal('fetch', fetcher);
+  return fetcher;
+}
+
+describe('detected PON lookup feedback', () => {
+  it('offers the 7-day search when a detected PON returns no logs', async () => {
+    stub([attributeExport([])]);
+    render(<Harness />);
+    fireEvent.click(screen.getByRole('button', { name: 'Detect open E-Rx' }));
+    await screen.findByText(/Search complete: 0 logs/);
+    expect(screen.getByRole('button', { name: 'Search the last 7 days' })).toBeTruthy();
+  });
+  it('reports the matching saved order instead of only "0 added" when the PON was already loaded', async () => {
+    stub([attributeExport([{ payload: newRx({ pon }) }]), attributeExport([{ payload: newRx({ pon }) }])]);
+    render(<Harness />);
+    fireEvent.click(screen.getByRole('button', { name: 'Detect open E-Rx' }));
+    await screen.findByText(/1 added/);
+    fireEvent.click(screen.getByRole('button', { name: 'Detect open E-Rx' }));
+    const status = await screen.findByText(/Search complete: 1 logs · 0 added/);
+    // Baseline tells the technician "0 added" with no candidate count, which reads as "not found".
+    expect(status.textContent).toMatch(/1 matching/);
+  });
+});
+
