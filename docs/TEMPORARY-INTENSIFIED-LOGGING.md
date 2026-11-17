@@ -2,7 +2,7 @@
 
 **TEMPORARY_INTENSIFIED_LOGGING_REMOVAL_PRIORITY_HIGH**
 
-Prototype v0.1.8. Remove or substantially reduce this recorder once the E-Rx investigation has supplied the required evidence. The investigation may span many releases; this marker has no automatic expiry date. Review it before every production release. Preserve useful technician feedback and an appropriate operational audit when removing experimental capture.
+Prototype v0.1.9. Remove or substantially reduce this recorder once the E-Rx investigation has supplied the required evidence. The investigation may span many releases; this marker has no automatic expiry date. Review it before every production release. Preserve useful technician feedback and an appropriate operational audit when removing experimental capture.
 
 ## Record a session
 
