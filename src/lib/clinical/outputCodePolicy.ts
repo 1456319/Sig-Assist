@@ -14,20 +14,28 @@ export const REJECTED_OUTPUT_CODES = {
 
 const normalized = (s: string) => s.trim().toUpperCase().replace(/\s+/g, ' ');
 
-const tokenPatternCache = new Map<string, string>();
-function tokenPattern(code: string, hard = false): RegExp {
+// Cache compiled expressions, not only their source strings. Separate non-global
+// tests from global replacements so repeated calls never inherit lastIndex.
+const TOKEN_PATTERN_CACHE_LIMIT = 256;
+const tokenPatternCache = new Map<string, { test: RegExp; replace: RegExp }>();
+function tokenPattern(code: string, hard = false, replace = false): RegExp {
   const key = `${hard ? 'H' : 'S'}:${code}`;
-  let cachedStr = tokenPatternCache.get(key);
-  if (!cachedStr) {
+  let cached = tokenPatternCache.get(key);
+  if (!cached) {
     const escaped = code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const chars = hard ? 'A-Z0-9' : 'A-Z0-9/';
-    cachedStr = `(^|[^${chars}])${escaped}(?=$|[^${chars}])`;
-    tokenPatternCache.set(key, cachedStr);
+    const source = `(^|[^${chars}])${escaped}(?=$|[^${chars}])`;
+    cached = { test: new RegExp(source), replace: new RegExp(source, 'g') };
+    if (tokenPatternCache.size >= TOKEN_PATTERN_CACHE_LIMIT) {
+      tokenPatternCache.delete(tokenPatternCache.keys().next().value!);
+    }
+    tokenPatternCache.set(key, cached);
   }
-  return new RegExp(cachedStr, 'g');
+  return replace ? cached.replace : cached.test;
 }
 export function rejectedOutputMatches(sig: string): string[] {
-  return Object.keys(REJECTED_OUTPUT_CODES).filter(code => tokenPattern(code, true).test(normalized(sig)));
+  const source = normalized(sig);
+  return Object.keys(REJECTED_OUTPUT_CODES).filter(code => tokenPattern(code, true).test(source));
 }
 
 const PRECOMPUTED_REJECTED_RULES = Object.entries(REJECTED_OUTPUT_CODES).map(([code, rule]) => ({ code, replacement: rule.replacement as string, hard: true }));
@@ -35,7 +43,8 @@ const PRECOMPUTED_REJECTED_RULES = Object.entries(REJECTED_OUTPUT_CODES).map(([c
 export function applyOutputCodePolicy(sig: string, exclusions: readonly SigExclusionPreference[] = []): {
   sig: string; changes: string[]; unresolved: string[];
 } {
-  let output = normalized(sig);
+  const source = normalized(sig);
+  let output = source;
   const changes = new Set<string>();
   const unresolved = new Set<string>();
   output = output.replace(/\bFNA\s+(?:AND|OR)\s+FVOM\b/g, () => {
@@ -82,7 +91,7 @@ export function applyOutputCodePolicy(sig: string, exclusions: readonly SigExclu
   for (let pass = 0; pass <= rules.length; pass++) {
     let changed = false;
     for (const rule of rules) {
-      const pattern = tokenPattern(rule.code, rule.hard);
+      const pattern = tokenPattern(rule.code, rule.hard, true);
       output = output.replace(pattern, (match, boundary: string) => {
         if (!rule.replacement || tokenPattern(rule.code, rule.hard).test(rule.replacement)) {
           unresolved.add(rule.code); return match;
@@ -95,7 +104,7 @@ export function applyOutputCodePolicy(sig: string, exclusions: readonly SigExclu
   }
 
   // 2. Handle excluded complete SIGs (e.g. technician selected "Never use this SIG")
-  if (excludedSigs.has(output) || excludedSigs.has(normalized(sig))) {
+  if (excludedSigs.has(output) || excludedSigs.has(source)) {
     let alternateFound = false;
 
     // Phase 1: Try alternate duplicate codes first
@@ -103,7 +112,7 @@ export function applyOutputCodePolicy(sig: string, exclusions: readonly SigExclu
       if (tokenPattern(code).test(output)) {
         for (const alt of equivalents) {
           if (alt === code || excludedCodes.has(alt) || alt in REJECTED_OUTPUT_CODES) continue;
-          const candidateSig = output.replace(tokenPattern(code), `$1${alt}`);
+          const candidateSig = output.replace(tokenPattern(code, false, true), `$1${alt}`);
           if (!excludedSigs.has(candidateSig)) {
             changes.add(`${code} → ${alt} (alternate equivalent code for excluded SIG)`);
             output = candidateSig;
@@ -121,7 +130,7 @@ export function applyOutputCodePolicy(sig: string, exclusions: readonly SigExclu
         if (tokenPattern(code).test(output)) {
           const verbatim = SIG_CODE_REFERENCE[code];
           if (verbatim) {
-            const candidateSig = output.replace(tokenPattern(code), `$1${verbatim}`);
+            const candidateSig = output.replace(tokenPattern(code, false, true), `$1${verbatim}`);
             if (!excludedSigs.has(candidateSig)) {
               changes.add(`${code} → ${verbatim} (verbatim fallback, all codes blacklisted)`);
               output = candidateSig;
@@ -133,7 +142,7 @@ export function applyOutputCodePolicy(sig: string, exclusions: readonly SigExclu
       }
     }
 
-    if (!alternateFound && (excludedSigs.has(output) || excludedSigs.has(normalized(sig)))) {
+    if (!alternateFound && (excludedSigs.has(output) || excludedSigs.has(source))) {
       unresolved.add('excluded complete SIG');
     }
   }

@@ -105,7 +105,10 @@ export function isControlledSubstance(drugName: string): boolean {
 
 function evaluatePaxitPackagingInternal(drugName: string, rawProse: string): PaxitPackagingEvaluation {
   const upperDrug = drugName.toUpperCase();
-  const upperProse = rawProse.toUpperCase();
+  // Optional whitespace groups in the titration grammar otherwise retry the
+  // same long whitespace run quadratically. Normalize once for every matcher.
+  const prose = rawProse.replace(/\s+/g, ' ').trim();
+  const upperProse = prose.toUpperCase();
 
   const isControlled = isControlledSubstance(upperDrug);
   const isOralSolid =
@@ -126,11 +129,11 @@ function evaluatePaxitPackagingInternal(drugName: string, rawProse: string): Pax
   const unitLabel = /\b(?:CAPSULES?|CAPS?)\b/.test(`${upperDrug} ${upperProse}`) ? 'capsule' : 'tablet';
 
   // Extract trailing clinical context (indication, PRN clause, or hold directives) to preserve across split sub-orders
-  const trailingContextMatch = rawProse.match(/\b((?:AS NEEDED\s+FOR|PRN\s+FOR|AS NEEDED|PRN|HOLD\s+(?:IF|FOR|WHEN)|FOR)\s+(?!\d+\s*(?:DAYS?|D\b))[\s\S]+)$/i);
+  const trailingContextMatch = prose.match(/\b((?:AS NEEDED\s+FOR|PRN\s+FOR|AS NEEDED|PRN|HOLD\s+(?:IF|FOR|WHEN)|FOR)\s+(?!\d+\s*(?:DAYS?|D\b))[\s\S]+)$/i);
   const contextSuffix = trailingContextMatch ? ` ${trailingContextMatch[1].trim()}` : '';
 
   // Extract acute duration clause (e.g. for 7 days / x14d) to preserve across split sub-orders
-  const durationMatch = rawProse.match(/\b(?:FOR|X)\s*(\d+)\s*(?:DAYS?|D\b)/i);
+  const durationMatch = prose.match(/\b(?:FOR|X)\s*(\d+)\s*(?:DAYS?|D\b)/i);
   const durationSuffix = durationMatch ? ` for ${durationMatch[1]} days` : '';
 
   function parseCountValue(raw: string): number {

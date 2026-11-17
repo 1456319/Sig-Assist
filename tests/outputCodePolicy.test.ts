@@ -52,4 +52,19 @@ describe('packaging restrictions across generation and review', () => {
     expect(result.sig).toBe('GIVE 1 VIAL PO QD');
     expect(result.changes).toContain('3 ML → 1 VIAL');
   });
+  it('reuses compiled patterns without carrying match state between calls', () => {
+    for (let i = 0; i < 5; i++) {
+      expect(rejectedOutputMatches(' inh / fvom  PNA ')).toEqual(['INH', 'FVOM', 'PNA']);
+      expect(applyOutputCodePolicy('INH INH/FVOM').sig).toBe('BY INHALATION BY INHALATION/FOR VOMITING');
+    }
+  });
+  it('escapes literal custom codes and remains correct after cache eviction', () => {
+    const exclusion = [{ kind: 'code' as const, value: 'A+B', replacement: 'AS DIRECTED' }];
+    expect(applyOutputCodePolicy('A+B AAB', exclusion).sig).toBe('AS DIRECTED AAB');
+    for (let i = 0; i < 300; i++) {
+      expect(applyOutputCodePolicy(`CUSTOM${i}`, [{ kind: 'code', value: `CUSTOM${i}`, replacement: 'QD' }]).sig).toBe('QD');
+    }
+    expect(applyOutputCodePolicy('A+B AAB', exclusion).sig).toBe('AS DIRECTED AAB');
+    expect(rejectedOutputMatches('INH')).toEqual(['INH']);
+  });
 });
