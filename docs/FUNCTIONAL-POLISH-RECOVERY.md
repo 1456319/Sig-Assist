@@ -58,8 +58,10 @@ retained; failure output now includes safe synthetic labels/counters.
 passed on source commit `58fb327`, including all four critical fields, changed
 quantity tokens, unchanged focus and excluded protected/hidden values.
 [Integrated run 44004999693](https://github.com/1456319/Sig-Assist/actions/runs/44004999693)
-is the final cross-platform check for this source; Linux has passed and the
-Windows result remains to be confirmed at this checkpoint.
+passed on the same source commit on both Windows and Linux: all 1,096 tests,
+lint/type checking, native DocuTrack and Framework fixtures, builds/packages,
+Windows launchers, UNC paths, Edge clipboard/direct-file workflows, Iguana and
+temporary pilot recording smoke checks completed successfully.
 
 A short workstation field-coverage check is still needed before making claims
 about the real Framework installation's coverage or latency.
@@ -76,6 +78,11 @@ This is a source repair checkpoint. It does not replace the previously delivered
 v0.1.8 workstation ZIP or claim a new v0.1.9 release. Generated demo/package
 outputs were verified locally and are rebuilt in CI; the checked-in workstation
 artifact remains the previously validated build.
+
+Disposable installer extraction/decompiler working directories were not rebuilt
+during this source repair. Their installer sources remain in the installers
+branch and the recovered findings remain in the research reports; extraction can
+be repeated when the next integration task needs those bytes.
 
 `TEMPORARY_INTENSIFIED_LOGGING_REMOVAL_PRIORITY_HIGH` remains active. FWDirect
 remains excluded. No private capture, patient data or credentials were committed.
