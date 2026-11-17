@@ -1,4 +1,5 @@
 import { normalizeNumericDirections } from './numericDirections';
+import { splitSupplementalDirections } from './instructionClauses';
 import type { AbnormalityFinding } from './types';
 
 interface Band { key: number; condition: string; action: string }
@@ -9,6 +10,7 @@ export interface ParsedSlidingScale {
   abnormalities: AbnormalityFinding[];
   incomplete: boolean;
   baseInstruction?: string;
+  retainedInstructions?: string;
 }
 
 // Conditions and actions are parsed separately. A matched range is not evidence
@@ -125,12 +127,17 @@ export function parseSlidingScale(raw: string): ParsedSlidingScale {
   const after = upper.slice(first.index);
   // Route/schedule start the common tail. They must not be read from a dose or
   // a notification. Meal timing is optional: QHS/TID/QID/Q6H are valid too.
-  const tailStart = after.search(/\b(?:SUBCUTANEOUS(?:LY)?|SQ|SUBQ|SC|INTRAMUSCULAR(?:LY)?|IM|BEFORE\s+(?:EACH\s+)?MEALS?|AFTER\s+(?:EACH\s+)?MEALS?|(?:AT\s+)?BEDTIME|(?:[1-4]|ONE|TWO|THREE|FOUR)\s+TIMES?\s+(?:A|PER|EACH)\s+DAY|TWICE DAILY|DAILY|EVERY\s+\d+\s+HOURS?|Q\d+H|ACHS|AC|QD|BID|TID|QID|QAM|QPM|QHS)\b/);
+  const tailStart = after.search(/\b(?:SUBCUTANEOUS(?:LY)?|SQ|SUBQ|SC|INTRAMUSCULAR(?:LY)?|IM|BEFORE\s+(?:EACH\s+)?(?:MEALS?|BREAKFAST|LUNCH|DINNER|SUPPER)|AFTER\s+(?:EACH\s+)?(?:MEALS?|BREAKFAST|LUNCH|DINNER|SUPPER)|(?:AT\s+)?BEDTIME|(?:[1-4]|ONE|TWO|THREE|FOUR)\s+TIMES?\s+(?:A|PER|EACH)\s+DAY|TWICE DAILY|DAILY|EVERY\s+\d+\s+HOURS?|Q\d+H|ACHS|AC|QD|BID|TID|QID|QAM|QPM|QHS)\b/);
   const body = tailStart < 0 ? after : after.slice(0, tailStart);
   const tail = tailStart < 0 ? '' : after.slice(tailStart);
   if ([...tail.matchAll(conditionPattern)].length) return fail('An additional scale condition follows the schedule. Original directions were retained.');
+  // Separate a qualified action before combining the tail with the header's
+  // common schedule. Otherwise "AT BEDTIME GIVE HALF..." becomes an extra
+  // bedtime frequency and only GIVE HALF survives, losing its dose scope.
+  const tailClauses = splitSupplementalDirections(tail, { allowScaleActions: true });
+  const retainedInstructions = tailClauses.supplemental ? retainAction(tailClauses.supplemental) : undefined;
   const prefixSchedule = header.replace(/\b(?:(?:SLIDING|CORRECTION)\s+SCALE|SCALE|INJECT|GIVE|ADMINISTER|AS|PER|THE|IF|FOR BS|FOR BG)\b/g, '').replace(/[:;,]/g, ' ').trim();
-  const common = `${prefixSchedule} ${tail}`;
+  const common = `${prefixSchedule} ${tailClauses.primary}`;
   const route = /\b(?:SUBCUTANEOUS(?:LY)?|SQ|SUBQ|SC)\b/.test(common) ? 'SQ'
     : /\b(?:INTRAMUSCULAR(?:LY)?|IM)\b/.test(common) ? 'IM' : '';
   const schedule = common.replace(/\b(?:SUBCUTANEOUS(?:LY)?|SQ|SUBQ|SC|INTRAMUSCULAR(?:LY)?|IM)\b/g, '')
@@ -204,5 +211,5 @@ export function parseSlidingScale(raw: string): ParsedSlidingScale {
       trigger: raw,
     });
   }
-  return { bands: ordered.map(b => `${b.condition}=${b.action}`).join(';'), schedule, route, abnormalities, incomplete: false, baseInstruction };
+  return { bands: ordered.map(b => `${b.condition}=${b.action}`).join(';'), schedule, route, abnormalities, incomplete: false, baseInstruction, retainedInstructions };
 }

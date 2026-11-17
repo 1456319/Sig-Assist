@@ -59,7 +59,10 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     const prefix = `CBS ${frequency} SS`;
     const core = [scale.baseInstruction, prefix, scale.bands, scale.route, schedule.prnToken, schedule.durationToken,
       schedule.indicationToken, schedule.holdToken, schedule.stopToken].filter(Boolean).join(' ');
-    const slidingScaleString = tail.supplemental ? `${core}. ${tail.supplemental.toUpperCase()}` : core;
+    const retained = [scale.retainedInstructions, tail.supplemental].filter(Boolean).join('. ');
+    if (tail.supplemental) abnormalities.push({ id: 'sliding_scale_unparsed_action', tier: 'uncorrected_gap', title: 'Scale Instruction Retained for Review',
+      message: 'An additional instruction was retained with its source qualifier. Compare its scope with the common scale schedule.', trigger: tail.supplemental });
+    const slidingScaleString = retained ? `${core}. ${retained.toUpperCase()}` : core;
     return { frequencyToken: prefix, slidingScaleString, abnormalities: [...abnormalities, ...schedule.abnormalities] };
   }
 

@@ -103,6 +103,9 @@ export function parseSigOrder(raw: string, options: SigParseOptions): ParsedSigO
   if (looksLikeSlidingScale(raw, options.drug)) {
     const resolved = resolveFrequencyAndSchedule(raw, undefined, options.drug);
     order.slidingScaleSig = resolved.slidingScaleString || raw.replace(/\s+/g, ' ').trim().toUpperCase();
+    if (resolved.abnormalities.some(finding => finding.id === 'sliding_scale_unparsed_action')) issues.push({
+      code: 'retained-sliding-scale-instructions', severity: 'warning', message: 'Additional scale instructions were retained with their qualifiers and need review against the common schedule.',
+    });
     if (!resolved.slidingScaleString) issues.push({ code: 'incomplete-sliding-scale', severity: 'warning', message: 'The complete scale needs technician review; original directions were retained.' });
   }
   const hold = normalized.match(/hold\s+(?:if|for)\s+(?:sbp|systolic(?: blood pressure)?)\s+(?:less than|below)\s+(\d+).*?(?:heart rate|hr)\s+(?:less than|below)\s+(\d+)/i);
