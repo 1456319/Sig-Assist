@@ -1,0 +1,25 @@
+--- a/src/lib/clinical/instructionClauses.ts
++++ b/src/lib/clinical/instructionClauses.ts
+@@ -17,8 +17,11 @@
+     // A later action can begin with its own time, phase, or negation. Move that
+     // entire clause together so its qualifier cannot be absorbed by the primary dose.
+     const clauseBoundary = /[.;]|,|\b(?:AND\s+)?THEN\b|\bAND\b/gi;
++    // In a scale tail the route ends the common schedule ('SQ BEFORE BREAKFAST GIVE HALF').
++    const boundaryPattern = options?.allowScaleActions
++      ? /[.;]|,|\b(?:AND\s+)?THEN\b|\bAND\b|\b(?:SUBCUTANEOUS(?:LY)?|SQ|SUBQ|SC|INTRAMUSCULAR(?:LY)?|IM)\b/gi : clauseBoundary;
+     let supplementalStart = match.index;
+-    const boundaries = [...beforeAction.matchAll(clauseBoundary)].map(boundary => ({
++    const boundaries = [...beforeAction.matchAll(boundaryPattern)].map(boundary => ({
+       start: boundary.index!, end: boundary.index! + boundary[0].length, text: boundary[0],
+     }));
+     if (options?.allowScaleActions) boundaries.unshift({ start: 0, end: 0, text: '' });
+@@ -31,6 +34,9 @@
+       const afterBoundary = boundary.end;
+       const prefix = beforeAction.slice(afterBoundary).trimStart();
+       if (/[.;]/.test(prefix)) continue;
++      // After a mid-sentence boundary, a comma-terminated qualifier ('DAILY,
++      // BEFORE BREAKFAST, DO NOT CRUSH') belongs to the primary schedule.
++      if (/,/.test(prefix) && !/^[.;]?$/.test(boundary.text)) continue;
+       if (!/^(?:AT|AFTER|BEFORE|DURING|WHEN|UNLESS|UNTIL|ONLY|NEVER|NOT|IN\s+THE\s+(?:MORNING|AFTERNOON|EVENING)|FOR\s+(?:THE\s+NEXT\s+)?\d+\s+(?:DAYS?|WEEKS?|MONTHS?))\b/i.test(prefix)) continue;
+       // THEN expresses a phase change and remains part of the retained clause.
+       supplementalStart = /\bTHEN\b/i.test(boundary.text) ? boundary.start : afterBoundary;

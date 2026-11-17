@@ -1,0 +1,30 @@
+import { describe, expect, it } from 'vitest';
+import { splitSupplementalDirections } from '../src/lib/clinical/instructionClauses';
+import { translateClinicalSig } from '../src/lib/clinical/clinicalEngine';
+
+// Synthetic integration review 2026-11-17: a comma-delimited primary schedule
+// must not move into a later supplemental action.
+const sig = (drugName: string, rawProse: string) => translateClinicalSig({ id: 'syn', pon: 'SYN-1', drugName, rawProse, sourceFormat: 'manual_text' }).primarySig;
+describe('splitter keeps comma-delimited primary schedule', () => {
+  it.each([
+    ['TAKE 1 TABLET BY MOUTH, BEFORE BREAKFAST, DO NOT CRUSH', 'TAKE 1 TABLET BY MOUTH, BEFORE BREAKFAST', 'DO NOT CRUSH'],
+    ['INHALE 2 PUFFS, IN THE MORNING AND EVENING, MAY USE EXTRA PUFF IF NEEDED', 'INHALE 2 PUFFS, IN THE MORNING AND EVENING', 'MAY USE EXTRA PUFF IF NEEDED'],
+    ['GIVE 1 TABLET BY MOUTH, ONLY WHEN AWAKE, DO NOT GIVE IF SLEEPING', 'GIVE 1 TABLET BY MOUTH, ONLY WHEN AWAKE', 'DO NOT GIVE IF SLEEPING'],
+  ])('%s', (raw, primary, supplemental) => expect(splitSupplementalDirections(raw)).toEqual({ primary, supplemental }));
+  it('control: a sentence-initial qualifier keeps its comma and moves with its action', () =>
+    expect(splitSupplementalDirections('TAKE 1 TABLET DAILY. BEFORE BREAKFAST, RECHECK BLOOD SUGAR')).toEqual({ primary: 'TAKE 1 TABLET DAILY', supplemental: 'BEFORE BREAKFAST, RECHECK BLOOD SUGAR' }));
+  it('control: a qualifier directly before a later action still moves with it', () =>
+    expect(splitSupplementalDirections('TAKE 1 TABLET DAILY, AT BEDTIME TAKE 2')).toEqual({ primary: 'TAKE 1 TABLET DAILY', supplemental: 'AT BEDTIME TAKE 2' }));
+  it('translates the schedule instead of falling back to partial', () =>
+    expect(sig('METOPROLOL 25 MG TABLET', 'TAKE 1 TABLET BY MOUTH, BEFORE BREAKFAST, DO NOT CRUSH')).toBe('1T PO QDA/B. DO NOT CRUSH'));
+});
+
+describe('scale footer qualifier after a route without punctuation', () => {
+  const raw = 'INSULIN SLIDING SCALE ACHS: 151-200 = 2 UNITS, 201-250 = 4 UNITS SQ BEFORE BREAKFAST GIVE HALF';
+  it('keeps the ACHS header schedule and the BEFORE BREAKFAST scope of the half dose', () => {
+    const result = translateClinicalSig({ id: 'syn', pon: 'SYN-2', drugName: 'INSULIN LISPRO', rawProse: raw, sourceFormat: 'manual_text' });
+    expect(result.primarySig).not.toContain('QDA/B');
+    expect(result.primarySig).toContain('BEFORE BREAKFAST GIVE HALF');
+    expect(result.abnormalities.map(a => a.id)).toContain('sliding_scale_unparsed_action');
+  });
+});
