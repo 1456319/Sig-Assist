@@ -33,7 +33,8 @@ export function IguanaConnectorPanel({ onSelect, searchQuery, onSearchChange, on
   const [polling, setPolling] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('Enter a PON and find the E‑Rx, or load recent orders. Choose the correct order below.');
-  const [emptyLookup, setEmptyLookup] = useState<string>();
+  // Detected and DocuTrack PONs identify one order; retain that mode on retry.
+  const [emptyLookup, setEmptyLookup] = useState<{ query: string; exactPon: boolean }>();
   const [summary, setSummary] = useState<IntakeSummary>();
   const [includePayloads, setIncludePayloads] = useState(false);
   const captureEnabled = useRef(false); captureEnabled.current = includePayloads;
@@ -75,7 +76,7 @@ export function IguanaConnectorPanel({ onSelect, searchQuery, onSearchChange, on
     return result;
   }, [capture, diagnostics, setOrders, exclusions]);
 
-  const runQuery = useCallback(async (lookup?: { query: string; days?: number }) => {
+  const runQuery = useCallback(async (lookup?: { query: string; days?: number; exactPon?: boolean }) => {
     if (active.current) return;
     active.current = true; setBusy(true);
     abort.current = new AbortController();
@@ -83,13 +84,14 @@ export function IguanaConnectorPanel({ onSelect, searchQuery, onSearchChange, on
       const effective = lookup
         ? { ...config, filter: lookup.query, after: lookup.days ? daysAgoMidnight(lookup.days) : config.after, before: '' }
         : { ...config, after: cursor.current || config.after };
-      if (lookup) diagnostics.emit('info', 'lookup.begin', 'Finding E-Rx candidates; technician selects the matching order', { query: lookup.query, after: effective.after });
+      if (lookup) diagnostics.emit('info', 'lookup.begin', 'Finding E-Rx candidates; technician selects the matching order', { query: lookup.query, exactPon: !!lookup.exactPon, after: effective.after });
       const result = await queryIguana(effective, diagnostics.emit, abort.current.signal, body => capture(body, { source: 'api_query_response' }));
       const intake = applyLogs(result.logs, !!lookup);
+      let matching = 0;
       if (lookup) {
-        const count = intake.orders.filter(order => matchesOrderQuery(order, lookup.query)).length;
-        setEmptyLookup(count || !lookup.query ? undefined : lookup.query);
-        diagnostics.emit('info', 'lookup.results', 'Matching saved orders are ready for selection', { query: lookup.query, candidates: count, logs: result.logs.length, saturated: result.saturated });
+        matching = intake.orders.filter(order => lookup.exactPon ? order.pon.trim() === lookup.query : matchesOrderQuery(order, lookup.query)).length;
+        setEmptyLookup(matching || !lookup.query ? undefined : { query: lookup.query, exactPon: !!lookup.exactPon });
+        diagnostics.emit('info', 'lookup.results', 'Matching saved orders are ready for selection', { query: lookup.query, exactPon: !!lookup.exactPon, candidates: matching, logs: result.logs.length, saturated: result.saturated });
       }
       failures.current = 0;
       if (intake.summary.quarantined) {
@@ -105,7 +107,7 @@ export function IguanaConnectorPanel({ onSelect, searchQuery, onSearchChange, on
           diagnostics.emit('warn', 'query.cursor.unavailable', 'Server time format unavailable; retain the current window and deduplicate repeated orders', { after: effective.after });
         }
         setStatus(lookup
-          ? `Search complete: ${result.logs.length} logs · ${intake.summary.added} added. Choose a matching E‑Rx below.`
+          ? `Search complete: ${result.logs.length} logs · ${intake.summary.added} added · ${matching} matching. Choose a matching E‑Rx below.`
           : `Last fetch: ${result.logs.length} logs · ${intake.summary.added} added · ${intake.summary.quarantined} need investigation`);
       }
     } catch (error) {
@@ -162,19 +164,19 @@ export function IguanaConnectorPanel({ onSelect, searchQuery, onSearchChange, on
 
   const canLive = location.protocol === 'http:' || location.protocol === 'https:';
   const verifyEdcs = useCallback((documents: EdcDocument[], signal: AbortSignal, onResult: (document: EdcDocument, evidence: EdcDispositionEvidence) => void) => verifyEdcDispositions(documents, config, signal, onResult), [config]);
-  function lookup(query: string, days?: number) {
+  function lookup(query: string, days?: number, exactPon = false) {
     onLookupStart(); setEmptyLookup(undefined);
-    void runQuery({ query: query.trim(), days });
+    void runQuery({ query: query.trim(), days, exactPon });
   }
   return <>{renderQueueTools?.(pon => {
     onSearchChange(pon);
-    if (canLive && !busy && !polling && ready !== false) lookup(pon);
+    if (canLive && !busy && !polling && ready !== false) lookup(pon, undefined, true);
   }, verifyEdcs)}<section className="rounded-lg border border-primary/40 bg-card p-4" aria-label="Find E-Rx">
     <h3 className="font-semibold">Find E‑Rx</h3>
     <div className="mt-3 space-y-3">
       <FrameworkDetect disabled={!canLive || busy || polling || ready === false}
         onStart={() => onDesktopDetected?.(undefined)}
-        onDetected={result => { onDesktopDetected?.(result); if (result.pon) { onSearchChange(result.pon); lookup(result.pon); } }} />
+        onDetected={result => { onDesktopDetected?.(result); if (result.pon) { onSearchChange(result.pon); lookup(result.pon, undefined, true); } }} />
       <form className="flex flex-wrap items-end gap-2" onSubmit={event => { event.preventDefault(); if (canLive && !busy && !polling && ready !== false && searchQuery.trim()) lookup(searchQuery); }}>
         <label className="flex-1 min-w-56 text-sm space-y-1"><span>PON, patient reference, facility or drug</span>
           <input className={reviewInputClass} value={searchQuery} placeholder="Paste the PON from Framework…" autoComplete="off" disabled={busy && !polling} onChange={event => { onSearchChange(event.target.value); setEmptyLookup(undefined); }} />
@@ -184,7 +186,7 @@ export function IguanaConnectorPanel({ onSelect, searchQuery, onSearchChange, on
         {searchQuery && <button type="button" className={reviewButtonClass} disabled={busy && !polling} onClick={() => { onSearchChange(''); setEmptyLookup(undefined); }}>Show all saved</button>}
       </form>
       <p className="text-sm text-muted-foreground">One field is enough. Saved orders filter as you type; Find E-Rx also checks Iguana. Select the matching order to load its details and SIG.</p>
-      {emptyLookup !== undefined && emptyLookup === searchQuery.trim() && <div className="text-sm space-y-2" role="status"><p>No matching orders are loaded for the current time window.</p><button className={reviewButtonClass} disabled={!canLive || busy || polling} onClick={() => lookup(searchQuery, 7)}>Search the last 7 days</button></div>}
+      {emptyLookup !== undefined && emptyLookup.query === searchQuery.trim() && <div className="text-sm space-y-2" role="status"><p>No matching orders are loaded for the current time window.</p><button className={reviewButtonClass} disabled={!canLive || busy || polling} onClick={() => lookup(searchQuery, 7, emptyLookup.exactPon)}>Search the last 7 days</button></div>}
       <p className="text-sm" role="status">{polling ? 'Polling · ' : ''}{status}</p>
       <div className="flex gap-2 flex-wrap">
         <button className={reviewButtonClass} disabled={!canLive || busy || polling || ready === false} onClick={() => { cursor.current = ''; setEmptyLookup(undefined); setPolling(true); }}>Start polling</button>

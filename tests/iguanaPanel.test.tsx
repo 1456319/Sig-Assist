@@ -31,7 +31,7 @@ describe('connector through queue UI', () => {
     vi.stubGlobal('fetch', fetcher);
     render(<Harness />);
     fireEvent.click(screen.getByRole('button', { name: 'Detect open E-Rx' }));
-    await screen.findByText('Search complete: 1 logs · 1 added. Choose a matching E‑Rx below.');
+    await screen.findByText('Search complete: 1 logs · 1 added · 1 matching. Choose a matching E‑Rx below.');
     expect((screen.getByLabelText('PON, patient reference, facility or drug') as HTMLInputElement).value).toBe(pon);
     expect(JSON.parse(fetcher.mock.calls[1][1].body).filter).toBe(pon);
     expect(screen.queryByLabelText('Final SIG · editable, uppercase')).toBeNull();
@@ -64,7 +64,7 @@ describe('connector through queue UI', () => {
     expect(screen.getByText('Live connection settings').closest('details')?.open).toBe(false);
     fireEvent.change(search, { target: { value: ' 12345 ' } });
     fireEvent.submit(search.closest('form')!);
-    await screen.findByText('Search complete: 2 logs · 2 added. Choose a matching E‑Rx below.');
+    await screen.findByText('Search complete: 2 logs · 2 added · 2 matching. Choose a matching E‑Rx below.');
     expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({ filter: '12345', serverUrl: '', after: yesterdayMidnight(), before: '' });
     const candidates = within(screen.getByRole('region', { name: 'Orders' }));
     expect(candidates.getAllByRole('button')).toHaveLength(2);
@@ -87,7 +87,7 @@ describe('connector through queue UI', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Find E-Rx', exact: true }));
     await screen.findByText('No matching orders are loaded for the current time window.');
     fireEvent.click(screen.getByRole('button', { name: 'Search the last 7 days' }));
-    await screen.findByText('Search complete: 1 logs · 1 added. Choose a matching E‑Rx below.');
+    await screen.findByText('Search complete: 1 logs · 1 added · 1 matching. Choose a matching E‑Rx below.');
     expect(JSON.parse(fetcher.mock.calls[1][1].body)).toMatchObject({ after: daysAgoMidnight(7), filter: 'DEMO-PON-1', before: '' });
     fireEvent.click(screen.getByRole('button', { name: 'Start polling' }));
     await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(3));
