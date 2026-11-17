@@ -48,6 +48,14 @@ function productCore(drug: string): string {
   return drug.replace(/\b(?:TOPICAL|PASTE|OINTMENT|CREAM|LOTION|GEL|SOLUTION|BARRIER|SPRAY)\b/g, '')
     .replace(/\d+(?:\.\d+)?\s*%.*$/, '').replace(/\s+/g, ' ').trim();
 }
+function retainResidualClause(result: TreatmentModifiers): TreatmentModifiers {
+  const residual = result.body.match(/[,;]\s*(.+)/)?.[1];
+  if (residual) result.abnormalities.push({
+    id: 'treatment_untranslated_clause', tier: 'uncorrected_gap', title: 'Treatment Clause Retained for Review',
+    message: 'This source clause was retained beside the translated procedure. Verify its wording before copying.', trigger: residual,
+  });
+  return result;
+}
 function parseModifiers(source: string): TreatmentModifiers {
   const result: TreatmentModifiers = { ...emptyModifiers(), body: source };
   // Follow-up times are instructions in their own right, never treatment frequency/course.
@@ -56,7 +64,7 @@ function parseModifiers(source: string): TreatmentModifiers {
   // Extracting each frequency/course independently turns ordered phases into a
   // simultaneous schedule. Keep the action's whole schedule, including PRN
   // reasons and durations, before any modifier can consume part of a phase.
-  const schedules = [...source.matchAll(new RegExp(`${SCHEDULE.source}|\\b(?:AS\\s+NEEDED|PRN)\\b`, 'g'))];
+  const schedules = [...source.matchAll(new RegExp(`\\b(?:ONCE\\s+DAILY|AS\\s+NEEDED|PRN)\\b|${SCHEDULE.source}`, 'g'))];
   const firstScheduleAt = schedules[0]?.index;
   if (firstScheduleAt !== undefined && schedules.slice(1).some(match =>
     /\bTHEN\b/.test(source.slice(firstScheduleAt + schedules[0][0].length, match.index)))) {
@@ -65,7 +73,7 @@ function parseModifiers(source: string): TreatmentModifiers {
     result.sequentialSchedule = true;
     result.abnormalities.push({ id: 'treatment_sequential_schedule', tier: 'uncorrected_gap', title: 'Sequential Treatment Schedule Retained',
       message: 'The source changes schedule over time. Its wording was kept in order for technician review.', trigger: result.frequency });
-    return result;
+    return retainResidualClause(result);
   }
   const prn = body.match(/\b(?:(AND|&)\s+)?(?:AS\s+NEEDED|PRN)\b(?:\s+FOR\s+([^.;]+))?/);
   if (prn) {
@@ -103,12 +111,7 @@ function parseModifiers(source: string): TreatmentModifiers {
     message: 'This source qualifier was retained beside the translated procedure. Verify its wording before copying.', trigger: result.qualifier,
   });
   result.body = body.replace(/\s+/g, ' ').replace(/[,. ;:]+$/, '').replace(/\s+(?:AND|THEN)$/, '').trim();
-  const residual = result.body.match(/[,;]\s*(.+)/)?.[1];
-  if (residual) result.abnormalities.push({
-    id: 'treatment_untranslated_clause', tier: 'uncorrected_gap', title: 'Treatment Clause Retained for Review',
-    message: 'This source clause was retained beside the translated procedure. Verify its wording before copying.', trigger: residual,
-  });
-  return result;
+  return retainResidualClause(result);
 }
 
 /**
