@@ -117,7 +117,15 @@ function mergeInserts(state: LocalState, inputs: Insert[]): SigDictionaryEntry[]
       id: existing?.id ?? input.id ?? (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `local_${Date.now()}_${Math.random().toString(36).slice(2)}`),
       created_at: existing?.created_at ?? now, updated_at: now,
     };
-    if (existing) byCode.delete(codeKey(existing.sig_code));
+    if (existing) {
+      const previousCode = codeKey(existing.sig_code);
+      byCode.delete(previousCode);
+      // A legacy offline entry may have a different ID from its shared copy.
+      // Preserve the explicit rename even when a stale response uses that ID.
+      if (previousCode !== entry.sig_code && !state.deleted.some(d => d.code === previousCode)) {
+        state.deleted.push({ id: '', code: previousCode });
+      }
+    }
     byId.set(entry.id, entry);
     byCode.set(entry.sig_code, entry);
     changedIds.add(entry.id);
@@ -175,7 +183,8 @@ export async function fetchAllSigEntries(): Promise<SigDictionaryEntry[]> {
       state.entries = [...byId.values()];
       // Missing rows are not explicit deletes: shared requests can be empty or
       // paginated, and must never erase offline customizations.
-      saveLocalState(state);
+      try { saveLocalState(state); }
+      catch { /* Cache refresh is optional; return the usable merged dictionary. */ }
     }
   }
   return state.entries.sort((a, b) => a.sig_code.localeCompare(b.sig_code));

@@ -126,6 +126,25 @@ describe('dictionary partial remote responses and explicit deletes', () => {
     expect(result).toHaveLength(81);
     expect(result.find(e => e.id === custom[3].id)?.translation).toBe(custom[3].translation);
   });
+  it('returns the merged dictionary when an optional cache refresh cannot be stored', async () => {
+    const original = JSON.stringify([entry('LOCAL')]);
+    localStorage.setItem(KEY, original);
+    serve([entry('REMOTE')]);
+    const set = Storage.prototype.setItem;
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (key, value) {
+      if (key === KEY) throw new DOMException('Quota exceeded', 'QuotaExceededError');
+      set.call(this, key, value);
+    });
+    expect((await fetchAllSigEntries()).map(e => e.sig_code)).toEqual(['LOCAL', 'REMOTE']);
+    expect(localStorage.getItem(KEY)).toBe(original);
+    expect(localStorage.getItem(SYNC_KEY)).toBeNull();
+  });
+  it('preserves a legacy offline rename when the stale shared copy has a different ID', async () => {
+    localStorage.setItem(KEY, JSON.stringify([entry('OLD', 'local-id')]));
+    await upsertSigEntry({ ...input('NEW'), id: 'local-id' });
+    serve([entry('OLD', 'shared-id')]);
+    expect((await fetchAllSigEntries()).map(e => e.sig_code)).toEqual(['NEW']);
+  });
   it('keeps pending offline updates and renames over stale shared rows', async () => {
     serve([entry('OLD')]);
     await fetchAllSigEntries();
@@ -170,6 +189,19 @@ describe('dictionary partial remote responses and explicit deletes', () => {
     await upsertSigEntry({ ...input('CUSTOM', 'New local correction'), id: 'id-CUSTOM' });
     resolve({ data: [entry('CUSTOM')], error: null });
     expect((await pendingFetch)[0].translation).toBe('New local correction');
+  });
+  it('retains a deletion made while an older shared fetch is in flight', async () => {
+    const deleted = entry('CUSTOM');
+    localStorage.setItem(KEY, JSON.stringify([deleted]));
+    let resolve!: (result: { data: SigDictionaryEntry[]; error: null }) => void;
+    remote.enabled = true;
+    remote.from.mockReturnValue({ select: () => ({ order: () => new Promise(r => { resolve = r; }) }) });
+    const pendingFetch = fetchAllSigEntries();
+    remote.enabled = false;
+    await deleteSigEntry(deleted.id);
+    resolve({ data: [deleted], error: null });
+    expect(await pendingFetch).toEqual([]);
+    expect(archive()).toEqual([]);
   });
   it('does not mark a newer offline correction synced when an older save finishes', async () => {
     let resolve!: (result: { error: null }) => void;

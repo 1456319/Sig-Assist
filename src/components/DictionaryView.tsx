@@ -449,6 +449,7 @@ export function DictionaryView() {
                 <td className="px-4 py-2.5">
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
+                      aria-label={`Edit ${entry.sig_code}`}
                       onClick={() => {
                         setEditEntry({
                           id: entry.id,
@@ -466,6 +467,7 @@ export function DictionaryView() {
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
                     <button
+                      aria-label={`Delete ${entry.sig_code}`}
                       onClick={() => handleDelete(entry)}
                       className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                     >
