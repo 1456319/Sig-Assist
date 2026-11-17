@@ -1,5 +1,5 @@
 import { REJECTED_OUTPUT_CODES, rejectedOutputMatches } from '../lib/clinical/outputCodePolicy';
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { copyBlockReason, excludedMatches, finalSig, reviewStamp, type SigExclusion } from '../lib/reviewPolicy';
 import { useReviewSession } from '../hooks/use-review-session';
@@ -25,6 +25,7 @@ export function SigReviewPanel({ source, suggestion, draft, approved, unavailabl
   const [code, setCode] = useState('');
   const [replacement, setReplacement] = useState('');
   const [copying, setCopying] = useState(false);
+  const draftRef = useRef<HTMLTextAreaElement>(null);
   const id = useId();
   const stamp = reviewStamp(source, draft, exclusions, policyRevision);
   const reviewed = approved === stamp;
@@ -53,7 +54,9 @@ export function SigReviewPanel({ source, suggestion, draft, approved, unavailabl
       onCopied?.(stamp);
       toast.success('Reviewed SIG copied. Match the PON and preview it in Framework.');
     } catch {
-      toast.error('Clipboard unavailable. Select the reviewed final SIG and copy it manually.');
+      draftRef.current?.focus();
+      draftRef.current?.select();
+      toast.error('Clipboard unavailable. The final SIG is selected; press Ctrl+C to copy it.');
     } finally {
       setCopying(false);
     }
@@ -68,7 +71,8 @@ export function SigReviewPanel({ source, suggestion, draft, approved, unavailabl
     </div>
     <div>
       <label htmlFor={`${id}-draft`} className="block text-sm font-medium mb-1">Final SIG · editable, uppercase</label>
-      <textarea id={`${id}-draft`} rows={4} className={`${reviewInputClass} font-mono`} value={draft} disabled={unavailable} onChange={event => onEdit(event.target.value.toUpperCase())} />
+      <textarea ref={draftRef} id={`${id}-draft`} rows={4} className={`${reviewInputClass} font-mono`} value={draft} disabled={unavailable} onChange={event => onEdit(event.target.value.toUpperCase())} />
+      <p className={`mt-1 text-xs ${draft.length > 199 ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>{draft.length} / 199 characters{draft.length > 199 ? ' · over the Framework SIG limit; edit before sending' : ''}</p>
     </div>
     <label className="flex items-start gap-2 text-sm">
       <input type="checkbox" className="mt-1" checked={reviewed} disabled={unavailable || !draft.trim() || excludedMatches(draft, exclusions).length > 0 || rejectedOutputMatches(draft).length > 0} onChange={event => onApprove(event.target.checked ? stamp : undefined)} />
@@ -76,6 +80,7 @@ export function SigReviewPanel({ source, suggestion, draft, approved, unavailabl
     </label>
     <div className="flex flex-wrap gap-2">
       <button className={`${reviewButtonClass} bg-primary text-primary-foreground`} disabled={!!reason || copying} onClick={copy}>Copy reviewed SIG</button>
+      <button type="button" className={reviewButtonClass} disabled={unavailable || !draft.trim()} onClick={() => { draftRef.current?.focus(); draftRef.current?.select(); }}>Select final SIG</button>
       {onResetSuggestion && suggestion && finalSig(draft) !== finalSig(suggestion) && (
         <button type="button" className={reviewButtonClass} onClick={onResetSuggestion}>Use calculated suggestion</button>
       )}

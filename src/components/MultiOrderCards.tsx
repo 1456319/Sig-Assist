@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { SubOrderResult } from '../lib/clinical/types';
 import { AbnormalityBanner } from './AbnormalityBanner';
 import { Copy, Check } from 'lucide-react';
@@ -42,6 +42,11 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
     return initialApprovals ? { ...initialApprovals } : {};
   });
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const draftRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
+  const selectDraft = (id: string) => {
+    draftRefs.current[id]?.focus();
+    draftRefs.current[id]?.select();
+  };
 
   const { exclusions, policyRevision } = useReviewSession();
 
@@ -120,12 +125,14 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
         }, 2000);
       } else {
         traceLogger.warn('ui', 'MultiOrderCards', 'Clipboard API unavailable or denied', { subOrderId: subOrder.id }, undefined, traceId);
-        toast.error('Clipboard access denied or unavailable. Please copy manually.');
+        selectDraft(subOrder.id);
+        toast.error('Clipboard unavailable. The final SIG is selected; press Ctrl+C to copy it.');
       }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
       traceLogger.error('ui', 'MultiOrderCards', 'Clipboard copy failed', { subOrderId: subOrder.id }, { name: 'ClipboardError', message: errMsg }, traceId);
-      toast.error('Clipboard copy failed. Please copy manually.');
+      selectDraft(subOrder.id);
+      toast.error('Clipboard unavailable. The final SIG is selected; press Ctrl+C to copy it.');
     }
   };
 
@@ -191,6 +198,7 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
                 {`Draft SIG (${subOrder.label}) · editable, uppercase`}
               </label>
               <textarea
+                ref={(element) => { draftRefs.current[subOrder.id] = element; }}
                 id={`draft-sig-${subOrder.id}`}
                 rows={2}
                 disabled={unavailable}
@@ -198,6 +206,8 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
                 value={draftSig}
                 onChange={(e) => handleDraftChange(subOrder.id, e.target.value)}
               />
+              <p className={`mt-1 text-xs ${draftSig.length > 199 ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>{draftSig.length} / 199 characters{draftSig.length > 199 ? ' · over the Framework SIG limit; edit before sending' : ''}</p>
+              <button type="button" className="mt-1 text-xs underline disabled:opacity-40" disabled={unavailable || !draftSig.trim()} onClick={() => selectDraft(subOrder.id)}>Select final SIG ({subOrder.label})</button>
             </div>
 
             <div className="flex items-center gap-2">
