@@ -3,6 +3,7 @@ from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 import argparse
 import json
+import subprocess
 
 demo = Path(__file__).resolve().parent.parent / "windows-demo"
 parser = argparse.ArgumentParser()
@@ -12,9 +13,10 @@ parser.add_argument("--pilot-log-location", type=Path)
 parser.add_argument("--workstation-update", action="store_true")
 parser.add_argument("--output", type=Path, default=demo / "Sig-Assist-Windows-Demo.zip")
 args = parser.parse_args()
+subprocess.run(['node', str(demo.parent / 'scripts' / 'build-identity.mjs')], check=True)
 if (args.site_profile or args.pilot_log_location or args.workstation_update) and args.output.resolve().is_relative_to(demo.parent):
     parser.error("Write site-specific distributions outside the repository.")
-files = ["Start-Sig-Assist.bat", "Start-Sig-Assist.cmd", "Start-Iguana-Connector.bat", "index.html",
+files = ["Start-Sig-Assist.bat", "Start-Sig-Assist.cmd", "Start-Iguana-Connector.bat", "index.html", "BUILD.json",
          "iguana-bridge.mjs", "framework-desktop.mjs", "pilot-journal.mjs", "FrameworkDesktop.cs", "TECHNICIAN-FEEDBACK.md", "TEMPORARY-INTENSIFIED-LOGGING.md"]
 if args.site_profile:
     files.extend(["README.txt", "IGUANA-CONNECTOR.md", "FRAMEWORK-DESKTOP.md", "DOCUTRACK-EDC.md",
@@ -63,8 +65,10 @@ if args.site_profile:
     )
 else:
     version = json.loads((demo.parent / "package.json").read_text())["version"]
+    identity = json.loads((demo / "BUILD.json").read_text())
     contents["README.txt"] = (
         f"Sig-Assist public demo v{version}\r\n"
+        f"Build: {identity['buildId']}\r\n"
         "Extract the ZIP and run Start-Sig-Assist.bat for the offline demo.\r\n"
         "For desktop access run Start-Iguana-Connector.bat in the same Windows session.\r\n"
         "Enter your Iguana server URL in Live connection settings if you use live lookup.\r\n"

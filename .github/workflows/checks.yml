@@ -36,8 +36,7 @@ jobs:
       - name: Verify clinical codes match the root reference
         run: python scripts/generate-clinical-code-reference.py --check
       - run: npm run build:demo
-      # Build a fresh artifact for every prototype commit. The checked-in ZIP may
-      # remain on a previously approved build until a workstation validation.
+      # Also verify the manifest and prevent an old prebuilt page being repackaged.
       - run: python scripts/package-demo.py
       - run: python scripts/package-demo.py --check
       - name: Package and test existing Windows launcher
@@ -71,3 +70,26 @@ jobs:
         with:
           name: Sig-Assist-Windows-Demo
           path: windows-demo/Sig-Assist-Windows-Demo.zip
+  publish-prototype:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/prototype'
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: prototype-download-publish
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run prototype:package
+      # GITHUB_TOKEN pushes do not start another push workflow. The publisher
+      # also checks the remote SHA and uses a normal, non-forced push.
+      - name: Commit current browser page and ZIP to prototype
+        run: node scripts/publish-prototype.mjs

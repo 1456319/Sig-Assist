@@ -1,10 +1,13 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getBuildIdentity, verifyBuildHtml } from './build-identity.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(root, 'dist');
 let html = (await readFile(path.join(dist, 'index.html'), 'utf8')).replace(/\r\n/g, '\n');
+const identity = getBuildIdentity(root);
+verifyBuildHtml(html, identity);
 const scriptTags = [...html.matchAll(/<script\b[^>]*\bsrc="([^"]+)"[^>]*><\/script>/g)];
 if (scriptTags.length !== 1) throw new Error('Expected exactly one bundled entry script.');
 for (const [tag, src] of scriptTags) {
@@ -20,4 +23,5 @@ for (const [tag, href] of [...html.matchAll(/<link\b[^>]*\bhref="([^"]+)"[^>]*>/
 if (/<(?:script|link)\b[^>]*(?:src|href)=/.test(html)) throw new Error('Portable page still has external dependencies.');
 await mkdir(path.join(root, 'windows-demo'), { recursive: true });
 await writeFile(path.join(root, 'windows-demo', 'index.html'), html);
+await writeFile(path.join(root, 'windows-demo', 'BUILD.json'), JSON.stringify(identity, null, 2) + '\n');
 console.log(`Built offline Windows demo (${Buffer.byteLength(html)} bytes).`);

@@ -13,8 +13,15 @@ committed. Local files and agent messages are not backups of source code.
 - With agents sharing a checkout, designate one writer for Git staging and
   remote commits. Agents report ready file lists promptly and avoid overlapping
   ownership. The coordinator checkpoints their work while other work continues.
-- Development checkpoints may use `[skip ci]`; run the required checks on the
-  completed change before describing it as validated or publishing a build.
+- Do not use `[skip ci]` or other Actions-skip directives on prototype commits.
+  Each push must run checks and automatic prototype download publication.
+- Before pushing runtime changes, run `npm run prototype:package` and include
+  `windows-demo/index.html`, `windows-demo/BUILD.json` and the demo ZIP in the
+  same checkpoint. Do not restore an older packaged build at the end of a task.
+- The prototype publish job refreshes generated downloads after successful CI
+  as a fallback for source-only commits. Verify its result before calling the
+  branch download current. An artifact attached only to CI does not update the
+  repository ZIP that the user downloads.
 - If remote preservation fails, report the blocker and prioritize saving the
   current patch through an available durable channel before expanding the work.
 

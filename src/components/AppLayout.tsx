@@ -149,8 +149,8 @@ export function AppLayout() {
               <Terminal className="w-3.5 h-3.5 text-primary" />
               <span>Trace Logs</span>
             </button>
-            <span className="text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-full border border-border uppercase tracking-wider">
-              v{__SIG_ASSIST_VERSION__}
+            <span title={`Build ${__SIG_ASSIST_BUILD__}`} className="text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-full border border-border uppercase tracking-wider">
+              v{__SIG_ASSIST_VERSION__} · {__SIG_ASSIST_BUILD__.slice(0, 8)}
             </span>
           </div>
         </header>

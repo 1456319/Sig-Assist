@@ -1,6 +1,8 @@
 # Sig-Assist
 
-**v0.1.5 · Richmond E-DC pilot.** Open the Richmond Process folder in DocuTrack and choose **Show E-DC PONs** in Order Queue. See the [technician workflow](docs/DOCUTRACK-EDC.md).
+**Prototype · Richmond E-DC pilot and SIG assistance.** The app header shows its current version and build ID. Open the Richmond Process folder in DocuTrack and choose **Show E-DC PONs** in Order Queue. See the [technician workflow](docs/DOCUTRACK-EDC.md).
+
+The prototype branch includes the compiled page and demo ZIP. After every push passes Windows/Linux checks, CI refreshes these files on the branch automatically. Wait for **MVP checks → publish-prototype** to finish before downloading a source-only update; a failed check leaves the previous package in place. Release versions identify feature batches; the build ID distinguishes source changes within a version. `windows-demo/BUILD.json` records the packaged identity. Developers can rebuild and verify both downloads with `npm run prototype:package`.
 
 
 ## Try the local review MVP

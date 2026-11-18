@@ -1,12 +1,14 @@
 {
   "name": "vite-react-typescript-starter",
   "private": true,
-  "version": "0.1.9",
+  "version": "0.1.10",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:demo": "npm run build && node scripts/build-demo.mjs",
+    "prototype:package": "npm run build:demo && python scripts/package-demo.py && npm run prototype:check",
+    "prototype:check": "node scripts/build-identity.mjs && python scripts/package-demo.py --check",
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
