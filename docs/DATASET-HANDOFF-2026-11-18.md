@@ -1,6 +1,8 @@
 # SIG dataset and prototype handoff — November 18, 2026
 
-Status: implemented and synthetic validation passed. Workstation pilot remains to be checked with dummy records. Runtime source, compiled page, BUILD.json and portable ZIP are committed together at `45ecfa4e9540d6df723ebee97354caf8a12cd9f2` on `prototype`.
+**Historical v0.1.11 checkpoint:** subsequent v0.1.12 changes and audit decisions are recorded in [the Lovable functionality review](research/lovable-audit-2026-11-18/README.md).
+
+Status at this checkpoint: implemented and synthetic validation passed. Workstation pilot remains to be checked with dummy records. Runtime source, compiled page, BUILD.json and portable ZIP are committed together at `45ecfa4e9540d6df723ebee97354caf8a12cd9f2` on `prototype`.
 
 ## Download and preservation
 

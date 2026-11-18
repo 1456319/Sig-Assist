@@ -2,9 +2,15 @@
 export function splitSupplementalDirections(rawProse: string, options?: { allowScaleActions?: boolean }): { primary: string; supplemental?: string } {
   // Every action within an insulin scale belongs to that scale.
   if (!options?.allowScaleActions && /\bSLIDING[\s-]+SCALE\b/i.test(rawProse)) return { primary: rawProse.trim() };
-  const actions = /\b(?:MAY\s+(?:GIVE|TAKE|ADMINISTER|USE|APPLY)|DO\s+NOT\b|NOT\s+TO\s+EXCEED|(?:MAXIMUM|MAX)\s+(?:OF\s+)?(?=\d)|(?:TAKE|GIVE|ADMINISTER)\s+(?=\d|ONE\b|TWO\b|HALF\b)|CHECK\b|MONITOR\b|WEIGH\b|RECHECK\b|TAKE\s+FOR\s+(?:BLOOD|BP|SBP)\b|(?:X\s*|FOR\s+(?:UP\s+TO\s+)?)(?=\d+\s+DOSES\b)|APPLY\b|WORK\s+(?:IT\s+)?IN\b|ALLOW\s+(?:IT\s+)?TO\s+SIT\b|LEAVE\s+(?:IT\s+)?(?:ON|IN)\b|REMOVE\s+PER\s+SCHEDULE\b|RINSE\b|CAN\s+SHAMPOO\b|FOLLOW\s+(?:THE\s+)?(?:TAR|MAR)\b|DRINK\s+WITH\b|ALTERNAT(?:E|ES)\s+WITH\b|HOSPICE\s+RESIDENT\b|MIX(?:ED)?\b|DISSOLVE\s+IN\b|PUT\s+(?:IN|ON)\b|REPEAT\b|DISCONTINUE\s+(?:ONCE|IF|WHEN)\b|IF\b|CALL\b|NOTIFY\b)/gi;
+  const actions = /\b(?:THEN\s+(?:AS\s+NEEDED|PRN)\b|MAY\s+(?:GIVE|TAKE|ADMINISTER|USE|APPLY)|DO\s+NOT\b|NOT\s+TO\s+EXCEED|(?:MAXIMUM|MAX)\s+(?:OF\s+)?(?=\d)|(?:TAKE|GIVE|ADMINISTER)\s+(?=\d|ONE\b|TWO\b|HALF\b)|CHECK\b|MONITOR\b|WEIGH\b|RECHECK\b|TAKE\s+FOR\s+(?:BLOOD|BP|SBP)\b|(?:X\s*|FOR\s+(?:UP\s+TO\s+)?)(?=\d+\s+DOSES\b)|APPLY\b|WORK\s+(?:IT\s+)?IN\b|ALLOW\s+(?:IT\s+)?TO\s+SIT\b|LEAVE\s+(?:IT\s+)?(?:ON|IN)\b|REMOVE\s+PER\s+SCHEDULE\b|RINSE\b|CAN\s+SHAMPOO\b|FOLLOW\s+(?:THE\s+)?(?:TAR|MAR)\b|DRINK\s+WITH\b|ALTERNAT(?:E|ES)\s+WITH\b|HOSPICE\s+RESIDENT\b|MIX(?:ED)?\b|DISSOLVE\s+IN\b|PUT\s+(?:IN|ON)\b|REPEAT\b|DISCONTINUE\s+(?:ONCE|IF|WHEN)\b|IF\b|CALL\b|NOTIFY\b)/gi;
   for (const match of rawProse.matchAll(actions)) {
     if (match.index === undefined) continue;
+    // This phase marker owns the following PRN words. An earlier comma and
+    // course duration still belong to the routine phase, not the later action.
+    if (/^THEN\s+(?:AS\s+NEEDED|PRN)\b/i.test(match[0])) return {
+      primary: rawProse.slice(0, match.index).trim().replace(/[.;,]+$/, '').trim(),
+      supplemental: rawProse.slice(match.index).trim(),
+    };
     const beforeAction = rawProse.slice(0, match.index);
     if (!options?.allowScaleActions && (match.index === 0 || !beforeAction.trim())) continue;
     // A temporal prefix before the first administration belongs to the primary
