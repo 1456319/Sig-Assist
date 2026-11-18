@@ -21,8 +21,17 @@ public static class FrameworkDesktopFixture {
         var start = new TextBox { AccessibleName = "Start date", Text = "START PRIVATE VALUE", Top = 420, Left = 20, Width = 500 };
         var password = new TextBox { AccessibleName = "Refills", Text = "PASSWORD PRIVATE VALUE", UseSystemPasswordChar = true, Top = 460, Left = 20, Width = 500 };
         var hidden = new TextBox { AccessibleName = "Delivery date", Text = "HIDDEN PRIVATE VALUE", Visible = false, Top = 500, Left = 20, Width = 500 };
-        entry.Controls.AddRange(new Control[] { pon, sig, times, second, patient, facility, drug, quantity, days, package, start, password, hidden });
-        form.Controls.Add(entry);
+        var secondSig = new TextBox { AccessibleName = "SIG", Text = "OTHER SIG PRIVATE VALUE", Visible = false, Top = 500, Left = 20, Width = 500 };
+        var sourceSig = new TextBox { Name = "OrderSigTextBox", AccessibleName = "Order SIG", Text = "SOURCE SIG PRIVATE VALUE", ReadOnly = true, Top = 540, Left = 20, Width = 240 };
+        var previewSig = new TextBox { Name = "LinkedSigTextBox", AccessibleName = "Preview SIG", Text = "PREVIEW SIG PRIVATE VALUE", ReadOnly = true, Top = 540, Left = 280, Width = 240 };
+        var richSig = new RichTextBox { Name = "paneRichEdit", AccessibleName = "SIG", Text = "RICH SIG PRIVATE VALUE", Visible = false, Top = 60, Left = 20, Width = 500, Height = 30 };
+        entry.Controls.AddRange(new Control[] { pon, sig, times, second, patient, facility, drug, quantity, days, package, start, password, hidden, secondSig, sourceSig, previewSig, richSig });
+        var orderWrapper = new Panel { Name = "ERxWorkQueueWizardView", AccessibleName = "Order wrapper", Left = 0, Top = 0, Width = 660, Height = 650 };
+        orderWrapper.Controls.Add(entry); form.Controls.Add(orderWrapper);
+        var otherOrder = new Panel { Name = "ERxWorkQueueWizardView", AccessibleName = "Other order", Visible = false, Left = 670, Top = 10, Width = 360, Height = 180 };
+        otherOrder.Controls.Add(new TextBox { AccessibleName = "PON", Text = "UNRELATED-PON", Top = 20, Left = 10, Width = 300 });
+        otherOrder.Controls.Add(new TextBox { AccessibleName = "SIG", Text = "UNRELATED SIG PRIVATE VALUE", Top = 60, Left = 10, Width = 300 });
+        form.Controls.Add(otherOrder);
         Panel decorations = null;
         var timer = new Timer { Interval = 50 }; string seen = "";
         timer.Tick += delegate {
@@ -47,6 +56,13 @@ public static class FrameworkDesktopFixture {
                 if (command.ContainsKey("sigLabel")) sig.AccessibleName = command["sigLabel"];
                 if (command.ContainsKey("readonly")) sig.ReadOnly = command["readonly"] == "true";
                 if (command.ContainsKey("duplicate")) second.Visible = command["duplicate"] == "true";
+                if (command.ContainsKey("duplicateSig")) secondSig.Visible = command["duplicateSig"] == "true";
+                if (command.ContainsKey("hidePon")) pon.Visible = command["hidePon"] != "true";
+                if (command.ContainsKey("ponOutside")) { if (command["ponOutside"] == "true") orderWrapper.Controls.Add(pon); else entry.Controls.Add(pon); }
+                if (command.ContainsKey("hideSig")) sig.Visible = command["hideSig"] != "true";
+                if (command.ContainsKey("sigPassword")) sig.UseSystemPasswordChar = command["sigPassword"] == "true";
+                if (command.ContainsKey("otherOrder")) otherOrder.Visible = command["otherOrder"] == "true";
+                if (command.ContainsKey("richSig")) { richSig.Visible = command["richSig"] == "true"; sig.Visible = !richSig.Visible; }
                 if (command.ContainsKey("snapshot")) File.WriteAllText(Path.Combine(args[0], "state.json"),
                     new JavaScriptSerializer().Serialize(new { focus = sig.Focused ? "sig" : quantity.Focused ? "quantity" : "other", decorativeControls = decorations == null ? 0 : decorations.Controls.Count }));
                 seen = text; File.WriteAllText(Path.Combine(args[0], "ack.json"), text);

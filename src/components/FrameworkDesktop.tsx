@@ -59,10 +59,11 @@ export function AdministrationTimes({ times }: { times: string[] }) {
   </aside>;
 }
 
-export function FrameworkTransfer({ detected, pon, sig, blocked, parts = [], times, onDetected }: {
+export function FrameworkTransfer({ detected, pon, sig, blocked, parts = [], times, onDetected, onVerifiedSig }: {
   detected?: FrameworkDetection; pon: string; sig: string; blocked: string | undefined;
   parts?: { id: string; label: string; sig: string; blocked?: string }[]; times: string[];
   onDetected: (result?: FrameworkDetection) => void;
+  onVerifiedSig?: (sig: string, partId?: string) => void;
 }) {
   const [matched, setMatched] = useState(false);
   const [partId, setPartId] = useState('');
@@ -99,6 +100,7 @@ export function FrameworkTransfer({ detected, pon, sig, blocked, parts = [], tim
         return;
       }
       onDetected(result.next);
+      if (field === 'sig') onVerifiedSig?.(effectiveSig, part?.id);
       toast.success(`${field === 'sig' ? 'SIG' : 'Administration times'} entered and read back. Verify Framework Preview Sig and schedule; the prescription has not been saved.`);
       for (const warning of result.warnings ?? []) toast.warning(warning);
       setStatus('Text entered and read back. Verify Framework Preview Sig and schedule before saving.');

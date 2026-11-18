@@ -17,11 +17,12 @@ subprocess.run(['node', str(demo.parent / 'scripts' / 'build-identity.mjs')], ch
 if (args.site_profile or args.pilot_log_location or args.workstation_update) and args.output.resolve().is_relative_to(demo.parent):
     parser.error("Write site-specific distributions outside the repository.")
 files = ["Start-Sig-Assist.bat", "Start-Sig-Assist.cmd", "Start-Iguana-Connector.bat", "index.html", "BUILD.json",
-         "iguana-bridge.mjs", "framework-desktop.mjs", "pilot-journal.mjs", "FrameworkDesktop.cs", "TECHNICIAN-FEEDBACK.md", "TEMPORARY-INTENSIFIED-LOGGING.md"]
+         "iguana-bridge.mjs", "framework-desktop.mjs", "pilot-journal.mjs", "FrameworkDesktop.cs", "TECHNICIAN-FEEDBACK.md", "TEMPORARY-INTENSIFIED-LOGGING.md", "SIG-DATASET.md"]
 if args.site_profile:
     files.extend(["README.txt", "IGUANA-CONNECTOR.md", "FRAMEWORK-DESKTOP.md", "DOCUTRACK-EDC.md",
                   "DESKTOP-RECOVERY-2026-10-04.md", "TRANSLATOR-2026-10-04.md", "TRANSLATOR-2026-11-09.md"])
 sources = {
+    "SIG-DATASET.md": demo.parent / "docs" / "SIG-DATASET.md",
     "TEMPORARY-INTENSIFIED-LOGGING.md": demo.parent / "docs" / "TEMPORARY-INTENSIFIED-LOGGING.md",
     "pilot-journal.mjs": demo.parent / "scripts" / "pilot-journal.mjs",
     "TECHNICIAN-FEEDBACK.md": demo.parent / "docs" / "TECHNICIAN-FEEDBACK.md",

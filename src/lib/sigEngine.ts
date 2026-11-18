@@ -1,7 +1,8 @@
 import { doseForSolidQuantity, doseForVolume, toMedicationUnit, volumeForDose } from './sigMath';
 import { isUnknownElementalCandidate } from './formulationEquivalences';
 import { looksLikeSlidingScale, parseSlidingScale } from './clinical/slidingScale';
-import { resolveFrequencyAndSchedule } from './clinical/frequencyEngine';
+import { namedMealQualifier, resolveFrequencyAndSchedule } from './clinical/frequencyEngine';
+import { splitSupplementalDirections } from './clinical/instructionClauses';
 
 /**
  * A structured foundation for free-text SIG translation. Extraction, safety
@@ -20,6 +21,7 @@ export interface ParsedSigOrder {
   prn: boolean; durationDays?: number; indication?: string; slidingScale?: SlidingScaleBand[];
   hold?: { systolicBelow?: number; heartRateBelow?: number }; dateStripped: boolean; issues: SigIssue[];
   slidingScaleSig?: string;
+  namedMealQualifier?: string;
 }
 export interface SigParseOptions { drug: string; defaultSig?: string; }
 
@@ -100,6 +102,7 @@ export function parseSigOrder(raw: string, options: SigParseOptions): ParsedSigO
   const normalized = normalizeSigText(raw).replace(/until\s+\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}:\d{2})?/i, '').trim();
   const issues: SigIssue[] = []; const slidingScale = scale(normalized, options.drug);
   const order: ParsedSigOrder = { raw, normalized, drug: options.drug, dose: parseDose(normalized, drugStrength(options.drug)), route: route(normalized), frequency: frequency(normalized), prn: /as needed|\bprn\b/.test(normalized), durationDays: Number(normalized.match(/for\s+(\d+)\s+days?/)?.[1]) || undefined, indication: indication(normalized), slidingScale, dateStripped, issues };
+  order.namedMealQualifier = namedMealQualifier(splitSupplementalDirections(normalized).primary);
   if (looksLikeSlidingScale(raw, options.drug)) {
     const resolved = resolveFrequencyAndSchedule(raw, undefined, options.drug);
     order.slidingScaleSig = resolved.slidingScaleString || raw.replace(/\s+/g, ' ').trim().toUpperCase();
@@ -125,7 +128,7 @@ function doseToken(dose: Dose, deliveryRoute?: Route): string {
 export function renderSig(order: ParsedSigOrder): string {
   if (order.slidingScaleSig !== undefined) return order.slidingScaleSig;
   if (order.slidingScale) return `CBS ${order.frequency === 'ACHS' ? 'ACHS' : 'AC'} SS ${order.slidingScale.map((band) => band.lower === undefined ? `<${band.upper! + 1}=${band.action}` : band.upper === undefined ? `>${band.lower - 1}=${band.action ?? `${number(band.dose ?? 0)}U`}` : `${band.lower}-${band.upper}=${number(band.dose ?? 0)}U`).join(';')}`;
-  const tokens: Array<string | undefined> = [order.dose && doseToken(order.dose, order.route), order.route, order.frequency, order.prn ? 'PRN' : undefined];
+  const tokens: Array<string | undefined> = [order.dose && doseToken(order.dose, order.route), order.route, order.frequency, order.namedMealQualifier, order.prn ? 'PRN' : undefined];
   if (order.prn) { tokens.push(order.indication); if (order.durationDays) tokens.push(`X${order.durationDays}D`); } else { if (order.durationDays) tokens.push(`X${order.durationDays}D`); tokens.push(order.indication); }
   if (order.hold) tokens.push(`HR${order.hold.heartRateBelow}SBP${order.hold.systolicBelow}`);
   return tokens.filter(Boolean).join(' ').toUpperCase();

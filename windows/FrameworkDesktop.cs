@@ -1078,6 +1078,136 @@ public static class FrameworkDesktop {
             throw new Exception("The folder or grid changed during the read. Refresh the Process list again.");
         return new { ok = true, diagnostics = new { confirmedFolders = 1, gridProviders = grids.Count, shapes, rows = count, unreadable }, capture = new { headers = cols.Select(c => c.h).ToArray(), rows, unreadable } };
     }
+    sealed class DatasetScope {
+        public AutomationElement element;
+        public string id;
+        public List<AutomationElement> pons = new List<AutomationElement>(), sigs = new List<AutomationElement>(), grids = new List<AutomationElement>();
+    }
+    static object DatasetFailure(string code, bool partial = false) { return new { ok = false, code, partial }; }
+    static bool DatasetView(string id) {
+        return new[] { "ERxWorkQueueWizardView", "ERxWorkQueueView", "RxEntryViewControl", "RxEntryView" }.Contains(id);
+    }
+    static bool DatasetWithin(AutomationElement element, string ancestor, EntryWindow entry) {
+        // Validate the entire live lineage, including hidden/password ancestors.
+        // Never infer association merely from sharing a process or window.
+        for (int depth = 0; element != null && depth < 32; depth++) {
+            var current = element.Current;
+            if (current.ProcessId != entry.pid || current.IsPassword || current.IsOffscreen
+                || current.ClassName == "ERxTriageManagerView" || current.AutomationId == "ERxTriageManagerView") return false;
+            if (Id(element) == ancestor) return true;
+            element = TreeWalker.ControlViewWalker.GetParent(element);
+        }
+        return false;
+    }
+    static string DatasetLabel(AutomationElement element) {
+        var current = element.Current;
+        string label = current.Name;
+        if (current.LabeledBy != null && current.LabeledBy.Current.ProcessId == current.ProcessId
+            && !current.LabeledBy.Current.IsPassword && !current.LabeledBy.Current.IsOffscreen) label = current.LabeledBy.Current.Name;
+        return Regex.Replace((label ?? "").Replace("&", "").Trim().TrimEnd(':').Trim(), @"\s+", " ");
+    }
+    static string DatasetText(AutomationElement element, DatasetScope scope, EntryWindow entry, int limit) {
+        if (!DatasetWithin(element, scope.id, entry)) throw new InvalidOperationException();
+        object pattern;
+        string value;
+        if (element.TryGetCurrentPattern(ValuePattern.Pattern, out pattern)) value = ((ValuePattern)pattern).Current.Value;
+        else if (element.TryGetCurrentPattern(TextPattern.Pattern, out pattern)) value = ((TextPattern)pattern).DocumentRange.GetText(limit + 1);
+        else throw new InvalidOperationException();
+        if (value == null || value.Length > limit) throw new InvalidOperationException();
+        return value;
+    }
+    static string[] DatasetPons(DatasetScope scope, EntryWindow entry, Stopwatch watch) {
+        var values = new List<string>();
+        foreach (var element in scope.pons) {
+            if (watch.ElapsedMilliseconds >= 3000 || !DatasetWithin(element, scope.id, entry)) throw new InvalidOperationException();
+            string label = DatasetLabel(element), value = "";
+            var inline = PonInline.Match(Trim(element.Current.Name));
+            if (inline.Success) value = inline.Groups[1].Value;
+            else if (PonLabel.IsMatch(label)) value = Trim(DatasetText(element, scope, entry, 100));
+            else throw new InvalidOperationException();
+            if (ValidPon(value)) values.Add(value);
+        }
+        foreach (var grid in scope.grids) {
+            if (watch.ElapsedMilliseconds >= 3000 || !DatasetWithin(grid, scope.id, entry)) throw new InvalidOperationException();
+            var info = new GridInfo();
+            // VisibleRows only snapshots exposed cells. No GridPattern.GetItem,
+            // Realize, scrolling, activation or accessibility recovery is used.
+            var rows = VisibleRows(grid, info, "dataset-visible", false, 0, watch, 3000);
+            if (info.viewports.Any(v => v.limited || !String.IsNullOrEmpty(v.error))) throw new InvalidOperationException();
+            values.AddRange(rows.Where(r => PonTitle(r.title) && ValidPon(r.value)).Select(r => r.value));
+        }
+        return values.Distinct(StringComparer.Ordinal).OrderBy(x => x, StringComparer.Ordinal).ToArray();
+    }
+    // Explicit local dataset capture, separate from privacy-preserving Observe.
+    // This reports a currently exposed SIG observation, never a saved Rx or a
+    // confirmed human final. Real-site value/label bindings still need validation.
+    static object DatasetSnapshot(EntryWindow entry, string testProcess) {
+        if (entry == null) return DatasetFailure("SELECTION_REQUIRED");
+        AutomationElement root;
+        try { root = RememberedRoot(entry, testProcess); }
+        catch { return DatasetFailure("WINDOW_UNAVAILABLE"); }
+        var watch = Stopwatch.StartNew();
+        try {
+            var names = new[] { "ERxWorkQueueWizardView", "ERxWorkQueueView", "RxEntryViewControl", "RxEntryView" };
+            var conditions = names.SelectMany(n => new Condition[] {
+                new PropertyCondition(AutomationElement.AutomationIdProperty, n), new PropertyCondition(AutomationElement.ClassNameProperty, n) }).ToArray();
+            var candidates = root.FindAll(TreeScope.Descendants, new OrCondition(conditions)).Cast<AutomationElement>().Take(33).ToList();
+            if (candidates.Count > 32 || watch.ElapsedMilliseconds >= 3000) return DatasetFailure("READ_LIMIT", true);
+            if ((DatasetView(root.Current.AutomationId) || DatasetView(root.Current.ClassName))) candidates.Add(root);
+            var visible = candidates.Where(e => DatasetWithin(e, entry.id, entry)).ToArray();
+            // Prefer the smallest recognized order container. A broad work-queue
+            // ancestor must never join a queue PON to a nested editor's SIG.
+            // If identity is outside this scope, report it unavailable.
+            var scopes = visible.Where(e => !visible.Any(other => Id(other) != Id(e) && DatasetWithin(other, Id(e), entry))).ToArray();
+            if (scopes.Length == 0) return DatasetFailure("CURRENT_ORDER_UNAVAILABLE");
+            if (scopes.Length != 1) return DatasetFailure("CURRENT_ORDER_AMBIGUOUS");
+            var scope = new DatasetScope { element = scopes[0], id = Id(scopes[0]) };
+            var request = ObservationIdentityRequest();
+            var pending = new Stack<KeyValuePair<AutomationElement, int>>();
+            pending.Push(new KeyValuePair<AutomationElement, int>(scope.element.GetUpdatedCache(request), 0));
+            int visited = 0;
+            while (pending.Count > 0) {
+                if (++visited > 640 || watch.ElapsedMilliseconds >= 3000) return DatasetFailure("READ_LIMIT", true);
+                var next = pending.Pop(); var element = next.Key;
+                if (ObservationBoolean(element, AutomationElement.IsPasswordProperty) || ObservationBoolean(element, AutomationElement.IsOffscreenProperty)
+                    || !Object.Equals(Cached(element, AutomationElement.ProcessIdProperty), entry.pid)) continue;
+                string id = Text(Cached(element, AutomationElement.AutomationIdProperty)), cls = Text(Cached(element, AutomationElement.ClassNameProperty));
+                if (id == "ERxTriageManagerView" || cls == "ERxTriageManagerView") continue;
+                var type = Cached(element, AutomationElement.ControlTypeProperty) as ControlType;
+                if (id == "ERxGrid" && type == ControlType.DataGrid) { scope.grids.Add(element); continue; }
+                string label = DatasetLabel(element);
+                if ((PonLabel.IsMatch(label) && Object.Equals(Cached(element, AutomationElement.IsValuePatternAvailableProperty), true))
+                    || PonInline.IsMatch(Trim(Text(Cached(element, AutomationElement.NameProperty))))) scope.pons.Add(element);
+                // Exact labels keep incoming/linked/preview directions distinct.
+                // A familiar automation ID alone does not establish final SIG semantics.
+                if ((type == ControlType.Edit || type == ControlType.Document)
+                    && Regex.IsMatch(label, @"^(?:SIG|Prescription SIG|SIG code)$", RegexOptions.IgnoreCase)) scope.sigs.Add(element);
+                var child = TreeWalker.ControlViewWalker.GetFirstChild(element, request);
+                if (next.Value >= 24 && child != null) return DatasetFailure("READ_LIMIT", true);
+                int siblings = 0;
+                while (child != null) {
+                    if (++siblings > 640 || watch.ElapsedMilliseconds >= 3000) return DatasetFailure("READ_LIMIT", true);
+                    pending.Push(new KeyValuePair<AutomationElement, int>(child, next.Value + 1));
+                    child = TreeWalker.ControlViewWalker.GetNextSibling(child, request);
+                }
+            }
+            var before = DatasetPons(scope, entry, watch);
+            if (before.Length == 0) return DatasetFailure("PON_UNAVAILABLE");
+            if (before.Length != 1) return DatasetFailure("PON_AMBIGUOUS");
+            if (scope.sigs.Count == 0) return DatasetFailure("SIG_UNAVAILABLE");
+            if (scope.sigs.Count != 1) return DatasetFailure("SIG_AMBIGUOUS");
+            var sigElement = scope.sigs[0];
+            if (!Regex.IsMatch(DatasetLabel(sigElement), @"^(?:SIG|Prescription SIG|SIG code)$", RegexOptions.IgnoreCase)) return DatasetFailure("ORDER_CHANGED");
+            string sig;
+            try { sig = DatasetText(sigElement, scope, entry, 4000); }
+            catch { return DatasetFailure("SIG_UNAVAILABLE"); }
+            if (String.IsNullOrWhiteSpace(sig) || sig.Any(c => Char.IsControl(c) && c != '\n' && c != '\r' && c != '\t')) return DatasetFailure("SIG_UNAVAILABLE");
+            var after = DatasetPons(scope, entry, watch);
+            RememberedRoot(entry, testProcess);
+            if (!DatasetWithin(scope.element, entry.id, entry) || !before.SequenceEqual(after)) return DatasetFailure("ORDER_CHANGED");
+            return new { ok = true, code = "OK", pon = before[0], sig, partial = false };
+        } catch { return DatasetFailure(watch.ElapsedMilliseconds >= 3000 ? "READ_LIMIT" : "DATASET_SNAPSHOT_FAILED", true); }
+    }
     // TEMPORARY_INTENSIFIED_LOGGING_REMOVAL_PRIORITY_HIGH
     // Passive and separate from Scan/ReadGrid: never activate, focus, scroll,
     // realize a grid cell, enable accessibility recovery, invoke, or write.
@@ -1312,6 +1442,7 @@ public static class FrameworkDesktop {
             bool positionReview = input.ContainsKey("positionReview") && Object.Equals(input["positionReview"], true);
             if (action == "window") { Console.WriteLine(Serialize(ChooseEntryWindow(testProcess, positionReview))); return 0; }
             var entry = input.ContainsKey("entryWindow") ? InputWindow(input["entryWindow"]) : null;
+            if (action == "dataset-snapshot") { Console.WriteLine(Serialize(DatasetSnapshot(entry, testProcess))); return 0; }
             if (action == "observe") { Console.WriteLine(Serialize(Observe(entry, input.ContainsKey("key") ? Text(input["key"]) : "", testProcess,
                 input.ContainsKey("scanOffset") ? Convert.ToInt32(input["scanOffset"]) : 0))); return 0; }
             if (action == "send") {

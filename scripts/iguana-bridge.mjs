@@ -301,7 +301,7 @@ export function createBridge({ htmlPath = defaultHtmlPath(), fetchImpl = fetch, 
       }
       return;
     }
-    if (request.method === 'POST' && /^\/connector\/desktop\/(detect|inspect|target|send|docutrack)$/.test(request.url ?? '')) {
+    if (request.method === 'POST' && /^\/connector\/desktop\/(detect|inspect|target|send|docutrack|dataset-snapshot)$/.test(request.url ?? '')) {
       // Local UI writes require a JSON request from this served page, never a
       // form POST from another site. No CORS access is granted.
       if (request.headers['content-type'] !== 'application/json' || (request.headers.origin && request.headers.origin !== `http://${request.headers.host}`) || request.headers['sec-fetch-site'] === 'cross-site') {

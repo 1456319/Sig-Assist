@@ -18,6 +18,8 @@ import { IguanaConnectorPanel } from './IguanaConnectorPanel';
 import { matchesOrderQuery } from '../lib/orderSearch';
 import { AdministrationTimes, FrameworkTransfer } from './FrameworkDesktop';
 import type { FrameworkDetection } from '../lib/frameworkDesktop';
+import { orderDatasetInput, queueSigSample } from '../lib/sigDatasetCapture';
+import { SigDatasetConfirmation } from './SigDatasetPanel';
 
 import { DocuTrackQueue, EdcWarning } from './DocuTrackQueue';
 import { edcMatch, type EdcSnapshot } from '../lib/docutrackQueue';
@@ -60,6 +62,10 @@ export function OrderQueueView() {
       traceId
     }, { exclusions });
   }, [selected, exclusions]);
+  const baselineSig = useMemo(() => selectedDirections === undefined ? undefined : getCachedClinicalSig({
+    id: selected?.id || 'dataset-baseline', pon: selected?.pon || '', drugName: selectedDrug || '', rawProse: selectedDirections,
+    defaultSigTemplate: selectedDefaultSig, sourceFormat: 'manual_text',
+  }).primarySig, [selectedDirections, selectedDrug, selectedDefaultSig, selected?.id, selected?.pon]);
 
   useEffect(() => {
     if (selected) {
@@ -296,6 +302,7 @@ export function OrderQueueView() {
               onCopySubOrder={(subOrder, draftSig, stamp) => {
                 if (selected.cancelled || selected.intakeHold || reviseId === selected.id) return;
                 const effectiveStamp = stamp || reviewStamp(subOrder.suggestedSig, draftSig, exclusions, policyRevision);
+                void queueSigSample(orderDatasetInput(selected, 'reviewed_copy', { suggestion: subOrder.suggestedSig, generatedSig: baselineSig, finalSig: draftSig, partId: subOrder.id, exclusions }));
                 updateSelected(order => ({
                   ...order,
                   subOrderCopied: { ...(order.subOrderCopied || {}), [subOrder.id]: effectiveStamp }
@@ -309,7 +316,11 @@ export function OrderQueueView() {
               onEdit={draft => updateSelected(order => editDraft(order, draft))}
               onResetSuggestion={() => updateSelected(order => editDraft(order, clinicalResult?.primarySig || parsed?.sig || selected.draft))}
               onApprove={approved => updateSelected(order => ({ ...order, approved, copied: undefined }))}
-              onCopied={stamp => updateSelected(order => order.approved === stamp && reviewStamp(sourceStamp(order), order.draft, exclusions, policyRevision) === stamp ? { ...order, copied: stamp } : order)} />
+              onCopied={stamp => {
+                if (selected.approved !== stamp || reviewStamp(sourceStamp(selected), selected.draft, exclusions, policyRevision) !== stamp) return;
+                void queueSigSample(orderDatasetInput(selected, 'reviewed_copy', { suggestion: clinicalResult?.primarySig || parsed?.sig, generatedSig: baselineSig, finalSig: finalSig(selected.draft), exclusions }));
+                updateSelected(order => order.approved === stamp && reviewStamp(sourceStamp(order), order.draft, exclusions, policyRevision) === stamp ? { ...order, copied: stamp } : order);
+              }} />
           )}
           <FrameworkTransfer key={`${sourceStamp(selected)}:${desktop?.token}`} detected={desktop}
             pon={selected.pon} sig={finalSig(selected.draft)} times={selected.iguana?.administrationTimes ?? []}
@@ -318,7 +329,11 @@ export function OrderQueueView() {
               return { id: sub.id, label: sub.label, sig: finalSig(draft), blocked: copyBlockReason(sub.suggestedSig, draft, exclusions, selected.subOrderApprovals?.[sub.id], selected.cancelled || !!selected.intakeHold || reviseId === selected.id, policyRevision) };
             }) : []}
             blocked={copyBlockReason(sourceStamp(selected), selected.draft, exclusions, selected.approved, selected.cancelled || !!selected.intakeHold || reviseId === selected.id, policyRevision)}
-            onDetected={setDesktop} />
+            onDetected={setDesktop}
+            onVerifiedSig={(sig, partId) => { void queueSigSample(orderDatasetInput(selected, 'verified_transfer', { suggestion: clinicalResult?.primarySig || parsed?.sig, generatedSig: baselineSig, finalSig: sig, partId, exclusions })); }} />
+          {!selected.cancelled && !selected.intakeHold && reviseId !== selected.id && <SigDatasetConfirmation
+            key={`dataset:${selected.id}:${selected.revision}`} order={selected} suggestion={clinicalResult?.primarySig || parsed?.sig || ''} generatedSig={baselineSig} exclusions={exclusions}
+            parts={(clinicalResult?.subOrders.length || 0) > 1 ? clinicalResult!.subOrders.map(sub => ({ id: sub.id, label: sub.label, sig: selected.subOrderDrafts?.[sub.id] ?? sub.suggestedSig })) : []} />}
           <DiscrepancyPanel key={`report:${selected.id}:${selected.revision}`}
             pon={selected.pon} drugName={selected.drug} rawProse={selected.directions}
             generatedSig={clinicalResult?.primarySig || parsed?.sig || ''}

@@ -46,6 +46,30 @@ try {
   assert.equal(entry.scanMode, 'chosen-entry');
   const remembered = await run({ action: 'detect', entryWindow: entry.entryWindow });
   assert.equal(remembered.pon, 'SYNTHETIC-1'); assert.equal(remembered.diagnostics.windowsScanned, 1);
+  // The dataset reader is a separate passive action. It does not recover,
+  // scroll, transfer, infer completion, or return unrelated field values.
+  assert.equal((await run({ action: 'dataset-snapshot' })).code, 'SELECTION_REQUIRED');
+  const dataset = () => run({ action: 'dataset-snapshot', entryWindow: entry.entryWindow });
+  const captured = await dataset();
+  assert.deepEqual(captured, { ok: true, code: 'OK', pon: 'SYNTHETIC-1', sig: 'OLD SIG', partial: false });
+  assert.doesNotMatch(JSON.stringify(captured), /SOURCE SIG|PREVIEW SIG|PAT-1|FAC-1|Synthetic tablet|PRIVATE VALUE/);
+  await command({ pon: 'SYNTHETIC:0003', sig: 'HUMAN EDIT OBSERVED', focus: 'quantity' });
+  assert.deepEqual(await dataset(), { ok: true, code: 'OK', pon: 'SYNTHETIC:0003', sig: 'HUMAN EDIT OBSERVED', partial: false });
+  await command({ snapshot: 'true' });
+  assert.equal(JSON.parse(await readFile(path.join(folder, 'state.json'), 'utf8')).focus, 'quantity');
+  await command({ duplicate: 'true' }); assert.equal((await dataset()).code, 'PON_AMBIGUOUS');
+  await command({ duplicate: 'false', duplicateSig: 'true' }); assert.equal((await dataset()).code, 'SIG_AMBIGUOUS');
+  await command({ duplicateSig: 'false', hidePon: 'true' }); assert.equal((await dataset()).code, 'PON_UNAVAILABLE');
+  await command({ hidePon: 'false', ponOutside: 'true' }); assert.equal((await dataset()).code, 'PON_UNAVAILABLE');
+  await command({ ponOutside: 'false', hideSig: 'true' }); assert.equal((await dataset()).code, 'SIG_UNAVAILABLE');
+  await command({ hideSig: 'false', sigPassword: 'true' }); assert.equal((await dataset()).code, 'SIG_UNAVAILABLE');
+  await command({ sigPassword: 'false', sigLabel: 'Linked SIG' }); assert.equal((await dataset()).code, 'SIG_UNAVAILABLE');
+  await command({ sigLabel: 'SIG', otherOrder: 'true' }); assert.equal((await dataset()).code, 'CURRENT_ORDER_AMBIGUOUS');
+  await command({ otherOrder: 'false', readonly: 'true' }); assert.equal((await dataset()).sig, 'HUMAN EDIT OBSERVED');
+  await command({ richSig: 'true' }); assert.equal((await dataset()).sig, 'RICH SIG PRIVATE VALUE');
+  await command({ richSig: 'false', sig: 'x'.repeat(4001) }); assert.equal((await dataset()).code, 'SIG_UNAVAILABLE');
+  assert.equal((await run({ action: 'dataset-snapshot', entryWindow: { ...entry.entryWindow, id: 'replaced-window' } })).code, 'WINDOW_UNAVAILABLE');
+  await command({ pon: 'SYNTHETIC-1', sig: 'OLD SIG', readonly: 'false' });
   const written = await run({ action: 'send', expected: first, field: 'sig', value: '1T PO BID — REVIEWED' });
   assert.equal(written.verified, true, JSON.stringify(written));
   const times = await run({ action: 'send', expected: written.detected, field: 'times', value: '0800, 2000' });
@@ -119,6 +143,6 @@ try {
   assert.equal((await run({ action: 'detect', entryWindow: entry.entryWindow })).fields.sig, undefined); // custom label remains unchanged
   const unavailable = await run({ action: 'observe', key, entryWindow: { ...entry.entryWindow, id: 'replaced-window' } });
   assert.equal(unavailable.code, 'WINDOW_UNAVAILABLE');
-  console.log('Windows UI Automation passed: PON detection, SIG/times read-back, reviewed transfer, readonly refusal, explicit selection, wide-tree field reach, fresh value tokens and passive focus/privacy checks.');
+  console.log('Windows UI Automation passed: passive dataset association/refusals, PON detection, SIG/times read-back, reviewed transfer, readonly refusal, explicit selection, wide-tree field reach, fresh value tokens and passive focus/privacy checks.');
 
 } finally { app?.kill(); await rm(folder, { recursive: true, force: true, maxRetries: 8, retryDelay: 150 }); }

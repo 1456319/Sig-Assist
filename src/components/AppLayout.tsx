@@ -24,6 +24,7 @@ import { OrderQueueView } from './OrderQueueView';
 import { TraceLogDrawer } from './TraceLogDrawer';
 import { TechnicianFeedback } from './TechnicianFeedback';
 import { IntensifiedLogging } from './IntensifiedLogging';
+import { SigDatasetPanel } from './SigDatasetPanel';
 import { observeCustomizationCounts, recordPilotEvent } from '../lib/pilotDiagnostics';
 
 export type AppView = 'queue' | 'workbench' | 'dictionary' | 'rules' | 'expansions' | 'settings';
@@ -155,6 +156,7 @@ export function AppLayout() {
           </div>
         </header>
         <IntensifiedLogging screen={activeView} />
+        <SigDatasetPanel />
 
         {/* View */}
         <main className="flex-1 overflow-auto scrollbar-thin">

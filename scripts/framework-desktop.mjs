@@ -75,7 +75,7 @@ export async function runDesktopHelper(input, { getExecutable = helperExecutable
   try { exe = await getExecutable(); }
   catch (error) { throw helperFailure(error?.message || 'Desktop helper could not start.', failureReasons.has(error?.failureReason) ? error.failureReason : 'HELPER_STARTUP_FAILED', error?.helperDurationMs ?? performance.now() - started); }
   let output;
-  try { output = await execute(exe, [], JSON.stringify(input), input.action === 'observe' ? 8000 : input.action === 'window' ? 55000 : ['detect', 'inspect', 'docutrack'].includes(input.action) ? 45000 : 20000); }
+  try { output = await execute(exe, [], JSON.stringify(input), ['observe', 'dataset-snapshot'].includes(input.action) ? 8000 : input.action === 'window' ? 55000 : ['detect', 'inspect', 'docutrack'].includes(input.action) ? 45000 : 20000); }
   catch (error) { throw helperFailure(error?.message || 'Desktop helper could not run.', error?.failureReason, error?.helperDurationMs ?? performance.now() - started); }
   try {
     const result = JSON.parse(output);
@@ -109,12 +109,27 @@ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } 
   return async function desktop(action, body = {}) {
     // A clinical request waits for the bounded passive read already in flight;
     // it must not fail merely because the recorder briefly owns the helper.
-    if (action !== 'observe' && observationDone) await observationDone;
+    const passive = action === 'observe' || action === 'dataset-snapshot';
+    if (!passive && observationDone) await observationDone;
     if (busy) return { ok: false, code: 'BUSY', error: 'A Framework desktop operation is already running.' };
     busy = true;
-    if (action === 'observe') observationDone = new Promise(resolve => { finishObservation = resolve; });
+    if (passive) observationDone = new Promise(resolve => { finishObservation = resolve; });
     let writeStarted = false;
     try {
+      // Separate local dataset reader. Never reuse a write token, discover a
+      // window, or pass a page-supplied selector to the native helper.
+      if (action === 'dataset-snapshot') {
+        if (!entryWindow) return { ok: false, code: 'SELECTION_REQUIRED' };
+        try {
+          const result = await run({ action: 'dataset-snapshot', entryWindow });
+          // Do not forward arbitrary helper diagnostics, selectors or values.
+          const codes = new Set(['OK', 'WINDOW_UNAVAILABLE', 'CURRENT_ORDER_UNAVAILABLE', 'CURRENT_ORDER_AMBIGUOUS', 'PON_UNAVAILABLE', 'PON_AMBIGUOUS', 'SIG_UNAVAILABLE', 'SIG_AMBIGUOUS', 'ORDER_CHANGED', 'READ_LIMIT', 'DATASET_SNAPSHOT_FAILED']);
+          const code = codes.has(result?.code) ? result.code : 'DATASET_SNAPSHOT_FAILED';
+          const valid = result?.ok === true && code === 'OK' && typeof result.pon === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,99}$/.test(result.pon) && result.pon !== 'PON' && typeof result.sig === 'string' && result.sig.trim() && result.sig.length <= 4000 && result.partial !== true;
+          if (!valid) return { ok: false, code: code === 'OK' ? 'DATASET_SNAPSHOT_FAILED' : code, ...(result?.partial === true ? { partial: true } : {}) };
+          return { ok: true, code: 'OK', pon: result.pon, sig: result.sig, observedAt: new Date(now()).toISOString(), partial: false };
+        } catch { return { ok: false, code: 'DATASET_SNAPSHOT_FAILED' }; }
+      }
       // TEMPORARY_INTENSIFIED_LOGGING_REMOVAL_PRIORITY_HIGH. Server-only caller;
       // no discovery/recovery and never accepts a browser-supplied window selector.
       if (action === 'observe') {
@@ -153,6 +168,6 @@ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } 
       if (result.ok && result.verified && result.detected?.ok) return { ok: true, verified: true, field: body.field, warnings: result.warnings ?? [], next: remember(result.detected) };
       return { ...result, ok: false };
     } catch (error) { return { ok: false, uncertain: writeStarted, error: error.message }; }
-    finally { busy = false; if (action === 'observe') { const finish = finishObservation; observationDone = undefined; finishObservation = undefined; finish?.(); } }
+    finally { busy = false; if (passive) { const finish = finishObservation; observationDone = undefined; finishObservation = undefined; finish?.(); } }
   };
 }

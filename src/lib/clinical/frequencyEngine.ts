@@ -22,6 +22,11 @@ export interface FrequencyScheduleResult {
   readonly requiresManualTranslation?: boolean;
 }
 
+/** A named meal list is more specific than WITH MEALS; preserve its full scope. */
+export function namedMealQualifier(primaryProse: string): string | undefined {
+  return primaryProse.toUpperCase().match(/\bWITH\s+(?:BREAKFAST|LUNCH|DINNER|SUPPER)\b(?:\s*(?:,\s*(?:(?:AND|OR)\s+)?|(?:AND|OR)\s+|[&/]\s*)(?:WITH\s+)?(?:BREAKFAST|LUNCH|DINNER|SUPPER)\b)+/)?.[0].replace(/\s+/g, ' ').trim();
+}
+
 function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?: string, drugName?: string): FrequencyScheduleResult {
   const scaleCandidate = looksLikeSlidingScale(rawProse, drugName);
   const upper = normalizeNumericDirections(scaleCandidate ? rawProse : splitSupplementalDirections(rawProse).primary)
@@ -229,7 +234,14 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     }
   }
 
-  if (/\bWITH BREAKFAST\b/.test(scheduleProse)) {
+  const namedMeals = namedMealQualifier(scheduleProse);
+  if (namedMeals) {
+    // Do not infer a daily count from the number of named meals or let the
+    // single-breakfast shorthand silently discard the later meal(s).
+    frequencyToken = [frequencyToken, namedMeals].filter(Boolean).join(' ');
+    abnormalities.push({ id: 'named_meal_schedule_retained', tier: 'uncorrected_gap', title: 'Named Meal Timing Retained',
+      message: 'The named meals were kept beside the supplied frequency. Verify that the frequency and named meal timing agree before copying.', trigger: namedMeals });
+  } else if (/\bWITH BREAKFAST\b/.test(scheduleProse)) {
     frequencyToken = ['QD', 'QAM', ''].includes(frequencyToken) ? 'QDW/B' : `${frequencyToken} WITH BREAKFAST`;
   }
   if (/\bWITH\s+(?:EACH\s+)?(?:MEALS?|FOOD)\b/i.test(scheduleProse) || /\bWM\b/.test(scheduleProse)) {

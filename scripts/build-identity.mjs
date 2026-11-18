@@ -10,7 +10,7 @@ const inputs = [
   'scripts/iguana-bridge.mjs', 'scripts/framework-desktop.mjs', 'scripts/pilot-journal.mjs',
   'windows/FrameworkDesktop.cs', 'windows/Start-Sig-Assist.cmd', 'windows/Start-Sig-Assist-LAN.cmd',
   'windows-demo/Start-Sig-Assist.bat', 'windows-demo/Start-Iguana-Connector.bat',
-  'docs/TECHNICIAN-FEEDBACK.md', 'docs/TEMPORARY-INTENSIFIED-LOGGING.md',
+  'docs/TECHNICIAN-FEEDBACK.md', 'docs/TEMPORARY-INTENSIFIED-LOGGING.md', 'docs/SIG-DATASET.md',
 ];
 
 export function buildInputPaths(root = projectRoot) {
