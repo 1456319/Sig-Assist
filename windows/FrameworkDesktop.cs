@@ -10,6 +10,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Web.Script.Serialization;
 using System.Windows.Automation;
+using System.Windows.Automation.Text;
 using Accessibility;
 
 public sealed class ControlInfo {
