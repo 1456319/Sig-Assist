@@ -1106,20 +1106,40 @@ public static class FrameworkDesktop {
             && !current.LabeledBy.Current.IsPassword && !current.LabeledBy.Current.IsOffscreen) label = current.LabeledBy.Current.Name;
         return Regex.Replace((label ?? "").Replace("&", "").Trim().TrimEnd(':').Trim(), @"\s+", " ");
     }
+    static string DatasetDocumentText(TextPattern pattern, int limit, bool proveComplete) {
+        // Rich-edit providers append a terminal paragraph marker. Read beyond
+        // text plus marker before normalization; never accept a clipped prefix.
+        var document = pattern.DocumentRange;
+        string value = document.GetText(limit + 2);
+        if (value == null || value.Length > limit + 1) throw new InvalidOperationException();
+        if (proveComplete) {
+            // An independent range must span the entire document, not merely
+            // reproduce a provider-clipped prefix of the ValuePattern result.
+            if (value.Length == 0) throw new InvalidOperationException();
+            var matched = document.FindText(value, false, false);
+            if (matched == null || matched.CompareEndpoints(TextPatternRangeEndpoint.Start, document, TextPatternRangeEndpoint.Start) != 0
+                || matched.CompareEndpoints(TextPatternRangeEndpoint.End, document, TextPatternRangeEndpoint.End) != 0) throw new InvalidOperationException();
+        }
+        if (value.EndsWith("\r\n", StringComparison.Ordinal)) value = value.Substring(0, value.Length - 2);
+        else if (value.EndsWith("\r", StringComparison.Ordinal) || value.EndsWith("\n", StringComparison.Ordinal)) value = value.Substring(0, value.Length - 1);
+        if (value.Length > limit) throw new InvalidOperationException();
+        return value;
+    }
     static string DatasetText(AutomationElement element, DatasetScope scope, EntryWindow entry, int limit) {
         if (!DatasetWithin(element, scope.id, entry)) throw new InvalidOperationException();
         object pattern;
         string value;
-        if (element.TryGetCurrentPattern(ValuePattern.Pattern, out pattern)) value = ((ValuePattern)pattern).Current.Value;
-        else if (element.TryGetCurrentPattern(TextPattern.Pattern, out pattern)) {
-            // Rich-edit providers append a terminal paragraph marker. Read one
-            // character beyond the largest acceptable text plus marker before
-            // removing it, so a truncated overlength document cannot be accepted.
-            value = ((TextPattern)pattern).DocumentRange.GetText(limit + 2);
-            if (value == null || value.Length > limit + 1) throw new InvalidOperationException();
-            if (value.EndsWith("\r\n", StringComparison.Ordinal)) value = value.Substring(0, value.Length - 2);
-            else if (value.EndsWith("\r", StringComparison.Ordinal) || value.EndsWith("\n", StringComparison.Ordinal)) value = value.Substring(0, value.Length - 1);
+        if (element.TryGetCurrentPattern(ValuePattern.Pattern, out pattern)) {
+            value = ((ValuePattern)pattern).Current.Value;
+            // Windows synthetic evidence establishes stable ValuePattern
+            // clipping at 2000 characters for a longer plain edit. That boundary
+            // is ambiguous unless an independent complete TextPattern is proven.
+            if (value != null && value.Length >= 2000) {
+                if (!element.TryGetCurrentPattern(TextPattern.Pattern, out pattern)) throw new InvalidOperationException();
+                return DatasetDocumentText((TextPattern)pattern, limit, true);
+            }
         }
+        else if (element.TryGetCurrentPattern(TextPattern.Pattern, out pattern)) return DatasetDocumentText((TextPattern)pattern, limit, false);
         else throw new InvalidOperationException();
         if (value == null || value.Length > limit) throw new InvalidOperationException();
         return value;

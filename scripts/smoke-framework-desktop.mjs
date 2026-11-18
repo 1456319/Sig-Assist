@@ -66,6 +66,7 @@ try {
   await command({ sigPassword: 'false', sigLabel: 'Linked SIG' }); assert.equal((await dataset()).code, 'SIG_UNAVAILABLE');
   await command({ sigLabel: 'SIG', otherOrder: 'true' }); assert.equal((await dataset()).code, 'CURRENT_ORDER_AMBIGUOUS');
   await command({ otherOrder: 'false', readonly: 'true' }); assert.equal((await dataset()).sig, 'HUMAN EDIT OBSERVED');
+  await command({ sig: 'x'.repeat(1999) }); assert.equal((await dataset()).sig, 'x'.repeat(1999));
   await command({ richSig: 'true' }); assert.equal((await dataset()).sig, 'RICH SIG PRIVATE VALUE');
   await command({ richSigText: 'FIRST LINE\nSECOND LINE' }); assert.equal((await dataset()).sig, 'FIRST LINE\rSECOND LINE');
   await command({ richSigText: 'x'.repeat(4000) }); assert.equal((await dataset()).sig, 'x'.repeat(4000));

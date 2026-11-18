@@ -22,6 +22,9 @@ import { translateClinicalSig } from '../lib/clinical/clinicalEngine';
 import { parseInboundOrder } from '../lib/clinical/inboundParser';
 import type { ClinicalSigResult, InboundOrder } from '../lib/clinical/types';
 import { HL7_SAMPLE } from '../lib/clinical/fixtures';
+import { queueSigSample } from '../lib/sigDatasetCapture';
+import { SigDatasetConfirmation } from './SigDatasetPanel';
+import type { QueueOrder } from '../lib/orderQueue';
 
 const FREETEXT_SAMPLE = 'Take 1 tablet twice daily after meals prn';
 
@@ -113,7 +116,7 @@ function TraceStepCard({ step, defaultOpen }: { step: TraceStep; defaultOpen?: b
   );
 }
 
-function WorkbenchReview({ result, source }: { result: ParseResult; source: string }) {
+function WorkbenchReview({ result, source, datasetOrder }: { result: ParseResult; source: string; datasetOrder: QueueOrder }) {
   const [draft, setDraft] = useState(result.finalSig.toUpperCase());
   const [approved, setApproved] = useState<string>();
   const isUserEditedRef = useRef(false);
@@ -129,7 +132,8 @@ function WorkbenchReview({ result, source }: { result: ParseResult; source: stri
     }
   }, [result.finalSig]);
 
-  return <SigReviewPanel source={source} suggestion={result.finalSig} draft={draft} approved={approved}
+  const { exclusions } = useReviewSession();
+  return <><SigReviewPanel source={source} suggestion={result.finalSig} draft={draft} approved={approved}
     unavailable={result.inputMode === 'hl7' && !!result.hl7Extraction?.warning}
     warnings={result.steps.flatMap(step => step.warnings)}
     onEdit={value => {
@@ -142,13 +146,18 @@ function WorkbenchReview({ result, source }: { result: ParseResult; source: stri
       setDraft(result.finalSig.toUpperCase());
       setApproved(undefined);
     }}
-    onApprove={setApproved} />;
+    onApprove={setApproved}
+    onCopied={() => { void queueSigSample({ orderKey: datasetOrder.id, revision: 1, stage: 'reviewed_copy', captureKind: 'erx_source', origin: 'manual',
+      drug: datasetOrder.drug, rawSig: datasetOrder.directions, defaultSigTemplate: datasetOrder.defaultSig, suggestedSig: result.finalSig, finalSig: draft.trim().toUpperCase(), exclusions }); }} />
+    <SigDatasetConfirmation order={{ ...datasetOrder, draft }} suggestion={result.finalSig} exclusions={exclusions} />
+  </>;
 }
 
 export function WorkbenchView() {
   const { exclusions, policyRevision } = useReviewSession();
   const [inputMode, setInputMode] = useState<InputMode>('freetext');
   const [rawInput, setRawInput] = useState('');
+  const [datasetPartDrafts, setDatasetPartDrafts] = useState<Record<string, string>>({});
   const [dictionary, setDictionary] = useState<SigDictionaryEntry[]>([]);
   const [techRules, setTechRules] = useState<TechRule[]>([]);
   const [expansions, setExpansions] = useState<SigExpansion[]>([]);
@@ -157,6 +166,7 @@ export function WorkbenchView() {
   
   const [drugName, setDrugName] = useState('');
   const [defaultSig, setDefaultSig] = useState('');
+  useEffect(() => setDatasetPartDrafts({}), [rawInput, inputMode, drugName, defaultSig]);
   
   const diagnosticSinkRef = useRef(new SessionDiagnosticSink());
   const diagnosticKeysRef = useRef(new Set<string>());
@@ -233,6 +243,14 @@ export function WorkbenchView() {
   }, [result, clinicalResult, rawInput, clinicalInbound]);
 
   const source = JSON.stringify([rawInput, inputMode, drugName, defaultSig, effectiveResult]);
+  const datasetRawSig = clinicalInbound?.rawProse || rawInput;
+  const datasetDrug = drugName || clinicalInbound?.drugName || '';
+  const datasetOrder: QueueOrder = {
+    id: JSON.stringify(['workbench', clinicalInbound?.pon || '', datasetDrug, datasetRawSig, defaultSig]),
+    facility: '', patientRef: '', pon: clinicalInbound?.pon || '', drug: datasetDrug, directions: datasetRawSig,
+    defaultSig: defaultSig || clinicalInbound?.defaultSigTemplate, revision: 1, previousSources: [],
+    draft: effectiveResult?.finalSig || '', cancelled: false,
+  };
 
   useEffect(() => {
     const target = effectiveResult || result;
@@ -421,12 +439,18 @@ export function WorkbenchView() {
                   subOrders={clinicalResult.subOrders}
                   unavailable={result?.inputMode === 'hl7' && Boolean(result?.hl7Extraction?.warning)}
                   traceId={clinicalInbound?.traceId || clinicalResult?.traceId}
+                  onDraftChange={(id, draftSig) => setDatasetPartDrafts(previous => ({ ...previous, [id]: draftSig }))}
+                  onCopySubOrder={(part, draftSig) => { void queueSigSample({ orderKey: datasetOrder.id, revision: 1, stage: 'reviewed_copy', captureKind: 'erx_source', origin: 'manual',
+                    drug: datasetDrug, rawSig: datasetRawSig, defaultSigTemplate: datasetOrder.defaultSig, suggestedSig: part.suggestedSig, finalSig: draftSig, partId: part.id, exclusions }); }}
                 />
               ) : effectiveResult ? (
-                <WorkbenchReview key={`${inputMode}:${rawInput}:${drugName}:${defaultSig}`} result={effectiveResult} source={source} />
+                <WorkbenchReview key={`${inputMode}:${rawInput}:${drugName}:${defaultSig}`} result={effectiveResult} source={source} datasetOrder={datasetOrder} />
               ) : (
                 <p className="text-sm text-muted-foreground">Enter original directions to prepare a draft for review.</p>
               )}
+              {clinicalResult && clinicalResult.subOrders.length > 1 && <SigDatasetConfirmation key={`dataset:${datasetOrder.id}`}
+                order={datasetOrder} suggestion={clinicalResult.primarySig} exclusions={exclusions}
+                parts={clinicalResult.subOrders.map(part => ({ id: part.id, label: part.label, sig: datasetPartDrafts[part.id] ?? part.suggestedSig }))} />}
 
               <DiscrepancyPanel
                 key={`report:${inputMode}:${drugName}:${defaultSig}:${rawInput}`}
