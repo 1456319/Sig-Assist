@@ -1,9 +1,11 @@
 /** Separate later actions and limits so their PRN/frequency words do not change the primary dose. */
-export function splitSupplementalDirections(rawProse: string, options?: { allowScaleActions?: boolean }): { primary: string; supplemental?: string } {
+export function splitSupplementalDirections(rawProse: string, options?: { allowScaleActions?: boolean; classic?: boolean }): { primary: string; supplemental?: string } {
   // Every action within an insulin scale belongs to that scale.
   if (!options?.allowScaleActions && /\bSLIDING[\s-]+SCALE\b/i.test(rawProse)) return { primary: rawProse.trim() };
-  const actions = /\b(?:THEN\s+(?:AS\s+NEEDED|PRN)\b|MAY\s+(?:GIVE|TAKE|ADMINISTER|USE|APPLY)|DO\s+NOT\b|NOT\s+TO\s+EXCEED|(?:MAXIMUM|MAX)\s+(?:OF\s+)?(?=\d)|(?:TAKE|GIVE|ADMINISTER)\s+(?=\d|ONE\b|TWO\b|HALF\b)|CHECK\b|MONITOR\b|WEIGH\b|RECHECK\b|TAKE\s+FOR\s+(?:BLOOD|BP|SBP)\b|(?:X\s*|FOR\s+(?:UP\s+TO\s+)?)(?=\d+\s+DOSES\b)|APPLY\b|WORK\s+(?:IT\s+)?IN\b|ALLOW\s+(?:IT\s+)?TO\s+SIT\b|LEAVE\s+(?:IT\s+)?(?:ON|IN)\b|REMOVE\s+PER\s+SCHEDULE\b|RINSE\b|CAN\s+SHAMPOO\b|FOLLOW\s+(?:THE\s+)?(?:TAR|MAR)\b|DRINK\s+WITH\b|ALTERNAT(?:E|ES)\s+WITH\b|HOSPICE\s+RESIDENT\b|MIX(?:ED)?\b|DISSOLVE\s+IN\b|PUT\s+(?:IN|ON)\b|REPEAT\b|DISCONTINUE\s+(?:ONCE|IF|WHEN)\b|IF\b|CALL\b|NOTIFY\b)/gi;
-  for (const match of rawProse.matchAll(actions)) {
+  const actions = /\b(?:THEN\s+(?:AS\s+NEEDED|PRN)\b|MAY\s+(?:GIVE|TAKE|ADMINISTER|USE|APPLY)|NOT\s+(?=AT\b)|DO\s+NOT\b|NOT\s+TO\s+EXCEED|(?:MAXIMUM|MAX)\s+(?:OF\s+)?(?=\d)|(?:TAKE|GIVE|ADMINISTER)\s+(?=\d|ONE\b|TWO\b|HALF\b)|CHECK\b|MONITOR\b|WEIGH\b|RECHECK\b|TAKE\s+FOR\s+(?:BLOOD|BP|SBP)\b|(?:X\s*|FOR\s+(?:UP\s+TO\s+)?)(?=\d+\s+DOSES\b)|APPLY\b|WORK\s+(?:IT\s+)?IN\b|ALLOW\s+(?:IT\s+)?TO\s+SIT\b|LEAVE\s+(?:IT\s+)?(?:ON|IN)\b|REMOVE\s+PER\s+SCHEDULE\b|RINSE\b|CAN\s+SHAMPOO\b|FOLLOW\s+(?:THE\s+)?(?:TAR|MAR)\b|DRINK\s+WITH\b|ALTERNAT(?:E|ES)\s+WITH\b|HOSPICE\s+RESIDENT\b|MIX(?:ED)?\b|DISSOLVE\s+IN\b|PUT\s+(?:IN|ON)\b|REPEAT\b|DISCONTINUE\s+(?:ONCE|IF|WHEN)\b|IF\b|CALL\b|NOTIFY\b)/gi;
+  const classicActions = options?.classic && /\b(?:INJECT|HOLD)\b/i.test(rawProse)
+    ? new RegExp(`${actions.source}|\\bINJECT\\s+(?=\\d|ONE\\b|TWO\\b|HALF\\b)|\\bHOLD\\s+(?=(?:IF|FOR|WHEN)\\b)`, actions.flags) : actions;
+  for (const match of rawProse.matchAll(classicActions)) {
     if (match.index === undefined) continue;
     // This phase marker owns the following PRN words. An earlier comma and
     // course duration still belong to the routine phase, not the later action.
@@ -15,7 +17,7 @@ export function splitSupplementalDirections(rawProse: string, options?: { allowS
     if (!options?.allowScaleActions && (match.index === 0 || !beforeAction.trim())) continue;
     // A temporal prefix before the first administration belongs to the primary
     // dose (for example, 'At bedtime give half a tablet').
-    if (!options?.allowScaleActions && /^(?:TAKE|GIVE|ADMINISTER)\s*$/i.test(match[0])
+    if (!options?.allowScaleActions && /^(?:TAKE|GIVE|ADMINISTER|INJECT)\s*$/i.test(match[0])
         && /^(?:AT|AFTER|BEFORE|DURING|IN\s+THE)\b/i.test(beforeAction.trim())
         && !/[.;,]|\b(?:TAKE|GIVE|ADMINISTER|INJECT|APPLY|INSTILL|INHALE|INSERT|USE|AND|THEN)\b/i.test(beforeAction)) continue;
     // Keep a hold condition and its notification together for the hold parser.
@@ -48,6 +50,10 @@ export function splitSupplementalDirections(rawProse: string, options?: { allowS
       // THEN expresses a phase change and remains part of the retained clause.
       supplementalStart = /\bTHEN\b/i.test(boundary.text) ? boundary.start : afterBoundary;
       break;
+    }
+    if (options?.classic) {
+      const phase = /\b(?:AND\s+)?THEN\s*[,;:]?\s*$/i.exec(rawProse.slice(0, supplementalStart));
+      if (phase) supplementalStart = phase.index;
     }
     return {
       primary: rawProse.slice(0, supplementalStart).trim().replace(/[.;,]+$/, '').replace(/\s+(?:AND|THEN)$/i, '').trim(),

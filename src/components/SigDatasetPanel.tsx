@@ -49,18 +49,26 @@ export function SigDatasetPanel() {
     let stopped = false, timer: ReturnType<typeof setTimeout>;
     const controller = new AbortController();
     const sources = new Map<string, QueueOrder | null>();
-    const enrichment = new Map<string, Set<string>>();
+    const enrichment = new Map<string, { values: Set<string>; retryAt?: number }>();
     let enriching = false;
     let last = '', lastError = '';
     async function enrichSources() {
       if (enriching) return;
       enriching = true;
       try {
-        for (const [pon, values] of enrichment) {
+        for (const [pon, job] of enrichment) {
           if (stopped) break;
+          if (job.retryAt !== undefined) {
+            if (Date.now() < job.retryAt) continue;
+            if (latestOrders.current.filter(order => order.pon.trim() === pon).length > 1) { enrichment.delete(pon); continue; }
+          }
           let source: QueueOrder | undefined;
           try { source = await findDatasetSource(pon, controller.signal); }
-          catch { lastError = 'Iguana source lookup unavailable; field observations remain saved without an original/final pairing.'; }
+          catch {
+            if (stopped) break;
+            lastError = 'Iguana source lookup unavailable; field observations remain saved without an original/final pairing.';
+            if (job.retryAt === undefined) { job.retryAt = Date.now() + 30_000; continue; }
+          }
           if (stopped) break;
           const stillUnambiguous = (candidate: QueueOrder) => {
             const loaded = latestOrders.current.filter(order => order.pon.trim() === pon);
@@ -69,9 +77,12 @@ export function SigDatasetPanel() {
           if (source && !stillUnambiguous(source)) { enrichment.delete(pon); continue; }
           sources.set(pon, source || null);
           if (sources.size > 200) sources.delete(sources.keys().next().value!);
-          if (source) for (const value of values) {
+          if (source) for (const value of job.values) {
             if (stopped || !stillUnambiguous(source)) break;
-            await queueSigSample(orderDatasetInput(source, 'framework_observed', { finalSig: value }));
+            if (await queueSigSample(orderDatasetInput(source, 'framework_observed', { finalSig: value }))) {
+              lastError = '';
+              if (!stopped) setFrameworkStatus('An exact incoming source was paired with a saved field observation. Collection continues; this does not verify a prescription save.');
+            }
           }
           enrichment.delete(pon);
         }
@@ -81,12 +92,14 @@ export function SigDatasetPanel() {
       if (sources.has(pon)) return;
       if (!enrichment.has(pon)) {
         if (enrichment.size >= 200) { lastError = 'Source enrichment is behind capture; unpaired observations are retained.'; return; }
-        enrichment.set(pon, new Set());
+        enrichment.set(pon, { values: new Set() });
       }
-      enrichment.get(pon)!.add(value);
+      enrichment.get(pon)?.values.add(value);
       void enrichSources();
     }
     async function tick() {
+      // Retry due enrichment separately from the field identity/dedup check.
+      void enrichSources();
       try {
         const result = await readFrameworkSigSnapshot(controller.signal);
         if (stopped) return;

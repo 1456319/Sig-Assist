@@ -1,0 +1,62 @@
+--- a/src/lib/clinical/instructionClauses.ts
++++ b/src/lib/clinical/instructionClauses.ts
+@@ -1,15 +1,17 @@
+ /** Separate later actions and limits so their PRN/frequency words do not change the primary dose. */
+-export function splitSupplementalDirections(rawProse: string, options?: { allowScaleActions?: boolean }): { primary: string; supplemental?: string } {
++export function splitSupplementalDirections(rawProse: string, options?: { allowScaleActions?: boolean; classic?: boolean }): { primary: string; supplemental?: string } {
+   // Every action within an insulin scale belongs to that scale.
+   if (!options?.allowScaleActions && /\bSLIDING[\s-]+SCALE\b/i.test(rawProse)) return { primary: rawProse.trim() };
+   const actions = /\b(?:MAY\s+(?:GIVE|TAKE|ADMINISTER|USE|APPLY)|DO\s+NOT\b|NOT\s+TO\s+EXCEED|(?:MAXIMUM|MAX)\s+(?:OF\s+)?(?=\d)|(?:TAKE|GIVE|ADMINISTER)\s+(?=\d|ONE\b|TWO\b|HALF\b)|CHECK\b|MONITOR\b|WEIGH\b|RECHECK\b|TAKE\s+FOR\s+(?:BLOOD|BP|SBP)\b|(?:X\s*|FOR\s+(?:UP\s+TO\s+)?)(?=\d+\s+DOSES\b)|APPLY\b|WORK\s+(?:IT\s+)?IN\b|ALLOW\s+(?:IT\s+)?TO\s+SIT\b|LEAVE\s+(?:IT\s+)?(?:ON|IN)\b|REMOVE\s+PER\s+SCHEDULE\b|RINSE\b|CAN\s+SHAMPOO\b|FOLLOW\s+(?:THE\s+)?(?:TAR|MAR)\b|DRINK\s+WITH\b|ALTERNAT(?:E|ES)\s+WITH\b|HOSPICE\s+RESIDENT\b|MIX(?:ED)?\b|DISSOLVE\s+IN\b|PUT\s+(?:IN|ON)\b|REPEAT\b|DISCONTINUE\s+(?:ONCE|IF|WHEN)\b|IF\b|CALL\b|NOTIFY\b)/gi;
+-  for (const match of rawProse.matchAll(actions)) {
++  const classicActions = options?.classic && /\binject\b/i.test(rawProse)
++    ? new RegExp(`${actions.source}|\\bINJECT\\s+(?=\\d|ONE\\b|TWO\\b|HALF\\b)`, actions.flags) : actions;
++  for (const match of rawProse.matchAll(classicActions)) {
+     if (match.index === undefined) continue;
+     const beforeAction = rawProse.slice(0, match.index);
+     if (!options?.allowScaleActions && (match.index === 0 || !beforeAction.trim())) continue;
+     // A temporal prefix before the first administration belongs to the primary
+     // dose (for example, 'At bedtime give half a tablet').
+-    if (!options?.allowScaleActions && /^(?:TAKE|GIVE|ADMINISTER)\s*$/i.test(match[0])
++    if (!options?.allowScaleActions && /^(?:TAKE|GIVE|ADMINISTER|INJECT)\s*$/i.test(match[0])
+         && /^(?:AT|AFTER|BEFORE|DURING|IN\s+THE)\b/i.test(beforeAction.trim())
+         && !/[.;,]|\b(?:TAKE|GIVE|ADMINISTER|INJECT|APPLY|INSTILL|INHALE|INSERT|USE|AND|THEN)\b/i.test(beforeAction)) continue;
+     // Keep a hold condition and its notification together for the hold parser.
+@@ -43,6 +45,10 @@
+       supplementalStart = /\bTHEN\b/i.test(boundary.text) ? boundary.start : afterBoundary;
+       break;
+     }
++    if (options?.classic) {
++      const phase = /\b(?:AND\s+)?THEN\s*[,;:]?\s*$/i.exec(rawProse.slice(0, supplementalStart));
++      if (phase) supplementalStart = phase.index;
++    }
+     return {
+       primary: rawProse.slice(0, supplementalStart).trim().replace(/[.;,]+$/, '').replace(/\s+(?:AND|THEN)$/i, '').trim(),
+       supplemental: rawProse.slice(supplementalStart).trim(),
+--- a/src/lib/sigEngine.ts
++++ b/src/lib/sigEngine.ts
+@@ -105,7 +105,14 @@
+   const normalized = normalizeSigText(raw).replace(/until\s+\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}:\d{2})?/i, '').trim();
+   const issues: SigIssue[] = []; const slidingScale = scale(normalized, options.drug);
+   const isScale = looksLikeSlidingScale(raw, options.drug);
+-  const clauses = splitSupplementalDirections(normalized);
++  const clauses = splitSupplementalDirections(normalized, { classic: true });
++  const holdStart = isScale ? -1 : clauses.primary.search(/\bhold\s+(?:if|for|when)\b/);
++  const holdText = holdStart < 0 ? '' : clauses.primary.slice(holdStart).replace(/[\s.]+$/, '');
++  const compactHold = holdText.match(/^hold\s+(?:if|for)\s+(?:sbp|systolic(?: blood pressure)?)\s+(?:less than|below)\s+(\d+)\s+or\s+(?:heart rate|hr)\s+(?:less than|below)\s+(\d+)$/i);
++  if (holdText && !compactHold) {
++    clauses.primary = clauses.primary.slice(0, holdStart).replace(/[\s.;,]+$/, '');
++    clauses.supplemental = [holdText, clauses.supplemental].filter(Boolean).join('. ');
++  }
+   const strength = drugStrength(options.drug);
+   // Every parsed field must have the same owning clause, including duration,
+   // indication and holds. A later action must not supply an earlier dose's route.
+@@ -134,8 +141,7 @@
+     });
+     if (!resolved.slidingScaleString) issues.push({ code: 'incomplete-sliding-scale', severity: 'warning', message: 'The complete scale needs technician review; original directions were retained.' });
+   }
+-  const hold = primary.match(/hold\s+(?:if|for)\s+(?:sbp|systolic(?: blood pressure)?)\s+(?:less than|below)\s+(\d+).*?(?:heart rate|hr)\s+(?:less than|below)\s+(\d+)/i);
+-  if (hold) order.hold = { systolicBelow: Number(hold[1]), heartRateBelow: Number(hold[2]) };
++  if (compactHold) order.hold = { systolicBelow: Number(compactHold[1]), heartRateBelow: Number(compactHold[2]) };
+   if (dateStripped) issues.push({ code: 'cut-date', severity: 'warning', message: 'A cut date was removed; verify it in the order date field.' });
+   if (isUnknownElementalCandidate(options.drug)) issues.push({ code: 'unknown-elemental-equivalent', severity: 'blocking', message: 'This strength may describe an elemental equivalent, but the compound/formulation could not be verified.' });
+   if (/\b(?:insulin|humalog|novolog|lantus)\b/i.test(options.drug) && /\b(?:ml|milliliter)\b/i.test(normalized)) issues.push({ code: 'insulin-volume-input', severity: 'blocking', message: 'Insulin was entered in mL. Verify the intended unit dose before use.' });

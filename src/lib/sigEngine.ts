@@ -105,12 +105,15 @@ export function parseSigOrder(raw: string, options: SigParseOptions): ParsedSigO
   const normalized = normalizeSigText(raw).replace(/until\s+\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}:\d{2})?/i, '').trim();
   const issues: SigIssue[] = []; const slidingScale = scale(normalized, options.drug);
   const isScale = looksLikeSlidingScale(raw, options.drug);
-  const clauses = splitSupplementalDirections(normalized);
+  const clauses = splitSupplementalDirections(normalized, { classic: true });
+  const compactHold = !isScale && clauses.supplemental?.replace(/[\s.]+$/, '').match(/^hold\s+(?:if|for)\s+(?:sbp|systolic(?: blood pressure)?)\s+(?:less than|below)\s+(\d+)\s+or\s+(?:heart rate|hr)\s+(?:less than|below)\s+(\d+)$/i);
+  if (compactHold) clauses.supplemental = undefined;
   const strength = drugStrength(options.drug);
   // Every parsed field must have the same owning clause, including duration,
   // indication and holds. A later action must not supply an earlier dose's route.
-  const retainLater = !!clauses.supplemental && !!parseDose(clauses.primary, strength) && !isScale;
-  const primary = retainLater ? clauses.primary : normalized;
+  const primaryDose = !isScale && parseDose(clauses.primary, strength);
+  const retainLater = !!clauses.supplemental && !!primaryDose;
+  const primary = primaryDose ? clauses.primary : normalized;
   const order: ParsedSigOrder = { raw, normalized, drug: options.drug, dose: parseDose(primary, strength), route: route(primary), frequency: frequency(primary), prn: /as needed|\bprn\b/.test(primary), durationDays: Number(primary.match(/for\s+(\d+)\s+days?/)?.[1]) || undefined, indication: indication(primary), slidingScale, dateStripped, issues };
   order.namedMealQualifier = namedMealQualifier(clauses.primary);
   // A later dose/monitoring/notify clause is its own instruction: read the
@@ -134,8 +137,7 @@ export function parseSigOrder(raw: string, options: SigParseOptions): ParsedSigO
     });
     if (!resolved.slidingScaleString) issues.push({ code: 'incomplete-sliding-scale', severity: 'warning', message: 'The complete scale needs technician review; original directions were retained.' });
   }
-  const hold = primary.match(/hold\s+(?:if|for)\s+(?:sbp|systolic(?: blood pressure)?)\s+(?:less than|below)\s+(\d+).*?(?:heart rate|hr)\s+(?:less than|below)\s+(\d+)/i);
-  if (hold) order.hold = { systolicBelow: Number(hold[1]), heartRateBelow: Number(hold[2]) };
+  if (compactHold) order.hold = { systolicBelow: Number(compactHold[1]), heartRateBelow: Number(compactHold[2]) };
   if (dateStripped) issues.push({ code: 'cut-date', severity: 'warning', message: 'A cut date was removed; verify it in the order date field.' });
   if (isUnknownElementalCandidate(options.drug)) issues.push({ code: 'unknown-elemental-equivalent', severity: 'blocking', message: 'This strength may describe an elemental equivalent, but the compound/formulation could not be verified.' });
   if (/\b(?:insulin|humalog|novolog|lantus)\b/i.test(options.drug) && /\b(?:ml|milliliter)\b/i.test(normalized)) issues.push({ code: 'insulin-volume-input', severity: 'blocking', message: 'Insulin was entered in mL. Verify the intended unit dose before use.' });

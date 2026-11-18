@@ -1,6 +1,6 @@
 # Lovable functionality audit — November 18, 2026
 
-Status: first-pass fixes integrated at `fe0281c`; final integration review and Windows matrix are in progress. Root owns pharmacy Git writes. Earlier audit results were reviewed, not discarded; verified repairs remain in prototype. New independent reviews use the same existing lab threads in Max mode.
+Status: all external responses reviewed; first-pass integration validated on Windows/Linux, final integration repairs validated locally and awaiting their final CI matrix. Root owns pharmacy Git writes. Earlier audit results were reviewed, not discarded; verified repairs remain in prototype. New independent reviews use the same existing lab threads in Max mode.
 
 Baseline sent: `11fa35b767cf221cefc81837486ee47f602a1c34` (runtime `45ecfa4`), v0.1.11 build `3f5d71dba6b8`. All three labs were explicitly told that their old checkout is obsolete and supplied the completed-audit and dataset handoffs. Requests use public code and synthetic examples only; no patient text, captures, Drive documents or credentials.
 
@@ -53,7 +53,7 @@ The baseline regression replay reproduced four Engineering failures plus its pas
 
 ### One focused QA integration follow-up
 
-The existing QA thread was informed that the candidates were implemented and given exact source `fe0281cc3ea037035e840b498677ebbd6230c8f0`, including the coordinator’s clause-scope/performance improvements. Accepted message: `umsg_01m7qb04x5es7rfabq6h9ka957`, thread `main`, same QA project/account above. Review pending; do not resend. It was asked for only a concrete functional integration regression or a bounded source-lookup retry, within remaining daily credits and without purchases.
+The existing QA thread was informed that the candidates were implemented and given exact source `fe0281cc3ea037035e840b498677ebbd6230c8f0`, including the coordinator’s clause-scope/performance improvements. Accepted message: `umsg_01m7qb04x5es7rfabq6h9ka957`, thread `main`, same QA project/account above. Completed and reviewed; do not resend. It was asked for only a concrete functional integration regression or a bounded source-lookup retry, within remaining daily credits and without purchases.
 
 ### Deferred or unverified
 
@@ -62,3 +62,19 @@ The existing QA thread was informed that the candidates were implemented and giv
 - Native offscreen-wrapper/accessibility-view/label-read hypotheses need a runnable fixture and actual installation evidence. No speculative field associations were added.
 - Real Framework bindings still need the short dummy workstation check. Polling and observed text do not prove Rx save or complete per-order capture.
 - Shared backoff, dataset capture and cache primitives must remain if temporary diagnostic recording is later removed; intensified-logging removal markers stay active.
+
+## Final independent QA integration findings
+
+The follow-up used exact source `fe0281c`; its complete report and two candidates are retained as `qa-integration-*` artifacts here. Its new nine checks reproduced five baseline failures and four controls in the coordinator checkout as well. No additional split-confirmation or helper-scheduling defect was demonstrated.
+
+- Preserved an immediately preceding THEN with a classic later-dose clause; recognized numeric later injections without assigning bedtime to the earlier morning dose.
+- Retained unsupported HOLD instructions. The coordinator strengthened the candidate: classic HOLD is a scoped action, and only an exact, unqualified known dual-threshold clause uses the compact token. A bedtime-qualified hold retains its own time; an extra condition is not silently treated as the known compact form.
+- Added regressions for the reported inline “daily and not at bedtime” error in both entry points. The excluded time stays a negative supplemental instruction rather than becoming the dose schedule. This is scoped phrase handling, not a general negation grammar claim.
+- Added one bounded source-enrichment retry after a thrown lookup, due after 30 seconds and driven by normal polling even when the field is unchanged. Ordinary misses are not retried; a second rejection stops automatic attempts. Live PON collision checks still apply. A durable enriched record updates the status without claiming prescription completion.
+- Rejected no compiler settings or test coverage to obtain a pass. Raw artifact patches remain proposals, not the installed implementation; coordinator changes above are in normal source/tests.
+
+All three original lab responses and the independent QA follow-up are now handled. No external audit request or recurring credit-spending task remains pending. Engineering’s static candidates and component-rendering follow-ups remain explicitly deferred above; no installation-level coverage is inferred.
+
+### Final local validation
+
+**v0.1.12, build `eaa14600b431`**: **1,330 tests in 89 files passed**, including real local nested-Git publication tests, bounded 10,000-row storage, prior and new clinical/feedback regressions, long-input controls, collision/retry tests and passive scheduling. Full lint/typecheck and package/archive freshness passed. Earlier `fe0281c` passed complete Windows/Linux matrix run [44306754234](https://github.com/1456319/Sig-Assist/actions/runs/44306754234) and focused frozen-window run [44306754326](https://github.com/1456319/Sig-Assist/actions/runs/44306754326). Native source is unchanged since that passing run. The final follow-up’s full Windows matrix still needs verification before this audit is marked complete.
