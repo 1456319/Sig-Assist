@@ -1,0 +1,101 @@
+--- a/src/components/SigDatasetPanel.tsx
++++ b/src/components/SigDatasetPanel.tsx
+@@ -62,10 +62,15 @@
+           try { source = await findDatasetSource(pon, controller.signal); }
+           catch { lastError = 'Iguana source lookup unavailable; field observations remain saved without an original/final pairing.'; }
+           if (stopped) break;
++          const stillUnambiguous = (candidate: QueueOrder) => {
++            const loaded = latestOrders.current.filter(order => order.pon.trim() === pon);
++            return loaded.length === 0 || (loaded.length === 1 && sourceStamp(loaded[0]) === sourceStamp(candidate));
++          };
++          if (source && !stillUnambiguous(source)) { enrichment.delete(pon); continue; }
+           sources.set(pon, source || null);
+           if (sources.size > 200) sources.delete(sources.keys().next().value!);
+           if (source) for (const value of values) {
+-            if (stopped) break;
++            if (stopped || !stillUnambiguous(source)) break;
+             await queueSigSample(orderDatasetInput(source, 'framework_observed', { finalSig: value }));
+           }
+           enrichment.delete(pon);
+@@ -159,27 +164,33 @@
+ }
+ 
+ export function SigDatasetConfirmation({ order, suggestion, generatedSig, parts = [], exclusions, warnings }: {
+-  order: QueueOrder; suggestion: string; generatedSig?: string; parts?: Array<{ id: string; label: string; sig: string }>;
++  order: QueueOrder; suggestion: string; generatedSig?: string; parts?: Array<{ id: string; label: string; sig: string; suggestion?: string }>;
+   exclusions: import('../lib/reviewPolicy').SigExclusion[];
+   warnings?: string[];
+ }) {
+   const [part, setPart] = useState(parts[0]?.id ?? '');
+-  const initial = parts.find(p => p.id === part)?.sig ?? order.draft;
+-  const [finalSig, setFinalSig] = useState(initial), [comment, setComment] = useState('');
+-  const [edited, setEdited] = useState(false);
+-  const [acceptable, setAcceptable] = useState<boolean>(), [busy, setBusy] = useState(false), [notice, setNotice] = useState('');
+-  useEffect(() => { if (!edited) setFinalSig(initial); }, [initial, edited]);
++  const selectedPart = parts.find(p => p.id === part) ?? parts[0];
++  const partId = selectedPart?.id;
++  const key = partId ?? '';
++  const [responses, setResponses] = useState<Record<string, { finalSig?: string; comment?: string; acceptable?: boolean }>>({});
++  const response = responses[key];
++  const finalSig = response?.finalSig ?? selectedPart?.sig ?? order.draft;
++  const comment = response?.comment ?? '', acceptable = response?.acceptable;
++  const [busy, setBusy] = useState(false), [notice, setNotice] = useState('');
++  const update = (patch: { finalSig?: string; comment?: string; acceptable?: boolean }) => {
++    setResponses(previous => ({ ...previous, [key]: { ...previous[key], ...patch } }));
++  };
+   return <details className="rounded-lg border border-border p-3" aria-label="Completed E-Rx dataset sample">
+     <summary className="cursor-pointer text-sm font-medium">Finished in Framework? Save the final SIG to the dataset</summary>
+     <div className="mt-3 space-y-2">
+       <p className="text-xs text-muted-foreground">Use after Framework has saved. Correct the text below if you changed it there. This records your confirmation; it does not submit or refuse an order.</p>
+-      {!!parts.length && <label className="block text-sm">Completed order part<select className={reviewInputClass} value={part} onChange={e => { setPart(e.target.value); setEdited(false); setFinalSig(parts.find(p => p.id === e.target.value)?.sig || ''); setNotice(''); }}>{parts.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}</select></label>}
+-      <label className="block text-sm">Actual final SIG in Framework<textarea className={reviewInputClass} value={finalSig} onChange={e => { setEdited(true); setFinalSig(e.target.value); }} /></label>
+-      <div className="flex items-center gap-2 text-sm">Was the suggestion acceptable?<button className={reviewButtonClass} aria-label="Suggestion acceptable: Yes" aria-pressed={acceptable === true} onClick={() => setAcceptable(true)}>Yes</button><button className={reviewButtonClass} aria-label="Suggestion acceptable: No" aria-pressed={acceptable === false} onClick={() => setAcceptable(false)}>No</button></div>
+-      <label className="block text-sm">Dataset comment (optional)<textarea className={reviewInputClass} value={comment} onChange={e => setComment(e.target.value)} /></label>
++      {!!parts.length && <label className="block text-sm">Completed order part<select className={reviewInputClass} value={partId} disabled={busy} onChange={e => { setPart(e.target.value); setNotice(''); }}>{parts.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}</select></label>}
++      <label className="block text-sm">Actual final SIG in Framework<textarea className={reviewInputClass} value={finalSig} onChange={e => update({ finalSig: e.target.value })} /></label>
++      <div className="flex items-center gap-2 text-sm">Was the suggestion acceptable?<button className={reviewButtonClass} aria-label="Suggestion acceptable: Yes" aria-pressed={acceptable === true} onClick={() => update({ acceptable: true })}>Yes</button><button className={reviewButtonClass} aria-label="Suggestion acceptable: No" aria-pressed={acceptable === false} onClick={() => update({ acceptable: false })}>No</button></div>
++      <label className="block text-sm">Dataset comment (optional)<textarea className={reviewInputClass} value={comment} onChange={e => update({ comment: e.target.value })} /></label>
+       <button className={reviewButtonClass} disabled={busy || !finalSig.trim()} onClick={async () => {
+         setBusy(true);
+-        const saved = await queueSigSample(orderDatasetInput(order, 'technician_confirmed', { suggestion, generatedSig, finalSig: finalSig.trim(), partId: part || undefined, exclusions, warnings, comment: comment.trim() || undefined, acceptable }));
++        const saved = await queueSigSample(orderDatasetInput(order, 'technician_confirmed', { suggestion: selectedPart ? selectedPart.suggestion : suggestion, generatedSig, finalSig: finalSig.trim(), partId, exclusions, warnings, comment: comment.trim() || undefined, acceptable }));
+         setNotice(saved ? 'Technician-confirmed final SIG saved to the local dataset.' : 'Not durably saved. Check dataset collection status, retry, or download unsaved samples.'); setBusy(false);
+       }}>Saved in Framework — record final SIG</button>
+       {notice && <p role="status">{notice}</p>}
+--- a/src/components/WorkbenchView.tsx
++++ b/src/components/WorkbenchView.tsx
+@@ -450,7 +450,7 @@
+               )}
+               {clinicalResult && clinicalResult.subOrders.length > 1 && <SigDatasetConfirmation key={`dataset:${datasetOrder.id}`}
+                 order={datasetOrder} suggestion={clinicalResult.primarySig} exclusions={exclusions}
+-                parts={clinicalResult.subOrders.map(part => ({ id: part.id, label: part.label, sig: datasetPartDrafts[part.id] ?? part.suggestedSig }))} />}
++                parts={clinicalResult.subOrders.map(part => ({ id: part.id, label: part.label, suggestion: part.suggestedSig, sig: datasetPartDrafts[part.id] ?? part.suggestedSig }))} />}
+ 
+               <DiscrepancyPanel
+                 key={`report:${inputMode}:${drugName}:${defaultSig}:${rawInput}`}
+--- a/src/components/OrderQueueView.tsx
++++ b/src/components/OrderQueueView.tsx
+@@ -333,10 +333,10 @@
+             }) : []}
+             blocked={copyBlockReason(sourceStamp(selected), selected.draft, exclusions, selected.approved, selected.cancelled || !!selected.intakeHold || reviseId === selected.id, policyRevision)}
+             onDetected={setDesktop}
+-            onVerifiedSig={(sig, partId) => { void queueSigSample(orderDatasetInput(selected, 'verified_transfer', { suggestion: clinicalResult?.primarySig || parsed?.sig, generatedSig: baselineSig, finalSig: sig, partId, exclusions, warnings: datasetWarnings })); }} />
++            onVerifiedSig={(sig, partId) => { void queueSigSample(orderDatasetInput(selected, 'verified_transfer', { suggestion: partId ? clinicalResult?.subOrders.find(sub => sub.id === partId)?.suggestedSig : (clinicalResult?.primarySig || parsed?.sig), generatedSig: baselineSig, finalSig: sig, partId, exclusions, warnings: datasetWarnings })); }} />
+           {!selected.cancelled && !selected.intakeHold && reviseId !== selected.id && <SigDatasetConfirmation
+             key={`dataset:${selected.id}:${selected.revision}`} order={selected} suggestion={clinicalResult?.primarySig || parsed?.sig || ''} generatedSig={baselineSig} exclusions={exclusions} warnings={datasetWarnings}
+-            parts={(clinicalResult?.subOrders.length || 0) > 1 ? clinicalResult!.subOrders.map(sub => ({ id: sub.id, label: sub.label, sig: selected.subOrderDrafts?.[sub.id] ?? sub.suggestedSig })) : []} />}
++            parts={(clinicalResult?.subOrders.length || 0) > 1 ? clinicalResult!.subOrders.map(sub => ({ id: sub.id, label: sub.label, suggestion: sub.suggestedSig, sig: selected.subOrderDrafts?.[sub.id] ?? sub.suggestedSig })) : []} />}
+           <DiscrepancyPanel key={`report:${selected.id}:${selected.revision}`}
+             pon={selected.pon} drugName={selected.drug} rawProse={selected.directions}
+             generatedSig={clinicalResult?.primarySig || parsed?.sig || ''}
+--- a/tests/sigDatasetWorkbench.test.tsx
++++ b/tests/sigDatasetWorkbench.test.tsx
+@@ -117,7 +117,7 @@
+     await screen.findByText('Technician-confirmed final SIG saved to the local dataset.');
+     expect(mocks.queue).toHaveBeenCalledTimes(2);
+     expect(mocks.queue.mock.calls[1][0]).toMatchObject({
+-      orderKey: copied.orderKey, partId: copied.partId, rawSig: directions, drug, stage: 'technician_confirmed',
++      orderKey: copied.orderKey, partId: copied.partId, suggestedSig: copied.suggestedSig, rawSig: directions, drug, stage: 'technician_confirmed',
+       finalSig: '1T PO QHS WITH A FULL GLASS OF WATER', comment: 'Verified the completed bedtime part.', origin: 'manual',
+     });
+     expect(fetch).not.toHaveBeenCalled();

@@ -1,0 +1,131 @@
+--- a/scripts/framework-desktop.mjs
++++ b/scripts/framework-desktop.mjs
+@@ -87,7 +87,17 @@
+ // Bindings stay in this process, expire and are consumed before a write. The page
+ // receives an opaque token, never a client-editable process/control selector.
+ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } = {}) {
+-  const bindings = new Map(); let busy = false; let entryWindow, observationDone, finishObservation;
++  const bindings = new Map(); let busy = false; let entryWindow, observationDone, finishObservation, passiveAction;
++  // A frozen Framework window blocks every UI Automation read until the helper
++  // is killed. Pause background reads after a timeout instead of relaunching
++  // (and holding the helper for) another 8 s read on every 3-5 s poll.
++  // Technician-initiated work is never paused.
++  let passiveResumeAt = 0, passiveFailures = 0, clinicalWaiting = 0;
++  const passivePaused = () => { const retryAfterMs = passiveResumeAt - now(); return retryAfterMs > 0 ? { ok: false, code: 'PASSIVE_PAUSED', retryAfterMs: Math.ceil(retryAfterMs) } : undefined; };
++  const passiveOutcome = stalled => {
++    if (!stalled) { passiveFailures = 0; passiveResumeAt = 0; return; }
++    passiveFailures++; passiveResumeAt = now() + Math.min(60000, 10000 * 2 ** (passiveFailures - 1));
++  };
+   // The helper is short lived. Keep passive traversal progress here, never in a
+   // page-supplied selector or in the native helper's static state.
+   let observationScanOffset = 0;
+@@ -110,10 +120,18 @@
+     // A clinical request waits for the bounded passive read already in flight;
+     // it must not fail merely because the recorder briefly owns the helper.
+     const passive = action === 'observe' || action === 'dataset-snapshot';
+-    if (!passive && observationDone) await observationDone;
++    if (passive && entryWindow) { const paused = passivePaused(); if (paused) return paused; }
++    if (!passive && observationDone) { clinicalWaiting++; try { await observationDone; } finally { clinicalWaiting--; } }
++    // The dataset collector waits for the recorder's bounded read rather than
++    // losing this poll; waiting clinical work still goes first.
++    else if (action === 'dataset-snapshot' && observationDone && passiveAction === 'observe') {
++      await observationDone;
++      if (clinicalWaiting) return { ok: false, code: 'BUSY', error: 'A Framework desktop operation is already running.' };
++      if (entryWindow) { const paused = passivePaused(); if (paused) return paused; }
++    }
+     if (busy) return { ok: false, code: 'BUSY', error: 'A Framework desktop operation is already running.' };
+     busy = true;
+-    if (passive) observationDone = new Promise(resolve => { finishObservation = resolve; });
++    if (passive) { passiveAction = action; observationDone = new Promise(resolve => { finishObservation = resolve; }); }
+     let writeStarted = false;
+     try {
+       // Separate local dataset reader. Never reuse a write token, discover a
+@@ -121,9 +139,15 @@
+       if (action === 'dataset-snapshot') {
+         if (!entryWindow) return { ok: false, code: 'SELECTION_REQUIRED' };
+         try {
+-          const result = await run({ action: 'dataset-snapshot', entryWindow });
++          let result;
++          try { result = await run({ action: 'dataset-snapshot', entryWindow }); }
++          catch (error) {
++            const stalled = error?.failureReason === 'HELPER_TIMEOUT'; passiveOutcome(stalled);
++            return { ok: false, code: stalled ? 'READ_TIMEOUT' : 'DATASET_SNAPSHOT_FAILED' };
++          }
++          passiveOutcome(result?.code === 'FRAMEWORK_NOT_RESPONDING');
+           // Do not forward arbitrary helper diagnostics, selectors or values.
+-          const codes = new Set(['OK', 'WINDOW_UNAVAILABLE', 'CURRENT_ORDER_UNAVAILABLE', 'CURRENT_ORDER_AMBIGUOUS', 'PON_UNAVAILABLE', 'PON_AMBIGUOUS', 'SIG_UNAVAILABLE', 'SIG_AMBIGUOUS', 'ORDER_CHANGED', 'READ_LIMIT', 'DATASET_SNAPSHOT_FAILED']);
++          const codes = new Set(['OK', 'WINDOW_UNAVAILABLE', 'FRAMEWORK_NOT_RESPONDING', 'CURRENT_ORDER_UNAVAILABLE', 'CURRENT_ORDER_AMBIGUOUS', 'PON_UNAVAILABLE', 'PON_AMBIGUOUS', 'SIG_UNAVAILABLE', 'SIG_AMBIGUOUS', 'ORDER_CHANGED', 'READ_LIMIT', 'DATASET_SNAPSHOT_FAILED']);
+           const code = codes.has(result?.code) ? result.code : 'DATASET_SNAPSHOT_FAILED';
+           const valid = result?.ok === true && code === 'OK' && typeof result.pon === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,99}$/.test(result.pon) && result.pon !== 'PON' && typeof result.sig === 'string' && result.sig.trim() && result.sig.length <= 4000 && result.partial !== true;
+           if (!valid) return { ok: false, code: code === 'OK' ? 'DATASET_SNAPSHOT_FAILED' : code, ...(result?.partial === true ? { partial: true } : {}) };
+@@ -136,8 +160,9 @@
+         if (!entryWindow) return { ok: false, code: 'SELECTION_REQUIRED' };
+         const scanOffset = observationScanOffset;
+         observationScanOffset = (observationScanOffset + 173) % 1600;
+-        try { return await run({ action: 'observe', entryWindow, key: body.key, scanOffset }); }
++        try { const result = await run({ action: 'observe', entryWindow, key: body.key, scanOffset }); passiveOutcome(result?.code === 'FRAMEWORK_NOT_RESPONDING'); return result; }
+         catch (error) {
++          passiveOutcome(error?.failureReason === 'HELPER_TIMEOUT');
+           const result = { ok: false, code: 'OBSERVATION_FAILED', failureReason: failureReasons.has(error?.failureReason) ? error.failureReason : 'UNKNOWN_FAILURE' };
+           const duration = helperDuration(error?.helperDurationMs);
+           if (duration !== undefined) result.helperDurationMs = duration;
+@@ -168,6 +193,6 @@
+       if (result.ok && result.verified && result.detected?.ok) return { ok: true, verified: true, field: body.field, warnings: result.warnings ?? [], next: remember(result.detected) };
+       return { ...result, ok: false };
+     } catch (error) { return { ok: false, uncertain: writeStarted, error: error.message }; }
+-    finally { busy = false; if (passive) { const finish = finishObservation; observationDone = undefined; finishObservation = undefined; finish?.(); } }
++    finally { busy = false; if (passive) { const finish = finishObservation; observationDone = undefined; finishObservation = undefined; passiveAction = undefined; finish?.(); } }
+   };
+ }
+--- a/scripts/pilot-journal.mjs
++++ b/scripts/pilot-journal.mjs
+@@ -24,7 +24,7 @@
+   reason: ['AUTOMATIC_AUTH_UNAVAILABLE', 'ENOTFOUND', 'ECONNREFUSED', 'ECONNRESET', 'TIMEOUT_OR_STOPPED', 'INVALID_LOG_EXPORT', 'IGUANA_HTTP_401', 'IGUANA_HTTP_403', 'BRIDGE_UNREACHABLE', 'UNCLASSIFIED'],
+   failureReason: ['HELPER_TIMEOUT', 'INVALID_OUTPUT', 'HELPER_PROCESS_EXIT', 'HELPER_STARTUP_FAILED', 'UNKNOWN_FAILURE'],
+ };
+-const numbers = new Set(('durationMs count beforeCount afterCount httpStatus port headers unreadable messageLength valueLength rawProseLength primarySigLength drugNameLength abnormalitiesCount splitPartsCount droppedWorkflow droppedTranslation recovered pendingCount nodeCount visitedCount errors elapsedMs limit rowCount columnCount scanOffset cacheReads prioritySeeds').split(' '));
++const numbers = new Set(('durationMs count beforeCount afterCount httpStatus port headers unreadable messageLength valueLength rawProseLength primarySigLength drugNameLength abnormalitiesCount splitPartsCount droppedWorkflow droppedTranslation recovered pendingCount nodeCount visitedCount errors elapsedMs limit rowCount columnCount scanOffset cacheReads prioritySeeds retryAfterMs').split(' '));
+ const booleans = new Set(('uncertain verified checked isControlled isPaxitSolid requiresSplit hasPackagingNotice isApap hidden disabled writable hasFilter').split(' '));
+ const version = x => typeof x === 'string' && /^[0-9]+\.[0-9]+\.[0-9]+$/.test(x) ? x : 'unknown';
+ const fileCodes = ['EACCES', 'EPERM', 'ENOENT', 'ENOSPC', 'EIO', 'EROFS', 'ETIMEDOUT', 'ECONNRESET', 'ENOTCONN', 'EBUSY', 'DESTINATION_UNAVAILABLE'];
+@@ -49,7 +49,7 @@
+   return event;
+ }
+ export function safeDesktop(raw) {
+-  const reason = ['SELECTION_REQUIRED', 'WINDOW_UNAVAILABLE', 'OBSERVATION_FAILED', 'BUSY', 'OK'].includes(raw?.code) ? raw.code : 'OBSERVATION_FAILED';
++  const reason = ['SELECTION_REQUIRED', 'WINDOW_UNAVAILABLE', 'FRAMEWORK_NOT_RESPONDING', 'PASSIVE_PAUSED', 'OBSERVATION_FAILED', 'BUSY', 'OK'].includes(raw?.code) ? raw.code : 'OBSERVATION_FAILED';
+   const result = { code: reason, ok: raw?.ok === true, partial: raw?.partial === true, ...safeFields(raw), controls: [] };
+   if (typeof raw?.observedAt === 'string' && Number.isFinite(Date.parse(raw.observedAt))) result.observedAt = new Date(raw.observedAt).toISOString();
+   for (const c of Array.isArray(raw?.controls) ? raw.controls.slice(0, 800) : []) {
+--- a/windows/FrameworkDesktop.cs
++++ b/windows/FrameworkDesktop.cs
+@@ -194,6 +194,13 @@
+     [DllImport("user32.dll")] static extern IntPtr GetTopWindow(IntPtr parent);
+     [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr window, uint command);
+     [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr window);
++    // Passive readers check responsiveness without sending Framework a message.
++    // A UI Automation call against a hung window blocks until the connector
++    // kills this helper, which then holds the shared helper for every poll.
++    [DllImport("user32.dll")] static extern bool IsHungAppWindow(IntPtr window);
++    static bool NotResponding(EntryWindow entry) {
++        try { return entry != null && entry.handle != 0 && IsHungAppWindow(new IntPtr(entry.handle)); } catch { return false; }
++    }
+     static bool writeAttempted;
+     static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = 4 * 1024 * 1024 };
+     static readonly Regex PonLabel = new Regex(@"^(?:PON|Prescriber Order (?:Number|No\.?))\s*:?$", RegexOptions.IgnoreCase);
+@@ -1172,6 +1179,7 @@
+     // confirmed human final. Real-site value/label bindings still need validation.
+     static object DatasetSnapshot(EntryWindow entry, string testProcess) {
+         if (entry == null) return DatasetFailure("SELECTION_REQUIRED");
++        if (NotResponding(entry)) return DatasetFailure("FRAMEWORK_NOT_RESPONDING");
+         AutomationElement root;
+         try { root = RememberedRoot(entry, testProcess); }
+         catch { return DatasetFailure("WINDOW_UNAVAILABLE"); }
+@@ -1292,6 +1300,7 @@
+     static object Observe(EntryWindow entry, string secret, string testProcess, int scanOffset) {
+         if (entry == null) return new { ok = false, code = "SELECTION_REQUIRED" };
+         if (!Regex.IsMatch(secret ?? "", "^[a-f0-9]{64}$")) return new { ok = false, code = "OBSERVATION_FAILED" };
++        if (NotResponding(entry)) return new { ok = false, code = "FRAMEWORK_NOT_RESPONDING" };
+         AutomationElement root;
+         try { root = RememberedRoot(entry, testProcess); }
+         catch { return new { ok = false, code = "WINDOW_UNAVAILABLE" }; }

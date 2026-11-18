@@ -1,0 +1,60 @@
+--- a/src/lib/sigDictionaryService.ts
++++ b/src/lib/sigDictionaryService.ts
+@@ -191,11 +191,13 @@
+   return state.entries.sort((a, b) => a.sig_code.localeCompare(b.sig_code));
+ }
+ 
+-async function saveInserts(inputs: Insert[]): Promise<void> {
++type DictionarySaveStatus = 'local-only' | 'shared-unconfirmed' | 'shared-acknowledged';
++
++async function saveInserts(inputs: Insert[]): Promise<DictionarySaveStatus> {
+   const state = getLocalState();
+   const changed = mergeInserts(state, inputs);
+   saveLocalState(state);
+-  if (!supabase) return;
++  if (!supabase) return 'local-only';
+   let succeeded = false;
+   try {
+     const { error } = await supabase.from('sig_dictionary').upsert(changed, { onConflict: 'sig_code' });
+@@ -216,10 +218,11 @@
+       }));
+     } catch { /* The entries were already durably saved before the request. */ }
+   }
+-}
+-
+-export async function upsertSigEntry(entry: Insert): Promise<void> {
+-  await saveInserts([normalizeInsert(entry, 0)]);
++  return succeeded ? 'shared-acknowledged' : 'shared-unconfirmed';
++}
++
++export async function upsertSigEntry(entry: Insert): Promise<DictionarySaveStatus> {
++  return saveInserts([normalizeInsert(entry, 0)]);
+ }
+ 
+ export async function deleteSigEntry(id: string): Promise<void> {
+--- a/src/components/DictionaryView.tsx
++++ b/src/components/DictionaryView.tsx
+@@ -225,8 +225,10 @@
+   };
+ 
+   const handleSave = async (data: EditableEntry) => {
+-    await upsertSigEntry(data);
+-    toast.success(`SIG code "${data.sig_code}" saved`);
++    const status = await upsertSigEntry(data);
++    const message = `SIG code "${data.sig_code}" saved on this device.`;
++    if (status === 'shared-unconfirmed') toast.warning(`${message} Shared save not confirmed. Reopen and save this entry again to retry.`);
++    else toast.success(status === 'shared-acknowledged' ? `${message} Shared save acknowledged.` : message);
+     await load();
+   };
+ 
+--- a/tests/dictionaryViewErrors.test.tsx
++++ b/tests/dictionaryViewErrors.test.tsx
+@@ -47,7 +47,7 @@
+       id: 'stable-id', sig_code: 'CUSTOM', translation: 'Existing translation', status: 'ACTIVE',
+       redirect_codes: [], is_high_risk: false, high_risk_warning: '', created_at: '2026-01-01', updated_at: '2026-01-01',
+     }]);
+-    vi.mocked(upsertSigEntry).mockResolvedValue();
++    vi.mocked(upsertSigEntry).mockResolvedValue('local-only');
+     render(<DictionaryView />);
+     fireEvent.click(await screen.findByRole('button', { name: 'Edit CUSTOM' }));
+     fireEvent.change(screen.getByPlaceholderText('e.g. BID'), { target: { value: 'RENAMED' } });

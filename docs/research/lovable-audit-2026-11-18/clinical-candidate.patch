@@ -1,0 +1,77 @@
+--- a/src/lib/sigEngine.ts
++++ b/src/lib/sigEngine.ts
+@@ -22,6 +22,7 @@
+   hold?: { systolicBelow?: number; heartRateBelow?: number }; dateStripped: boolean; issues: SigIssue[];
+   slidingScaleSig?: string;
+   namedMealQualifier?: string;
++  supplemental?: string;
+ }
+ export interface SigParseOptions { drug: string; defaultSig?: string; }
+ 
+@@ -102,7 +103,17 @@
+   const normalized = normalizeSigText(raw).replace(/until\s+\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}:\d{2})?/i, '').trim();
+   const issues: SigIssue[] = []; const slidingScale = scale(normalized, options.drug);
+   const order: ParsedSigOrder = { raw, normalized, drug: options.drug, dose: parseDose(normalized, drugStrength(options.drug)), route: route(normalized), frequency: frequency(normalized), prn: /as needed|\bprn\b/.test(normalized), durationDays: Number(normalized.match(/for\s+(\d+)\s+days?/)?.[1]) || undefined, indication: indication(normalized), slidingScale, dateStripped, issues };
+-  order.namedMealQualifier = namedMealQualifier(splitSupplementalDirections(normalized).primary);
++  const clauses = splitSupplementalDirections(normalized);
++  order.namedMealQualifier = namedMealQualifier(clauses.primary);
++  // A later dose/monitoring/notify clause is its own instruction: read the
++  // first clause's dose and schedule, and keep the rest verbatim for review.
++  const primaryDose = clauses.supplemental ? parseDose(clauses.primary, drugStrength(options.drug)) : undefined;
++  if (clauses.supplemental && primaryDose && !slidingScale && !looksLikeSlidingScale(raw, options.drug)) {
++    order.dose = primaryDose; order.route = route(clauses.primary) ?? order.route;
++    order.frequency = frequency(clauses.primary); order.prn = /as needed|\bprn\b/.test(clauses.primary);
++    order.supplemental = clauses.supplemental.replace(/[\s.]+$/, '');
++    issues.push({ code: 'retained-supplemental-instructions', severity: 'warning', message: 'A later instruction was kept verbatim. Review it before copying.' });
++  }
+   if (looksLikeSlidingScale(raw, options.drug)) {
+     const resolved = resolveFrequencyAndSchedule(raw, undefined, options.drug);
+     order.slidingScaleSig = resolved.slidingScaleString || raw.replace(/\s+/g, ' ').trim().toUpperCase();
+@@ -131,6 +142,7 @@
+   const tokens: Array<string | undefined> = [order.dose && doseToken(order.dose, order.route), order.route, order.frequency, order.namedMealQualifier, order.prn ? 'PRN' : undefined];
+   if (order.prn) { tokens.push(order.indication); if (order.durationDays) tokens.push(`X${order.durationDays}D`); } else { if (order.durationDays) tokens.push(`X${order.durationDays}D`); tokens.push(order.indication); }
+   if (order.hold) tokens.push(`HR${order.hold.heartRateBelow}SBP${order.hold.systolicBelow}`);
+-  return tokens.filter(Boolean).join(' ').toUpperCase();
++  const sig = tokens.filter(Boolean).join(' ').toUpperCase();
++  return order.supplemental ? `${sig}. ${order.supplemental.toUpperCase()}` : sig;
+ }
+ export function translateFreeTextSig(raw: string, options: SigParseOptions): { order: ParsedSigOrder; sig: string } { const order = parseSigOrder(raw, options); return { order, sig: renderSig(order) }; }
+--- a/src/lib/clinical/slidingScale.ts
++++ b/src/lib/clinical/slidingScale.ts
+@@ -144,6 +144,7 @@
+     .replace(/^[\s,;.]+|[\s,;.]+$/g, '').trim();
+   const markers = [...body.matchAll(conditionPattern)];
+   let impliedUnits = false;
++  let carried = '';
+   for (let i = 0; i < markers.length; i++) {
+     const marker = markers[i];
+     const c = condition(marker[0]);
+@@ -151,6 +152,11 @@
+     if (range && Number(range[1]) > Number(range[2])) return fail('A scale range is reversed. Original directions were retained.');
+     let action = body.slice(marker.index! + marker[0].length, markers[i + 1]?.index ?? body.length)
+       .replace(/^[\s,;:=.]+|[\s,;:.]+$/g, '').trim();
++    // "HOLD IF BS <70": the action precedes its own condition. It belongs to
++    // the next band, never to the preceding band's dose.
++    if (carried) { action = `${carried} ${action}`.trim(); carried = ''; }
++    const leading = action.match(/(?:^|[.;,]\s*)((?:HOLD(?:\s+INSULIN)?|(?:NOTIFY|CALL)\s+[A-Z/]+)\s+(?:IF|FOR|WHEN)(?:\s+(?:BS|BG|CBS|BLOOD SUGAR|BLOOD GLUCOSE))?(?:\s+IS)?)$/);
++    if (leading && i + 1 < markers.length) { carried = leading[1]; action = action.slice(0, leading.index).replace(/[\s,;:.]+$/, '').trim(); }
+     const actions: string[] = [];
+     const dose = action.match(/^(?:(?:GIVE|ADMINISTER|INJECT)\s+)?(\d+(?:\.\d+)?)(?:\s*(UNITS?|U)\b)?(?=$|[\s,;.])/);
+     if (dose) {
+--- a/src/lib/clinical/frequencyEngine.ts
++++ b/src/lib/clinical/frequencyEngine.ts
+@@ -193,11 +193,11 @@
+   } else if (/\bEVERY\s+(\d+)\s*HOURS?\b/i.test(scheduleProse) || /\bQ(\d+)H\b/i.test(scheduleProse)) {
+     const qhMatch = scheduleProse.match(/\bEVERY\s+(\d+)\s*HOURS?\b/i) || scheduleProse.match(/\bQ(\d+)H\b/i);
+     frequencyToken = /\bEVERY\b/.test(qhMatch![0]) ? hourlySchedule(qhMatch![1]) : `Q${qhMatch![1]}H`;
+-  } else if (/\b(?:FOUR|4) TIMES (?:A|PER|EACH) DAY\b|\bQID\b/.test(scheduleProse)) {
++  } else if (/\b(?:FOUR|4) TIMES (?:(?:A|PER|EACH) DAY|DAILY)\b|\bQID\b/.test(scheduleProse)) {
+     frequencyToken = 'QID';
+-  } else if (/\b(?:THREE|3) TIMES (?:A|PER|EACH) DAY\b|\bTID\b/.test(scheduleProse)) {
++  } else if (/\b(?:THREE|3) TIMES (?:(?:A|PER|EACH) DAY|DAILY)\b|\bTID\b/.test(scheduleProse)) {
+     frequencyToken = 'TID';
+-  } else if (/\b(?:TWO|2)\s+TIMES\s+(?:A|PER|EACH)\s+DAY\b|\bTWICE\s+(?:A\s+DAY|DAILY)\b|\bBID\b/i.test(scheduleProse)) {
++  } else if (/\b(?:TWO|2)\s+TIMES\s+(?:(?:A|PER|EACH)\s+DAY|DAILY)\b|\bTWICE\s+(?:A\s+DAY|DAILY)\b|\bBID\b/i.test(scheduleProse)) {
+     frequencyToken = 'BID';
+   } else if (/\b(?:(?:ONE|1) TIME ONLY|ONCE ONLY|X1)\b/.test(scheduleProse)) {
+     frequencyToken = /\bONLY\b/.test(scheduleProse) ? 'X1 ONLY' : 'X1';
