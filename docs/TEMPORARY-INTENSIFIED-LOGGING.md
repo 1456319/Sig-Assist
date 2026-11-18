@@ -1,5 +1,7 @@
 # TEMPORARY INTENSIFIED LOGGING — REMOVAL PRIORITY: HIGH
 
+The separate SIG refinement dataset is described in `SIG-DATASET.md`. It is independent of this temporary metadata recorder and has separate IndexedDB storage and capture controls. Removing the temporary recorder must preserve shared UI Automation cache helpers used by `DatasetSnapshot`, or replace those dependencies explicitly; do not silently remove dataset collection with the recorder.
+
 **TEMPORARY_INTENSIFIED_LOGGING_REMOVAL_PRIORITY_HIGH**
 
 Prototype v0.1.9. Remove or substantially reduce this recorder once the E-Rx investigation has supplied the required evidence. The investigation may span many releases; this marker has no automatic expiry date. Review it before every production release. Preserve useful technician feedback and an appropriate operational audit when removing experimental capture.

@@ -42,7 +42,38 @@ export function SigDatasetPanel() {
     let stopped = false, timer: ReturnType<typeof setTimeout>;
     const controller = new AbortController();
     const sources = new Map<string, QueueOrder | null>();
+    const enrichment = new Map<string, Set<string>>();
+    let enriching = false;
     let last = '', lastError = '';
+    async function enrichSources() {
+      if (enriching) return;
+      enriching = true;
+      try {
+        for (const [pon, values] of enrichment) {
+          if (stopped) break;
+          let source: QueueOrder | undefined;
+          try { source = await findDatasetSource(pon, controller.signal); }
+          catch { lastError = 'Iguana source lookup unavailable; field observations remain saved without an original/final pairing.'; }
+          if (stopped) break;
+          sources.set(pon, source || null);
+          if (sources.size > 200) sources.delete(sources.keys().next().value!);
+          if (source) for (const value of values) {
+            if (stopped) break;
+            await queueSigSample(orderDatasetInput(source, 'framework_observed', { finalSig: value }));
+          }
+          enrichment.delete(pon);
+        }
+      } finally { enriching = false; }
+    }
+    function enrichLater(pon: string, value: string) {
+      if (sources.has(pon)) return;
+      if (!enrichment.has(pon)) {
+        if (enrichment.size >= 200) { lastError = 'Source enrichment is behind capture; unpaired observations are retained.'; return; }
+        enrichment.set(pon, new Set());
+      }
+      enrichment.get(pon)!.add(value);
+      void enrichSources();
+    }
     async function tick() {
       try {
         const result = await readFrameworkSigSnapshot(controller.signal);
@@ -53,15 +84,7 @@ export function SigDatasetPanel() {
           const pon = result.pon.trim(), value = result.sig.trim(), identity = JSON.stringify([pon, value]);
           if (identity !== last) {
             const loaded = latestOrders.current.filter(order => order.pon.trim() === pon);
-            let source = loaded.length === 1 ? loaded[0] : undefined;
-            if (!source && loaded.length === 0) {
-              if (!sources.has(pon)) {
-                try { sources.set(pon, (await findDatasetSource(pon, controller.signal)) || null); }
-                catch { sources.set(pon, null); lastError = 'Iguana source lookup unavailable; field observations are retained without an original/final pairing.'; }
-                if (sources.size > 200) sources.delete(sources.keys().next().value!);
-              }
-              source = sources.get(pon) || undefined;
-            }
+            const source = loaded.length === 1 ? loaded[0] : loaded.length === 0 ? sources.get(pon) || undefined : undefined;
             if (!stopped) {
               const input = source ? orderDatasetInput(source, 'framework_observed', { finalSig: value }) : {
                 orderKey: `framework:${pon}`, revision: 1, drug: result.drug || '', rawSig: value, finalSig: value,
@@ -71,6 +94,9 @@ export function SigDatasetPanel() {
               if (stopped) return;
               if (saved) last = identity;
               setFrameworkStatus(saved ? `Field observation saved locally${source ? ' with its exact incoming source' : '; original E-Rx prose was not available'}. This is not a verified save. ${lastError}` : 'Observation is pending local storage. Check dataset status.');
+              // Preserve the observation immediately. Slow Iguana enrichment
+              // must not delay the next native read and miss the next E-Rx.
+              if (saved && !source && loaded.length === 0) enrichLater(pon, value);
             }
           }
         }

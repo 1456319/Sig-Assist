@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ReviewContext } from '../src/hooks/use-review-session';
 import { SigDatasetConfirmation, SigDatasetPanel } from '../src/components/SigDatasetPanel';
 import type { QueueOrder } from '../src/lib/orderQueue';
@@ -58,10 +58,12 @@ beforeEach(() => {
   mocks.queue.mockReset().mockResolvedValue(true);
   mocks.stats.mockReset().mockResolvedValue({ total: 0, stages });
   mocks.page.mockReset().mockResolvedValue({ records: [], nextSeq: 0, hasMore: false, policies: {} });
+  mocks.readFramework.mockReset();
+  mocks.findSource.mockReset();
   mocks.captureState = { enabled: true, pending: 0, error: '', saved: 0 };
   vi.stubGlobal('fetch', vi.fn());
 });
-afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('technician confirmation', () => {
   it('keeps the actual final text, comment and rating available after a failed local save', async () => {
@@ -188,6 +190,42 @@ describe('dataset collection panel', () => {
     render(panel([order()]));
     await screen.findByText('SIG dataset · 0 local observations · paused');
     expect(mocks.queue).not.toHaveBeenCalled();
+  });
+
+  it('keeps observing the next Framework order while source enrichment is stalled and stops future polls on request', async () => {
+    vi.useFakeTimers();
+    mocks.readFramework
+      .mockResolvedValueOnce({ ok: true, pon: 'SYNTHETIC-PON-1', sig: '1T PO QAM', drug: 'Synthetic morning tablet' })
+      .mockResolvedValueOnce({ ok: true, pon: 'SYNTHETIC-PON-2', sig: '2T PO QPM', drug: 'Synthetic evening tablet' });
+    // A slow source service must not hold up capture of the next E-Rx.
+    mocks.findSource.mockImplementation(() => new Promise<QueueOrder | undefined>(() => {}));
+    render(panel([]));
+    fireEvent.click(screen.getByText('SIG dataset · 0 local observations · collecting'));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Start passive Framework SIG collection' }));
+    });
+
+    expect(mocks.queue).toHaveBeenCalledOnce();
+    expect(mocks.findSource).toHaveBeenCalledOnce();
+    expect(screen.getByRole('status').textContent).toContain('Field observation saved locally; original E-Rx prose was not available');
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+
+    expect(mocks.readFramework).toHaveBeenCalledTimes(2);
+    expect(mocks.queue.mock.calls.map(([value]) => {
+      const input = value as SigDatasetInput;
+      return { orderKey: input.orderKey, stage: input.stage, captureKind: input.captureKind, origin: input.origin, rawSig: input.rawSig, finalSig: input.finalSig };
+    })).toEqual([
+      { orderKey: 'framework:SYNTHETIC-PON-1', stage: 'framework_observed', captureKind: 'framework_sig_observation', origin: 'framework', rawSig: '1T PO QAM', finalSig: '1T PO QAM' },
+      { orderKey: 'framework:SYNTHETIC-PON-2', stage: 'framework_observed', captureKind: 'framework_sig_observation', origin: 'framework', rawSig: '2T PO QPM', finalSig: '2T PO QPM' },
+    ]);
+    // Enrichment is still waiting on its first lookup while both observations are saved.
+    expect(mocks.findSource).toHaveBeenCalledOnce();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stop passive Framework SIG collection' }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(15000); });
+    expect(mocks.readFramework).toHaveBeenCalledTimes(2);
+    expect(mocks.queue).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('button', { name: 'Start passive Framework SIG collection' })).toBeDefined();
   });
 
   it('downloads bounded successive batches and retains sample counts and data after export and reset', async () => {

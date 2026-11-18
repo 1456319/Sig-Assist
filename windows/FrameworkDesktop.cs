@@ -1111,7 +1111,15 @@ public static class FrameworkDesktop {
         object pattern;
         string value;
         if (element.TryGetCurrentPattern(ValuePattern.Pattern, out pattern)) value = ((ValuePattern)pattern).Current.Value;
-        else if (element.TryGetCurrentPattern(TextPattern.Pattern, out pattern)) value = ((TextPattern)pattern).DocumentRange.GetText(limit + 1);
+        else if (element.TryGetCurrentPattern(TextPattern.Pattern, out pattern)) {
+            // Rich-edit providers append a terminal paragraph marker. Read one
+            // character beyond the largest acceptable text plus marker before
+            // removing it, so a truncated overlength document cannot be accepted.
+            value = ((TextPattern)pattern).DocumentRange.GetText(limit + 2);
+            if (value == null || value.Length > limit + 1) throw new InvalidOperationException();
+            if (value.EndsWith("\r\n", StringComparison.Ordinal)) value = value.Substring(0, value.Length - 2);
+            else if (value.EndsWith("\r", StringComparison.Ordinal) || value.EndsWith("\n", StringComparison.Ordinal)) value = value.Substring(0, value.Length - 1);
+        }
         else throw new InvalidOperationException();
         if (value == null || value.Length > limit) throw new InvalidOperationException();
         return value;

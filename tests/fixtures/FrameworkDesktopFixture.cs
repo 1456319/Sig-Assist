@@ -63,6 +63,7 @@ public static class FrameworkDesktopFixture {
                 if (command.ContainsKey("sigPassword")) sig.UseSystemPasswordChar = command["sigPassword"] == "true";
                 if (command.ContainsKey("otherOrder")) otherOrder.Visible = command["otherOrder"] == "true";
                 if (command.ContainsKey("richSig")) { richSig.Visible = command["richSig"] == "true"; sig.Visible = !richSig.Visible; }
+                if (command.ContainsKey("richSigText")) richSig.Text = command["richSigText"];
                 if (command.ContainsKey("snapshot")) File.WriteAllText(Path.Combine(args[0], "state.json"),
                     new JavaScriptSerializer().Serialize(new { focus = sig.Focused ? "sig" : quantity.Focused ? "quantity" : "other", decorativeControls = decorations == null ? 0 : decorations.Controls.Count }));
                 seen = text; File.WriteAllText(Path.Combine(args[0], "ack.json"), text);

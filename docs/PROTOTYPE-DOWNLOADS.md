@@ -1,6 +1,6 @@
 # Current prototype downloads
 
-The prototype branch contains a ready-to-run browser page and `windows-demo/Sig-Assist-Windows-Demo.zip`. Downloading the branch as a ZIP includes both; no local compilation is required. The app header displays the release version plus a source build ID, and `windows-demo/BUILD.json` records the full identity. The refreshed release is v0.1.10, including the November17 audit fixes.
+The prototype branch contains a ready-to-run browser page and `windows-demo/Sig-Assist-Windows-Demo.zip`. Downloading the branch as a ZIP includes both; no local compilation is required. The app header displays the release version plus a source build ID, and `windows-demo/BUILD.json` records the full identity. v0.1.11 includes all November17 audit fixes plus the local SIG dataset collector.
 
 Each normal push runs Windows/Linux checks. After both pass, `MVP checks → publish-prototype` builds the page and ZIP again and commits any changed generated files to prototype. It skips an outdated run if the branch has advanced, and uses a normal non-forced push so a concurrent source commit cannot be overwritten. Its GitHub Actions token does not recursively trigger another push workflow.
 
