@@ -28,7 +28,8 @@ vi.mock('../src/lib/sigDatasetCapture', async importOriginal => ({
   datasetCaptureState: () => mocks.captureState,
   subscribeDatasetCapture: () => () => {},
 }));
-vi.mock('../src/lib/frameworkSigDataset', () => ({
+vi.mock('../src/lib/frameworkSigDataset', async importOriginal => ({
+  ...await importOriginal<typeof import('../src/lib/frameworkSigDataset')>(),
   readFrameworkSigSnapshot: mocks.readFramework,
   findDatasetSource: mocks.findSource,
 }));

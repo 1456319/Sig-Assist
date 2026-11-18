@@ -87,14 +87,27 @@ export async function runDesktopHelper(input, { getExecutable = helperExecutable
 // Bindings stay in this process, expire and are consumed before a write. The page
 // receives an opaque token, never a client-editable process/control selector.
 export function createDesktopSession({ run = runDesktopHelper, now = Date.now } = {}) {
-  const bindings = new Map(); let busy = false; let entryWindow, observationDone, finishObservation;
+  const bindings = new Map(); let busy = false; let entryWindow, observationDone, finishObservation, passiveAction;
+  // A frozen Framework window blocks every UI Automation read until the helper
+  // is killed. Pause background reads after a timeout instead of relaunching
+  // (and holding the helper for) another 8 s read on every 3-5 s poll.
+  // Technician-initiated work is never paused.
+  let passiveResumeAt = 0, passiveFailures = 0, clinicalWaiting = 0;
+  const passivePaused = () => { const retryAfterMs = passiveResumeAt - now(); return retryAfterMs > 0 ? { ok: false, code: 'PASSIVE_PAUSED', retryAfterMs: Math.ceil(retryAfterMs) } : undefined; };
+  const passiveOutcome = stalled => {
+    if (!stalled) { passiveFailures = 0; passiveResumeAt = 0; return; }
+    passiveFailures++; passiveResumeAt = now() + Math.min(60000, 10000 * 2 ** (passiveFailures - 1));
+  };
   // The helper is short lived. Keep passive traversal progress here, never in a
   // page-supplied selector or in the native helper's static state.
   let observationScanOffset = 0;
   function remember(result, selectEntry = false) {
     if (!result.ok) return result;
     if (selectEntry && result.entryWindow) {
-      if (!entryWindow || ['pid', 'started', 'id', 'handle'].some(k => entryWindow[k] !== result.entryWindow[k])) observationScanOffset = 0;
+      if (!entryWindow || ['pid', 'started', 'id', 'handle'].some(k => entryWindow[k] !== result.entryWindow[k])) {
+        observationScanOffset = 0;
+        passiveFailures = 0; passiveResumeAt = 0;
+      }
       entryWindow = { ...result.entryWindow };
     }
     const token = randomUUID(); const expiresAt = now() + 5 * 60 * 1000;
@@ -110,10 +123,18 @@ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } 
     // A clinical request waits for the bounded passive read already in flight;
     // it must not fail merely because the recorder briefly owns the helper.
     const passive = action === 'observe' || action === 'dataset-snapshot';
-    if (!passive && observationDone) await observationDone;
+    if (passive && entryWindow) { const paused = passivePaused(); if (paused) return paused; }
+    if (!passive && observationDone) { clinicalWaiting++; try { await observationDone; } finally { clinicalWaiting--; } }
+    // The dataset collector waits for the recorder's bounded read rather than
+    // losing this poll; waiting clinical work still goes first.
+    else if (action === 'dataset-snapshot' && observationDone && passiveAction === 'observe') {
+      await observationDone;
+      if (clinicalWaiting) return { ok: false, code: 'BUSY', error: 'A Framework desktop operation is already running.' };
+      if (entryWindow) { const paused = passivePaused(); if (paused) return paused; }
+    }
     if (busy) return { ok: false, code: 'BUSY', error: 'A Framework desktop operation is already running.' };
     busy = true;
-    if (passive) observationDone = new Promise(resolve => { finishObservation = resolve; });
+    if (passive) { passiveAction = action; observationDone = new Promise(resolve => { finishObservation = resolve; }); }
     let writeStarted = false;
     try {
       // Separate local dataset reader. Never reuse a write token, discover a
@@ -121,9 +142,15 @@ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } 
       if (action === 'dataset-snapshot') {
         if (!entryWindow) return { ok: false, code: 'SELECTION_REQUIRED' };
         try {
-          const result = await run({ action: 'dataset-snapshot', entryWindow });
+          let result;
+          try { result = await run({ action: 'dataset-snapshot', entryWindow }); }
+          catch (error) {
+            const stalled = error?.failureReason === 'HELPER_TIMEOUT'; passiveOutcome(stalled);
+            return { ok: false, code: stalled ? 'READ_TIMEOUT' : 'DATASET_SNAPSHOT_FAILED' };
+          }
+          passiveOutcome(result?.code === 'FRAMEWORK_NOT_RESPONDING');
           // Do not forward arbitrary helper diagnostics, selectors or values.
-          const codes = new Set(['OK', 'WINDOW_UNAVAILABLE', 'CURRENT_ORDER_UNAVAILABLE', 'CURRENT_ORDER_AMBIGUOUS', 'PON_UNAVAILABLE', 'PON_AMBIGUOUS', 'SIG_UNAVAILABLE', 'SIG_AMBIGUOUS', 'ORDER_CHANGED', 'READ_LIMIT', 'DATASET_SNAPSHOT_FAILED']);
+          const codes = new Set(['OK', 'WINDOW_UNAVAILABLE', 'FRAMEWORK_NOT_RESPONDING', 'CURRENT_ORDER_UNAVAILABLE', 'CURRENT_ORDER_AMBIGUOUS', 'PON_UNAVAILABLE', 'PON_AMBIGUOUS', 'SIG_UNAVAILABLE', 'SIG_AMBIGUOUS', 'ORDER_CHANGED', 'READ_LIMIT', 'DATASET_SNAPSHOT_FAILED']);
           const code = codes.has(result?.code) ? result.code : 'DATASET_SNAPSHOT_FAILED';
           const valid = result?.ok === true && code === 'OK' && typeof result.pon === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,99}$/.test(result.pon) && result.pon !== 'PON' && typeof result.sig === 'string' && result.sig.trim() && result.sig.length <= 4000 && result.partial !== true;
           if (!valid) return { ok: false, code: code === 'OK' ? 'DATASET_SNAPSHOT_FAILED' : code, ...(result?.partial === true ? { partial: true } : {}) };
@@ -136,8 +163,9 @@ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } 
         if (!entryWindow) return { ok: false, code: 'SELECTION_REQUIRED' };
         const scanOffset = observationScanOffset;
         observationScanOffset = (observationScanOffset + 173) % 1600;
-        try { return await run({ action: 'observe', entryWindow, key: body.key, scanOffset }); }
+        try { const result = await run({ action: 'observe', entryWindow, key: body.key, scanOffset }); passiveOutcome(result?.code === 'FRAMEWORK_NOT_RESPONDING'); return result; }
         catch (error) {
+          passiveOutcome(error?.failureReason === 'HELPER_TIMEOUT');
           const result = { ok: false, code: 'OBSERVATION_FAILED', failureReason: failureReasons.has(error?.failureReason) ? error.failureReason : 'UNKNOWN_FAILURE' };
           const duration = helperDuration(error?.helperDurationMs);
           if (duration !== undefined) result.helperDurationMs = duration;
@@ -168,6 +196,6 @@ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } 
       if (result.ok && result.verified && result.detected?.ok) return { ok: true, verified: true, field: body.field, warnings: result.warnings ?? [], next: remember(result.detected) };
       return { ...result, ok: false };
     } catch (error) { return { ok: false, uncertain: writeStarted, error: error.message }; }
-    finally { busy = false; if (passive) { const finish = finishObservation; observationDone = undefined; finishObservation = undefined; finish?.(); } }
+    finally { busy = false; if (passive) { const finish = finishObservation; observationDone = undefined; finishObservation = undefined; passiveAction = undefined; finish?.(); } }
   };
 }

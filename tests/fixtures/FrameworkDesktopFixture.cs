@@ -74,6 +74,9 @@ public static class FrameworkDesktopFixture {
                         sigMaxLength = sig.MaxLength, richSigMaxLength = richSig.MaxLength
                     }));
                 seen = text; File.WriteAllText(Path.Combine(args[0], "ack.json"), text);
+                // Acknowledge first, then deliberately stop pumping UI messages.
+                // This affects only this synthetic test process.
+                if (command.ContainsKey("hangMs")) System.Threading.Thread.Sleep(Math.Min(20000, Math.Max(0, Int32.Parse(command["hangMs"]))));
             } catch { }
         };
         form.Shown += delegate { File.WriteAllText(Path.Combine(args[0], "ready"), "ready"); timer.Start(); };

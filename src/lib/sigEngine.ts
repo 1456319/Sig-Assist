@@ -3,6 +3,7 @@ import { isUnknownElementalCandidate } from './formulationEquivalences';
 import { looksLikeSlidingScale, parseSlidingScale } from './clinical/slidingScale';
 import { namedMealQualifier, resolveFrequencyAndSchedule } from './clinical/frequencyEngine';
 import { splitSupplementalDirections } from './clinical/instructionClauses';
+import { evaluatePaxitPackaging } from './clinical/paxitEngine';
 
 /**
  * A structured foundation for free-text SIG translation. Extraction, safety
@@ -22,6 +23,8 @@ export interface ParsedSigOrder {
   hold?: { systolicBelow?: number; heartRateBelow?: number }; dateStripped: boolean; issues: SigIssue[];
   slidingScaleSig?: string;
   namedMealQualifier?: string;
+  supplemental?: string;
+  retainedRegimen?: string;
 }
 export interface SigParseOptions { drug: string; defaultSig?: string; }
 
@@ -101,9 +104,29 @@ export function parseSigOrder(raw: string, options: SigParseOptions): ParsedSigO
   const dateStripped = /until\s+\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}:\d{2})?/i.test(raw);
   const normalized = normalizeSigText(raw).replace(/until\s+\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}:\d{2})?/i, '').trim();
   const issues: SigIssue[] = []; const slidingScale = scale(normalized, options.drug);
-  const order: ParsedSigOrder = { raw, normalized, drug: options.drug, dose: parseDose(normalized, drugStrength(options.drug)), route: route(normalized), frequency: frequency(normalized), prn: /as needed|\bprn\b/.test(normalized), durationDays: Number(normalized.match(/for\s+(\d+)\s+days?/)?.[1]) || undefined, indication: indication(normalized), slidingScale, dateStripped, issues };
-  order.namedMealQualifier = namedMealQualifier(splitSupplementalDirections(normalized).primary);
-  if (looksLikeSlidingScale(raw, options.drug)) {
+  const isScale = looksLikeSlidingScale(raw, options.drug);
+  const clauses = splitSupplementalDirections(normalized);
+  const strength = drugStrength(options.drug);
+  // Every parsed field must have the same owning clause, including duration,
+  // indication and holds. A later action must not supply an earlier dose's route.
+  const retainLater = !!clauses.supplemental && !!parseDose(clauses.primary, strength) && !isScale;
+  const primary = retainLater ? clauses.primary : normalized;
+  const order: ParsedSigOrder = { raw, normalized, drug: options.drug, dose: parseDose(primary, strength), route: route(primary), frequency: frequency(primary), prn: /as needed|\bprn\b/.test(primary), durationDays: Number(primary.match(/for\s+(\d+)\s+days?/)?.[1]) || undefined, indication: indication(primary), slidingScale, dateStripped, issues };
+  order.namedMealQualifier = namedMealQualifier(clauses.primary);
+  // A later dose/monitoring/notify clause is its own instruction: read the
+  // first clause's dose and schedule, and keep the rest verbatim for review.
+  if (retainLater) {
+    order.supplemental = clauses.supplemental!.replace(/[\s.]+$/, '');
+    issues.push({ code: 'retained-supplemental-instructions', severity: 'warning', message: 'A later instruction was kept verbatim. Review it before copying.' });
+  } else if (!isScale && /\b(?:morning|qam|am)\b/.test(normalized) && /\band\b/.test(normalized)
+      && /\b(?:bedtime|qhs|hs|night|evening|pm)\b/.test(normalized)
+      && evaluatePaxitPackaging(options.drug, normalized).requiresSplit) {
+    // The classic single-dose schema cannot represent both phases. The clinical
+    // path renders split parts; keep this path's complete regimen editable.
+    order.retainedRegimen = normalized.toUpperCase();
+    issues.push({ code: 'multiple-dose-schedules', severity: 'warning', message: 'Different dose schedules were retained together. Use the clinical split drafts or review the complete directions.' });
+  }
+  if (isScale) {
     const resolved = resolveFrequencyAndSchedule(raw, undefined, options.drug);
     order.slidingScaleSig = resolved.slidingScaleString || raw.replace(/\s+/g, ' ').trim().toUpperCase();
     if (resolved.abnormalities.some(finding => finding.id === 'sliding_scale_unparsed_action')) issues.push({
@@ -111,7 +134,7 @@ export function parseSigOrder(raw: string, options: SigParseOptions): ParsedSigO
     });
     if (!resolved.slidingScaleString) issues.push({ code: 'incomplete-sliding-scale', severity: 'warning', message: 'The complete scale needs technician review; original directions were retained.' });
   }
-  const hold = normalized.match(/hold\s+(?:if|for)\s+(?:sbp|systolic(?: blood pressure)?)\s+(?:less than|below)\s+(\d+).*?(?:heart rate|hr)\s+(?:less than|below)\s+(\d+)/i);
+  const hold = primary.match(/hold\s+(?:if|for)\s+(?:sbp|systolic(?: blood pressure)?)\s+(?:less than|below)\s+(\d+).*?(?:heart rate|hr)\s+(?:less than|below)\s+(\d+)/i);
   if (hold) order.hold = { systolicBelow: Number(hold[1]), heartRateBelow: Number(hold[2]) };
   if (dateStripped) issues.push({ code: 'cut-date', severity: 'warning', message: 'A cut date was removed; verify it in the order date field.' });
   if (isUnknownElementalCandidate(options.drug)) issues.push({ code: 'unknown-elemental-equivalent', severity: 'blocking', message: 'This strength may describe an elemental equivalent, but the compound/formulation could not be verified.' });
@@ -126,11 +149,13 @@ function doseToken(dose: Dose, deliveryRoute?: Route): string {
   return dose.calculatedAmount ? `${base[dose.unit]} (${number(dose.calculatedAmount.amount)}${dose.calculatedAmount.unit})` : base[dose.unit];
 }
 export function renderSig(order: ParsedSigOrder): string {
+  if (order.retainedRegimen !== undefined) return order.retainedRegimen;
   if (order.slidingScaleSig !== undefined) return order.slidingScaleSig;
   if (order.slidingScale) return `CBS ${order.frequency === 'ACHS' ? 'ACHS' : 'AC'} SS ${order.slidingScale.map((band) => band.lower === undefined ? `<${band.upper! + 1}=${band.action}` : band.upper === undefined ? `>${band.lower - 1}=${band.action ?? `${number(band.dose ?? 0)}U`}` : `${band.lower}-${band.upper}=${number(band.dose ?? 0)}U`).join(';')}`;
   const tokens: Array<string | undefined> = [order.dose && doseToken(order.dose, order.route), order.route, order.frequency, order.namedMealQualifier, order.prn ? 'PRN' : undefined];
   if (order.prn) { tokens.push(order.indication); if (order.durationDays) tokens.push(`X${order.durationDays}D`); } else { if (order.durationDays) tokens.push(`X${order.durationDays}D`); tokens.push(order.indication); }
   if (order.hold) tokens.push(`HR${order.hold.heartRateBelow}SBP${order.hold.systolicBelow}`);
-  return tokens.filter(Boolean).join(' ').toUpperCase();
+  const sig = tokens.filter(Boolean).join(' ').toUpperCase();
+  return order.supplemental ? `${sig}. ${order.supplemental.toUpperCase()}` : sig;
 }
 export function translateFreeTextSig(raw: string, options: SigParseOptions): { order: ParsedSigOrder; sig: string } { const order = parseSigOrder(raw, options); return { order, sig: renderSig(order) }; }

@@ -173,7 +173,7 @@ function evaluatePaxitPackagingInternal(drugName: string, rawProse: string): Pax
 
   // Differing morning and bedtime doses (supporting decimals and fractions)
   const diffDoseRegex = new RegExp(
-    `(${countPattern})\\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?.*?\\b(?:MORNING|QAM|AM)\\b.*?\\bAND\\b\\s*(${countPattern})\\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?\\s*(?:AT\\s*NIGHT|AT\\s*BEDTIME|BEDTIME|QHS|HS|EVENING|PM)\\b`,
+    `(${countPattern})\\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?.*?\\b(?:MORNING|QAM|AM)\\b.*?\\bAND\\b\\s*(?:(?:TAKE|GIVE|ADMINISTER)\\s+)?(${countPattern})\\s*(?:TABLETS?|TABS?|CAPSULES?|CAPS?)?\\s*(?:(?:BY\\s+MOUTH|PO|ORALLY)\\s+)?(?:AT\\s*NIGHT|AT\\s*BEDTIME|BEDTIME|QHS|HS|IN\\s+THE\\s+EVENING|EVENING|PM)\\b`,
     'i'
   );
   const diffDoseMatch = upperProse.match(diffDoseRegex);

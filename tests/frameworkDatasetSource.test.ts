@@ -1,9 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { attributeExport, newRx } from './iguanaFixtures';
-import { findDatasetSource } from '../src/lib/frameworkSigDataset';
+import { findDatasetSource, frameworkSnapshotStatus } from '../src/lib/frameworkSigDataset';
 afterEach(() => vi.unstubAllGlobals());
 const response = (body: string) => new Response(JSON.stringify({ ok: true, status: 200, body }), { headers: { 'content-type': 'application/json' } });
 describe('passive dataset source lookup', () => {
+  it.each(['READ_TIMEOUT', 'FRAMEWORK_NOT_RESPONDING', 'PASSIVE_PAUSED', 'BUSY'])('explains %s without incorrectly asking for window selection', code => {
+    const message = frameworkSnapshotStatus({ ok: false, code, retryAfterMs: 20000 });
+    expect(message).not.toContain('Choose');
+    expect(message.length).toBeGreaterThan(20);
+    if (code === 'PASSIVE_PAUSED') expect(message).toContain('20 seconds');
+  });
   it('requires exact PON identity and retries the wider window for a suffix sibling', async () => {
     const pon = 'SYNTHETIC:01_A';
     const fetcher = vi.fn().mockResolvedValueOnce(response(attributeExport([{ payload: newRx({ pon: pon + '0' }) }])))

@@ -45,7 +45,7 @@ describe('named meal timing from saved exclusion examples', () => {
   it('does not promote a supplemental prohibition into positive meal timing', () => {
     const raw = 'Take 1 tablet by mouth twice daily. Do not take with breakfast and dinner.';
     expect(clinical(raw).primarySig).toBe('1T PO BID. DO NOT TAKE WITH BREAKFAST AND DINNER.');
-    expect(translateFreeTextSig(raw, { drug }).sig).toBe('1T PO BID');
+    expect(translateFreeTextSig(raw, { drug }).sig).toBe('1T PO BID. DO NOT TAKE WITH BREAKFAST AND DINNER');
   });
 
   it('retains a later monitoring instruction separately from the named dosing meals', () => {

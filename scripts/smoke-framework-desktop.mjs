@@ -53,6 +53,16 @@ try {
   const captured = await dataset();
   assert.deepEqual(captured, { ok: true, code: 'OK', pon: 'SYNTHETIC-1', sig: 'OLD SIG', partial: false });
   assert.doesNotMatch(JSON.stringify(captured), /SOURCE SIG|PREVIEW SIG|PAT-1|FAC-1|Synthetic tablet|PRIVATE VALUE/);
+  // Exercise actual Windows responsiveness without relying on a mocked helper
+  // timeout. The fixture acknowledges before blocking its own UI thread.
+  await command({ hangMs: '15000' });
+  await new Promise(resolve => setTimeout(resolve, 6500));
+  const hungStart = Date.now();
+  assert.equal((await dataset()).code, 'FRAMEWORK_NOT_RESPONDING');
+  assert.equal((await run({ action: 'observe', key: '12'.repeat(32), entryWindow: entry.entryWindow })).code, 'FRAMEWORK_NOT_RESPONDING');
+  assert.ok(Date.now() - hungStart < 7000, 'Frozen-window hints should return before the passive helper timeout.');
+  await command({ snapshot: 'true' });
+  assert.deepEqual(await dataset(), captured, 'Passive reads recover after the fixture resumes.');
   await command({ pon: 'SYNTHETIC:0003', sig: 'HUMAN EDIT OBSERVED', focus: 'quantity' });
   assert.deepEqual(await dataset(), { ok: true, code: 'OK', pon: 'SYNTHETIC:0003', sig: 'HUMAN EDIT OBSERVED', partial: false });
   await command({ snapshot: 'true' });

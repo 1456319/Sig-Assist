@@ -47,7 +47,7 @@ describe('dictionary storage feedback', () => {
       id: 'stable-id', sig_code: 'CUSTOM', translation: 'Existing translation', status: 'ACTIVE',
       redirect_codes: [], is_high_risk: false, high_risk_warning: '', created_at: '2026-01-01', updated_at: '2026-01-01',
     }]);
-    vi.mocked(upsertSigEntry).mockResolvedValue();
+    vi.mocked(upsertSigEntry).mockResolvedValue('local-only');
     render(<DictionaryView />);
     fireEvent.click(await screen.findByRole('button', { name: 'Edit CUSTOM' }));
     fireEvent.change(screen.getByPlaceholderText('e.g. BID'), { target: { value: 'RENAMED' } });

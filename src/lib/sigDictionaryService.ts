@@ -191,11 +191,13 @@ export async function fetchAllSigEntries(): Promise<SigDictionaryEntry[]> {
   return state.entries.sort((a, b) => a.sig_code.localeCompare(b.sig_code));
 }
 
-async function saveInserts(inputs: Insert[]): Promise<void> {
+type DictionarySaveStatus = 'local-only' | 'shared-unconfirmed' | 'shared-acknowledged';
+
+async function saveInserts(inputs: Insert[]): Promise<DictionarySaveStatus> {
   const state = getLocalState();
   const changed = mergeInserts(state, inputs);
   saveLocalState(state);
-  if (!supabase) return;
+  if (!supabase) return 'local-only';
   let succeeded = false;
   try {
     const { error } = await supabase.from('sig_dictionary').upsert(changed, { onConflict: 'sig_code' });
@@ -216,10 +218,11 @@ async function saveInserts(inputs: Insert[]): Promise<void> {
       }));
     } catch { /* The entries were already durably saved before the request. */ }
   }
+  return succeeded ? 'shared-acknowledged' : 'shared-unconfirmed';
 }
 
-export async function upsertSigEntry(entry: Insert): Promise<void> {
-  await saveInserts([normalizeInsert(entry, 0)]);
+export async function upsertSigEntry(entry: Insert): Promise<DictionarySaveStatus> {
+  return saveInserts([normalizeInsert(entry, 0)]);
 }
 
 export async function deleteSigEntry(id: string): Promise<void> {

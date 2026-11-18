@@ -144,6 +144,7 @@ export function parseSlidingScale(raw: string): ParsedSlidingScale {
     .replace(/^[\s,;.]+|[\s,;.]+$/g, '').trim();
   const markers = [...body.matchAll(conditionPattern)];
   let impliedUnits = false;
+  let carried = '';
   for (let i = 0; i < markers.length; i++) {
     const marker = markers[i];
     const c = condition(marker[0]);
@@ -151,6 +152,11 @@ export function parseSlidingScale(raw: string): ParsedSlidingScale {
     if (range && Number(range[1]) > Number(range[2])) return fail('A scale range is reversed. Original directions were retained.');
     let action = body.slice(marker.index! + marker[0].length, markers[i + 1]?.index ?? body.length)
       .replace(/^[\s,;:=.]+|[\s,;:.]+$/g, '').trim();
+    // "HOLD IF BS <70": the action precedes its own condition. It belongs to
+    // the next band, never to the preceding band's dose.
+    if (carried) { action = `${carried} ${action}`.trim(); carried = ''; }
+    const leading = action.match(/(?:^|[.;,]\s*)((?:HOLD(?:\s+INSULIN)?|(?:NOTIFY|CALL)\s+[A-Z/]+)\s+(?:IF|FOR|WHEN)(?:\s+(?:BS|BG|CBS|BLOOD SUGAR|BLOOD GLUCOSE))?(?:\s+IS)?)$/);
+    if (leading && i + 1 < markers.length) { carried = leading[1]; action = action.slice(0, leading.index).replace(/[\s,;:.]+$/, '').trim(); }
     const actions: string[] = [];
     const dose = action.match(/^(?:(?:GIVE|ADMINISTER|INJECT)\s+)?(\d+(?:\.\d+)?)(?:\s*(UNITS?|U)\b)?(?=$|[\s,;.])/);
     if (dose) {

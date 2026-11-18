@@ -225,8 +225,10 @@ export function DictionaryView() {
   };
 
   const handleSave = async (data: EditableEntry) => {
-    await upsertSigEntry(data);
-    toast.success(`SIG code "${data.sig_code}" saved`);
+    const status = await upsertSigEntry(data);
+    const message = `SIG code "${data.sig_code}" saved on this device.`;
+    if (status === 'shared-unconfirmed') toast.warning(`${message} Shared save not confirmed. Reopen and save this entry again to retry.`);
+    else toast.success(status === 'shared-acknowledged' ? `${message} Shared save acknowledged.` : message);
     await load();
   };
 

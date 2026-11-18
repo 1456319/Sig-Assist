@@ -193,11 +193,11 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
   } else if (/\bEVERY\s+(\d+)\s*HOURS?\b/i.test(scheduleProse) || /\bQ(\d+)H\b/i.test(scheduleProse)) {
     const qhMatch = scheduleProse.match(/\bEVERY\s+(\d+)\s*HOURS?\b/i) || scheduleProse.match(/\bQ(\d+)H\b/i);
     frequencyToken = /\bEVERY\b/.test(qhMatch![0]) ? hourlySchedule(qhMatch![1]) : `Q${qhMatch![1]}H`;
-  } else if (/\b(?:FOUR|4) TIMES (?:A|PER|EACH) DAY\b|\bQID\b/.test(scheduleProse)) {
+  } else if (/\b(?:FOUR|4) TIMES (?:(?:A|PER|EACH) DAY|DAILY)\b|\bQID\b/.test(scheduleProse)) {
     frequencyToken = 'QID';
-  } else if (/\b(?:THREE|3) TIMES (?:A|PER|EACH) DAY\b|\bTID\b/.test(scheduleProse)) {
+  } else if (/\b(?:THREE|3) TIMES (?:(?:A|PER|EACH) DAY|DAILY)\b|\bTID\b/.test(scheduleProse)) {
     frequencyToken = 'TID';
-  } else if (/\b(?:TWO|2)\s+TIMES\s+(?:A|PER|EACH)\s+DAY\b|\bTWICE\s+(?:A\s+DAY|DAILY)\b|\bBID\b/i.test(scheduleProse)) {
+  } else if (/\b(?:TWO|2)\s+TIMES\s+(?:(?:A|PER|EACH)\s+DAY|DAILY)\b|\bTWICE\s+(?:A\s+DAY|DAILY)\b|\bBID\b/i.test(scheduleProse)) {
     frequencyToken = 'BID';
   } else if (/\b(?:(?:ONE|1) TIME ONLY|ONCE ONLY|X1)\b/.test(scheduleProse)) {
     frequencyToken = /\bONLY\b/.test(scheduleProse) ? 'X1 ONLY' : 'X1';

@@ -1,0 +1,118 @@
+// @vitest-environment node
+// Candidate regression for Sig-Assist prototype 11fa35b. Copy into tests/ of the pharmacy repo.
+// Synthetic TEST- identifiers only. No Windows, Framework or Iguana access.
+import { describe, expect, it, vi } from 'vitest';
+// @ts-expect-error Native Node module is deliberately dependency-free.
+import { createDesktopSession } from '../scripts/framework-desktop.mjs';
+// @ts-expect-error Native Node module is deliberately dependency-free.
+import { safeDesktop } from '../scripts/pilot-journal.mjs';
+
+const entryWindow = { pid: 41, started: '111', id: 'root-a', handle: 401, title: 'Entry' };
+const detected = { ok: true, pon: 'TEST-PON-1', pons: ['TEST-PON-1'], entryWindow, fields: { sig: { id: 'sig-1', value: 'OLD', label: 'SIG' } } };
+const snapshot = { ok: true, code: 'OK', pon: 'TEST-PON-1', sig: 'TEST SIG 1T PO QAM', partial: false };
+const timeout = () => Object.assign(new Error('Desktop helper timed out.'), { failureReason: 'HELPER_TIMEOUT', helperDurationMs: 8000 });
+
+describe('passive helper scheduling (recorder + dataset collector share one helper)', () => {
+  it('a dataset read waits for an in-flight recorder observation instead of losing the poll as BUSY', async () => {
+    let finishObserve: (value: unknown) => void = () => {};
+    const run = vi.fn(async (input: { action: string }) => input.action === 'observe'
+      ? await new Promise(resolve => { finishObserve = resolve; })
+      : input.action === 'dataset-snapshot' ? snapshot : detected);
+    const desktop = createDesktopSession({ run, now: () => 0 });
+    await desktop('detect');
+    const observed = desktop('observe', { key: 'a'.repeat(64) });
+    const dataset = desktop('dataset-snapshot');
+    finishObserve({ ok: true, code: 'OK', controls: [] });
+    await observed;
+    // Baseline 11fa35b: { ok: false, code: 'BUSY' } and the SIG on screen is not collected this cycle.
+    expect(await dataset).toMatchObject({ ok: true, code: 'OK', pon: 'TEST-PON-1' });
+    expect(run.mock.calls.map(([input]) => input.action)).toEqual(['detect', 'observe', 'dataset-snapshot']);
+  });
+
+  it('clinical work keeps priority over a waiting dataset read', async () => {
+    let finishObserve: (value: unknown) => void = () => {};
+    const run = vi.fn(async (input: { action: string }) => input.action === 'observe'
+      ? await new Promise(resolve => { finishObserve = resolve; })
+      : input.action === 'dataset-snapshot' ? snapshot : detected);
+    const desktop = createDesktopSession({ run, now: () => 0 });
+    await desktop('detect');
+    const observed = desktop('observe', { key: 'a'.repeat(64) });
+    const dataset = desktop('dataset-snapshot');
+    const clinical = desktop('detect');
+    finishObserve({ ok: true, code: 'OK', controls: [] });
+    await observed;
+    expect(await clinical).toMatchObject({ ok: true, pon: 'TEST-PON-1' });
+    expect(await dataset).toMatchObject({ ok: false, code: 'BUSY' });
+    expect(run.mock.calls.map(([input]) => input.action)).toEqual(['detect', 'observe', 'detect']);
+  });
+
+  it('pauses passive helper launches after a timed-out passive read, without blocking technician Detect', async () => {
+    let time = 0;
+    const run = vi.fn(async (input: { action: string }) => {
+      if (input.action === 'detect') return detected;
+      throw timeout();
+    });
+    const desktop = createDesktopSession({ run, now: () => time });
+    await desktop('detect');
+    const first = await desktop('dataset-snapshot');
+    const launches = () => run.mock.calls.filter(([input]) => input.action !== 'detect').length;
+    expect(launches()).toBe(1);
+    // Recorder (3 s) and collector (5 s) keep polling a frozen Framework window.
+    const later: unknown[] = [];
+    for (const step of [3000, 5000, 8000]) {
+      time = step;
+      later.push(await desktop('observe', { key: 'a'.repeat(64) }), await desktop('dataset-snapshot'));
+    }
+    // Baseline 11fa35b launches (and waits up to 8 s for) a helper on every poll: 7 launches here.
+    expect(launches()).toBe(1);
+    // A timeout is reported as a timeout, not as a generic snapshot failure.
+    expect(first).toMatchObject({ ok: false, code: 'READ_TIMEOUT' });
+    for (const result of later) expect(result).toMatchObject({ ok: false, code: 'PASSIVE_PAUSED', retryAfterMs: expect.any(Number) });
+    // The technician's own Detect is never suppressed by passive backoff.
+    expect(await desktop('detect')).toMatchObject({ ok: true });
+    // After the pause, one probe is allowed again; a further timeout doubles the pause.
+    time = 10000;
+    expect(await desktop('dataset-snapshot')).toMatchObject({ ok: false, code: 'READ_TIMEOUT' });
+    expect(launches()).toBe(2);
+    time = 25000;
+    expect(await desktop('dataset-snapshot')).toMatchObject({ ok: false, code: 'PASSIVE_PAUSED' });
+    expect(launches()).toBe(2);
+  });
+
+  it('resumes normal passive polling after a successful read and keeps the native not-responding status distinct', async () => {
+    let time = 0;
+    const results: unknown[] = [timeout(), snapshot, snapshot, { ok: false, code: 'FRAMEWORK_NOT_RESPONDING' }];
+    const run = vi.fn(async (input: { action: string }) => {
+      if (input.action === 'detect') return detected;
+      const next = results.shift(); if (next instanceof Error) throw next; return next;
+    });
+    const desktop = createDesktopSession({ run, now: () => time });
+    await desktop('detect');
+    expect(await desktop('dataset-snapshot')).toMatchObject({ code: 'READ_TIMEOUT' });
+    time = 10000; expect(await desktop('dataset-snapshot')).toMatchObject({ ok: true });
+    time = 10001; expect(await desktop('dataset-snapshot')).toMatchObject({ ok: true });
+    time = 10002; expect(await desktop('dataset-snapshot')).toEqual({ ok: false, code: 'FRAMEWORK_NOT_RESPONDING' });
+    time = 10003; expect(await desktop('dataset-snapshot')).toMatchObject({ code: 'PASSIVE_PAUSED' });
+  });
+
+  it('the pilot recorder keeps not-responding and paused statuses instead of collapsing them to OBSERVATION_FAILED', () => {
+    expect(safeDesktop({ ok: false, code: 'FRAMEWORK_NOT_RESPONDING' }).code).toBe('FRAMEWORK_NOT_RESPONDING');
+    expect(safeDesktop({ ok: false, code: 'PASSIVE_PAUSED', retryAfterMs: 20000 })).toMatchObject({ code: 'PASSIVE_PAUSED', retryAfterMs: 20000 });
+    expect(safeDesktop({ ok: false, code: 'PRIVATE-PON' }).code).toBe('OBSERVATION_FAILED');
+  });
+
+  it('resets an old window pause when the technician chooses a different entry window', async () => {
+    let chosen = detected;
+    const run = vi.fn(async (input: { action: string }) => {
+      if (input.action === 'detect') return chosen;
+      if (chosen === detected) throw timeout();
+      return snapshot;
+    });
+    const desktop = createDesktopSession({ run, now: () => 0 });
+    await desktop('detect');
+    expect(await desktop('dataset-snapshot')).toMatchObject({ code: 'READ_TIMEOUT' });
+    chosen = { ...detected, entryWindow: { ...entryWindow, pid: 42, handle: 402, id: 'root-b' } };
+    await desktop('detect');
+    expect(await desktop('dataset-snapshot')).toMatchObject({ code: 'OK' });
+  });
+});

@@ -4,7 +4,7 @@ import { sourceStamp, type QueueOrder } from '../lib/orderQueue';
 import { sigDatasetStore } from '../lib/sigDataset';
 import { datasetCaptureState, orderDatasetInput, pendingDatasetExport, queueSigSample, retryDatasetCapture, setDatasetCaptureEnabled, subscribeDatasetCapture } from '../lib/sigDatasetCapture';
 import { reviewButtonClass, reviewInputClass } from './SigReviewPanel';
-import { findDatasetSource, readFrameworkSigSnapshot } from '../lib/frameworkSigDataset';
+import { findDatasetSource, frameworkSnapshotStatus, readFrameworkSigSnapshot } from '../lib/frameworkSigDataset';
 
 function downloadDataset(rows: unknown[], name: string) {
   const blob = new Blob(rows.map(row => JSON.stringify(row) + '\n'), { type: 'application/x-ndjson' });
@@ -62,10 +62,15 @@ export function SigDatasetPanel() {
           try { source = await findDatasetSource(pon, controller.signal); }
           catch { lastError = 'Iguana source lookup unavailable; field observations remain saved without an original/final pairing.'; }
           if (stopped) break;
+          const stillUnambiguous = (candidate: QueueOrder) => {
+            const loaded = latestOrders.current.filter(order => order.pon.trim() === pon);
+            return loaded.length === 0 || (loaded.length === 1 && sourceStamp(loaded[0]) === sourceStamp(candidate));
+          };
+          if (source && !stillUnambiguous(source)) { enrichment.delete(pon); continue; }
           sources.set(pon, source || null);
           if (sources.size > 200) sources.delete(sources.keys().next().value!);
           if (source) for (const value of values) {
-            if (stopped) break;
+            if (stopped || !stillUnambiguous(source)) break;
             await queueSigSample(orderDatasetInput(source, 'framework_observed', { finalSig: value }));
           }
           enrichment.delete(pon);
@@ -86,7 +91,7 @@ export function SigDatasetPanel() {
         const result = await readFrameworkSigSnapshot(controller.signal);
         if (stopped) return;
         if (!result.ok || !result.pon?.trim() || !result.sig?.trim()) {
-          setFrameworkStatus(`Framework: ${result.code || 'No uniquely associated PON and SIG are readable'}. Choose the entry window once through Find E-Rx if selection is required.`);
+          setFrameworkStatus(frameworkSnapshotStatus(result));
         } else {
           const pon = result.pon.trim(), value = result.sig.trim(), identity = JSON.stringify([pon, value]);
           if (identity !== last) {
@@ -159,27 +164,33 @@ export function SigDatasetPanel() {
 }
 
 export function SigDatasetConfirmation({ order, suggestion, generatedSig, parts = [], exclusions, warnings }: {
-  order: QueueOrder; suggestion: string; generatedSig?: string; parts?: Array<{ id: string; label: string; sig: string }>;
+  order: QueueOrder; suggestion: string; generatedSig?: string; parts?: Array<{ id: string; label: string; sig: string; suggestion?: string }>;
   exclusions: import('../lib/reviewPolicy').SigExclusion[];
   warnings?: string[];
 }) {
   const [part, setPart] = useState(parts[0]?.id ?? '');
-  const initial = parts.find(p => p.id === part)?.sig ?? order.draft;
-  const [finalSig, setFinalSig] = useState(initial), [comment, setComment] = useState('');
-  const [edited, setEdited] = useState(false);
-  const [acceptable, setAcceptable] = useState<boolean>(), [busy, setBusy] = useState(false), [notice, setNotice] = useState('');
-  useEffect(() => { if (!edited) setFinalSig(initial); }, [initial, edited]);
+  const selectedPart = parts.find(p => p.id === part) ?? parts[0];
+  const partId = selectedPart?.id;
+  const key = partId ?? '';
+  const [responses, setResponses] = useState<Record<string, { finalSig?: string; comment?: string; acceptable?: boolean }>>({});
+  const response = responses[key];
+  const finalSig = response?.finalSig ?? selectedPart?.sig ?? order.draft;
+  const comment = response?.comment ?? '', acceptable = response?.acceptable;
+  const [busy, setBusy] = useState(false), [notice, setNotice] = useState('');
+  const update = (patch: { finalSig?: string; comment?: string; acceptable?: boolean }) => {
+    setResponses(previous => ({ ...previous, [key]: { ...previous[key], ...patch } }));
+  };
   return <details className="rounded-lg border border-border p-3" aria-label="Completed E-Rx dataset sample">
     <summary className="cursor-pointer text-sm font-medium">Finished in Framework? Save the final SIG to the dataset</summary>
     <div className="mt-3 space-y-2">
       <p className="text-xs text-muted-foreground">Use after Framework has saved. Correct the text below if you changed it there. This records your confirmation; it does not submit or refuse an order.</p>
-      {!!parts.length && <label className="block text-sm">Completed order part<select className={reviewInputClass} value={part} onChange={e => { setPart(e.target.value); setEdited(false); setFinalSig(parts.find(p => p.id === e.target.value)?.sig || ''); setNotice(''); }}>{parts.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}</select></label>}
-      <label className="block text-sm">Actual final SIG in Framework<textarea className={reviewInputClass} value={finalSig} onChange={e => { setEdited(true); setFinalSig(e.target.value); }} /></label>
-      <div className="flex items-center gap-2 text-sm">Was the suggestion acceptable?<button className={reviewButtonClass} aria-label="Suggestion acceptable: Yes" aria-pressed={acceptable === true} onClick={() => setAcceptable(true)}>Yes</button><button className={reviewButtonClass} aria-label="Suggestion acceptable: No" aria-pressed={acceptable === false} onClick={() => setAcceptable(false)}>No</button></div>
-      <label className="block text-sm">Dataset comment (optional)<textarea className={reviewInputClass} value={comment} onChange={e => setComment(e.target.value)} /></label>
+      {!!parts.length && <label className="block text-sm">Completed order part<select className={reviewInputClass} value={partId} disabled={busy} onChange={e => { setPart(e.target.value); setNotice(''); }}>{parts.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}</select></label>}
+      <label className="block text-sm">Actual final SIG in Framework<textarea className={reviewInputClass} value={finalSig} onChange={e => update({ finalSig: e.target.value })} /></label>
+      <div className="flex items-center gap-2 text-sm">Was the suggestion acceptable?<button className={reviewButtonClass} aria-label="Suggestion acceptable: Yes" aria-pressed={acceptable === true} onClick={() => update({ acceptable: true })}>Yes</button><button className={reviewButtonClass} aria-label="Suggestion acceptable: No" aria-pressed={acceptable === false} onClick={() => update({ acceptable: false })}>No</button></div>
+      <label className="block text-sm">Dataset comment (optional)<textarea className={reviewInputClass} value={comment} onChange={e => update({ comment: e.target.value })} /></label>
       <button className={reviewButtonClass} disabled={busy || !finalSig.trim()} onClick={async () => {
         setBusy(true);
-        const saved = await queueSigSample(orderDatasetInput(order, 'technician_confirmed', { suggestion, generatedSig, finalSig: finalSig.trim(), partId: part || undefined, exclusions, warnings, comment: comment.trim() || undefined, acceptable }));
+        const saved = await queueSigSample(orderDatasetInput(order, 'technician_confirmed', { suggestion: selectedPart ? selectedPart.suggestion : suggestion, generatedSig, finalSig: finalSig.trim(), partId, exclusions, warnings, comment: comment.trim() || undefined, acceptable }));
         setNotice(saved ? 'Technician-confirmed final SIG saved to the local dataset.' : 'Not durably saved. Check dataset collection status, retry, or download unsaved samples.'); setBusy(false);
       }}>Saved in Framework — record final SIG</button>
       {notice && <p role="status">{notice}</p>}

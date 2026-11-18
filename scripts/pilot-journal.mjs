@@ -24,7 +24,7 @@ const enums = {
   reason: ['AUTOMATIC_AUTH_UNAVAILABLE', 'ENOTFOUND', 'ECONNREFUSED', 'ECONNRESET', 'TIMEOUT_OR_STOPPED', 'INVALID_LOG_EXPORT', 'IGUANA_HTTP_401', 'IGUANA_HTTP_403', 'BRIDGE_UNREACHABLE', 'UNCLASSIFIED'],
   failureReason: ['HELPER_TIMEOUT', 'INVALID_OUTPUT', 'HELPER_PROCESS_EXIT', 'HELPER_STARTUP_FAILED', 'UNKNOWN_FAILURE'],
 };
-const numbers = new Set(('durationMs count beforeCount afterCount httpStatus port headers unreadable messageLength valueLength rawProseLength primarySigLength drugNameLength abnormalitiesCount splitPartsCount droppedWorkflow droppedTranslation recovered pendingCount nodeCount visitedCount errors elapsedMs limit rowCount columnCount scanOffset cacheReads prioritySeeds').split(' '));
+const numbers = new Set(('durationMs count beforeCount afterCount httpStatus port headers unreadable messageLength valueLength rawProseLength primarySigLength drugNameLength abnormalitiesCount splitPartsCount droppedWorkflow droppedTranslation recovered pendingCount nodeCount visitedCount errors elapsedMs limit rowCount columnCount scanOffset cacheReads prioritySeeds retryAfterMs').split(' '));
 const booleans = new Set(('uncertain verified checked isControlled isPaxitSolid requiresSplit hasPackagingNotice isApap hidden disabled writable hasFilter').split(' '));
 const version = x => typeof x === 'string' && /^[0-9]+\.[0-9]+\.[0-9]+$/.test(x) ? x : 'unknown';
 const fileCodes = ['EACCES', 'EPERM', 'ENOENT', 'ENOSPC', 'EIO', 'EROFS', 'ETIMEDOUT', 'ECONNRESET', 'ENOTCONN', 'EBUSY', 'DESTINATION_UNAVAILABLE'];
@@ -49,7 +49,7 @@ export function safeBrowserEvent(raw) {
   return event;
 }
 export function safeDesktop(raw) {
-  const reason = ['SELECTION_REQUIRED', 'WINDOW_UNAVAILABLE', 'OBSERVATION_FAILED', 'BUSY', 'OK'].includes(raw?.code) ? raw.code : 'OBSERVATION_FAILED';
+  const reason = ['SELECTION_REQUIRED', 'WINDOW_UNAVAILABLE', 'FRAMEWORK_NOT_RESPONDING', 'PASSIVE_PAUSED', 'OBSERVATION_FAILED', 'BUSY', 'OK'].includes(raw?.code) ? raw.code : 'OBSERVATION_FAILED';
   const result = { code: reason, ok: raw?.ok === true, partial: raw?.partial === true, ...safeFields(raw), controls: [] };
   if (typeof raw?.observedAt === 'string' && Number.isFinite(Date.parse(raw.observedAt))) result.observedAt = new Date(raw.observedAt).toISOString();
   for (const c of Array.isArray(raw?.controls) ? raw.controls.slice(0, 800) : []) {

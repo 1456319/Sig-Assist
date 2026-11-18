@@ -194,6 +194,21 @@ public static class FrameworkDesktop {
     [DllImport("user32.dll")] static extern IntPtr GetTopWindow(IntPtr parent);
     [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr window, uint command);
     [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr window);
+    // Passive readers check responsiveness without sending Framework a message.
+    // A UI Automation call against a hung window blocks until the connector
+    // kills this helper, which then holds the shared helper for every poll.
+    [DllImport("user32.dll")] static extern bool IsHungAppWindow(IntPtr window);
+    static bool NotResponding(EntryWindow entry, string testProcess) {
+        try {
+            if (entry == null || entry.handle == 0) return false;
+            using (var process = Process.GetProcessById(entry.pid)) {
+                if (!FrameworkProcess(process, testProcess) || process.StartTime.ToUniversalTime().Ticks.ToString() != entry.started) return false;
+            }
+            uint owner;
+            if (GetWindowThreadProcessId(new IntPtr(entry.handle), out owner) == 0 || owner != entry.pid) return false;
+            return IsHungAppWindow(new IntPtr(entry.handle));
+        } catch { return false; } // Optional hint: the normal bounded reader remains the fallback.
+    }
     static bool writeAttempted;
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = 4 * 1024 * 1024 };
     static readonly Regex PonLabel = new Regex(@"^(?:PON|Prescriber Order (?:Number|No\.?))\s*:?$", RegexOptions.IgnoreCase);
@@ -1172,6 +1187,7 @@ public static class FrameworkDesktop {
     // confirmed human final. Real-site value/label bindings still need validation.
     static object DatasetSnapshot(EntryWindow entry, string testProcess) {
         if (entry == null) return DatasetFailure("SELECTION_REQUIRED");
+        if (NotResponding(entry, testProcess)) return DatasetFailure("FRAMEWORK_NOT_RESPONDING");
         AutomationElement root;
         try { root = RememberedRoot(entry, testProcess); }
         catch { return DatasetFailure("WINDOW_UNAVAILABLE"); }
@@ -1292,6 +1308,7 @@ public static class FrameworkDesktop {
     static object Observe(EntryWindow entry, string secret, string testProcess, int scanOffset) {
         if (entry == null) return new { ok = false, code = "SELECTION_REQUIRED" };
         if (!Regex.IsMatch(secret ?? "", "^[a-f0-9]{64}$")) return new { ok = false, code = "OBSERVATION_FAILED" };
+        if (NotResponding(entry, testProcess)) return new { ok = false, code = "FRAMEWORK_NOT_RESPONDING" };
         AutomationElement root;
         try { root = RememberedRoot(entry, testProcess); }
         catch { return new { ok = false, code = "WINDOW_UNAVAILABLE" }; }

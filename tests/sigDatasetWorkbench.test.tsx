@@ -117,7 +117,7 @@ describe('Workbench dataset integration', () => {
     await screen.findByText('Technician-confirmed final SIG saved to the local dataset.');
     expect(mocks.queue).toHaveBeenCalledTimes(2);
     expect(mocks.queue.mock.calls[1][0]).toMatchObject({
-      orderKey: copied.orderKey, partId: copied.partId, rawSig: directions, drug, stage: 'technician_confirmed',
+      orderKey: copied.orderKey, partId: copied.partId, suggestedSig: copied.suggestedSig, rawSig: directions, drug, stage: 'technician_confirmed',
       finalSig: '1T PO QHS WITH A FULL GLASS OF WATER', comment: 'Verified the completed bedtime part.', origin: 'manual',
     });
     expect(fetch).not.toHaveBeenCalled();

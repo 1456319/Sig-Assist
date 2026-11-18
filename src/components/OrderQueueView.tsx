@@ -333,10 +333,10 @@ export function OrderQueueView() {
             }) : []}
             blocked={copyBlockReason(sourceStamp(selected), selected.draft, exclusions, selected.approved, selected.cancelled || !!selected.intakeHold || reviseId === selected.id, policyRevision)}
             onDetected={setDesktop}
-            onVerifiedSig={(sig, partId) => { void queueSigSample(orderDatasetInput(selected, 'verified_transfer', { suggestion: clinicalResult?.primarySig || parsed?.sig, generatedSig: baselineSig, finalSig: sig, partId, exclusions, warnings: datasetWarnings })); }} />
+            onVerifiedSig={(sig, partId) => { void queueSigSample(orderDatasetInput(selected, 'verified_transfer', { suggestion: partId ? clinicalResult?.subOrders.find(sub => sub.id === partId)?.suggestedSig : (clinicalResult?.primarySig || parsed?.sig), generatedSig: baselineSig, finalSig: sig, partId, exclusions, warnings: datasetWarnings })); }} />
           {!selected.cancelled && !selected.intakeHold && reviseId !== selected.id && <SigDatasetConfirmation
             key={`dataset:${selected.id}:${selected.revision}`} order={selected} suggestion={clinicalResult?.primarySig || parsed?.sig || ''} generatedSig={baselineSig} exclusions={exclusions} warnings={datasetWarnings}
-            parts={(clinicalResult?.subOrders.length || 0) > 1 ? clinicalResult!.subOrders.map(sub => ({ id: sub.id, label: sub.label, sig: selected.subOrderDrafts?.[sub.id] ?? sub.suggestedSig })) : []} />}
+            parts={(clinicalResult?.subOrders.length || 0) > 1 ? clinicalResult!.subOrders.map(sub => ({ id: sub.id, label: sub.label, suggestion: sub.suggestedSig, sig: selected.subOrderDrafts?.[sub.id] ?? sub.suggestedSig })) : []} />}
           <DiscrepancyPanel key={`report:${selected.id}:${selected.revision}`}
             pon={selected.pon} drugName={selected.drug} rawProse={selected.directions}
             generatedSig={clinicalResult?.primarySig || parsed?.sig || ''}

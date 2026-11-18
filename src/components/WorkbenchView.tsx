@@ -450,7 +450,7 @@ export function WorkbenchView() {
               )}
               {clinicalResult && clinicalResult.subOrders.length > 1 && <SigDatasetConfirmation key={`dataset:${datasetOrder.id}`}
                 order={datasetOrder} suggestion={clinicalResult.primarySig} exclusions={exclusions}
-                parts={clinicalResult.subOrders.map(part => ({ id: part.id, label: part.label, sig: datasetPartDrafts[part.id] ?? part.suggestedSig }))} />}
+                parts={clinicalResult.subOrders.map(part => ({ id: part.id, label: part.label, suggestion: part.suggestedSig, sig: datasetPartDrafts[part.id] ?? part.suggestedSig }))} />}
 
               <DiscrepancyPanel
                 key={`report:${inputMode}:${drugName}:${defaultSig}:${rawInput}`}
