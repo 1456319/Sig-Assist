@@ -59,6 +59,7 @@ export function orderDatasetInput(order: QueueOrder, stage: SigDatasetStage, opt
   const { suggestion, ...details } = options;
   return {
     orderKey: order.id, revision: order.revision, stage, drug: order.drug, rawSig: order.directions,
+    defaultSigTemplate: order.defaultSig,
     captureKind: 'erx_source', origin: order.iguana ? 'iguana' : 'manual', suggestedSig: suggestion, ...details,
     context: metadata ? { ndc: metadata.ndc, strength: metadata.strength, dose: metadata.dose, doseUnit: metadata.doseUnit,
       route: metadata.route, frequency: metadata.frequency, administrationTimes: metadata.administrationTimes } : undefined,

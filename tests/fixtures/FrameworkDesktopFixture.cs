@@ -66,6 +66,13 @@ public static class FrameworkDesktopFixture {
                 if (command.ContainsKey("richSigText")) richSig.Text = command["richSigText"];
                 if (command.ContainsKey("snapshot")) File.WriteAllText(Path.Combine(args[0], "state.json"),
                     new JavaScriptSerializer().Serialize(new { focus = sig.Focused ? "sig" : quantity.Focused ? "quantity" : "other", decorativeControls = decorations == null ? 0 : decorations.Controls.Count }));
+                if (command.ContainsKey("datasetState")) File.WriteAllText(Path.Combine(args[0], "dataset-state.json"),
+                    new JavaScriptSerializer().Serialize(new {
+                        sigLength = sig.TextLength, richSigLength = richSig.TextLength,
+                        sigVisible = sig.Visible, richSigVisible = richSig.Visible,
+                        sigReadOnly = sig.ReadOnly, sigMultiline = sig.Multiline,
+                        sigMaxLength = sig.MaxLength, richSigMaxLength = richSig.MaxLength
+                    }));
                 seen = text; File.WriteAllText(Path.Combine(args[0], "ack.json"), text);
             } catch { }
         };

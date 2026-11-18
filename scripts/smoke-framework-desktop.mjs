@@ -70,7 +70,28 @@ try {
   await command({ richSigText: 'FIRST LINE\nSECOND LINE' }); assert.equal((await dataset()).sig, 'FIRST LINE\rSECOND LINE');
   await command({ richSigText: 'x'.repeat(4000) }); assert.equal((await dataset()).sig, 'x'.repeat(4000));
   await command({ richSigText: 'x'.repeat(4001) }); assert.equal((await dataset()).code, 'SIG_UNAVAILABLE');
-  await command({ richSig: 'false', sig: 'x'.repeat(4001) }); assert.equal((await dataset()).code, 'SIG_UNAVAILABLE');
+  await command({ richSig: 'false', sig: 'x'.repeat(4001), datasetState: 'true' });
+  const plainOverlength = await dataset();
+  let overlengthDiagnostics;
+  if (plainOverlength.code !== 'SIG_UNAVAILABLE') {
+    // Synthetic fixture diagnostics only: no captured value, path or identifier
+    // is printed. Keep the original refusal assertion even if a later read settles.
+    const metadata = value => ({
+      ok: value.ok, code: value.code, partial: value.partial,
+      sigLength: typeof value.sig === 'string' ? value.sig.length : null,
+      syntheticKind: value.sig === 'HUMAN EDIT OBSERVED' ? 'previous-plain'
+        : value.sig === 'RICH SIG PRIVATE VALUE' ? 'initial-rich'
+          : typeof value.sig === 'string' && /^x+$/.test(value.sig) ? 'boundary-x' : 'other',
+    });
+    const initialFixture = JSON.parse(await readFile(path.join(folder, 'dataset-state.json'), 'utf8'));
+    await command({ datasetState: 'true' });
+    overlengthDiagnostics = JSON.stringify({
+      first: metadata(plainOverlength), initialFixture,
+      later: metadata(await dataset()),
+      laterFixture: JSON.parse(await readFile(path.join(folder, 'dataset-state.json'), 'utf8')),
+    });
+  }
+  assert.equal(plainOverlength.code, 'SIG_UNAVAILABLE', overlengthDiagnostics);
   assert.equal((await run({ action: 'dataset-snapshot', entryWindow: { ...entry.entryWindow, id: 'replaced-window' } })).code, 'WINDOW_UNAVAILABLE');
   await command({ pon: 'SYNTHETIC-1', sig: 'OLD SIG', readonly: 'false' });
   const written = await run({ action: 'send', expected: first, field: 'sig', value: '1T PO BID — REVIEWED' });

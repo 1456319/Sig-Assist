@@ -66,6 +66,9 @@ export function OrderQueueView() {
     id: selected?.id || 'dataset-baseline', pon: selected?.pon || '', drugName: selectedDrug || '', rawProse: selectedDirections,
     defaultSigTemplate: selectedDefaultSig, sourceFormat: 'manual_text',
   }).primarySig, [selectedDirections, selectedDrug, selectedDefaultSig, selected?.id, selected?.pon]);
+  // Titles/categories are stable; finding IDs may contain source identities or
+  // timestamps and therefore do not belong in the refinement export.
+  const datasetWarnings = clinicalResult?.abnormalities.map(finding => `${finding.tier}: ${finding.title}`);
 
   useEffect(() => {
     if (selected) {
@@ -302,7 +305,7 @@ export function OrderQueueView() {
               onCopySubOrder={(subOrder, draftSig, stamp) => {
                 if (selected.cancelled || selected.intakeHold || reviseId === selected.id) return;
                 const effectiveStamp = stamp || reviewStamp(subOrder.suggestedSig, draftSig, exclusions, policyRevision);
-                void queueSigSample(orderDatasetInput(selected, 'reviewed_copy', { suggestion: subOrder.suggestedSig, generatedSig: baselineSig, finalSig: draftSig, partId: subOrder.id, exclusions }));
+                void queueSigSample(orderDatasetInput(selected, 'reviewed_copy', { suggestion: subOrder.suggestedSig, generatedSig: baselineSig, finalSig: draftSig, partId: subOrder.id, exclusions, warnings: datasetWarnings }));
                 updateSelected(order => ({
                   ...order,
                   subOrderCopied: { ...(order.subOrderCopied || {}), [subOrder.id]: effectiveStamp }
@@ -318,7 +321,7 @@ export function OrderQueueView() {
               onApprove={approved => updateSelected(order => ({ ...order, approved, copied: undefined }))}
               onCopied={stamp => {
                 if (selected.approved !== stamp || reviewStamp(sourceStamp(selected), selected.draft, exclusions, policyRevision) !== stamp) return;
-                void queueSigSample(orderDatasetInput(selected, 'reviewed_copy', { suggestion: clinicalResult?.primarySig || parsed?.sig, generatedSig: baselineSig, finalSig: finalSig(selected.draft), exclusions }));
+                void queueSigSample(orderDatasetInput(selected, 'reviewed_copy', { suggestion: clinicalResult?.primarySig || parsed?.sig, generatedSig: baselineSig, finalSig: finalSig(selected.draft), exclusions, warnings: datasetWarnings }));
                 updateSelected(order => order.approved === stamp && reviewStamp(sourceStamp(order), order.draft, exclusions, policyRevision) === stamp ? { ...order, copied: stamp } : order);
               }} />
           )}
@@ -330,9 +333,9 @@ export function OrderQueueView() {
             }) : []}
             blocked={copyBlockReason(sourceStamp(selected), selected.draft, exclusions, selected.approved, selected.cancelled || !!selected.intakeHold || reviseId === selected.id, policyRevision)}
             onDetected={setDesktop}
-            onVerifiedSig={(sig, partId) => { void queueSigSample(orderDatasetInput(selected, 'verified_transfer', { suggestion: clinicalResult?.primarySig || parsed?.sig, generatedSig: baselineSig, finalSig: sig, partId, exclusions })); }} />
+            onVerifiedSig={(sig, partId) => { void queueSigSample(orderDatasetInput(selected, 'verified_transfer', { suggestion: clinicalResult?.primarySig || parsed?.sig, generatedSig: baselineSig, finalSig: sig, partId, exclusions, warnings: datasetWarnings })); }} />
           {!selected.cancelled && !selected.intakeHold && reviseId !== selected.id && <SigDatasetConfirmation
-            key={`dataset:${selected.id}:${selected.revision}`} order={selected} suggestion={clinicalResult?.primarySig || parsed?.sig || ''} generatedSig={baselineSig} exclusions={exclusions}
+            key={`dataset:${selected.id}:${selected.revision}`} order={selected} suggestion={clinicalResult?.primarySig || parsed?.sig || ''} generatedSig={baselineSig} exclusions={exclusions} warnings={datasetWarnings}
             parts={(clinicalResult?.subOrders.length || 0) > 1 ? clinicalResult!.subOrders.map(sub => ({ id: sub.id, label: sub.label, sig: selected.subOrderDrafts?.[sub.id] ?? sub.suggestedSig })) : []} />}
           <DiscrepancyPanel key={`report:${selected.id}:${selected.revision}`}
             pon={selected.pon} drugName={selected.drug} rawProse={selected.directions}

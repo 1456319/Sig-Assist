@@ -14,7 +14,7 @@ After Framework finishes saving, open the selected order's **Finished in Framewo
 
 ## Data and export
 
-Every record identifies its capture stage, source kind, application version and full build ID. Original source prose, the drug context, generated draft, presented suggestion and human final remain distinct. Patient/facility names and plaintext PON/order identities are not copied into structured dataset fields; local identity inputs are salted hashes. Clinical prose itself is retained verbatim and may still identify someone. Repeated exclusion snapshots are stored once and referenced by policy ID.
+Every record identifies its capture stage, source kind, application version and full build ID. Original source prose, the drug/strength context, default SIG template, generated draft, presented suggestion and human final remain distinct. Reviewed examples retain stable finding categories/titles rather than identity-bearing finding IDs. Patient/facility names and plaintext PON/order identities are not copied into structured dataset fields; local identity inputs are salted hashes. Clinical prose itself is retained verbatim and may still identify someone. Repeated exclusion snapshots are stored once and referenced by policy ID.
 
 Identical complete observations deduplicate across page reloads, while changed final SIGs, comments, ratings, source/context or exclusion policies are retained. Observation counts are not unique-order counts or a translator success rate. Use technician-confirmed pairs for accepted-output evaluation; sources alone and passive observations belong to separate evaluation cohorts.
 

@@ -140,9 +140,10 @@ export function SigDatasetPanel() {
   </details>;
 }
 
-export function SigDatasetConfirmation({ order, suggestion, generatedSig, parts = [], exclusions }: {
+export function SigDatasetConfirmation({ order, suggestion, generatedSig, parts = [], exclusions, warnings }: {
   order: QueueOrder; suggestion: string; generatedSig?: string; parts?: Array<{ id: string; label: string; sig: string }>;
   exclusions: import('../lib/reviewPolicy').SigExclusion[];
+  warnings?: string[];
 }) {
   const [part, setPart] = useState(parts[0]?.id ?? '');
   const initial = parts.find(p => p.id === part)?.sig ?? order.draft;
@@ -160,7 +161,7 @@ export function SigDatasetConfirmation({ order, suggestion, generatedSig, parts 
       <label className="block text-sm">Dataset comment (optional)<textarea className={reviewInputClass} value={comment} onChange={e => setComment(e.target.value)} /></label>
       <button className={reviewButtonClass} disabled={busy || !finalSig.trim()} onClick={async () => {
         setBusy(true);
-        const saved = await queueSigSample(orderDatasetInput(order, 'technician_confirmed', { suggestion, generatedSig, finalSig: finalSig.trim(), partId: part || undefined, exclusions, comment: comment.trim() || undefined, acceptable }));
+        const saved = await queueSigSample(orderDatasetInput(order, 'technician_confirmed', { suggestion, generatedSig, finalSig: finalSig.trim(), partId: part || undefined, exclusions, warnings, comment: comment.trim() || undefined, acceptable }));
         setNotice(saved ? 'Technician-confirmed final SIG saved to the local dataset.' : 'Not durably saved. Check dataset collection status, retry, or download unsaved samples.'); setBusy(false);
       }}>Saved in Framework — record final SIG</button>
       {notice && <p role="status">{notice}</p>}

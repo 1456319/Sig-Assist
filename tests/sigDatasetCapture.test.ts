@@ -45,4 +45,11 @@ describe('dataset capture acknowledgment and recovery', () => {
     expect(capture.datasetCaptureState().pending).toBe(1);
     expect(storage.record).toHaveBeenCalledTimes(1);
   });
+  it('retains replay context while excluding structured patient/facility identifiers', async () => {
+    const capture = await import('../src/lib/sigDatasetCapture');
+    const sample = capture.orderDatasetInput({ id: 'LOCAL-ONLY', pon: 'LOCAL-PON', patientRef: 'LOCAL-RESIDENT', facility: 'LOCAL-FACILITY',
+      drug: 'Synthetic powder', directions: 'Give17 grams daily.', defaultSig: 'Dissolve in4–8 ounces of water.', revision: 2, previousSources: [], draft: 'DRAFT', cancelled: false }, 'source_received');
+    expect(sample).toMatchObject({ rawSig: 'Give17 grams daily.', defaultSigTemplate: 'Dissolve in4–8 ounces of water.', revision: 2 });
+    expect(sample).not.toHaveProperty('patientRef'); expect(sample).not.toHaveProperty('facility'); expect(sample).not.toHaveProperty('pon');
+  });
 });

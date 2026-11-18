@@ -8,6 +8,7 @@ export interface SigDatasetInput {
   revision: number;
   drug: string;
   rawSig: string;
+  defaultSigTemplate?: string;
   generatedSig?: string;
   suggestedSig?: string;
   finalSig?: string;
@@ -64,7 +65,7 @@ function clinicalFields(input: SigDatasetInput): Omit<SigDatasetInput, 'orderKey
   if (!isObject(input) || !Number.isSafeInteger(input.revision) || input.revision < 0 || !STAGES.includes(input.stage) || typeof input.drug !== 'string' || typeof input.rawSig !== 'string') throw new Error('Invalid SIG dataset observation.');
   const result: Omit<SigDatasetInput, 'orderKey' | 'partId' | 'exclusions'> = { revision: input.revision, stage: input.stage, drug: input.drug, rawSig: input.rawSig, captureKind: input.captureKind ?? 'erx_source' };
   if (!['erx_source', 'framework_sig_observation'].includes(result.captureKind!)) throw new Error('Invalid SIG dataset capture kind.');
-  for (const key of ['generatedSig', 'suggestedSig', 'finalSig', 'comment'] as const) {
+  for (const key of ['generatedSig', 'suggestedSig', 'finalSig', 'comment', 'defaultSigTemplate'] as const) {
     if (!optionalString(input[key])) throw new Error('Invalid SIG dataset text.');
     if (input[key] !== undefined) result[key] = input[key];
   }
