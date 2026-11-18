@@ -18,10 +18,17 @@ export function SigDatasetPanel() {
   const [stats, setStats] = useState<{ total: number; stages: Record<string, number> }>();
   const [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState(false);
   const [cursor, setCursor] = useState(0);
+  const [cursorReady, setCursorReady] = useState(false), [exportError, setExportError] = useState('');
   const [frameworkEnabled, setFrameworkEnabled] = useState(false), [frameworkStatus, setFrameworkStatus] = useState('Passive Framework collection is stopped.');
   const seen = useRef(new Map<string, string>());
   const latestOrders = useRef(orders); latestOrders.current = orders;
   useEffect(() => subscribeDatasetCapture(() => setCapture(datasetCaptureState())), []);
+  useEffect(() => {
+    let mounted = true;
+    sigDatasetStore.exportPosition().then(value => { if (mounted) { setCursor(value); setCursorReady(true); } })
+      .catch(() => { if (mounted) setExportError('The saved export position could not be read. Reopen this page to retry; dataset samples are retained.'); });
+    return () => { mounted = false; };
+  }, []);
   useEffect(() => {
     let mounted = true;
     sigDatasetStore.stats().then(value => { if (mounted) { setStats(value); setError(''); } }).catch(() => { if (mounted) setError('Local dataset storage is unavailable. Samples are not acknowledged as saved.'); });
@@ -107,15 +114,24 @@ export function SigDatasetPanel() {
     return () => { stopped = true; controller.abort(); clearTimeout(timer); };
   }, [frameworkEnabled, capture.enabled]);
   async function exportBatch() {
-    setBusy(true); setNotice('');
+    setBusy(true); setNotice(''); setExportError('');
     try {
       const page = await sigDatasetStore.page(cursor, 1000);
       if (!page.records.length) { setNotice('No additional samples at this export position. Reset the export position to download earlier samples again.'); return; }
       const policies = Object.entries(page.policies || {}).map(([id, exclusions]) => ({ type: 'exclusion_policy', id, exclusions }));
       downloadDataset([{ type: 'sig_dataset_batch', schemaVersion: 1, appVersion: __SIG_ASSIST_VERSION__, buildId: __SIG_ASSIST_BUILD__, afterSeq: cursor, throughSeq: page.nextSeq }, ...policies, ...page.records], `sig-dataset-${cursor + 1}-${page.nextSeq}.jsonl`);
+      await sigDatasetStore.setExportPosition(page.nextSeq);
       setCursor(page.nextSeq);
       setNotice(`Download requested for ${page.records.length} samples. Check the saved file. ${page.hasMore ? 'More samples remain.' : 'Export is current.'} Dataset records are retained.`);
-    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Dataset export failed.'); }
+    } catch (failure) { setExportError(`Export did not finish: ${failure instanceof Error ? failure.message : 'Dataset export failed.'} The position was not advanced; retry may download the same batch again.`); }
+    finally { setBusy(false); }
+  }
+  async function resetExport() {
+    setBusy(true); setExportError('');
+    try {
+      await sigDatasetStore.setExportPosition(0);
+      setCursor(0); setNotice('Export position reset. Existing dataset samples are unchanged.');
+    } catch { setExportError('Export position could not be reset. Dataset samples and the prior export position are retained.'); }
     finally { setBusy(false); }
   }
   return <details className="mx-4 my-2 rounded-lg border border-border bg-card p-3" aria-label="SIG dataset collection">
@@ -126,15 +142,17 @@ export function SigDatasetPanel() {
       <p className="text-xs text-muted-foreground">Stored in this browser's IndexedDB, separately from the queue and reports. Clearing orders does not clear the dataset. Keep the same browser/address and export batches regularly. SIG text may contain sensitive information; nothing is uploaded automatically.</p>
       <div className="flex flex-wrap gap-2">
         <button className={reviewButtonClass} onClick={() => setDatasetCaptureEnabled(!capture.enabled)}>{capture.enabled ? 'Pause SIG collection' : 'Resume SIG collection'}</button>
-        <button className={reviewButtonClass} disabled={busy} onClick={() => void exportBatch()}>Download next 1,000 samples</button>
-        <button className={reviewButtonClass} disabled={busy || !cursor} onClick={() => { setCursor(0); setNotice('Export position reset. Existing dataset samples are unchanged.'); }}>Reset export position</button>
+        <button className={reviewButtonClass} disabled={busy || !cursorReady} onClick={() => void exportBatch()}>Download next 1,000 samples</button>
+        <button className={reviewButtonClass} disabled={busy || !cursorReady || !cursor} onClick={() => void resetExport()}>Reset export position</button>
         <button className={reviewButtonClass} onClick={() => retryDatasetCapture()}>Retry pending dataset writes</button>
         {!!capture.pending && <button className={reviewButtonClass} onClick={() => downloadDataset(pendingDatasetExport(), 'sig-dataset-unsaved.jsonl')}>Download unsaved samples</button>}
         <button className={reviewButtonClass} disabled={!['http:', 'https:'].includes(location.protocol)} onClick={() => setFrameworkEnabled(value => !value)}>{frameworkEnabled ? 'Stop passive Framework SIG collection' : 'Start passive Framework SIG collection'}</button>
       </div>
+      <p className="text-xs text-muted-foreground">Export position: {cursorReady ? cursor : 'loading'}. This position is saved between sessions; samples are retained.</p>
       <p role="status">{frameworkStatus}</p>
       <p className="text-xs text-muted-foreground">Passive collection reads the remembered entry window without scrolling, clicking, or submitting anything. It can retain field edits observed between five-second checks; it cannot prove every processed order or detect a save from field presence alone.</p>
       {(error || capture.error) && <p role="alert" className="text-destructive">{capture.error || error} {capture.pending ? 'Keep this page open; retry or download unsaved samples before closing.' : ''}</p>}
+      {exportError && <p role="alert" className="text-destructive">{exportError}</p>}
       {notice && <p role="status">{notice}</p>}
     </div>
   </details>;

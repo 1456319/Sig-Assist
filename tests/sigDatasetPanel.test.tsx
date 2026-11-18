@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   captureState: { enabled: true, pending: 0, error: '', saved: 0 },
   stats: vi.fn(),
   page: vi.fn(),
+  exportPosition: vi.fn(),
+  setExportPosition: vi.fn(),
   record: vi.fn(),
   clear: vi.fn(),
   delete: vi.fn(),
@@ -18,7 +20,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../src/lib/sigDataset', () => ({
-  sigDatasetStore: { stats: mocks.stats, page: mocks.page, record: mocks.record, clear: mocks.clear, delete: mocks.delete },
+  sigDatasetStore: { stats: mocks.stats, page: mocks.page, exportPosition: mocks.exportPosition, setExportPosition: mocks.setExportPosition, record: mocks.record, clear: mocks.clear, delete: mocks.delete },
 }));
 vi.mock('../src/lib/sigDatasetCapture', async importOriginal => ({
   ...await importOriginal<typeof import('../src/lib/sigDatasetCapture')>(),
@@ -58,6 +60,8 @@ beforeEach(() => {
   mocks.queue.mockReset().mockResolvedValue(true);
   mocks.stats.mockReset().mockResolvedValue({ total: 0, stages });
   mocks.page.mockReset().mockResolvedValue({ records: [], nextSeq: 0, hasMore: false, policies: {} });
+  mocks.exportPosition.mockReset().mockResolvedValue(0);
+  mocks.setExportPosition.mockReset().mockResolvedValue(undefined);
   mocks.readFramework.mockReset();
   mocks.findSource.mockReset();
   mocks.captureState = { enabled: true, pending: 0, error: '', saved: 0 };
@@ -257,6 +261,7 @@ describe('dataset collection panel', () => {
     fireEvent.click(download);
     await screen.findByText(/Download requested for 1000 samples.*More samples remain.*Dataset records are retained/);
     expect(mocks.page).toHaveBeenNthCalledWith(1, 0, 1000);
+    expect(mocks.setExportPosition).toHaveBeenLastCalledWith(1000);
     const first = (await readBlob(blobs[0])).trim().split('\n').map(line => JSON.parse(line));
     expect(first[0]).toMatchObject({ type: 'sig_dataset_batch', schemaVersion: 1, afterSeq: 0, throughSeq: 1000 });
     expect(first[1]).toEqual({ type: 'exclusion_policy', id: 'synthetic-policy', exclusions });
@@ -265,6 +270,7 @@ describe('dataset collection panel', () => {
     fireEvent.click(download);
     await screen.findByText(/Download requested for 2 samples.*Export is current.*Dataset records are retained/);
     expect(mocks.page).toHaveBeenNthCalledWith(2, 1000, 1000);
+    expect(mocks.setExportPosition).toHaveBeenLastCalledWith(1002);
     const second = (await readBlob(blobs[1])).trim().split('\n').map(line => JSON.parse(line));
     expect(second[0]).toMatchObject({ afterSeq: 1000, throughSeq: 1002 });
     expect(second.slice(2)).toEqual(snapshot.slice(1000));
@@ -275,7 +281,8 @@ describe('dataset collection panel', () => {
     expect(mocks.page).toHaveBeenNthCalledWith(3, 1002, 1000);
     expect(blobs).toHaveLength(2);
     fireEvent.click(screen.getByRole('button', { name: 'Reset export position' }));
-    expect(screen.getByText('Export position reset. Existing dataset samples are unchanged.')).toBeDefined();
+    await screen.findByText('Export position reset. Existing dataset samples are unchanged.');
+    expect(mocks.setExportPosition).toHaveBeenLastCalledWith(0);
     fireEvent.click(download);
     await waitFor(() => expect(mocks.page).toHaveBeenNthCalledWith(4, 0, 1000));
 
@@ -286,5 +293,38 @@ describe('dataset collection panel', () => {
     expect(mocks.delete).not.toHaveBeenCalled();
     expect(mocks.record).not.toHaveBeenCalled();
     expect(mocks.queue).not.toHaveBeenCalled();
+  });
+
+  it('loads the durable export position before enabling export after reopening', async () => {
+    let loaded!: (value: number) => void;
+    mocks.exportPosition.mockImplementation(() => new Promise<number>(resolve => { loaded = resolve; }));
+    render(panel([]));
+    fireEvent.click(screen.getByText('SIG dataset · 0 local observations · collecting'));
+    const download = screen.getByRole('button', { name: 'Download next 1,000 samples' }) as HTMLButtonElement;
+    expect(download.disabled).toBe(true);
+    await act(async () => { loaded(2000); });
+    expect(download.disabled).toBe(false);
+    fireEvent.click(download);
+    await waitFor(() => expect(mocks.page).toHaveBeenCalledWith(2000, 1000));
+    expect(mocks.setExportPosition).not.toHaveBeenCalled();
+  });
+
+  it('keeps the prior cursor after an export-position failure and permits retrying the same batch', async () => {
+    mocks.page.mockResolvedValue({ records: [{ seq: 1 }], nextSeq: 1, policies: {}, hasMore: false });
+    mocks.setExportPosition.mockRejectedValueOnce(new Error('Synthetic metadata failure'));
+    vi.stubGlobal('URL', class extends URL {
+      static createObjectURL = vi.fn(() => 'blob:synthetic-dataset');
+      static revokeObjectURL = vi.fn();
+    });
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    render(panel([]));
+    fireEvent.click(screen.getByText('SIG dataset · 0 local observations · collecting'));
+    const download = screen.getByRole('button', { name: 'Download next 1,000 samples' }) as HTMLButtonElement;
+    await waitFor(() => expect(download.disabled).toBe(false));
+    fireEvent.click(download);
+    expect((await screen.findByRole('alert')).textContent).toContain('position was not advanced');
+    fireEvent.click(download);
+    await screen.findByText(/Download requested for 1 samples/);
+    expect(mocks.page.mock.calls).toEqual([[0, 1000], [0, 1000]]);
   });
 });

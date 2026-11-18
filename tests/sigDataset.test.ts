@@ -35,7 +35,7 @@ describe('local incremental SIG dataset', () => {
   it('persists a whitelisted clinical observation and opaque identities across reopening', async () => {
     const databaseName = name(), store = createSigDatasetStore(databaseName);
     const input = {
-      ...observation(), partId: 'SYNTHETIC-PRIVATE-PART', origin: 'iguana' as const,
+      ...observation(), defaultSigTemplate: 'TAKE # TABLET(S) BY MOUTH', partId: 'SYNTHETIC-PRIVATE-PART', origin: 'iguana' as const,
       context: { ndc: '00000-0000-00', dose: 1, route: 'PO', administrationTimes: ['0900'], patient: 'NEVER-PERSIST-THIS-EXTRA-FIELD' },
       patient: 'NEVER-PERSIST-THIS-EXTRA-FIELD', pon: 'NEVER-PERSIST-THIS-EXTRA-FIELD', facility: 'NEVER-PERSIST-THIS-EXTRA-FIELD',
     };
@@ -44,6 +44,7 @@ describe('local incremental SIG dataset', () => {
     expect(page.records).toHaveLength(1);
     expect(page.records[0]).toMatchObject({ schemaVersion: 1, seq: 1, rawSig: input.rawSig, finalSig: input.finalSig, captureKind: 'erx_source', origin: 'iguana', appVersion: __SIG_ASSIST_VERSION__, buildId: __SIG_ASSIST_BUILD__, context: { dose: 1, administrationTimes: ['0900'] } });
     expect(page.records[0].capturedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(page.records[0].defaultSigTemplate).toBe(input.defaultSigTemplate);
     for (const key of ['orderId', 'sampleId', 'dedupKey'] as const) expect(page.records[0][key]).toMatch(/^[a-f0-9]{64}$/);
     expect(JSON.stringify(page)).not.toContain(input.orderKey);
     expect(JSON.stringify(page)).not.toContain(input.partId);
@@ -116,6 +117,35 @@ describe('local incremental SIG dataset', () => {
     expect(await store.page(third.nextSeq)).toEqual({ records: [], nextSeq: 5, hasMore: false, policies: {} });
     await expect(store.page(-1)).rejects.toThrow('Invalid');
     await expect(store.page(0, 0)).rejects.toThrow('Invalid');
+  });
+
+  it('persists and resets export position across reopening without deleting observations', async () => {
+    const databaseName = name(), store = createSigDatasetStore(databaseName);
+    expect(await store.exportPosition()).toBe(0);
+    await store.record(observation());
+    await store.setExportPosition(1000);
+    const reopened = createSigDatasetStore(databaseName);
+    expect(await reopened.exportPosition()).toBe(1000);
+    await reopened.setExportPosition(0);
+    expect(await store.exportPosition()).toBe(0);
+    expect((await reopened.page(0)).records).toHaveLength(1);
+    for (const value of [-1, 0.5, NaN, Infinity]) await expect(store.setExportPosition(value)).rejects.toThrow('Invalid');
+    await mutate(databaseName, 'metadata', metadata => { metadata.put(null, 'export-position'); });
+    await expect(reopened.exportPosition()).rejects.toThrow('needs recovery');
+  });
+
+  it('does not acknowledge an aborted export-position write or advance the old position', async () => {
+    const store = createSigDatasetStore(name());
+    await store.setExportPosition(1000);
+    const original = IDBObjectStore.prototype.put;
+    const abort = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, value, key) {
+      const request = original.call(this, value, key);
+      if (this.name === 'metadata') request.addEventListener('success', () => this.transaction.abort());
+      return request;
+    });
+    await expect(store.setExportPosition(2000)).rejects.toThrow('transaction failed');
+    abort.mockRestore();
+    expect(await store.exportPosition()).toBe(1000);
   });
 
   it('acknowledges only committed writes and preserves older rows on abort or quota failure', async () => {

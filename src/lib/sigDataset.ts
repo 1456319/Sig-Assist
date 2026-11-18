@@ -44,6 +44,8 @@ export interface SigDatasetStore {
   record(input: SigDatasetInput): Promise<{ added: boolean; seq: number }>;
   stats(): Promise<{ total: number; stages: Record<SigDatasetStage, number> }>;
   page(afterSeq: number, limit?: number): Promise<SigDatasetPage>;
+  exportPosition(): Promise<number>;
+  setExportPosition(afterSeq: number): Promise<void>;
 }
 
 const STAGES: SigDatasetStage[] = ['source_received', 'reviewed_copy', 'verified_transfer', 'technician_confirmed', 'framework_observed'];
@@ -102,7 +104,7 @@ function clinicalFields(input: SigDatasetInput): Omit<SigDatasetInput, 'orderKey
 
 function validRecord(value: unknown): value is SigDatasetRecord {
   if (!isObject(value) || value.schemaVersion !== 1 || !Number.isSafeInteger(value.seq) || (value.seq as number) < 1 || typeof value.capturedAt !== 'string' || !Number.isFinite(Date.parse(value.capturedAt)) || typeof value.appVersion !== 'string' || typeof value.buildId !== 'string' || !HEX.test(String(value.orderId)) || !HEX.test(String(value.sampleId)) || !HEX.test(String(value.dedupKey)) || value.exclusionPolicyId !== undefined && !HEX.test(String(value.exclusionPolicyId))) return false;
-  const fields = ['schemaVersion', 'seq', 'capturedAt', 'appVersion', 'buildId', 'orderId', 'sampleId', 'dedupKey', 'exclusionPolicyId', 'revision', 'stage', 'drug', 'rawSig', 'captureKind', 'origin', 'generatedSig', 'suggestedSig', 'finalSig', 'comment', 'acceptable', 'warnings', 'context'];
+  const fields = ['schemaVersion', 'seq', 'capturedAt', 'appVersion', 'buildId', 'orderId', 'sampleId', 'dedupKey', 'exclusionPolicyId', 'revision', 'stage', 'drug', 'rawSig', 'captureKind', 'origin', 'generatedSig', 'suggestedSig', 'finalSig', 'comment', 'acceptable', 'warnings', 'context', 'defaultSigTemplate'];
   if (Object.keys(value).some(key => !fields.includes(key))) return false;
   if (isObject(value.context) && Object.keys(value.context).some(key => !['ndc', 'strength', 'dose', 'doseUnit', 'route', 'frequency', 'administrationTimes'].includes(key))) return false;
   try { clinicalFields(value as unknown as SigDatasetInput); return true; } catch { return false; }
@@ -185,6 +187,25 @@ export function createSigDatasetStore(name = 'sig-assist-local-sig-dataset-v1'):
     return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
   }
   return {
+    async exportPosition() {
+      const db = await open();
+      return transact(db, ['metadata'], 'readonly', (tx, set, fail) => {
+        const request = tx.objectStore('metadata').get('export-position');
+        request.onsuccess = () => {
+          const value = request.result === undefined ? 0 : request.result;
+          if (!Number.isSafeInteger(value) || value < 0) { fail(new Error(CORRUPT)); return; }
+          set(value);
+        };
+      });
+    },
+    async setExportPosition(afterSeq) {
+      if (!Number.isSafeInteger(afterSeq) || afterSeq < 0) throw new Error('Invalid SIG dataset export position.');
+      const db = await open();
+      return transact<void>(db, ['metadata'], 'readwrite', (tx, set) => {
+        const request = tx.objectStore('metadata').put(afterSeq, 'export-position');
+        request.onsuccess = () => set(undefined);
+      });
+    },
     async record(input) {
       if (!isObject(input) || typeof input.orderKey !== 'string' || !input.orderKey.trim() || !optionalString(input.partId)) throw new Error('Invalid SIG dataset identity.');
       const clinical = clinicalFields(input), capturedAt = new Date().toISOString();

@@ -95,7 +95,11 @@ try {
   assert.equal(plainOverlength.code, 'SIG_UNAVAILABLE', overlengthDiagnostics);
   assert.equal((await run({ action: 'dataset-snapshot', entryWindow: { ...entry.entryWindow, id: 'replaced-window' } })).code, 'WINDOW_UNAVAILABLE');
   await command({ pon: 'SYNTHETIC-1', sig: 'OLD SIG', readonly: 'false' });
-  const written = await run({ action: 'send', expected: first, field: 'sig', value: '1T PO BID — REVIEWED' });
+  // Password/rich/plain fixture switches recreate native control handles.
+  // Bind the current field after passive tests rather than reuse a stale handle.
+  const afterDataset = await run({ action: 'detect' });
+  assert.equal(afterDataset.ok, true, JSON.stringify(afterDataset));
+  const written = await run({ action: 'send', expected: afterDataset, field: 'sig', value: '1T PO BID — REVIEWED' });
   assert.equal(written.verified, true, JSON.stringify(written));
   const times = await run({ action: 'send', expected: written.detected, field: 'times', value: '0800, 2000' });
   assert.equal(times.verified, true, JSON.stringify(times));
