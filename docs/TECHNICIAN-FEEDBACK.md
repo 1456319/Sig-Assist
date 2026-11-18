@@ -1,6 +1,8 @@
-# Technician feedback · v0.1.6
+# Technician feedback
 
 Feedback is available in the header from the first screen and throughout the app. It does not require an order, a PON, a server connection, or a translation error. It never approves or changes an order.
+
+The header now displays the release version and a short build ID, for example `v0.1.10 · 07254f23`. Include both when describing a problem: two prototype downloads can share a release version while containing different source updates. Feedback reports already include the complete build ID automatically. The packaged `BUILD.json` records the same identity for troubleshooting an extracted download.
 
 The technician can choose **Yes** or **No** to “Was the result acceptable?” or leave it unrated for general feedback. Yes has two meanings that are recorded separately: **Worked as shown** and **Acceptable after a correction**. Comments are optional on either answer. An unrated report needs a comment so it contains useful feedback.
 
