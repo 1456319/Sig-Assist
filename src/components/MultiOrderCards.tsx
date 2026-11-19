@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useReviewSession } from '../hooks/use-review-session';
 import { copyBlockReason, reviewStamp } from '../lib/reviewPolicy';
 import { traceLogger } from '../lib/diagnostics/traceLogger';
+import { estimateScaleExpansion, isSlidingScaleSig } from '../lib/clinical/slidingScaleBudget';
 
 export interface MultiOrderCardsProps {
   primarySig?: string;
@@ -49,6 +50,10 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
   };
 
   const { exclusions, policyRevision } = useReviewSession();
+  const sharedScaleBudget = isSlidingScaleSig(primarySig || '') || subOrders.some(sub => isSlidingScaleSig(sub.suggestedSig));
+  const enteredParts = subOrders.map(sub => drafts[sub.id] ?? sub.suggestedSig);
+  const groupRawLength = enteredParts.filter(Boolean).join(' ').length;
+  const groupExpandedLength = enteredParts.filter(Boolean).map(estimateScaleExpansion).join(' ').length;
 
   React.useEffect(() => {
     if (unavailable) {
@@ -155,12 +160,15 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
         </div>
       )}
 
-      <div className="rounded-md border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+      {sharedScaleBudget ? <div className="rounded-md border border-amber-400 p-3 text-sm" role={Math.max(groupRawLength, groupExpandedLength) > 199 ? 'alert' : 'status'}>
+        <strong>Shared sliding-scale SIG budget: {groupExpandedLength} / 199 estimated expanded characters ({groupRawLength} typed).</strong>
+        <p>All entered SIG parts count together. The unified preview is not counted twice. {Math.max(groupRawLength, groupExpandedLength) > 199 ? 'Best-effort concessions still exceed the budget; adjust the editable parts as needed.' : 'Review every part together before entry.'}</p>
+      </div> : <div className="rounded-md border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
         <span className="font-semibold">Paxit Multi-Order Requirement:</span>
         <p className="mt-0.5 text-slate-600 dark:text-slate-400">
           Paxit oral solids cannot have split SIGs on a single order. This medication must be entered into FrameworkLTC as separate orders (Order 1 of 2, Order 2 of 2) for automated pouch packaging. Review and copy each order card individually.
         </p>
-      </div>
+      </div>}
 
       {subOrders.map((subOrder) => {
         const draftSig = drafts[subOrder.id] ?? subOrder.suggestedSig;

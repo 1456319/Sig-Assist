@@ -3,6 +3,7 @@ import { useId, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { copyBlockReason, excludedMatches, finalSig, reviewStamp, type SigExclusion } from '../lib/reviewPolicy';
 import { useReviewSession } from '../hooks/use-review-session';
+import { estimateScaleExpansion, isSlidingScaleSig } from '../lib/clinical/slidingScaleBudget';
 
 export const reviewInputClass = 'w-full rounded-md border border-border bg-background p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary';
 export const reviewButtonClass = 'rounded-md border border-border px-3 py-2 text-sm hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed';
@@ -31,6 +32,8 @@ export function SigReviewPanel({ source, suggestion, draft, approved, unavailabl
   const reviewed = approved === stamp;
   const reason = copyBlockReason(source, draft, exclusions, approved, unavailable, policyRevision);
   const suggestionExcluded = excludedMatches(suggestion, exclusions).length > 0;
+  const scale = isSlidingScaleSig(suggestion) || isSlidingScaleSig(draft);
+  const expandedLength = scale ? estimateScaleExpansion(draft).length : draft.length;
 
   function exclude(exclusion: SigExclusion) {
     const value = finalSig(exclusion.value).replace(/\s+/g, ' ');
@@ -72,7 +75,8 @@ export function SigReviewPanel({ source, suggestion, draft, approved, unavailabl
     <div>
       <label htmlFor={`${id}-draft`} className="block text-sm font-medium mb-1">Final SIG · editable, uppercase</label>
       <textarea ref={draftRef} id={`${id}-draft`} rows={4} className={`${reviewInputClass} font-mono`} value={draft} disabled={unavailable} onChange={event => onEdit(event.target.value.toUpperCase())} />
-      <p className={`mt-1 text-xs ${draft.length > 199 ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>{draft.length} / 199 characters{draft.length > 199 ? ' · over the Framework SIG limit; edit before sending' : ''}</p>
+      <p className={`mt-1 text-xs ${Math.max(draft.length, expandedLength) > 199 ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>{scale ? `${draft.length} typed · ${expandedLength} / 199 estimated expanded characters` : `${draft.length} / 199 characters`}{Math.max(draft.length, expandedLength) > 199 ? scale ? ' · over the Framework SIG budget; adjust as needed' : ' · over the Framework SIG limit; edit before sending' : ''}</p>
+      {scale && expandedLength > 199 && <p role="alert" className="text-sm font-semibold text-destructive">Best-effort concessions still exceed the 199-character budget. Review the editable SIG and make adjustments as needed.</p>}
     </div>
     <label className="flex items-start gap-2 text-sm">
       <input type="checkbox" className="mt-1" checked={reviewed} disabled={unavailable || !draft.trim() || excludedMatches(draft, exclusions).length > 0 || rejectedOutputMatches(draft).length > 0} onChange={event => onApprove(event.target.checked ? stamp : undefined)} />

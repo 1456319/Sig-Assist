@@ -1,6 +1,7 @@
 import { normalizeNumericDirections } from './numericDirections';
 import { splitSupplementalDirections } from './instructionClauses';
 import type { AbnormalityFinding } from './types';
+import { parseProseSlidingScale } from './slidingScaleProse';
 
 interface Band { key: number; condition: string; action: string }
 export interface ParsedSlidingScale {
@@ -11,6 +12,7 @@ export interface ParsedSlidingScale {
   incomplete: boolean;
   baseInstruction?: string;
   retainedInstructions?: string;
+  retainedSource?: string;
 }
 
 // Conditions and actions are parsed separately. A matched range is not evidence
@@ -54,7 +56,7 @@ function condition(value: string): { key: number; text: string } {
     text: low ? `${inclusive ? '<=' : '<'}${numbers[0]}` : inclusive ? `${numbers[0]}+` : `>${numbers[0]}` };
 }
 
-export function parseSlidingScale(raw: string): ParsedSlidingScale {
+function parseLegacySlidingScale(raw: string): ParsedSlidingScale {
   const abnormalities: AbnormalityFinding[] = [];
   let upper = normalizeScale(raw);
   const fail = (message: string): ParsedSlidingScale => ({ bands: '', schedule: '', route: '', abnormalities: [...abnormalities,
@@ -218,4 +220,22 @@ export function parseSlidingScale(raw: string): ParsedSlidingScale {
     });
   }
   return { bands: ordered.map(b => `${b.condition}=${b.action}`).join(';'), schedule, route, abnormalities, incomplete: false, baseInstruction, retainedInstructions };
+}
+
+
+export function parseSlidingScale(raw: string): ParsedSlidingScale {
+  const canonical = raw.toUpperCase()
+    .replace(/\bCALLD\s*\/\s*NP\b/g, 'CALL MD')
+    .replace(/\bCALL(?=MD\b)/g, 'CALL ')
+    .replace(/\b(?:CALL|NOTIFY|NOTIFIED)\s+(?:MD|NP|PA)(?:\s*(?:\/|AND)\s*(?:MD|NP|PA))+/g, 'CALL MD')
+    .replace(/\b(?:CALL|NOTIFY|NOTIFIED)\s+((?!(?:IF|FOR|WHEN|IN|AFTER)\b)[^;:,.=<>]+?)(?=\s+(?:IF|FOR|WHEN|AND|AT|IN|AFTER)\b|[;:,.=<>]|$)/g, 'CALL MD')
+    .replace(/\bCALL MD\s+FOR (?:FURTHER (?:ORDERS|INSTRUCTIONS)|INSTRUCTIONS)\b/g, 'CALL MD');
+  const legacy = parseLegacySlidingScale(canonical);
+  const firstCondition = canonical.search(conditionPattern);
+  const leadingHold = firstCondition >= 0 && /\bHOLD(?:\s+INSULIN)?\s+(?:IF|FOR|WHEN)[^.;]*$/.test(canonical.slice(0, firstCondition));
+  const conditionalFollowup = /\bIF\s+(?:(?:THE\s+)?(?:READINGS?|BLOOD SUGAR|GLUCOSE)\s+)?(?:(?:IS|ARE)\s+)?STILL\s+(?:HIGH|ABNORMAL)\b/.test(canonical);
+  const result = legacy.incomplete || leadingHold || conditionalFollowup ? parseProseSlidingScale(canonical) : legacy;
+  const findings = canonical !== raw.toUpperCase() ? [{ id: 'site_scale_notification', tier: 'applied_correction' as const,
+    title: 'Site Notification Wording Applied', message: 'Notification recipient/purpose variants use CALL MD under the technician-specified scale format.', trigger: raw }] : [];
+  return { ...result, retainedSource: canonical, abnormalities: [...findings, ...result.abnormalities] };
 }

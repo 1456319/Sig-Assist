@@ -135,12 +135,13 @@ export function parseSigOrder(raw: string, options: SigParseOptions): ParsedSigO
     if (resolved.abnormalities.some(finding => finding.id === 'sliding_scale_unparsed_action')) issues.push({
       code: 'retained-sliding-scale-instructions', severity: 'warning', message: 'Additional scale instructions were retained with their qualifiers and need review against the common schedule.',
     });
-    if (!resolved.slidingScaleString) issues.push({ code: 'incomplete-sliding-scale', severity: 'warning', message: 'The complete scale needs technician review; original directions were retained.' });
+    if (resolved.requiresManualTranslation || !resolved.slidingScaleString) issues.push({ code: 'incomplete-sliding-scale', severity: 'warning', message: 'The complete scale needs technician review; unresolved source wording was retained.' });
+    for (const finding of resolved.abnormalities.filter(item => item.id.startsWith('sliding_scale_concession') || item.id === 'sliding_scale_budget_exceeded')) issues.push({ code: finding.id, severity: 'warning', message: finding.message });
   }
   if (compactHold) order.hold = { systolicBelow: Number(compactHold[1]), heartRateBelow: Number(compactHold[2]) };
   if (dateStripped) issues.push({ code: 'cut-date', severity: 'warning', message: 'A cut date was removed; verify it in the order date field.' });
   if (isUnknownElementalCandidate(options.drug)) issues.push({ code: 'unknown-elemental-equivalent', severity: 'blocking', message: 'This strength may describe an elemental equivalent, but the compound/formulation could not be verified.' });
-  if (/\b(?:insulin|humalog|novolog|lantus)\b/i.test(options.drug) && /\b(?:ml|milliliter)\b/i.test(normalized)) issues.push({ code: 'insulin-volume-input', severity: 'blocking', message: 'Insulin was entered in mL. Verify the intended unit dose before use.' });
+  if (!isScale && /\b(?:insulin|humalog|novolog|lantus)\b/i.test(options.drug) && /\b(?:ml|milliliter)\b/i.test(normalized)) issues.push({ code: 'insulin-volume-input', severity: 'blocking', message: 'Insulin was entered in mL. Verify the intended unit dose before use.' });
   if (slidingScale) validateScale(slidingScale, issues); else { if (!order.dose) issues.push({ code: 'missing-dose', severity: 'blocking', message: 'Could not identify a dose.' }); if (!order.route) issues.push({ code: 'missing-route', severity: 'warning', message: 'Could not identify a route.' }); if (!order.frequency) issues.push({ code: 'missing-frequency', severity: 'warning', message: 'Could not identify a frequency.' }); }
   return order;
 }

@@ -8,6 +8,7 @@ import { SIG_CODE_REFERENCE } from './sigCodeReference';
 import { normalizeNumericDirections } from './numericDirections';
 import { hourlySchedule } from './hourlySchedule';
 import { looksLikeSlidingScale, parseSlidingScale } from './slidingScale';
+import { fitSlidingScaleBudget, scaleBudgetFindings } from './slidingScaleBudget';
 
 export interface FrequencyScheduleResult {
   readonly frequencyToken: string;
@@ -27,7 +28,7 @@ export function namedMealQualifier(primaryProse: string): string | undefined {
   return primaryProse.toUpperCase().match(/\bWITH\s+(?:BREAKFAST|LUNCH|DINNER|SUPPER)\b(?:\s*(?:,\s*(?:(?:AND|OR)\s+)?|(?:AND|OR)\s+|[&/]\s*)(?:WITH\s+)?(?:BREAKFAST|LUNCH|DINNER|SUPPER)\b)+/)?.[0].replace(/\s+/g, ' ').trim();
 }
 
-function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?: string, drugName?: string): FrequencyScheduleResult {
+function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?: string, drugName?: string, deferScaleBudget = false): FrequencyScheduleResult {
   const scaleCandidate = looksLikeSlidingScale(rawProse, drugName);
   const upper = normalizeNumericDirections(scaleCandidate ? rawProse : splitSupplementalDirections(rawProse).primary)
     .replace(/\bDAY\(S\)/g, 'DAYS')
@@ -51,24 +52,39 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
   if (scaleCandidate) {
     const scale = parseSlidingScale(upper);
     abnormalities.push(...scale.abnormalities);
-    if (scale.incomplete) return { frequencyToken: '', abnormalities, requiresManualTranslation: true };
     const tail = splitSupplementalDirections(scale.schedule);
     const schedule = resolveFrequencyAndScheduleInternal(tail.primary);
-    if (!schedule.frequencyToken || schedule.requiresManualTranslation) {
+    if (!schedule.frequencyToken || schedule.requiresManualTranslation || scale.incomplete) {
       abnormalities.push({ id: 'incomplete_sliding_scale', tier: 'uncorrected_gap', title: 'Scale Schedule Requires Review',
-        message: 'The scale schedule could not be resolved. Original directions were retained.', trigger: rawProse });
-      return { frequencyToken: '', abnormalities, requiresManualTranslation: true };
+        message: 'Review the retained scale wording and any frequency placeholder. No unresolved dose or instruction was discarded.', trigger: rawProse });
+      const frequency = schedule.frequencyToken || '[FREQUENCY]';
+      const text = `CBS ${frequency} SS ${scale.retainedSource || upper}`;
+      const budget = deferScaleBudget ? undefined : fitSlidingScaleBudget([text]);
+      return { frequencyToken: `CBS ${frequency} SS`, slidingScaleString: budget?.parts[0] ?? text, abnormalities: [...abnormalities, ...(budget ? scaleBudgetFindings(budget) : [])], requiresManualTranslation: true };
     }
     let frequency = schedule.frequencyToken;
     if (frequency === 'TIDAC' && !/\b(?:3|THREE) TIMES|\bTID\b/.test(tail.primary)) frequency = 'AC';
     const prefix = `CBS ${frequency} SS`;
-    const core = [scale.baseInstruction, prefix, scale.bands, scale.route, schedule.prnToken, schedule.durationToken,
+    let base = '';
+    if (scale.baseInstruction) {
+      const dose = scale.baseInstruction.match(/\b(?:INJ|INJECT|GIVE|ADMINISTER)?\s*(\d+(?:\.\d+)?)\s*(?:UNITS?|U)\b/);
+      if (dose) {
+        const baseSchedule = resolveFrequencyAndScheduleInternal(scale.baseInstruction).frequencyToken;
+        const hold = scale.baseInstruction.match(/\bH(?:OLD)?\s+(?:IF|WHEN|FOR)\s+[^.;)]+/)?.[0]
+          .replace(/^HOLD\b/, 'H').replace(/\bRESIDENT\s+/g, '').replace(/DID NOT EAT|DOES NOT EAT|NOT EATEN/g, 'NOT EATING');
+        base = `PLUS${dose[1]}U${baseSchedule && baseSchedule !== frequency ? ` ${baseSchedule}` : ''}${hold ? `(${hold})` : ''}`;
+      } else base = scale.baseInstruction.replace(/[.;]+$/, '');
+    }
+    const compactBands = scale.bands.replace(/\bRECHECK\s+(?:(?:BS|BG|CBS|BLOOD SUGAR|BLOOD GLUCOSE)\s+)?IN\s+(\d+(?:\.\d+)?)\s+(HOURS?|HRS?|MINUTES?|MINS?)\b/g,
+      (_m, amount: string, units: string) => `RECHECK ${amount}${units.startsWith('H') ? 'H' : 'MIN'}`);
+    const core = [prefix, compactBands, scale.route && scale.route !== 'SQ' ? scale.route : '', schedule.prnToken, schedule.durationToken,
       schedule.indicationToken, schedule.holdToken, schedule.stopToken].filter(Boolean).join(' ');
     const retained = [scale.retainedInstructions, tail.supplemental].filter(Boolean).join('. ');
     if (tail.supplemental) abnormalities.push({ id: 'sliding_scale_unparsed_action', tier: 'uncorrected_gap', title: 'Scale Instruction Retained for Review',
       message: 'An additional instruction was retained with its source qualifier. Compare its scope with the common scale schedule.', trigger: tail.supplemental });
-    const slidingScaleString = retained ? `${core}. ${retained.toUpperCase()}` : core;
-    return { frequencyToken: prefix, slidingScaleString, abnormalities: [...abnormalities, ...schedule.abnormalities] };
+    const text = [core, base, retained.toUpperCase()].filter(Boolean).join('. ');
+    const budget = deferScaleBudget ? undefined : fitSlidingScaleBudget([text]);
+    return { frequencyToken: prefix, slidingScaleString: budget?.parts[0] ?? text, abnormalities: [...abnormalities, ...schedule.abnormalities, ...(budget ? scaleBudgetFindings(budget) : [])] };
   }
 
   // Hold parameters
@@ -302,8 +318,8 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
   };
 }
 
-export function resolveFrequencyAndSchedule(rawProse: string, defaultTemplate?: string, drugName?: string): FrequencyScheduleResult {
-  const result = resolveFrequencyAndScheduleInternal(rawProse, defaultTemplate, drugName);
+export function resolveFrequencyAndSchedule(rawProse: string, defaultTemplate?: string, drugName?: string, options?: { deferScaleBudget?: boolean }): FrequencyScheduleResult {
+  const result = resolveFrequencyAndScheduleInternal(rawProse, defaultTemplate, drugName, options?.deferScaleBudget);
   traceLogger.debug('clinical', 'frequencyEngine', 'Resolved frequency and schedule tokens', {
     frequencyToken: result.frequencyToken,
     durationToken: result.durationToken,

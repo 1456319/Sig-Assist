@@ -12,6 +12,7 @@ import { applyOutputCodePolicy } from './outputCodePolicy';
 import { resolveTreatmentOrder } from './treatmentOrderEngine';
 import { resolveLidocainePatch } from './lidocainePatch';
 import { looksLikeSlidingScale } from './slidingScale';
+import { fitSlidingScaleBudget, scaleBudgetFindings } from './slidingScaleBudget';
 
 function assembleSig(
   drugName: string,
@@ -22,6 +23,12 @@ function assembleSig(
 ): { sig: string; abnormalities: AbnormalityFinding[] } {
   const repeated = mergeRepeatedSolidDirections(drugName, rawProse);
   rawProse = repeated.prose;
+  // Scale doses, rescue medication, and fixed additions have their own parser.
+  // The ordinary single-dose calculator must not read glucagon mL as insulin.
+  if (looksLikeSlidingScale(rawProse, drugName)) {
+    const scale = resolveFrequencyAndSchedule(rawProse, undefined, drugName, { deferScaleBudget: true });
+    return { sig: scale.slidingScaleString || uppercaseDirections(rawProse), abnormalities: scale.abnormalities };
+  }
   const doseRes = calculateDoseAndVolume(drugName, rawProse);
   const clauses = looksLikeSlidingScale(rawProse, drugName)
     ? { primary: rawProse, supplemental: '' }
@@ -447,10 +454,11 @@ function translateClinicalSigInternal(inbound: InboundOrder, preferences?: Parti
 // retained wording and all Paxit cards. Source directions remain unchanged.
 export function translateClinicalSig(inbound: InboundOrder, preferences?: Partial<TechnicianPreferences>): ClinicalSigResult {
   const result = translateClinicalSigInternal(inbound, preferences);
+  const scale = looksLikeSlidingScale(inbound.rawProse, inbound.drugName);
   const finalize = (sig: string) => {
     const policy = applyOutputCodePolicy(sig, preferences?.exclusions);
     const findings: AbnormalityFinding[] = [];
-    if (policy.sig.length > 199) findings.push({ id: 'sig_length_review', tier: 'uncorrected_gap', title: 'SIG Length Requires Review',
+    if (!scale && policy.sig.length > 199) findings.push({ id: 'sig_length_review', tier: 'uncorrected_gap', title: 'SIG Length Requires Review',
       message: `The suggestion is ${policy.sig.length} characters. Condense it for the reported 199-character destination limit; no instructions were truncated.` });
     if (policy.changes.length) findings.push({ id: 'output_code_replacement', tier: 'applied_correction', title: 'Rejected Codes Replaced',
       message: 'Packaging restrictions and saved exclusions were applied to the suggestion. Verify the expanded instructions.', correction: policy.changes.join('; ') });
@@ -463,6 +471,14 @@ export function translateClinicalSig(inbound: InboundOrder, preferences?: Partia
     const final = finalize(sub.suggestedSig);
     return { ...sub, suggestedSig: final.sig, abnormalities: [...sub.abnormalities, ...final.findings] };
   });
+  if (scale) {
+    // Only entered parts count. The unified read-only preview duplicates them.
+    const budget = fitSlidingScaleBudget(subOrders.length > 1 ? subOrders.map(sub => sub.suggestedSig) : [primary.sig]);
+    const findings = scaleBudgetFindings(budget);
+    return { ...result, primarySig: budget.parts.join(subOrders.length > 1 ? ' **SPLIT** ' : ''),
+      subOrders: subOrders.map((sub, index) => ({ ...sub, suggestedSig: budget.parts[index] ?? budget.parts[0], abnormalities: [...sub.abnormalities, ...findings] })),
+      abnormalities: [...result.abnormalities, ...primary.findings, ...findings] };
+  }
   return { ...result, primarySig: primary.sig, subOrders, abnormalities: [...result.abnormalities, ...primary.findings] };
 }
 
