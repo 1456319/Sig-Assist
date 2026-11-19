@@ -4,6 +4,8 @@
 
 The prototype branch includes the compiled page and demo ZIP. After every push passes Windows/Linux checks, CI refreshes these files on the branch automatically. Wait for **MVP checks → publish-prototype** to finish before downloading a source-only update; a failed check leaves the previous package in place. Release versions identify feature batches; the build ID distinguishes source changes within a version. `windows-demo/BUILD.json` records the packaged identity. Developers can rebuild and verify both downloads with `npm run prototype:package`.
 
+**v0.1.13:** insulin sliding scales use the [technician-specified CBS/frequency/SS template and ordered concessions](docs/SLIDING-SCALE-FORMAT.md). The review shows typed length and the estimated expanded 199-character budget shared across entered parts. See the [November 19 handoff](docs/SLIDING-SCALE-HANDOFF-2026-11-19.md) for the worked example, regression evidence and remaining site-preview check.
+
 
 ## Try the local review MVP
 
