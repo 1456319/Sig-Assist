@@ -76,7 +76,7 @@ export function SigReviewPanel({ source, suggestion, draft, approved, unavailabl
       <label htmlFor={`${id}-draft`} className="block text-sm font-medium mb-1">Final SIG · editable, uppercase</label>
       <textarea ref={draftRef} id={`${id}-draft`} rows={4} className={`${reviewInputClass} font-mono`} value={draft} disabled={unavailable} onChange={event => onEdit(event.target.value.toUpperCase())} />
       <p className={`mt-1 text-xs ${Math.max(draft.length, expandedLength) > 199 ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>{scale ? `${draft.length} typed · ${expandedLength} / 199 estimated expanded characters` : `${draft.length} / 199 characters`}{Math.max(draft.length, expandedLength) > 199 ? scale ? ' · over the Framework SIG budget; adjust as needed' : ' · over the Framework SIG limit; edit before sending' : ''}</p>
-      {scale && expandedLength > 199 && <p role="alert" className="text-sm font-semibold text-destructive">Best-effort concessions still exceed the 199-character budget. Review the editable SIG and make adjustments as needed.</p>}
+      {scale && Math.max(draft.length, expandedLength) > 199 && <p role="alert" className="text-sm font-semibold text-destructive">Best-effort concessions still exceed the 199-character budget. Review the editable SIG and make adjustments as needed.</p>}
     </div>
     <label className="flex items-start gap-2 text-sm">
       <input type="checkbox" className="mt-1" checked={reviewed} disabled={unavailable || !draft.trim() || excludedMatches(draft, exclusions).length > 0 || rejectedOutputMatches(draft).length > 0} onChange={event => onApprove(event.target.checked ? stamp : undefined)} />

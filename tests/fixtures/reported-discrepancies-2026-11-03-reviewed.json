@@ -354,9 +354,9 @@
     ],
     "drugName": "HumaLOG Injection Solution 100 UNIT/ML",
     "rawProse": "Inject as per sliding scale: if 250 - 300 = 1 unit; 301 - 350 = 2 units; 351 - 400 = 3 units; 401+ = 6 units 401 and higher give  ^ units, subcutaneously three times a day for DM Do not use dexcom, use glucose meter",
-    "expected": "C.B.S. TID S.S. INJECT AS PER SLIDING SCALE: IF 250-300=1 UNIT;301-350=2 UNITS;351-400=3 UNITS;401+=6 UNITS 401 AND HIGHER GIVE ^ UNITS, SUBCUTANEOUSLY 3 TIMES A DAY FOR DM DO NOT USE DEXCOM, USE GLUCOSE METER",
+    "expected": "C.B.S. TID S.S. INJECT AS PER SLIDING SCALE: IF 250-300=1 UNIT;301-350=2 UNITS;351-400=3 UNITS;401+=6 UNITS 401 AND HIGHER GIVE ^ UNITS, SUBCUTANEOUSLY 3 TIMES A DAY DO NOT USE DEXCOM, USE GLUCOSE METER",
     "subOrders": [
-      "C.B.S. TID S.S. INJECT AS PER SLIDING SCALE: IF 250-300=1 UNIT;301-350=2 UNITS;351-400=3 UNITS;401+=6 UNITS 401 AND HIGHER GIVE ^ UNITS, SUBCUTANEOUSLY 3 TIMES A DAY FOR DM DO NOT USE DEXCOM, USE GLUCOSE METER"
+      "C.B.S. TID S.S. INJECT AS PER SLIDING SCALE: IF 250-300=1 UNIT;301-350=2 UNITS;351-400=3 UNITS;401+=6 UNITS 401 AND HIGHER GIVE ^ UNITS, SUBCUTANEOUSLY 3 TIMES A DAY DO NOT USE DEXCOM, USE GLUCOSE METER"
     ],
     "status": "source-review",
     "reviewNote": "Source contains both 6 units and an unresolved ^ units for the same high threshold. Complete source retained."

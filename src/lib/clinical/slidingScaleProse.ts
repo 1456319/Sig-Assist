@@ -60,7 +60,8 @@ export function parseProseSlidingScale(source: string): ParsedSlidingScale {
   const routeSchedules = [...scaleText.matchAll(/\b(?:SQ|SUBQ|SC|SUBCUTANEOUS(?:LY)?)\b([^.;]*)/g)].map(m => scheduleText(m[1]));
   const schedule = [scheduleText(header), ...routeSchedules, scheduleText(sections[sections.length - 1] || '')].filter(Boolean).join(' ')
     || scheduleText(baseInstruction || '');
-  const diagnosis = text.match(/\bFDM[12]?\b/)?.[0] || (text.match(/\bFOR\s+((?:TYPE [12] )?DIABETES(?: MELLITUS)?(?: TYPE [12])?|DM[12]?)\b/)?.[1]);
+  const diagnosisSource = `${text} ${baseInstruction || ''}`;
+  const diagnosis = diagnosisSource.match(/\bFDM[12]?\b/)?.[0] || (diagnosisSource.match(/\bFOR\s+((?:TYPE [12] )?DIABETES(?: MELLITUS)?(?: TYPE [12])?|DM[12]?)\b/)?.[1]);
   const shared = [schedule, diagnosis ? `FOR ${diagnosis.replace(/^FDM/, 'DM')}` : ''].filter(Boolean).join(' ');
   const bands: Array<{ key: number; condition: string; action: string; dose?: number }> = [];
   let carried = headerAction?.[1] || '';

@@ -68,6 +68,10 @@ describe('technician-specified insulin scale format', () => {
     expect(run('Sliding scale SQ TID:<70=glucagon IM;150-200=2 units;201+=4 units for DM2').primarySig)
       .toBe('CBS TID SS <70=1ML GLUCAGON IM;150-200=2U;201+=4U FDM2');
   });
+  it('retains a shared diagnosis supplied only after the fixed dose', () => {
+    expect(run('Sliding scale SQ TID:150-200=2 units;201+=4 units. AND give 3 units QID FDM2').primarySig)
+      .toBe('CBS TID SS 150-200=2U;201+=4U FDM2.PLUS3U QID');
+  });
   it('keeps the high-band recheck, conditional call and critical-result recording', () => {
     const result = run('Sliding scale SQ TID:150-200=2 units;201-350=4 units;>350=10 units and recheck in 2 hours. If still abnormal, call provider for instructions and record critical result');
     expect(result.primarySig).toContain('>350=10U&RECHECK 2H&CALL MD IF STILL ABNORMAL&RECORD CRITICAL RESULT');

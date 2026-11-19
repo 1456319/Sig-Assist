@@ -53,11 +53,12 @@ describe('sliding-scale completeness and grammar', () => {
     '0-199=0 units;200+=^ units',
     '0-199=0 units;200+=2 units;200+=4 units',
     '199-100=2 units;200+=4 units',
-  ])('retains the entire source when a band is unresolved: %s', bands => {
+  ])('retains unresolved dosing and timing while allowing documented diagnosis concessions: %s', bands => {
     const raw = `Inject as per sliding scale: ${bands}, SQ before meals for DM`;
     const r = translate(raw);
     expect(r.primarySig).toMatch(/^CBS AC (?:SS|S\.S\.) /);
-    expect(r.primarySig).toContain(raw.toUpperCase().replace(/\s*([;=&<>])\s*/g, '$1').replace(/(\d)\s+ML\b/g, '$1ML'));
+    expect(r.primarySig).toContain(raw.toUpperCase().replace(/\s*([;=&<>])\s*/g, '$1').replace(/(\d)\s+ML\b/g, '$1ML').replace(/ FOR DM$/, ''));
+    if (!r.primarySig.includes('FOR DM')) expect(r.abnormalities.some(a => a.id === 'sliding_scale_concessions' && a.message.includes('diagnosis omitted'))).toBe(true);
     expect(r.abnormalities.some(a => a.id === 'incomplete_sliding_scale')).toBe(true);
     expect(renderSig(parseSigOrder(raw, { drug: drugName }))).toBe(r.primarySig);
   });

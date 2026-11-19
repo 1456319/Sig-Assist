@@ -35,4 +35,10 @@ describe('site scale concessions use the expanded shared budget', () => {
     expect(group.estimatedExpandedLength).toBe(group.parts.map(estimateScaleExpansion).join(' ').length);
     expect(group.parts[1]).toContain('3U QID');
   });
+  it.each(['FOR DM2', 'FOR DIABETES MELLITUS TYPE 2', 'FOR TYPE 2 DIABETES'])('omits a literal diagnosis only when the budget requires it: %s', diagnosis => {
+    const result = fitSlidingScaleBudget([`CBS QID SS 150-200=2U ${'X'.repeat(100)} ${diagnosis}`]);
+    expect(result.parts[0]).not.toContain(diagnosis);
+    expect(result.concessions).toContain('diagnosis');
+    expect(result.parts[0]).toContain('150-200=2U');
+  });
 });

@@ -38,7 +38,7 @@ export function compactScaleSpacing(sig: string): string {
 const diagnosisCodes = new Set(Object.entries(SIG_CODE_REFERENCE).filter(([, text]) => text.startsWith('FOR ')).map(([code]) => code));
 function omitDiagnosis(sig: string): string {
   return sig.replace(/\b[A-Z][A-Z0-9/]*\b/g, token => diagnosisCodes.has(token) ? '' : token)
-    .replace(/\bFOR DIABETES(?: MELLITUS)?(?: TYPE [12])?\b/g, '').replace(/\s+/g, ' ').trim();
+    .replace(/\bFOR (?:(?:TYPE [12] )?DIABETES(?: MELLITUS)?(?: TYPE [12])?|DM[12]?)\b/g, '').replace(/\s+/g, ' ').trim();
 }
 
 /** Apply concessions to the whole entered group, not independently per card. */

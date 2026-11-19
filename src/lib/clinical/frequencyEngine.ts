@@ -58,8 +58,10 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     let frequency = schedule.frequencyToken;
     if (frequency === 'TIDAC' && !/\b(?:3|THREE) TIMES|\bTID\b/.test(tail.primary)) frequency = 'AC';
     if (!schedule.frequencyToken || schedule.requiresManualTranslation || scale.incomplete) {
-      abnormalities.push({ id: 'incomplete_sliding_scale', tier: 'uncorrected_gap', title: 'Scale Schedule Requires Review',
-        message: 'Review the retained scale wording and any frequency placeholder. No unresolved dose or instruction was discarded.', trigger: rawProse });
+      if (!abnormalities.some(finding => finding.id === 'incomplete_sliding_scale')) {
+        abnormalities.push({ id: 'incomplete_sliding_scale', tier: 'uncorrected_gap', title: 'Scale Schedule Requires Review',
+          message: 'Review the retained scale wording and any frequency placeholder. No unresolved dose or instruction was discarded.', trigger: rawProse });
+      }
       frequency ||= '[FREQUENCY]';
       const text = `CBS ${frequency} SS ${scale.retainedSource || upper}`;
       const budget = deferScaleBudget ? undefined : fitSlidingScaleBudget([text]);
