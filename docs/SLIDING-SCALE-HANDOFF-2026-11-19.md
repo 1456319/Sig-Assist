@@ -1,6 +1,6 @@
 # Insulin sliding-scale handoff — November 19, 2026
 
-Previous runtime checkpoint: `30a0bb058d13e8dc8eeb919f9f824e8345fefc17`. Current package on `prototype`: **v0.1.13**, build **63550207f9198242917df0f25f087de5a52db8462cd762f9a129f66a1317a9a2**. Source, ready-to-run page, BUILD.json and portable ZIP were pushed together. Earlier contract and partial implementation checkpoints remain in branch history.
+Verified runtime checkpoint: `86ad02ee64cef6dce5358446688e5b39fcb2b21f` on `prototype`. Package **v0.1.13**, build **63550207f9198242917df0f25f087de5a52db8462cd762f9a129f66a1317a9a2**. Source, ready-to-run page, BUILD.json and portable ZIP were pushed together. Earlier contract and partial implementation checkpoints remain in branch history.
 
 ## Implemented contract
 
@@ -28,6 +28,6 @@ Local final validation passed **1,368 tests in 92 files**, including 38 new test
 
 Older scale expectations were updated for the new site contract. Original discrepancy inputs were retained; only reviewed expected outputs/suborder outputs changed. An ambiguous source remains ambiguous even though its retained draft now receives the mandatory header and applicable concessions.
 
-GitHub Windows/Linux run **44519227510** passed for preceding runtime `30a0bb058d13e8dc8eeb919f9f824e8345fefc17`, including native controls, browser, UNC and pilot checks. An earlier synthetic DocuTrack fixture readiness timeout did not recur. The final missing-frequency scope guard was then rebuilt and passed all 1,368 tests locally; its complete GitHub run is pending at this checkpoint. Native integration code did not change. Record the final runtime CI result below before closing the task.
+Final runtime [CI run 44520674617](https://github.com/1456319/Sig-Assist/actions/runs/44520674617) **passed Windows, Linux and automatic prototype publication**. This includes DocuTrack synthetic controls, multiple Framework instances/virtualized grids, desktop detection/transfer, Windows launchers, direct UNC/file workflows, Edge clipboard, Iguana intake and pilot file recording. The earlier synthetic DocuTrack readiness timeout did not recur in the successful runs. The committed page, BUILD.json and ZIP match source build `63550207f919`; no runtime checks remain pending for checkpoint `86ad02e`. This final results note changes documentation only.
 
 Next workstation check: use dummy records to compare ordinary CBS/SS and dotted literal previews, confirm the shared part budget and expanded frequency wording, and verify the highlighted output against the target PON. Preserve the technician's final edits/feedback using the existing local dataset and discrepancy workflow. FWDirect remains excluded. No capture or dataset was sent to an external model during this change.
