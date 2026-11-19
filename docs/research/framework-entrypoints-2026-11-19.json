@@ -1,0 +1,1487 @@
+{
+  "sourceCommit": "54492b1d148ae844aa6442c98480e029ba3a57de",
+  "scope": "selected decompiled E-Rx sources, not all installer assemblies",
+  "evidence": "static declarations/call sites only; no live calls or provider verification",
+  "files": [
+    {
+      "path": "installers/ERxDataItemViewModel.cs",
+      "sha256": "367cba351d56d6f59182b76807ba525a7ce7722a2a133faf60303541d7855251",
+      "requestCallSites": [],
+      "serviceCallSites": []
+    },
+    {
+      "path": "installers/ERxGridView.xaml",
+      "sha256": "cc789675855f1b6c623356212dbb3f1d316415e7b40734d14a0d05defb1f4399",
+      "controls": [
+        {
+          "type": "GridControl",
+          "declarations": {
+            "Name": "ERxGrid"
+          },
+          "line": 7,
+          "bindings": [
+            {
+              "property": "DataControlBase.ItemsSource",
+              "paths": [
+                "ItemSource"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "TableView",
+          "declarations": {
+            "Name": "ERxTableView"
+          },
+          "line": 300,
+          "bindings": []
+        },
+        {
+          "type": "GridColumn",
+          "declarations": {
+            "Name": "TitleColumn"
+          },
+          "line": 305,
+          "bindings": []
+        },
+        {
+          "type": "GridColumn",
+          "declarations": {
+            "Name": "ValueColumn"
+          },
+          "line": 315,
+          "bindings": []
+        }
+      ]
+    },
+    {
+      "path": "installers/ERxMessageToViewModelService.cs",
+      "sha256": "e01b28fec89f61141debcb1495fda44470a16ca153042c5010722541a71e8371",
+      "requestCallSites": [],
+      "serviceCallSites": []
+    },
+    {
+      "path": "installers/ERxNewRxRequestMessageData.cs",
+      "sha256": "15c540f34a5655b630cf70e5fb655cc1c903afde89785d052a73edfc4836e159",
+      "requestCallSites": [],
+      "serviceCallSites": []
+    },
+    {
+      "path": "installers/ERxWorkQueueDirectionsView.xaml",
+      "sha256": "c3194d6b4aca4204b32ad41f4f50f6fe810be8af38816af0e02538da5a0a9709",
+      "controls": [
+        {
+          "type": "TextEdit",
+          "declarations": {
+            "AutomationProperties.Name": "PatientTextEdit"
+          },
+          "line": 51,
+          "bindings": [
+            {
+              "property": "BaseEdit.EditValue",
+              "paths": [
+                "FacPatientNameId"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "TextEdit",
+          "declarations": {
+            "AutomationProperties.Name": "DrugInfoTextEdit"
+          },
+          "line": 59,
+          "bindings": [
+            {
+              "property": "BaseEdit.EditValue",
+              "paths": [
+                "DrugInformation"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "RadioButton",
+          "declarations": {
+            "Name": "DirectionsFromTheMessageRadioButton",
+            "AutomationProperties.Name": "DirectionsFromTheMessageRadioButton"
+          },
+          "line": 66,
+          "bindings": [
+            {
+              "property": "ToggleButton.IsChecked",
+              "paths": [
+                "UseMessageDirections"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "TextEdit",
+          "declarations": {
+            "AutomationProperties.Name": "MessageDirectionsTextEdit"
+          },
+          "line": 74,
+          "bindings": [
+            {
+              "property": "BaseEdit.EditValue",
+              "paths": [
+                "MessageDirections"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "RadioButton",
+          "declarations": {
+            "Name": "DirectionsFromLinkedOrderRadioButton",
+            "AutomationProperties.Name": "DirectionsFromLinkedOrderRadioButton"
+          },
+          "line": 81,
+          "bindings": [
+            {
+              "property": "ToggleButton.IsChecked",
+              "paths": [
+                "UseLinkedSig"
+              ]
+            },
+            {
+              "property": "UIElement.IsEnabled",
+              "paths": [
+                "UseLinkedSigEnabled"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "CheckEdit",
+          "declarations": {
+            "AutomationProperties.Name": "SequentialLinkedSigsCheckBox"
+          },
+          "line": 95,
+          "bindings": [
+            {
+              "property": "BaseEdit.EditValue",
+              "paths": [
+                "SequentialLinkedSigs"
+              ]
+            },
+            {
+              "property": "UIElement.IsEnabled",
+              "paths": [
+                "SequentialLinkedSigsEnabled"
+              ]
+            },
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "AllowLinkedSplits"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Button",
+          "declarations": {
+            "Name": "PreviousLinkedDirectionButton"
+          },
+          "line": 112,
+          "bindings": [
+            {
+              "property": "ButtonBase.Command",
+              "paths": [
+                "PrevLinkedSplitCommand"
+              ]
+            },
+            {
+              "property": "UIElement.IsEnabled",
+              "paths": [
+                "PrevLinkedSplitEnabled"
+              ]
+            },
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "AllowLinkedSplits"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Button",
+          "declarations": {
+            "Name": "NextLinkedDirectionButton"
+          },
+          "line": 145,
+          "bindings": [
+            {
+              "property": "ButtonBase.Command",
+              "paths": [
+                "NextLinkedSplitCommand"
+              ]
+            },
+            {
+              "property": "UIElement.IsEnabled",
+              "paths": [
+                "NextLinkedSplitEnabled"
+              ]
+            },
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "AllowLinkedSplits"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "RichEditControl",
+          "declarations": {
+            "Name": "LinkedSigTextBox"
+          },
+          "line": 168,
+          "bindings": [
+            {
+              "property": "FrameworkElement.DataContext",
+              "paths": [
+                "LinkedSigDocument"
+              ]
+            },
+            {
+              "property": "Interaction.Behaviors",
+              "paths": [
+                "DataContext.SelectLinkedSigCommand"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Button",
+          "declarations": {
+            "AutomationProperties.Name": "AddLinkedSplitButton"
+          },
+          "line": 214,
+          "bindings": [
+            {
+              "property": "ButtonBase.Command",
+              "paths": [
+                "AddLinkedSplitCommand"
+              ]
+            },
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "AllowLinkedSplits"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Button",
+          "declarations": {
+            "AutomationProperties.Name": "RemoveLinkedSplitButton"
+          },
+          "line": 226,
+          "bindings": [
+            {
+              "property": "ButtonBase.Command",
+              "paths": [
+                "RemoveLinkedSplitCommand"
+              ]
+            },
+            {
+              "property": "UIElement.IsEnabled",
+              "paths": [
+                "RemoveLinkedSplitEnabled"
+              ]
+            },
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "AllowLinkedSplits"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Button",
+          "declarations": {
+            "AutomationProperties.Name": "PreviewLinkedSigButton"
+          },
+          "line": 243,
+          "bindings": [
+            {
+              "property": "ButtonBase.Command",
+              "paths": [
+                "PreviewLinkedSigCommand"
+              ]
+            },
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "AllowLinkedSplits"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "RadioButton",
+          "declarations": {
+            "Name": "UseDefaultDirectionsRadioButton",
+            "AutomationProperties.Name": "UseDefaultDirectionsRadioButton"
+          },
+          "line": 256,
+          "bindings": [
+            {
+              "property": "ToggleButton.IsChecked",
+              "paths": [
+                "UseDefaultDirections"
+              ]
+            },
+            {
+              "property": "UIElement.IsEnabled",
+              "paths": [
+                "UseDefaultDirectionsEnabled"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "TextEdit",
+          "declarations": {
+            "AutomationProperties.Name": "DefaultDirectionsTextEdit"
+          },
+          "line": 269,
+          "bindings": [
+            {
+              "property": "BaseEdit.EditValue",
+              "paths": [
+                "DefaultDirections"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "TextEdit",
+          "declarations": {
+            "AutomationProperties.Name": "StructuredSigTextEdit"
+          },
+          "line": 277,
+          "bindings": [
+            {
+              "property": "BaseEdit.EditValue",
+              "paths": [
+                "StructuredSig"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "RadioButton",
+          "declarations": {
+            "Name": "UseOrderSigRadioButton"
+          },
+          "line": 284,
+          "bindings": [
+            {
+              "property": "ToggleButton.IsChecked",
+              "paths": [
+                "UseOrderSig"
+              ]
+            },
+            {
+              "property": "UIElement.IsEnabled",
+              "paths": [
+                "UseOrderSigEnabled"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "RichEditControl",
+          "declarations": {
+            "Name": "OrderSigTextBox"
+          },
+          "line": 298,
+          "bindings": [
+            {
+              "property": "FrameworkElement.DataContext",
+              "paths": [
+                "OrderSigDocument"
+              ]
+            },
+            {
+              "property": "Interaction.Behaviors",
+              "paths": [
+                "DataContext.SelectSigCommand"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "CheckEdit",
+          "declarations": {
+            "AutomationProperties.Name": "SequentialSigsCheckBox"
+          },
+          "line": 344,
+          "bindings": [
+            {
+              "property": "BaseEdit.EditValue",
+              "paths": [
+                "SequentialSigs"
+              ]
+            },
+            {
+              "property": "UIElement.IsEnabled",
+              "paths": [
+                "SequentialSigsEnabled"
+              ]
+            },
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "AllowMultipleSplits"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Button",
+          "declarations": {
+            "Name": "PreviousDirectionButton"
+          },
+          "line": 361,
+          "bindings": [
+            {
+              "property": "ButtonBase.Command",
+              "paths": [
+                "PrevSplitCommand"
+              ]
+            },
+            {
+              "property": "UIElement.IsEnabled",
+              "paths": [
+                "PrevSequentialSplitEnabled"
+              ]
+            },
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "AllowMultipleSplits"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Button",
+          "declarations": {
+            "Name": "NextDirectionButton"
+          },
+          "line": 394,
+          "bindings": [
+            {
+              "property": "ButtonBase.Command",
+              "paths": [
+                "NextSplitCommand"
+              ]
+            },
+            {
+              "property": "UIElement.IsEnabled",
+              "paths": [
+                "NextSequentialSplitEnabled"
+              ]
+            },
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "AllowMultipleSplits"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Button",
+          "declarations": {
+            "AutomationProperties.Name": "AddSplitButton"
+          },
+          "line": 417,
+          "bindings": [
+            {
+              "property": "ButtonBase.Command",
+              "paths": [
+                "AddSplitCommand"
+              ]
+            },
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "AllowMultipleSplits"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Button",
+          "declarations": {
+            "AutomationProperties.Name": "RemoveSplitButton"
+          },
+          "line": 429,
+          "bindings": [
+            {
+              "property": "ButtonBase.Command",
+              "paths": [
+                "RemoveSplitCommand"
+              ]
+            },
+            {
+              "property": "UIElement.IsEnabled",
+              "paths": [
+                "RemoveSplitEnabled"
+              ]
+            },
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "AllowMultipleSplits"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Button",
+          "declarations": {
+            "AutomationProperties.Name": "PreviewSigButton"
+          },
+          "line": 446,
+          "bindings": [
+            {
+              "property": "ButtonBase.Command",
+              "paths": [
+                "PreviewSigCommand"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Button",
+          "declarations": {
+            "AutomationProperties.Name": "AppendDefaultButton"
+          },
+          "line": 454,
+          "bindings": [
+            {
+              "property": "ButtonBase.Command",
+              "paths": [
+                "AppendDefaultCommand"
+              ]
+            },
+            {
+              "property": "UIElement.IsEnabled",
+              "paths": [
+                "AppendDefaultEnabled"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "LookUpEdit",
+          "declarations": {
+            "AutomationProperties.Name": "NewBatchLookupEdit"
+          },
+          "line": 469,
+          "bindings": [
+            {
+              "property": "LookUpEditBase.ItemsSource",
+              "paths": [
+                "Batches"
+              ]
+            },
+            {
+              "property": "BaseEdit.EditValue",
+              "paths": [
+                "SelectedBatchId"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Button",
+          "declarations": {
+            "AutomationProperties.Name": "NewBatchButton"
+          },
+          "line": 481,
+          "bindings": [
+            {
+              "property": "ButtonBase.Command",
+              "paths": [
+                "NewBatchCommand"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "installers/ERxWorkQueueDirectionsViewModel.cs",
+      "sha256": "d0e719070ae27a1cc89cb88b6ac154bfa7c76b29134d7f13ad51dfd41283f176",
+      "requestCallSites": [
+        {
+          "line": 489,
+          "request": "GetRxBatchDescription"
+        },
+        {
+          "line": 490,
+          "request": "GetDispensingPharmacy"
+        },
+        {
+          "line": 537,
+          "request": "GetDefaultSig"
+        },
+        {
+          "line": 544,
+          "request": "GetPatientReorderDirectionsList"
+        },
+        {
+          "line": 548,
+          "request": "GetPatientReorderDirectionsSequential"
+        },
+        {
+          "line": 561,
+          "request": "GetSystemOptionByName"
+        },
+        {
+          "line": 562,
+          "request": "GetFacilityOptionValueByName"
+        },
+        {
+          "line": 568,
+          "request": "IsFacilityRetail"
+        },
+        {
+          "line": 701,
+          "request": "GetRxBatchesByFacility"
+        },
+        {
+          "line": 711,
+          "request": "ERxUseStructuredSig"
+        },
+        {
+          "line": 716,
+          "request": "GetSigCodesComboBoxModels"
+        },
+        {
+          "line": 735,
+          "request": "GetSigCodesComboBoxModels"
+        }
+      ],
+      "serviceCallSites": [
+        {
+          "line": 273,
+          "service": "_translateSigService",
+          "method": "Translate"
+        },
+        {
+          "line": 497,
+          "service": "_erxWorkQueueService",
+          "method": "ProcessNewRx"
+        },
+        {
+          "line": 628,
+          "service": "_erxWorkQueueService",
+          "method": "LoadStructuredSig"
+        }
+      ]
+    },
+    {
+      "path": "installers/ERxWorkQueueProcessModel.cs",
+      "sha256": "dd57a28e9eeda9b4ca31d50bea67a80c3eb031530ccf2b28c08284bf89a11f7f",
+      "requestCallSites": [],
+      "serviceCallSites": []
+    },
+    {
+      "path": "installers/ERxWorkQueueView.xaml",
+      "sha256": "256d047c01d506329463462467cd83cd8341e74cbd26fb60f6a6be21770b098e",
+      "controls": [
+        {
+          "type": "TextEdit",
+          "declarations": {
+            "AutomationProperties.Name": "MessageReceivedTextbox"
+          },
+          "line": 23,
+          "bindings": [
+            {
+              "property": "BaseEdit.EditValue",
+              "paths": [
+                "MessageEntryDate"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "TextEdit",
+          "declarations": {
+            "AutomationProperties.Name": "MessageTypeTextbox"
+          },
+          "line": 31,
+          "bindings": [
+            {
+              "property": "BaseEdit.EditValue",
+              "paths": [
+                "MessageTypeDisplay"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Button",
+          "declarations": {
+            "AutomationProperties.Name": "PrintCommand"
+          },
+          "line": 39,
+          "bindings": [
+            {
+              "property": "ButtonBase.Command",
+              "paths": [
+                "PrintCommand"
+              ]
+            },
+            {
+              "property": "UIElement.IsEnabled",
+              "paths": [
+                "MessageId"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "TextBlock",
+          "declarations": {
+            "AutomationProperties.Name": "EPCSMessageTextbox"
+          },
+          "line": 61,
+          "bindings": [
+            {
+              "property": "TextBlock.Foreground",
+              "paths": [
+                "EPCSSignatureValid"
+              ]
+            },
+            {
+              "property": "TextBlock.Text",
+              "paths": [
+                "EPCSMessageText"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Button",
+          "declarations": {
+            "AutomationProperties.Name": "ShowCertificateCommand"
+          },
+          "line": 73,
+          "bindings": [
+            {
+              "property": "ButtonBase.Command",
+              "paths": [
+                "ShowCertificateCommand"
+              ]
+            },
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "ShowEPCSCertificate"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "TextBlock",
+          "declarations": {
+            "AutomationProperties.Name": "HL7WarningTextbox"
+          },
+          "line": 94,
+          "bindings": [
+            {
+              "property": "TextBlock.Text",
+              "paths": [
+                "HL7WarningText"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "ERxGridView",
+          "declarations": {
+            "AutomationProperties.Name": "ERxGridView"
+          },
+          "line": 102,
+          "bindings": [
+            {
+              "property": "ERxGridView.ItemSource",
+              "paths": [
+                "ERxData"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "TextEdit",
+          "declarations": {
+            "AutomationProperties.Name": "CurrentFolder"
+          },
+          "line": 116,
+          "bindings": [
+            {
+              "property": "BaseEdit.EditValue",
+              "paths": [
+                "CurrentFolder.Display"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Button",
+          "declarations": {
+            "AutomationProperties.Name": "ChangeFolderCommand"
+          },
+          "line": 123,
+          "bindings": [
+            {
+              "property": "ButtonBase.Command",
+              "paths": [
+                "ChangeFolderCommand"
+              ]
+            },
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "MultipleERxWorkQueueFolders"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "installers/ERxWorkQueueViewModel.cs",
+      "sha256": "e8b8773ae0f14a501f7b9b506f93f77062442338a20c5820eca6f8fd0919648b",
+      "requestCallSites": [
+        {
+          "line": 247,
+          "request": "GetERxWorkQueueAllowableFolders"
+        },
+        {
+          "line": 313,
+          "request": "UpdateERxQueueAssignmentExpiration"
+        },
+        {
+          "line": 336,
+          "request": "HasRxBeenSavedOnProcessingMessage"
+        },
+        {
+          "line": 336,
+          "request": "Guid"
+        },
+        {
+          "line": 342,
+          "request": "MarkMessageAsProcessed"
+        },
+        {
+          "line": 434,
+          "request": "GetCertificateByErxMessageId"
+        },
+        {
+          "line": 501,
+          "request": "GetERxMessageById"
+        },
+        {
+          "line": 501,
+          "request": "Guid"
+        },
+        {
+          "line": 605,
+          "request": "GetSystemOptionByName"
+        },
+        {
+          "line": 697,
+          "request": "GetERxMessageById"
+        },
+        {
+          "line": 697,
+          "request": "Guid"
+        },
+        {
+          "line": 712,
+          "request": "AllowSignatureIndicatorForVendor"
+        },
+        {
+          "line": 788,
+          "request": "LookupFacility"
+        },
+        {
+          "line": 825,
+          "request": "GetFacilityById"
+        },
+        {
+          "line": 838,
+          "request": "GetFacilityLiteInfo"
+        },
+        {
+          "line": 859,
+          "request": "GetSystemOptionByName"
+        },
+        {
+          "line": 910,
+          "request": "GetFacilityCutOffDateInfo"
+        },
+        {
+          "line": 914,
+          "request": "GetSystemOptionByName"
+        },
+        {
+          "line": 1007,
+          "request": "RefusalReasonColumnExists"
+        },
+        {
+          "line": 1010,
+          "request": "GetERxIsFrameworkLinkCancelById"
+        },
+        {
+          "line": 1037,
+          "request": "RemoveRefillRequest"
+        },
+        {
+          "line": 1045,
+          "request": "RemoveFromPendingDrugOrders"
+        },
+        {
+          "line": 1052,
+          "request": "SendSureScriptNotFilledMessage"
+        },
+        {
+          "line": 1053,
+          "request": "DeleteEDPPendingOrder"
+        },
+        {
+          "line": 1067,
+          "request": "SendSureScriptNotFilledMessage"
+        },
+        {
+          "line": 1071,
+          "request": "SendNotFilledMessage"
+        },
+        {
+          "line": 1074,
+          "request": "DeleteEDPPendingOrder"
+        },
+        {
+          "line": 1103,
+          "request": "DeleteEDPPendingOrder"
+        },
+        {
+          "line": 1106,
+          "request": "CreateERxRefusal"
+        },
+        {
+          "line": 1178,
+          "request": "GetSystemOptionByName"
+        },
+        {
+          "line": 1183,
+          "request": "GetLoggedInPharmacist"
+        }
+      ],
+      "serviceCallSites": [
+        {
+          "line": 338,
+          "service": "_erxMessageService",
+          "method": "CancelWork"
+        },
+        {
+          "line": 347,
+          "service": "_erxMessageService",
+          "method": "DequeueCompleted"
+        },
+        {
+          "line": 386,
+          "service": "_erxMessageService",
+          "method": "GetNextWork"
+        },
+        {
+          "line": 533,
+          "service": "_erxWorkQueueService",
+          "method": "LookupCancelRxRequest"
+        },
+        {
+          "line": 553,
+          "service": "_erxWorkQueueService",
+          "method": "LookupRefillOrder"
+        },
+        {
+          "line": 591,
+          "service": "_erxWorkQueueService",
+          "method": "UseDateValidatedForRecertified"
+        },
+        {
+          "line": 598,
+          "service": "_erxWorkQueueService",
+          "method": "UseDateValidatedForResupply"
+        },
+        {
+          "line": 603,
+          "service": "_erxWorkQueueService",
+          "method": "LookupResupplyOrder"
+        },
+        {
+          "line": 637,
+          "service": "_erxWorkQueueService",
+          "method": "LookupRecertificationOrder"
+        },
+        {
+          "line": 833,
+          "service": "_erxWorkQueueService",
+          "method": "ProcessDischarge"
+        },
+        {
+          "line": 867,
+          "service": "_erxWorkQueueService",
+          "method": "DoProductSelection"
+        },
+        {
+          "line": 885,
+          "service": "_erxWorkQueueService",
+          "method": "ProcessCancelRequest"
+        },
+        {
+          "line": 899,
+          "service": "_erxWorkQueueService",
+          "method": "ProcessRxFillIndicatorChangeMessage"
+        },
+        {
+          "line": 923,
+          "service": "_erxWorkQueueService",
+          "method": "DoProductSelection"
+        },
+        {
+          "line": 933,
+          "service": "_erxWorkQueueService",
+          "method": "ProcessRefillResponse"
+        },
+        {
+          "line": 978,
+          "service": "_erxWorkQueueService",
+          "method": "ProcessRecertificationMessage"
+        },
+        {
+          "line": 1095,
+          "service": "_erxWorkQueueService",
+          "method": "RefuseCancelRequest"
+        }
+      ]
+    },
+    {
+      "path": "installers/ERxWorkQueueWizardView.xaml",
+      "sha256": "3abe3bdcddeeb8a37ee1c9cf0cad4a78dab30f5a1252c18810ed631ee754451c",
+      "controls": [
+        {
+          "type": "ERxWorkQueueView",
+          "declarations": {
+            "Name": "WorkQueueView"
+          },
+          "line": 50,
+          "bindings": [
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "ShowViewFlag"
+              ]
+            },
+            {
+              "property": "FrameworkElement.DataContext",
+              "paths": [
+                "WorkQueueViewModel"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "ERxWorkQueuePatientOrdersView",
+          "declarations": {
+            "Name": "PatientOrdersView"
+          },
+          "line": 63,
+          "bindings": [
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "ShowViewFlag"
+              ]
+            },
+            {
+              "property": "FrameworkElement.DataContext",
+              "paths": [
+                "PatientOrdersViewModel"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "ERxWorkQueuePatientSelectionView",
+          "declarations": {
+            "Name": "PatientSelectionView"
+          },
+          "line": 76,
+          "bindings": [
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "ShowViewFlag"
+              ]
+            },
+            {
+              "property": "FrameworkElement.DataContext",
+              "paths": [
+                "PatientSelectionViewModel"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "ERxWorkQueueFacilitySelectionView",
+          "declarations": {
+            "Name": "FacilitySelectionView"
+          },
+          "line": 89,
+          "bindings": [
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "ShowViewFlag"
+              ]
+            },
+            {
+              "property": "FrameworkElement.DataContext",
+              "paths": [
+                "FacilitySelectionViewModel"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "ERxWorkQueueAdmitPatientView",
+          "declarations": {
+            "Name": "AdmitPatientView"
+          },
+          "line": 102,
+          "bindings": [
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "ShowViewFlag"
+              ]
+            },
+            {
+              "property": "FrameworkElement.DataContext",
+              "paths": [
+                "AdmitPatientViewModel"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "ERxWorkQueueProductSelectionView",
+          "declarations": {
+            "Name": "ProductSelectionView"
+          },
+          "line": 115,
+          "bindings": [
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "ShowViewFlag"
+              ]
+            },
+            {
+              "property": "FrameworkElement.DataContext",
+              "paths": [
+                "ProductSelectionViewModel"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "ERxWorkQueueOrderSelectionView",
+          "declarations": {
+            "Name": "OrderSelectionView"
+          },
+          "line": 128,
+          "bindings": [
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "ShowViewFlag"
+              ]
+            },
+            {
+              "property": "FrameworkElement.DataContext",
+              "paths": [
+                "OrderSelectionViewModel"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "ERxWorkQueueChangePatientView",
+          "declarations": {
+            "Name": "ChangePatientView"
+          },
+          "line": 141,
+          "bindings": [
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "ShowViewFlag"
+              ]
+            },
+            {
+              "property": "FrameworkElement.DataContext",
+              "paths": [
+                "ChangePatientViewModel"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "ERxWorkQueueProductSelectionHL7View",
+          "declarations": {
+            "Name": "ProductSelectionHL7View"
+          },
+          "line": 154,
+          "bindings": [
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "ShowViewFlag"
+              ]
+            },
+            {
+              "property": "FrameworkElement.DataContext",
+              "paths": [
+                "ProductSelectionViewModelHL7"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "ERxWorkQueueGenericSubstitutionView",
+          "declarations": {
+            "Name": "GenericSubstitutionView"
+          },
+          "line": 167,
+          "bindings": [
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "ShowViewFlag"
+              ]
+            },
+            {
+              "property": "FrameworkElement.DataContext",
+              "paths": [
+                "GenericSubstitutionViewModel"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "ERxWorkQueueGenericSubstitutionHL7View",
+          "declarations": {
+            "Name": "GenericSubstitutionHL7View"
+          },
+          "line": 180,
+          "bindings": [
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "ShowViewFlag"
+              ]
+            },
+            {
+              "property": "FrameworkElement.DataContext",
+              "paths": [
+                "GenericSubstitutionHL7ViewModel"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "ERxWorkQueueBiosimilarSubstitutionView",
+          "declarations": {
+            "Name": "BiosimilarSubstitutionView"
+          },
+          "line": 193,
+          "bindings": [
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "ShowViewFlag"
+              ]
+            },
+            {
+              "property": "FrameworkElement.DataContext",
+              "paths": [
+                "BiosimilarSubstitutionViewModel"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "ERxWorkQueueHouseStockView",
+          "declarations": {
+            "Name": "HouseStockView"
+          },
+          "line": 206,
+          "bindings": [
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "ShowViewFlag"
+              ]
+            },
+            {
+              "property": "FrameworkElement.DataContext",
+              "paths": [
+                "HouseStockViewModel"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "ERxWorkQueueDirectionsView",
+          "declarations": {
+            "Name": "DirectionsView"
+          },
+          "line": 219,
+          "bindings": [
+            {
+              "property": "UIElement.Visibility",
+              "paths": [
+                "ShowViewFlag"
+              ]
+            },
+            {
+              "property": "FrameworkElement.DataContext",
+              "paths": [
+                "DirectionsViewModel"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Button",
+          "declarations": {
+            "AutomationProperties.Name": "BackButton"
+          },
+          "line": 245,
+          "bindings": [
+            {
+              "property": "ButtonBase.Command",
+              "paths": [
+                "BackCommand"
+              ]
+            },
+            {
+              "property": "UIElement.IsEnabled",
+              "paths": [
+                "BackEnabled"
+              ]
+            },
+            {
+              "property": "ContentControl.Content",
+              "paths": [
+                "BackCommandText"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Button",
+          "declarations": {
+            "AutomationProperties.Name": "NextButton"
+          },
+          "line": 262,
+          "bindings": [
+            {
+              "property": "ButtonBase.Command",
+              "paths": [
+                "NextCommand"
+              ]
+            },
+            {
+              "property": "UIElement.IsEnabled",
+              "paths": [
+                "NextEnabled"
+              ]
+            },
+            {
+              "property": "ContentControl.Content",
+              "paths": [
+                "NextCommandText"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Button",
+          "declarations": {
+            "AutomationProperties.Name": "CancelButton"
+          },
+          "line": 279,
+          "bindings": [
+            {
+              "property": "ButtonBase.Command",
+              "paths": [
+                "CancelCommand"
+              ]
+            },
+            {
+              "property": "ContentControl.Content",
+              "paths": [
+                "CancelCommandText"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "installers/ERxWorkQueueWizardViewModel.cs",
+      "sha256": "eac441138c789e96e73605b012d8b3302c3466accd72a2e72f94b7a19bb1040c",
+      "requestCallSites": [],
+      "serviceCallSites": [
+        {
+          "line": 355,
+          "service": "_erxWorkQueueService",
+          "method": "HandleRxEntryCloseAsDoneIfSaved"
+        },
+        {
+          "line": 372,
+          "service": "_erxMessageService",
+          "method": "DequeueCompleted"
+        },
+        {
+          "line": 573,
+          "service": "_erxMessageService",
+          "method": "DequeueCompleted"
+        }
+      ]
+    },
+    {
+      "path": "installers/NEWRXRequest.cs",
+      "sha256": "9f36f65db0b848e4681d695100167b9ff729c287b84d33df0e65d69e31dfbd7a",
+      "requestCallSites": [],
+      "serviceCallSites": []
+    }
+  ]
+}
