@@ -26,7 +26,7 @@ describe('distinct insulin scale grammar shapes', () => {
     const raw = 'SQ before meals:150-199=1;200-249=2;250+=3';
     expect(looksLikeSlidingScale(raw, 'HUMALOG KWIKPEN 100 UNIT/ML')).toBe(true);
     expect(resolveFrequencyAndSchedule(raw, undefined, 'HUMALOG KWIKPEN 100 UNIT/ML').slidingScaleString)
-      .toBe('CBS AC SS 150-199=1U;200-249=2U;250+=3U SQ');
+      .toBe('CBS AC SS 150-199=1U;200-249=2U;250+=3U');
   });
 
   it('does not treat a fixed insulin dose and a single hold threshold as a scale', () => {
@@ -55,23 +55,23 @@ describe('distinct insulin scale grammar shapes', () => {
 
   it('keeps a recheck attached to its glucose band', () => {
     const r = resolveFrequencyAndSchedule('Sliding scale before meals and at bedtime:251-300 give 4 units;301-350 give 6 units;>350 give 8 units and recheck BS in 2 hours', undefined, insulin);
-    expect(r.slidingScaleString).toBe('CBS ACHS SS 251-300=4U;301-350=6U;>350=8U&RECHECK BS IN 2 HOURS');
+    expect(r.slidingScaleString).toBe('CBS ACHS SS 251-300=4U;301-350=6U;>350=8U&RECHECK 2H');
   });
 
   it('preserves a separately scheduled basal dose beside its correction scale', () => {
     const r = resolveFrequencyAndSchedule('Inject 10 units subcutaneously at bedtime. Plus sliding scale before meals:201-250=2 units;251-300=4 units', undefined, insulin);
-    expect(r.slidingScaleString).toBe('INJECT 10 UNITS SUBCUTANEOUSLY AT BEDTIME. PLUS CBS AC SS 201-250=2U;251-300=4U');
+    expect(r.slidingScaleString).toBe('CBS AC SS 201-250=2U;251-300=4U.PLUS10U QHS');
     expect(r.abnormalities.some(a => a.id === 'sliding_scale_unparsed_action')).toBe(true);
   });
 
   it.each([
     'Notify on-call care team if BS >400 or BS <60',
     'BS >400 or BS <60 notify on-call care team',
-  ])('retains unfamiliar shared recipients beside both thresholds: %s', notice => {
+  ])('normalizes shared call recipients beside both thresholds: %s', notice => {
     const r = parseSlidingScale(`Sliding scale:0-200=0 units;201-400=2 units;${notice}, SQ before meals`);
     expect(r.incomplete).toBe(false);
-    expect(r.bands).toBe('<60=NOTIFY ON-CALL CARE TEAM;0-200=0U;201-400=2U;>400=NOTIFY ON-CALL CARE TEAM');
-    expect(r.abnormalities.some(a => a.id === 'sliding_scale_unparsed_action')).toBe(true);
+    expect(r.bands).toBe('<60=CALL MD;0-200=0U;201-400=2U;>400=CALL MD');
+    expect(r.abnormalities.some(a => a.id === 'site_scale_notification')).toBe(true);
   });
 
   it.each([
@@ -82,8 +82,9 @@ describe('distinct insulin scale grammar shapes', () => {
   ])('retains the full source rather than merging distinct or ambiguous dosing: %s', raw => {
     const r = resolveFrequencyAndSchedule(raw, undefined, insulin);
     expect(r.requiresManualTranslation).toBe(true);
-    expect(r.slidingScaleString).toBeUndefined();
-    expect(renderSig(parseSigOrder(raw, { drug: insulin }))).toBe(raw.toUpperCase());
+    expect(r.slidingScaleString).toMatch(/^CBS (?:TID|\[FREQUENCY\]) SS /);
+    expect(r.slidingScaleString).toContain(raw.toUpperCase().replace('NOTIFY PROVIDER', 'CALL MD'));
+    expect(renderSig(parseSigOrder(raw, { drug: insulin }))).toBe(r.slidingScaleString);
   });
 
 });

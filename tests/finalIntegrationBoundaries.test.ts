@@ -52,7 +52,7 @@ describe('scale modifier qualifiers immediately after a route', () => {
 
   it.each(routes)('keeps the header schedule and dose scope after %s in both entry points', (route, routeToken) => {
     const raw = source(route);
-    const expected = `CBS ACHS SS 151-200=2U;201-250=4U ${routeToken}. ${footer}`;
+    const expected = `CBS ACHS SS 151-200=2U;201-250=4U${routeToken === 'SQ' ? '' : ` ${routeToken}`}. ${footer}`;
     const result = clinical(drug, raw);
     expect(result.primarySig).toBe(expected);
     expect(result.abnormalities).toContainEqual(expect.objectContaining({
@@ -75,7 +75,7 @@ describe('scale modifier qualifiers immediately after a route', () => {
   it('retains a comma inside a modifier that begins immediately after the scale route', () => {
     const qualifiedFooter = 'BEFORE BREAKFAST, GIVE HALF';
     const raw = `INSULIN SLIDING SCALE ACHS: 151-200 = 2 UNITS, 201-250 = 4 UNITS SQ ${qualifiedFooter}`;
-    const expected = `CBS ACHS SS 151-200=2U;201-250=4U SQ. ${qualifiedFooter}`;
+    const expected = `CBS ACHS SS 151-200=2U;201-250=4U. ${qualifiedFooter}`;
     const result = clinical(drug, raw);
     expect(result.primarySig).toBe(expected);
     expect(result.abnormalities).toContainEqual(expect.objectContaining({ id: 'sliding_scale_unparsed_action', trigger: qualifiedFooter }));
@@ -87,7 +87,7 @@ describe('scale modifier qualifiers immediately after a route', () => {
   it.each(['AT BEDTIME GIVE HALF THE SCALE DOSE', 'BEFORE BREAKFAST, GIVE HALF'])('preserves a directly qualified modifier: %s', qualifiedFooter => {
     expect(splitSupplementalDirections(qualifiedFooter, { allowScaleActions: true })).toEqual({ primary: '', supplemental: qualifiedFooter });
     const raw = `INSULIN SLIDING SCALE ACHS: 151-200 = 2 UNITS, 201-250 = 4 UNITS SQ. ${qualifiedFooter}`;
-    const expected = `CBS ACHS SS 151-200=2U;201-250=4U SQ. ${qualifiedFooter}`;
+    const expected = `CBS ACHS SS 151-200=2U;201-250=4U. ${qualifiedFooter}`;
     const result = clinical(drug, raw);
     expect(result.primarySig).toBe(expected);
     expect(result.abnormalities).toContainEqual(expect.objectContaining({ id: 'sliding_scale_unparsed_action', trigger: qualifiedFooter }));

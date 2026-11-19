@@ -35,13 +35,15 @@ describe('frequencyEngine', () => {
   it('resolves sliding scale insulin with ascending numerical sort and units normalization', () => {
     const prose = 'Inject as per sliding scale: if 181 - 200 = 1 unit < 70 follow hypoglycemic protocol; 201 - 250 = 2 unit; 251 - 300 = 3 units; 301 - 350 = 4 units > 350 = 5 units, subcutaneously before meals for DM';
     const res = resolveFrequencyAndSchedule(prose);
-    expect(res.slidingScaleString).toBe('CBS AC SS <70=HYPOGLYCEMIC PROTOCOL;181-200=1U;201-250=2U;251-300=3U;301-350=4U;>350=5U SQ FDM');
+    expect(res.slidingScaleString).toBe('CBS AC SS <70=HYPOGLYCEMIC PROTOCOL;181-200=1U;201-250=2U;251-300=3U;301-350=4U;>350=5U');
   });
 
   it('retains volume-based scales for review instead of relabeling mL as units', () => {
     const prose = 'Inject as per sliding scale: if 200 - 300 = 5ml; 301 - 400 = 10ml; 401 - 500 = 15ml Greater than 500 or less than 79 notify MD, subcutaneously before meals and at bedtime for DM2';
     const res = resolveFrequencyAndSchedule(prose);
-    expect(res.slidingScaleString).toBeUndefined();
+    expect(res.slidingScaleString).toMatch(/^(?:CBS|C\.B\.S\.) ACHS (?:SS|S\.S\.) /);
+    for (const band of ['200-300=5ML', '301-400=10ML', '401-500=15ML']) expect(res.slidingScaleString).toContain(band);
+    expect(res.slidingScaleString).not.toContain('=5U');
     expect(res.requiresManualTranslation).toBe(true);
     expect(res.abnormalities.some(a => a.id === 'incomplete_sliding_scale')).toBe(true);
   });

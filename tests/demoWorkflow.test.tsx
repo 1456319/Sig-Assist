@@ -18,7 +18,7 @@ afterEach(() => {
 });
 
 it.each([
-  ['Insulin Lispro Injection 100 UNIT/ML', 'Inject as per sliding scale: 150-199=1 unit;200-349=2 units;greater than or equals 350 give 5 units, subcutaneously at bedtime for DM', 'CBS QHS SS 150-199=1U;200-349=2U;350+=5U SQ FDM'],
+  ['Insulin Lispro Injection 100 UNIT/ML', 'Inject as per sliding scale: 150-199=1 unit;200-349=2 units;greater than or equals 350 give 5 units, subcutaneously at bedtime for DM', 'CBS QHS SS 150-199=1U;200-349=2U;350+=5U FDM'],
   ['MiraLax Oral Packet 17 GM', 'Give 1 packet by mouth daily for constipation. Mixed in 4-8 oz fluid of choice. Hold for loose stools', 'MIX 17 GM (1 PACKET) IN 4-8OZ OF FOC AND GIVE PO QD FCON (H LS)'],
 ])('keeps the reviewed %s suggestion editable through the actual queue', async (drug, directions, expected) => {
   const writeText = vi.fn().mockResolvedValue(undefined);

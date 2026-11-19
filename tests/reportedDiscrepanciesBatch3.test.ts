@@ -87,26 +87,30 @@ describe('24 exported discrepancy records, 2026-10-01 batch 3', () => {
     expect(result.abnormalities.some(a => a.tier === 'potential_error')).toBe(true);
   });
 
-  it('preserves the plus-threshold dose and its actual notification recipient', () => {
+  it('preserves the plus-threshold dose and applies the site notification recipient', () => {
     const r = cases.reports[22];
     const result = translate(r.drugName, r.rawProse);
     expect(result.abnormalities.some(a => a.title === 'Insulin Unit Typo Normalized')).toBe(true);
-    expect(result.primarySig).toContain('401+=12U&CALL NP/PA');
-    expect(result.primarySig).not.toContain('CALL MD');
+    expect(result.primarySig).toContain('401+=12U&CALL MD');
+    expect(result.abnormalities.some(a => a.id === 'site_scale_notification')).toBe(true);
   });
 
   it('retains the complete scale if even one numeric band cannot be translated', () => {
     const r = cases.reports[22];
     const prose = r.rawProse.replace('12 units', 'twelve unclear units');
-    expect(translate(r.drugName, prose).primarySig).toBe(prose.toUpperCase());
+    const result = translate(r.drugName, prose);
+    expect(result.primarySig).toMatch(/^C\.B\.S\. ACHS S\.S\. /);
+    expect(result.primarySig).toContain('TWELVE UNCLEAR UNITS');
+    expect(result.primarySig).toContain('401+');
+    expect(result.abnormalities.some(a => a.id === 'incomplete_sliding_scale')).toBe(true);
   });
 
-  it('retains an unfamiliar notification recipient instead of omitting it', () => {
+  it('normalizes an unfamiliar call recipient while retaining every dose', () => {
     const r = cases.reports[22];
     const prose = r.rawProse.replace('Notify NP/PA', 'Notify on-call care team');
     const result = translate(r.drugName, prose);
-    expect(result.primarySig).toBe('CBS ACHS SS 151-200=2U;201-250=4U;251-300=6U;301-350=8U;351-400=10U;401+=12U&NOTIFY ON-CALL CARE TEAM SQ FDM');
-    expect(result.abnormalities.some(a => a.id === 'sliding_scale_unparsed_action')).toBe(true);
+    expect(result.primarySig).toBe('CBS ACHS SS 151-200=2U;201-250=4U;251-300=6U;301-350=8U;351-400=10U;401+=12U&CALL MD');
+    expect(result.abnormalities.some(a => a.id === 'site_scale_notification')).toBe(true);
   });
 
   it.each(['5 days', '4 weeks'])('retains an unmarked course interval for review: %s', duration => {

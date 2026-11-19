@@ -60,18 +60,20 @@ it.each([
   const c = cases[29];
   const raw = c.rawProse.replace(before, after);
   const r = translate(c.drugName, raw);
-  expect(r.primarySig).toBe(raw.toUpperCase().replace(/\s+/g, ' '));
+  expect(r.primarySig).toMatch(/^C\.B\.S\. ACHS S\.S\. /);
+  expect(r.primarySig).toContain('350 ADMINISTER AN UNSPECIFIED DOSE');
+  for (const band of ['150-199=2 UNITS', '200-249=4 UNITS', '250-299=6 UNITS', '300-349=8 UNITS']) expect(r.primarySig).toContain(band);
   expect(r.abnormalities.some(a => a.id === 'incomplete_sliding_scale')).toBe(true);
 });
 
 it.each([
-  ['notified MD', 'notified supervisor', '<70=HYPOGLYCEMIC PROTOCOL&CALL MD;150-199=2U;200-249=4U;250-299=6U;300-349=8U;350+=10U&NOTIFIED SUPERVISOR'],
-  ['and call MD', 'and call supervisor', '<70=HYPOGLYCEMIC PROTOCOL&CALL SUPERVISOR;150-199=2U;200-249=4U;250-299=6U;300-349=8U;350+=10U&CALL MD'],
-])('retains every dose and unfamiliar notification: %s → %s', (before, after, bands) => {
+  ['notified MD', 'notified supervisor'],
+  ['and call MD', 'and call supervisor'],
+])('retains every dose and normalizes notifications: %s → %s', (before, after) => {
   const c = cases[29];
   const r = translate(c.drugName, c.rawProse.replace(before, after));
-  expect(r.primarySig).toBe(`CBS ACHS SS ${bands} SQ FDM1`);
-  expect(r.abnormalities.some(a => a.id === 'sliding_scale_unparsed_action')).toBe(true);
+  expect(r.primarySig).toBe('CBS ACHS S.S. <70=HYPOGLYCEMIC PROTOCOL&CALL MD;150-199=2U;200-249=4U;250-299=6U;300-349=8U;350+=10U&CALL MD');
+  expect(r.abnormalities.some(a => a.id === 'site_scale_notification')).toBe(true);
 });
 
 it('prioritizes explicit source dilution over a different optional default template', () => {

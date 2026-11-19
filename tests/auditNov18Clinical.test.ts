@@ -15,12 +15,12 @@ describe('Nov 18 synthetic holdout', () => {
 
   it('D1: a scale given three times daily is not shortened to once daily', () => {
     const r = clinical(LISPRO, 'Inject per sliding scale subcutaneously three times daily: 150-199 2 units, 200-249 4 units.');
-    expect(r.primarySig).toBe('CBS TID SS 150-199=2U;200-249=4U SQ');
+    expect(r.primarySig).toBe('CBS TID SS 150-199=2U;200-249=4U');
   });
 
   it('D2: "Hold if blood sugar less than 70" holds the low band, not the 200-249 dose', () => {
     const r = clinical(LISPRO, 'Inject per sliding scale subcutaneously three times daily: 150-199 2 units, 200-249 4 units. Hold if blood sugar less than 70 and call MD.');
-    expect(r.primarySig).toContain('200-249=4U SQ');
+    expect(r.primarySig).toContain('200-249=4U');
     expect(r.primarySig).not.toContain('4U&HOLD');
     expect(r.primarySig).toMatch(/<70=(?:CALL MD&HOLD|HOLD&CALL MD);/);
   });
@@ -56,9 +56,9 @@ describe('Nov 18 synthetic holdout', () => {
       .toBe('TO RT HEEL:CLEANSE W/NORMAL SALINE,THEN APPLY ZINC OXIDE QD X14D,TO LT HEEL:CLEANSE W/NORMAL SALINE,THEN APPLY ZINC OXIDE BID');
   });
 
-  it('control: basal dose plus separately scheduled scale is retained and flagged, not silently merged', () => {
+  it('control: basal dose and correction scale keep their separate schedules', () => {
     const r = clinical('INSULIN GLARGINE 100 UNIT/ML INJECTION', 'Inject 12 units subcutaneously at bedtime. Also inject per sliding scale before meals: 150-199 2 units, 200-249 4 units.');
-    expect(r.primarySig).toContain('12 UNITS');
-    expect(r.abnormalities.map(a => a.id)).toContain('incomplete_sliding_scale');
+    expect(r.primarySig).toBe('CBS AC SS 150-199=2U;200-249=4U.PLUS12U QHS');
+    expect(r.abnormalities.map(a => a.id)).not.toContain('incomplete_sliding_scale');
   });
 });

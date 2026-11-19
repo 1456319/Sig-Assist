@@ -7,6 +7,15 @@ const schedulePattern = /\b(?:BEFORE\s+(?:EACH\s+)?MEALS?(?:\s+(?:AND|&)\s+(?:AT
 const scheduleText = (text: string) => [...text.matchAll(schedulePattern)].map(match => match[0]).join(' ');
 const clean = (text: string) => text.replace(/^[\s,;:=.&]+|[\s,;:=.&]+$/g, '').trim();
 
+/** Anything beyond the recognized fixed dose/schedule must remain visible. */
+export function fixedScaleDoseRemainder(source: string, hold?: string): string {
+  let rest = normalizeNumericDirections(source);
+  if (hold) rest = rest.replace(hold, '');
+  return clean(rest.replace(/\b(?:INJ|INJECT|GIVE|ADMINISTER)?\s*\d+(?:\.\d+)?\s*(?:UNITS?|U)\b/, '')
+    .replace(schedulePattern, '').replace(/\b(?:SQ|SC|SUBQ|SUBCUTANEOUS(?:LY)?|PLUS|FDM[12]?)\b/g, '')
+    .replace(/[()]/g, '').replace(/\s+/g, ' '));
+}
+
 /** Second grammar for prose tables and distributed low-glucose/base clauses. */
 export function parseProseSlidingScale(source: string): ParsedSlidingScale {
   let text = normalizeNumericDirections(source).replace(/[–—−]/g, '-').replace(/≥/g, '>=').replace(/≤/g, '<=')
@@ -20,7 +29,8 @@ export function parseProseSlidingScale(source: string): ParsedSlidingScale {
     abnormalities: [...abnormalities, { id: 'incomplete_sliding_scale', tier: 'uncorrected_gap', title: 'Sliding Scale Requires Review', message: reason, trigger: source }], incomplete: true });
 
   // A fixed clause after the table is independent of any preceding glucose band.
-  const trailingBase = /\b(?:AND|PLUS)\s+(?:GIVE|INJECT|ADMINISTER)\s+\d+(?:\.\d+)?\s*(?:UNITS?|U)\b/.exec(text);
+  const trailingBase = [...text.matchAll(/\b(?:AND|PLUS)\s+(?:GIVE|INJECT|ADMINISTER)\s+\d+(?:\.\d+)?\s*(?:UNITS?|U)\b/g)]
+    .find(match => /[.;]\s*$/.test(text.slice(0, match.index)));
   if (trailingBase) {
     baseInstruction = text.slice(trailingBase.index + trailingBase[0].match(/^(?:AND|PLUS)\s+/)![0].length).trim();
     text = text.slice(0, trailingBase.index).trim();
@@ -39,11 +49,19 @@ export function parseProseSlidingScale(source: string): ParsedSlidingScale {
   if (/[.;]\s*(?:AT BEDTIME|WITH MEALS|BEFORE MEALS|QHS|ACHS|WMHS)\s*:/.test(after)) return fail('Separate scale schedules were retained without merging their bands.');
   const found = [...after.matchAll(markers)];
   const sections = found.map((marker, i) => after.slice(marker.index! + marker[0].length, found[i + 1]?.index));
-  const routeSchedules = [...text.matchAll(/\b(?:SQ|SUBQ|SC|SUBCUTANEOUS(?:LY)?)\b([^.;]*)/g)].map(m => scheduleText(m[1]));
+  // A dose-specific schedule is not an ordinary common schedule. Retain its
+  // entire wording until it can be represented without assigning it to all bands.
+  if (sections.slice(0, -1).some(section => scheduleText(section) && !/\b(?:SQ|SC|SUBQ|SUBCUTANEOUS(?:LY)?)\b/.test(section))) {
+    return fail('A glucose band has its own schedule. Its qualifier was retained without merging schedules.', scheduleText(header));
+  }
+  // The basal clause was removed from header above. Its route/schedule must
+  // not leak back into the correction scale through the original full text.
+  const scaleText = `${header} ${after}`;
+  const routeSchedules = [...scaleText.matchAll(/\b(?:SQ|SUBQ|SC|SUBCUTANEOUS(?:LY)?)\b([^.;]*)/g)].map(m => scheduleText(m[1]));
   const schedule = [scheduleText(header), ...routeSchedules, scheduleText(sections[sections.length - 1] || '')].filter(Boolean).join(' ')
     || scheduleText(baseInstruction || '');
   const diagnosis = text.match(/\bFDM[12]?\b/)?.[0] || (text.match(/\bFOR\s+((?:TYPE [12] )?DIABETES(?: MELLITUS)?(?: TYPE [12])?|DM[12]?)\b/)?.[1]);
-  const shared = [schedule, diagnosis ? `FOR ${diagnosis}` : ''].filter(Boolean).join(' ');
+  const shared = [schedule, diagnosis ? `FOR ${diagnosis.replace(/^FDM/, 'DM')}` : ''].filter(Boolean).join(' ');
   const bands: Array<{ key: number; condition: string; action: string; dose?: number }> = [];
   let carried = headerAction?.[1] || '';
 
@@ -71,7 +89,12 @@ export function parseProseSlidingScale(source: string): ParsedSlidingScale {
       abnormalities.push({ id: 'site_glucagon_rescue', tier: 'applied_correction', title: 'Site Glucagon Rescue Format Applied',
         message: 'The supplied glucagon rescue clause uses the technician-specified 1ML GLUCAGON IM format. Compare the source rescue instruction.', trigger: sections[index] });
     }
-    action = clean(action).replace(/^(?:THEN\s+)?(?:(?:GIVE|ADMINISTER|INJECT)\s+)?/, '');
+    if (/\b\d+(?:\.\d+)?\s*(?:ML|MILLILITERS?|MG)\b/.test(action)) {
+      return fail('A scale dose is stated as mass or volume. It was not relabeled as insulin units.', shared);
+    }
+    action = clean(action)
+      .replace(/^CALL MD\s+AND\s+((?:GIVE|ADMINISTER|INJECT)\s+\d+(?:\.\d+)?\s*(?:UNITS?|U)\b)/, '$1 AND CALL MD')
+      .replace(/^(?:THEN\s+)?(?:(?:GIVE|ADMINISTER|INJECT)\s+)?/, '');
     const dose = action.match(/^(\d+(?:\.\d+)?)(?:\s*(UNITS?|U|UNIS|UNITES)\b)?(?=$|[\s,;.&])/);
     let doseValue: number | undefined;
     if (dose) {
@@ -80,7 +103,7 @@ export function parseProseSlidingScale(source: string): ParsedSlidingScale {
       if (/UNIS|UNITES/.test(dose[2] || '')) abnormalities.push({ id: 'insulin_unit_typo', tier: 'applied_correction', title: 'Insulin Unit Typo Normalized', message: 'The dose-unit spelling was normalized to U.', trigger: dose[0] });
       if (!dose[2]) action = action.replace(/^\s*(?:GIVE|ADMINISTER|INJECT)\s+(\d+(?:\.\d+)?)\s+UNITS?\b/, (raw, number: string) => Number(number) === doseValue ? '' : raw);
     }
-    action = action.replace(/\b(?:(?:FOLLOW|INITIATE|START|BEGIN|BEING|PERFORM)\s+(?:THE\s+)?)?HYPOGLYCEMI[AC]\s+PROTOCOL\b/g, () => { actions.push('HYPOGLYCEMIC PROTOCOL'); return ''; });
+    action = action.replace(/\b(?:(?:FOLLOW|INITIATE|START|BEGIN|BEING|PERFORM|PER)\s+(?:THE\s+)?)?HYPOGLYCEMI[AC]\s+PROTOCOL\b/g, () => { actions.push('HYPOGLYCEMIC PROTOCOL'); return ''; });
     action = action.replace(/\bRECHECK\s+(?:(?:BS|BG|CBS|BLOOD SUGAR|BLOOD GLUCOSE)\s+)?(?:IN\s*|AFTER\s+)?(\d+(?:\.\d+)?)\s*(HOURS?|HRS?|H|MINUTES?|MINS?)\b/g,
       (_m, count: string, units: string) => { actions.push(`RECHECK ${count}${units.startsWith('H') ? 'H' : 'MIN'}`); return ''; });
     action = action.replace(/\bIF\s+(?:(?:THE\s+)?(?:READINGS?|BLOOD SUGAR|GLUCOSE)\s+)?(?:(?:IS|ARE|REMAIN)\s+)?STILL\s+(HIGH|ABNORMAL)\s*,?\s*CALL MD\b/g,

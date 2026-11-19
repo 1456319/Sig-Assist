@@ -49,6 +49,29 @@ describe('technician-specified insulin scale format', () => {
   it('does not invent a missing low-glucose parameter', () => {
     expect(run('Sliding scale SQ before meals:150-200=2 units;201+=4 units').primarySig).toBe('CBS AC SS 150-200=2U;201+=4U');
   });
+  it('keeps a dose after a call instruction in its own band, not as an all-day fixed dose', () => {
+    expect(run('Sliding scale SQ TID:150-200=2 units;201+=call provider and give 4 units').primarySig)
+      .toBe('CBS TID SS 150-200=2U;201+=4U&CALL MD');
+  });
+  it('retains an unfamiliar fixed-dose meal qualifier beside that dose', () => {
+    const result = run('Sliding scale SQ TID:150-200=2 units;201+=4 units. AND give 3 units QID if resident ate at least half the meal');
+    expect(result.primarySig).toContain('PLUS3U QID IF RESIDENT ATE AT LEAST HALF THE MEAL');
+    expect(result.abnormalities.some(a => a.id === 'sliding_scale_unparsed_action')).toBe(true);
+  });
+  it('retains band-specific schedules rather than making them a common frequency', () => {
+    const result = run('Sliding scale SQ TID:<70 glucagon IM;150-200=2 units at bedtime;201+=4 units before meals');
+    expect(result.primarySig).toContain('150-200=2 UNITS AT BEDTIME');
+    expect(result.primarySig).toContain('201+=4 UNITS BEFORE MEALS');
+    expect(result.abnormalities.some(a => a.id === 'incomplete_sliding_scale')).toBe(true);
+  });
+  it('keeps a short diagnosis when no concession is necessary', () => {
+    expect(run('Sliding scale SQ TID:<70=glucagon IM;150-200=2 units;201+=4 units for DM2').primarySig)
+      .toBe('CBS TID SS <70=1ML GLUCAGON IM;150-200=2U;201+=4U FDM2');
+  });
+  it('keeps the high-band recheck, conditional call and critical-result recording', () => {
+    const result = run('Sliding scale SQ TID:150-200=2 units;201-350=4 units;>350=10 units and recheck in 2 hours. If still abnormal, call provider for instructions and record critical result');
+    expect(result.primarySig).toContain('>350=10U&RECHECK 2H&CALL MD IF STILL ABNORMAL&RECORD CRITICAL RESULT');
+  });
   it('keeps contradictory or unknown doses visible with a mandatory header', () => {
     const result = run('Sliding scale SQ TID:150-200=an unclear dose;201+=4 units');
     expect(result.primarySig).toMatch(/^(?:CBS|C\.B\.S\.) TID (?:SS|S\.S\.) /);

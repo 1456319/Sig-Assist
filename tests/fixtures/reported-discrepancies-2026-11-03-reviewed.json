@@ -354,9 +354,9 @@
     ],
     "drugName": "HumaLOG Injection Solution 100 UNIT/ML",
     "rawProse": "Inject as per sliding scale: if 250 - 300 = 1 unit; 301 - 350 = 2 units; 351 - 400 = 3 units; 401+ = 6 units 401 and higher give  ^ units, subcutaneously three times a day for DM Do not use dexcom, use glucose meter",
-    "expected": "INJECT AS PER SLIDING SCALE: IF 250 - 300 = 1 UNIT; 301 - 350 = 2 UNITS; 351 - 400 = 3 UNITS; 401+ = 6 UNITS 401 AND HIGHER GIVE ^ UNITS, SUBCUTANEOUSLY THREE TIMES A DAY FOR DM DO NOT USE DEXCOM, USE GLUCOSE METER",
+    "expected": "C.B.S. TID S.S. INJECT AS PER SLIDING SCALE: IF 250-300=1 UNIT;301-350=2 UNITS;351-400=3 UNITS;401+=6 UNITS 401 AND HIGHER GIVE ^ UNITS, SUBCUTANEOUSLY 3 TIMES A DAY FOR DM DO NOT USE DEXCOM, USE GLUCOSE METER",
     "subOrders": [
-      "INJECT AS PER SLIDING SCALE: IF 250 - 300 = 1 UNIT; 301 - 350 = 2 UNITS; 351 - 400 = 3 UNITS; 401+ = 6 UNITS 401 AND HIGHER GIVE ^ UNITS, SUBCUTANEOUSLY THREE TIMES A DAY FOR DM DO NOT USE DEXCOM, USE GLUCOSE METER"
+      "C.B.S. TID S.S. INJECT AS PER SLIDING SCALE: IF 250-300=1 UNIT;301-350=2 UNITS;351-400=3 UNITS;401+=6 UNITS 401 AND HIGHER GIVE ^ UNITS, SUBCUTANEOUSLY 3 TIMES A DAY FOR DM DO NOT USE DEXCOM, USE GLUCOSE METER"
     ],
     "status": "source-review",
     "reviewNote": "Source contains both 6 units and an unresolved ^ units for the same high threshold. Complete source retained."
@@ -1019,9 +1019,9 @@
     ],
     "drugName": "Insulin Lispro Injection Solution 100 UNIT/ML",
     "rawProse": "Inject as per sliding scale: if 0 - 150 = 0 units; 151 - 200 = 2 units; 201 - 250 = 4 units; 251 - 300 = 6 units; 301 - 350 = 8 units; 351 - 400 = 10 units Notify MD if BS greater than 400 or less than 60 , subcutaneously before meals for diabetes .",
-    "expected": "CBS AC SS <60=CALL MD;0-150=0U;151-200=2U;201-250=4U;251-300=6U;301-350=8U;351-400=10U;>400=CALL MD SQ FDM",
+    "expected": "CBS AC SS <60=CALL MD;0-150=0U;151-200=2U;201-250=4U;251-300=6U;301-350=8U;351-400=10U;>400=CALL MD",
     "subOrders": [
-      "CBS AC SS <60=CALL MD;0-150=0U;151-200=2U;201-250=4U;251-300=6U;301-350=8U;351-400=10U;>400=CALL MD SQ FDM"
+      "CBS AC SS <60=CALL MD;0-150=0U;151-200=2U;201-250=4U;251-300=6U;301-350=8U;351-400=10U;>400=CALL MD"
     ],
     "status": "translated",
     "reviewNote": ""
@@ -1550,9 +1550,9 @@
     ],
     "drugName": "Insulin Lispro Injection Solution 100 UNIT/ML",
     "rawProse": "Inject as per sliding scale: if 150 - 199 = 1 unit; 200 - 249 = 2 units; 250 - 299 = 3 units; 300 - 349 = 4 units Greater than or equals 350, give 5 units, subcutaneously before meals and at bedtime for Diabetes Mellitus",
-    "expected": "CBS ACHS SS 150-199=1U;200-249=2U;250-299=3U;300-349=4U;350+=5U SQ FDM",
+    "expected": "CBS ACHS SS 150-199=1U;200-249=2U;250-299=3U;300-349=4U;350+=5U FDM",
     "subOrders": [
-      "CBS ACHS SS 150-199=1U;200-249=2U;250-299=3U;300-349=4U;350+=5U SQ FDM"
+      "CBS ACHS SS 150-199=1U;200-249=2U;250-299=3U;300-349=4U;350+=5U FDM"
     ],
     "status": "translated",
     "reviewNote": ""
@@ -1567,9 +1567,9 @@
     ],
     "drugName": "Insulin Lispro Injection Solution 100 UNIT/ML",
     "rawProse": "Inject as per sliding scale: if 150 - 199 = 1 unit 70 < call MD and follow hypoglycemic protocol150 < 0; 200 - 249 = 2 unites; 250 - 299 = 4 units; 300 - 349 = 5 units; 350+ = 6 unites Call MD., subcutaneously four times a day for diabetes",
-    "expected": "INJECT AS PER SLIDING SCALE: IF 150 - 199 = 1 UNIT 70 < CALL MD AND FOLLOW HYPOGLYCEMIC PROTOCOL150 < 0; 200 - 249 = 2 UNITES; 250 - 299 = 4 UNITS; 300 - 349 = 5 UNITS; 350+ = 6 UNITES CALL MD., SUBCUTANEOUSLY FOUR TIMES A DAY FOR DIABETES",
+    "expected": "C.B.S. QID S.S. INJECT AS PER SLIDING SCALE: IF 150-199=1 UNIT 70<CALL MD AND FOLLOW HYPOGLYCEMIC PROTOCOL150<0;200-249=2 UNITES;250-299=4 UNITS;300-349=5 UNITS;350+=6 UNITES CALL MD., SUBCUTANEOUSLY 4 TIMES A DAY",
     "subOrders": [
-      "INJECT AS PER SLIDING SCALE: IF 150 - 199 = 1 UNIT 70 < CALL MD AND FOLLOW HYPOGLYCEMIC PROTOCOL150 < 0; 200 - 249 = 2 UNITES; 250 - 299 = 4 UNITS; 300 - 349 = 5 UNITS; 350+ = 6 UNITES CALL MD., SUBCUTANEOUSLY FOUR TIMES A DAY FOR DIABETES"
+      "C.B.S. QID S.S. INJECT AS PER SLIDING SCALE: IF 150-199=1 UNIT 70<CALL MD AND FOLLOW HYPOGLYCEMIC PROTOCOL150<0;200-249=2 UNITES;250-299=4 UNITS;300-349=5 UNITS;350+=6 UNITES CALL MD., SUBCUTANEOUSLY 4 TIMES A DAY"
     ],
     "status": "source-review",
     "reviewNote": "Reversed/malformed threshold syntax and unresolved 150 < 0. Keep complete source."
@@ -1686,9 +1686,9 @@
     ],
     "drugName": "Insulin Lispro Injection Solution 100 UNIT/ML",
     "rawProse": "Inject as per sliding scale: if 90 - 199 = 0; 200 - 249 = 2; 250 - 299 = 4; 300 - 349 = 6; 350 - 399 = 8 > 400 10 units and notify MD , subcutaneously three times a day for Diabetes",
-    "expected": "CBS TID SS 90-199=0U;200-249=2U;250-299=4U;300-349=6U;350-399=8U;>400=10U&CALL MD SQ FDM",
+    "expected": "CBS TID SS 90-199=0U;200-249=2U;250-299=4U;300-349=6U;350-399=8U;>400=10U&CALL MD FDM",
     "subOrders": [
-      "CBS TID SS 90-199=0U;200-249=2U;250-299=4U;300-349=6U;350-399=8U;>400=10U&CALL MD SQ FDM"
+      "CBS TID SS 90-199=0U;200-249=2U;250-299=4U;300-349=6U;350-399=8U;>400=10U&CALL MD FDM"
     ],
     "status": "source-review",
     "reviewNote": "Numeric doses translate, but the source omits glucose 400 between 350-399 and >400. Flag without filling the gap."
