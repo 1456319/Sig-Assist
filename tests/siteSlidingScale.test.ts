@@ -76,6 +76,15 @@ describe('technician-specified insulin scale format', () => {
     const result = run('Sliding scale SQ TID:150-200=2 units;201-350=4 units;>350=10 units and recheck in 2 hours. If still abnormal, call provider for instructions and record critical result');
     expect(result.primarySig).toContain('>350=10U&RECHECK 2H&CALL MD IF STILL ABNORMAL&RECORD CRITICAL RESULT');
   });
+  it('retains a course from the header when prose IF/THEN bands require the second grammar', () => {
+    const result = run('Sliding scale SQ TID for 7 days: if 150-200 then give 2 units; if 201+ then give 4 units');
+    expect(result.primarySig).toBe('CBS TID SS 150-200=2U;201+=4U X7D');
+  });
+  it('retains a monitoring qualifier from the prose header for review', () => {
+    const result = run('Check blood sugar using fingerstick only and administer according to sliding scale SQ TID: if 150-200 then give 2 units; if 201+ then give 4 units');
+    expect(result.primarySig).toBe('CBS TID SS 150-200=2U;201+=4U. USING FINGERSTICK ONLY');
+    expect(result.abnormalities.some(a => a.id === 'sliding_scale_unparsed_action' && a.trigger === 'USING FINGERSTICK ONLY')).toBe(true);
+  });
   it('keeps contradictory or unknown doses visible with a mandatory header', () => {
     const result = run('Sliding scale SQ TID:150-200=an unclear dose;201+=4 units');
     expect(result.primarySig).toMatch(/^(?:CBS|C\.B\.S\.) TID (?:SS|S\.S\.) /);

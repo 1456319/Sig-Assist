@@ -5,6 +5,7 @@ import type { AbnormalityFinding } from './types';
 const markers = /(?<![\d.])\b\d+(?:\.\d+)?\s*(?:-|TO)\s*\d+(?:\.\d+)?|\b\d+(?:\.\d+)?\s*\+|(?:[<>]=?|GREATER THAN(?: OR EQUALS?(?: TO)?)?|LESS THAN(?: OR EQUALS?(?: TO)?)?)\s*\d+(?:\.\d+)?/g;
 const schedulePattern = /\b(?:BEFORE\s+(?:EACH\s+)?MEALS?(?:\s+(?:AND|&)\s+(?:AT\s+)?BEDTIME)?|WITH\s+(?:EACH\s+)?MEALS?(?:\s+(?:AND|&)\s+(?:AT\s+)?BEDTIME)?|AFTER\s+MEALS?(?:\s+AND\s+(?:AT\s+)?BEDTIME)?|(?:AT\s+)?BEDTIME|(?:[1-4]|ONE|TWO|THREE|FOUR)\s+TIMES?\s+(?:(?:A|PER|EACH)\s+DAY|DAILY)|TWICE DAILY|DAILY|EVERY\s+\d+\s+HOURS?|Q\d+H|ACHS|AC\/HS|WMHS|PCHS|AC|QD|BID|TID|QID|QAM|QPM|QHS)\b/g;
 const scheduleText = (text: string) => [...text.matchAll(schedulePattern)].map(match => match[0]).join(' ');
+const coursePattern = /\b(?:FOR\s+(?:UP\s+TO\s+)?|X\s*)\d+(?:\.\d+|\s*[-/]\s*\d+)?\s*(?:DAYS?|D\b|WEEKS?|WKS?|WK\b|MONTHS?|MOS?|HOURS?|HRS?|HR\b|H\b)\b/g;
 const clean = (text: string) => text.replace(/^[\s,;:=.&]+|[\s,;:=.&]+$/g, '').trim();
 
 /** Anything beyond the recognized fixed dose/schedule must remain visible. */
@@ -62,7 +63,19 @@ export function parseProseSlidingScale(source: string): ParsedSlidingScale {
     || scheduleText(baseInstruction || '');
   const diagnosisSource = `${text} ${baseInstruction || ''}`;
   const diagnosis = diagnosisSource.match(/\bFDM[12]?\b/)?.[0] || (diagnosisSource.match(/\bFOR\s+((?:TYPE [12] )?DIABETES(?: MELLITUS)?(?: TYPE [12])?|DM[12]?)\b/)?.[1]);
-  const shared = [schedule, diagnosis ? `FOR ${diagnosis.replace(/^FDM/, 'DM')}` : ''].filter(Boolean).join(' ');
+  const courses = [...header.matchAll(coursePattern)].map(match => match[0]);
+  const shared = [schedule, ...courses, diagnosis ? `FOR ${diagnosis.replace(/^FDM/, 'DM')}` : ''].filter(Boolean).join(' ');
+  // SS/CBS account for the ordinary preamble, not for extra source qualifiers.
+  // Course wording goes through the existing duration resolver; other wording
+  // remains visible instead of disappearing when the numeric table parses.
+  const headerQualifier = clean(header
+    .replace(/\bIF(?:\s+(?:(?:THE\s+)?(?:READING|BS|BG|BLOOD SUGAR|BLOOD GLUCOSE)(?:\s+IS)?))?\s*$/, '')
+    .replace(schedulePattern, '').replace(coursePattern, '')
+    .replace(/\b(?:FDM[12]?|FOR\s+((?:TYPE [12] )?DIABETES(?: MELLITUS)?(?: TYPE [12])?|DM[12]?))\b/g, '')
+    .replace(/\b(?:CHECK\s+(?:THE\s+)?BLOOD\s+(?:SUGAR|GLUCOSE)|(?:SLIDING|CORRECTION)\s+SCALE|ACCORDING TO|AS PER)\b/g, '')
+    .replace(/\b(?:(?:INJECT|GIVE|ADMINISTER)(?:\s+INSULIN)?|AND|AS|PER|THE|SQ|SC|SUBQ|SUBCUTANEOUS(?:LY)?)\b/g, '')
+    .replace(/\s+/g, ' '));
+  if (headerQualifier) finding('sliding_scale_unparsed_action', 'A header qualifier remains beside the translated scale for technician review.', headerQualifier);
   const bands: Array<{ key: number; condition: string; action: string; dose?: number }> = [];
   let carried = headerAction?.[1] || '';
 
@@ -130,5 +143,6 @@ export function parseProseSlidingScale(source: string): ParsedSlidingScale {
     return values.length === 2 ? [values[0], values[1]] : band.condition.startsWith('<') ? [-Infinity, values[0] - (band.condition.startsWith('<=') ? 0 : 1)] : [values[0] + (band.condition.startsWith('>') ? 1 : 0), Infinity];
   });
   for (let i = 1; i < intervals.length; i++) if (intervals[i][0] !== intervals[i - 1][1] + 1) finding(intervals[i][0] <= intervals[i - 1][1] ? 'sliding_scale_overlap' : 'sliding_scale_gap', 'Source scale boundaries were retained; no missing or overlapping dose was invented.');
-  return { bands: bands.map(band => `${band.condition}=${band.action}`).join(';'), schedule: shared, route: 'SQ', baseInstruction, abnormalities, incomplete: false };
+  return { bands: bands.map(band => `${band.condition}=${band.action}`).join(';'), schedule: shared, route: 'SQ', baseInstruction,
+    retainedInstructions: headerQualifier || undefined, abnormalities, incomplete: false };
 }
