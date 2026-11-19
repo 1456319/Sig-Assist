@@ -60,7 +60,10 @@ export function parseProseSlidingScale(source: string): ParsedSlidingScale {
   const scaleText = `${header} ${after}`;
   const routeSchedules = [...scaleText.matchAll(/\b(?:SQ|SUBQ|SC|SUBCUTANEOUS(?:LY)?)\b([^.;]*)/g)].map(m => scheduleText(m[1]));
   const schedule = [scheduleText(header), ...routeSchedules, scheduleText(sections[sections.length - 1] || '')].filter(Boolean).join(' ')
-    || scheduleText(baseInstruction || '');
+    // The technician's trailing additive clause supplies the shared schedule.
+    // An independently scheduled leading basal clause cannot supply a missing
+    // correction frequency (for example, QHS basal plus an unscheduled scale).
+    || (trailingBase ? scheduleText(baseInstruction || '') : '');
   const diagnosisSource = `${text} ${baseInstruction || ''}`;
   const diagnosis = diagnosisSource.match(/\bFDM[12]?\b/)?.[0] || (diagnosisSource.match(/\bFOR\s+((?:TYPE [12] )?DIABETES(?: MELLITUS)?(?: TYPE [12])?|DM[12]?)\b/)?.[1]);
   const courses = [...header.matchAll(coursePattern)].map(match => match[0]);

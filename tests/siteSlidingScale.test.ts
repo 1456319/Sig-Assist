@@ -85,6 +85,16 @@ describe('technician-specified insulin scale format', () => {
     expect(result.primarySig).toBe('CBS TID SS 150-200=2U;201+=4U. USING FINGERSTICK ONLY');
     expect(result.abnormalities.some(a => a.id === 'sliding_scale_unparsed_action' && a.trigger === 'USING FINGERSTICK ONLY')).toBe(true);
   });
+  it('does not borrow a leading basal schedule when the correction frequency is absent', () => {
+    const prose = 'Inject 10 units subcutaneously at bedtime. Also inject per sliding scale: if 150-200 then give 2 units; if 201+ then give 4 units';
+    const result = run(prose);
+    expect(result.primarySig).toMatch(/^(?:CBS|C\.B\.S\.) \[FREQUENCY\] (?:SS|S\.S\.) /);
+    expect(result.primarySig).toContain('10 UNITS SUBCUTANEOUSLY AT BEDTIME');
+    expect(result.primarySig).toContain('150-200 THEN GIVE 2 UNITS');
+    expect(result.primarySig).not.toMatch(/^CBS QHS SS/);
+    expect(result.abnormalities.some(a => a.id === 'incomplete_sliding_scale')).toBe(true);
+    expect(translateFreeTextSig(prose, { drug }).sig).toBe(result.primarySig);
+  });
   it('keeps contradictory or unknown doses visible with a mandatory header', () => {
     const result = run('Sliding scale SQ TID:150-200=an unclear dose;201+=4 units');
     expect(result.primarySig).toMatch(/^(?:CBS|C\.B\.S\.) TID (?:SS|S\.S\.) /);

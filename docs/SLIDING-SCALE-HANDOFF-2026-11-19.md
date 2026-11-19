@@ -1,6 +1,6 @@
 # Insulin sliding-scale handoff — November 19, 2026
 
-Runtime checkpoint: `30a0bb058d13e8dc8eeb919f9f824e8345fefc17` on `prototype`. Package **v0.1.13**, build **d4cc532bd3a0f02d56954c4684e0ff5d02e9ea836a595fb11ca1281a2d6d99d1**. Source, ready-to-run page, BUILD.json and portable ZIP were pushed together. Earlier contract and partial implementation checkpoints remain in branch history.
+Previous runtime checkpoint: `30a0bb058d13e8dc8eeb919f9f824e8345fefc17`. Current package on `prototype`: **v0.1.13**, build **63550207f9198242917df0f25f087de5a52db8462cd762f9a129f66a1317a9a2**. Source, ready-to-run page, BUILD.json and portable ZIP were pushed together. Earlier contract and partial implementation checkpoints remain in branch history.
 
 ## Implemented contract
 
@@ -8,7 +8,7 @@ The [site formatting rules](SLIDING-SCALE-FORMAT.md) now drive clinical and clas
 
 - Conditions and correction doses retain their bounds, inclusivity and U units. A late low-glucose clause moves with its own actions. No absent low band or missing correction dose is invented.
 - Call/notify recipients normalize to CALL MD. Protocol, site-specified `1ML GLUCAGON IM`, high-band rechecks, conditional notifications and critical-result recording remain distinct actions. Glucagon normalization is reported; its rescue volume is not read as an insulin dose.
-- A fixed additional dose follows the scale as PLUSnU, with its own schedule when different and its own hold/other qualifiers. A bedtime fixed dose no longer leaks bedtime into a before-meals correction scale. A call followed by a dose within a band cannot become an unconditional fixed dose.
+- A fixed additional dose follows the scale as PLUSnU, with its own schedule when different and its own hold/other qualifiers. A bedtime fixed dose no longer leaks bedtime into a before-meals correction scale or supplies an absent correction frequency. A call followed by a dose within a band cannot become an unconditional fixed dose.
 - Prose IF/THEN/ranges, provider aliases, the supplied CALLD/NP typo and distributed clauses are supported. Contradictory doses, mass/volume correction doses and unrepresentable band-specific schedules retain source wording and a review finding. Prose-header courses use the existing duration resolver; additional monitoring qualifiers remain visible with review findings.
 - Concessions apply to the combined entered parts: spacing, diagnosis, literal S.S., then literal C.B.S., stopping as soon as sufficient. A read-only unified preview is not counted again. Review counters follow technician edits. Length alone does not prevent approval/copy, and no instruction is truncated to satisfy the limit.
 
@@ -24,10 +24,10 @@ The expansion estimate uses the bundled dictionary and technician-supplied CBS/S
 
 ## Validation and continuation
 
-Local final validation passed **1,367 tests in 92 files**, including 37 new tests for this contract, prose mutations, concession boundaries, combined part budgets, qualifier retention and editable over-budget copying. TypeScript, ESLint, the 388-code root-reference check, production build, source fingerprint and every packaged ZIP entry passed. Existing treatment, storage, dataset, native bridge policy and queue tests remain included.
+Local final validation passed **1,368 tests in 92 files**, including 38 new tests for this contract, prose mutations, concession boundaries, combined part budgets, qualifier retention and editable over-budget copying. TypeScript, ESLint, the 388-code root-reference check, production build, source fingerprint and every packaged ZIP entry passed. Existing treatment, storage, dataset, native bridge policy and queue tests remain included.
 
 Older scale expectations were updated for the new site contract. Original discrepancy inputs were retained; only reviewed expected outputs/suborder outputs changed. An ambiguous source remains ambiguous even though its retained draft now receives the mandatory header and applicable concessions.
 
-GitHub Windows/Linux run **44517805463** passed for preceding runtime `5d14bb84d5d807731937709b158bd28c8a2d4219`, including native controls, browser, UNC and pilot checks. An earlier synthetic DocuTrack fixture readiness timeout did not recur. The final pure-TypeScript header-qualifier fix was then rebuilt and passed all 1,367 tests locally; its complete GitHub run is pending at this documentation checkpoint. Native integration code did not change. Record the final runtime CI result below before closing the task.
+GitHub Windows/Linux run **44519227510** passed for preceding runtime `30a0bb058d13e8dc8eeb919f9f824e8345fefc17`, including native controls, browser, UNC and pilot checks. An earlier synthetic DocuTrack fixture readiness timeout did not recur. The final missing-frequency scope guard was then rebuilt and passed all 1,368 tests locally; its complete GitHub run is pending at this checkpoint. Native integration code did not change. Record the final runtime CI result below before closing the task.
 
 Next workstation check: use dummy records to compare ordinary CBS/SS and dotted literal previews, confirm the shared part budget and expanded frequency wording, and verify the highlighted output against the target PON. Preserve the technician's final edits/feedback using the existing local dataset and discrepancy workflow. FWDirect remains excluded. No capture or dataset was sent to an external model during this change.
