@@ -6,10 +6,29 @@ describe('site scale concessions use the expanded shared budget', () => {
   it('removes padding without deleting essential word/code boundaries', () => {
     expect(compactScaleSpacing('CBS QID SS  < 70 = HYPOGLYCEMIC PROTOCOL & CALL MD ; 150 - 200 = 2 U'))
       .toBe('CBS QID SS <70=HYPOGLYCEMIC PROTOCOL&CALL MD;150-200=2U');
+    expect(compactScaleSpacing('CBS QID SS150-199=2U;200-249=4U&SS150'))
+      .toBe('CBS QID SS 150-199=2U;200-249=4U&SS150');
   });
   it('uses site prefix meanings and preserves dotted literal forms', () => {
     expect(estimateScaleExpansion('CBS QID SS 150-200=2U')).toBe('CHECK BLOOD SUGAR FOUR TIMES A DAY AND INJECT SUBCUTANEOUSLY ACCORDING TO SLIDING SCALE 150-200=2U');
     expect(estimateScaleExpansion('C.B.S. QID S.S. 150-200=2U')).toBe('C.B.S. FOUR TIMES A DAY S.S. 150-200=2U');
+  });
+  it('estimates the compact tier table literally, including dose and semicolon joins', () => {
+    const table = '150-199=2U;200-249=4U;250-299=6U';
+    expect(estimateScaleExpansion(table)).toBe(table);
+    expect(estimateScaleExpansion('U;1T UN;1T SS;150-199=2U')).toBe('U;1T UN;1T SS;150-199=2U');
+  });
+  it('allows one trailing punctuation mark before whitespace and preserves punctuation within a code', () => {
+    expect(estimateScaleExpansion('UN; 1T, QID.. A/B CWS&H')).toBe(
+      'UNITS; 1 TABLET, QID.. ONE TIME A DAY BEFORE BREAKFAST CLEANSE WITH SOAP AND WATER',
+    );
+    expect(estimateScaleExpansion('QID.')).toBe('QID.');
+  });
+  it('keeps literal embedded codes intact when applying concessions', () => {
+    const embedded = '150-199=2U;SS;CBS;FDM2';
+    const result = fitSlidingScaleBudget(['CBS QID SS ' + embedded], 12);
+    expect(result.parts[0]).toBe('C.B.S. QID S.S. ' + embedded);
+    expect(result.concessions).toEqual(['literal_ss', 'literal_cbs']);
   });
   it.each([
     [60, [], false], [80, ['diagnosis'], false], [100, ['diagnosis'], false],

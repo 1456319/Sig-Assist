@@ -19,9 +19,21 @@ export interface ScaleSigBudget {
 }
 export const isSlidingScaleSig = (sig: string) => /^(?:CBS|C\.B\.S\.)\s+.+?\s+(?:SS|S\.S\.)(?:\s|(?=[<>\d]))/i.test(sig.trim());
 
+function replaceScaleCodes(text: string, replaceCode: (code: string) => string | undefined): string {
+  return text.replace(/\S+/g, (token: string, offset: number) => {
+    const exact = replaceCode(token);
+    if (exact !== undefined) return exact;
+    // Framework accepts one trailing punctuation mark followed by whitespace.
+    // Internal punctuation never makes a new token, so U;150 stays literal.
+    const punctuation = token.slice(-1);
+    if (offset + token.length === text.length || !/\p{P}/u.test(punctuation)) return token;
+    const replacement = replaceCode(token.slice(0, -1));
+    return replacement === undefined ? token : replacement + punctuation;
+  });
+}
+
 export function estimateScaleExpansion(sig: string): string {
-  return sig.toUpperCase().replace(/\b(?:C\.B\.S\.|S\.S\.)|\b[A-Z0-9]+(?:[/-][A-Z0-9]+)*\b/g,
-    token => /^(?:C\.B\.S\.|S\.S\.)$/.test(token) ? token : siteExpansions[token] ?? SIG_CODE_REFERENCE[token] ?? token);
+  return replaceScaleCodes(sig.toUpperCase(), code => siteExpansions[code] ?? SIG_CODE_REFERENCE[code]);
 }
 
 export function compactScaleSpacing(sig: string): string {
@@ -32,12 +44,12 @@ export function compactScaleSpacing(sig: string): string {
     .replace(/\s+([).,;])/g, '$1').replace(/\(\s+/g, '(')
     .replace(/\.\s+(?=PLUS\d)/g, '.')
     // A code/scale delimiter is essential for SS to expand normally.
-    .replace(/\b(SS|S\.S\.)(?=[<>\d])/g, '$1 ');
+    .replace(/^((?:CBS|C\.B\.S\.)\s+.+?\s+(?:SS|S\.S\.))(?=[<>\d])/, '$1 ');
 }
 
 const diagnosisCodes = new Set(Object.entries(SIG_CODE_REFERENCE).filter(([, text]) => text.startsWith('FOR ')).map(([code]) => code));
 function omitDiagnosis(sig: string): string {
-  return sig.replace(/\b[A-Z][A-Z0-9/]*\b/g, token => diagnosisCodes.has(token) ? '' : token)
+  return replaceScaleCodes(sig, code => diagnosisCodes.has(code) ? '' : undefined)
     .replace(/\bFOR (?:(?:TYPE [12] )?DIABETES(?: MELLITUS)?(?: TYPE [12])?|DM[12]?)\b/g, '').replace(/\s+/g, ' ').trim();
 }
 
@@ -52,8 +64,8 @@ export function fitSlidingScaleBudget(input: readonly string[], limit = SCALE_SI
   };
   const stages: Array<[ScaleConcession, (sig: string) => string]> = [
     ['diagnosis', omitDiagnosis],
-    ['literal_ss', sig => sig.replace(/\bSS\b/g, 'S.S.')],
-    ['literal_cbs', sig => sig.replace(/\bCBS\b/g, 'C.B.S.')],
+    ['literal_ss', sig => replaceScaleCodes(sig, code => code === 'SS' ? 'S.S.' : undefined)],
+    ['literal_cbs', sig => replaceScaleCodes(sig, code => code === 'CBS' ? 'C.B.S.' : undefined)],
   ];
   for (const [step, transform] of stages) {
     if (!measure().overLimit) break;

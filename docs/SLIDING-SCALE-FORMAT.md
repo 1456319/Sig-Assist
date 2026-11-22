@@ -4,6 +4,7 @@ The technician supplied these rules directly. They supersede older scale-output 
 
 - Every insulin scale draft starts `CBS <frequency> SS`, subject to the dotted-code concessions below. SS already supplies the insulin injection/SQ instruction, so a redundant trailing SQ is omitted.
 - Use `lower-upper=nU;next=...`, with no padding around comparisons, equals signs, semicolons or ampersands. Preserve source bounds, inclusivity, doses and absent bands. Do not add a low-glucose band when none was supplied.
+- Framework expands whole SIG codes separated by whitespace. At most one trailing punctuation mark is allowed before the next space. Keep the numeric tiers as a single unspaced string. A join such as `U;1` or `2U;150` remains literal and counts as typed.
 - Sort condition/action pairs by glucose bound, even when a low-glucose clause appears late in the directions. Conditions retain their own actions.
 - CALL/NOTIFY recipient variants use `CALL MD`. Known verbose requests for further instructions are part of that notification, not a new dose.
 - Retain the prescribed glucagon dose, unit, route and relationship to the protocol, including an explicit choice between the two. An unspecified dose or route requires pharmacist clarification.
