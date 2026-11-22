@@ -20,6 +20,12 @@ Use a dummy E-Rx in the same interactive Windows or Citrix session as the Sig-As
 
 The ordering reflects daily entry value and evidence available from the supplied installer. It assumes the added fields receive values reviewed by a technician, including any site-dependent date or schedule decisions.
 
+## Workstation screenshot reference
+
+An existing refill-workflow screenshot shows the main Rx Entry form with the SIG area, Quantity, Days Supply, the header Start field, Delivery ID and Delivery Date. It also shows Admin Type and a separate Dates button in the directions section. Use this layout to orient the dummy run. The screenshot does not demonstrate writable accessibility patterns, commit-on-focus behavior or the active order's PON.
+
+The shipped directions view binds the administration-times grid to the active split's `SelectedItem.AdminTimes`. The Dates button opens the split-specific Start Date/Time and Stop Date/Time dialog. The dialog's UI describes those values as interface communication fields. Verify the actual D/C Date panel before binding it to an action. Capture the full label and context for each checkbox there.
+
 ## Prototype behavior
 
 Open the selected dummy order in Sig-Assist, approve the SIG, and expand **Fill Rx Entry fields**. Choose **Read Rx Entry fields** with the draft open in the remembered window. Available fields show their current values. The grouped action requires a single visible Rx Entry view containing the exact PON and a readable patient ID. The installer establishes the Rx Entry form's internal E-Rx message identifier, while availability of the PON in the accessible draft view is a Wednesday test. Record where the PON disappears if it is only available on the preceding page.
