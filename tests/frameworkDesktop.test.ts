@@ -183,6 +183,33 @@ describe('Framework desktop transfer binding', () => {
     expect(found.pons).toEqual(['PON-A', 'PON-B']);
     expect(await desktop('send', { token: found.token, pon: 'PON-B', approved: true, matched: true, field: 'sig', value: 'APPROVED' })).toMatchObject({ ok: true, verified: true, warnings: ['Multiple PONs detected'] });
   });
+  it('binds reviewed Rx Entry values to an exact PON and forwards only the allowlisted fields', async () => {
+    const entryWindow = { pid: 41, started: '111', id: 'root-a', handle: 401 };
+    const visible = { ok: true, pon: 'SYNTHETIC-PON', entryWindow, draftReady: true,
+      fields: { quantity: { label: 'Quantity', value: '7', id: 'qty' }, startDate: { label: 'Start Date', value: '11/24/2026', id: 'date' } },
+      draft: { patientId: 'PRIVATE-FIXTURE-ID' } };
+    const run = vi.fn(async input => input.action === 'fill'
+      ? { ok: false, uncertain: true, completed: ['quantity'], error: 'Start Date changed' }
+      : input.action === 'entry-fields' ? visible : { ...detection(), entryWindow });
+    const desktop = createDesktopSession({ run });
+    expect(await desktop('entry-fields')).toMatchObject({ ok: false });
+    await desktop('detect');
+    const read = () => desktop('entry-fields');
+    const approve = { approved: true, matched: true, pon: visible.pon };
+    const first = await read();
+    expect(first).toMatchObject({ draftReady: true, fields: { quantity: { currentValue: '7' } } });
+    expect(first.fields.quantity.id).toBeUndefined();
+    expect(JSON.stringify(first)).not.toContain('PRIVATE-FIXTURE-ID');
+    expect(await desktop('fill', { ...approve, token: first.token, pon: 'DIFFERENT-PON', values: { quantity: '8' } })).toMatchObject({ ok: false });
+    const second = await read();
+    expect(await desktop('fill', { ...approve, token: second.token, values: { quantity: '8', deliveryId: '99' } })).toMatchObject({ ok: false });
+    const third = await read();
+    const valid = { ...approve, token: third.token, values: { quantity: '8', startDate: '11/25/2026' } };
+    expect(await desktop('fill', { ...valid, entryWindow: { pid: 999 } })).toMatchObject({ ok: false, completed: ['quantity'], uncertain: true });
+    expect(run).toHaveBeenLastCalledWith({ action: 'fill', expected: visible, entryWindow, pon: visible.pon, values: valid.values });
+    expect(await desktop('fill', valid)).toMatchObject({ ok: false });
+    expect(run.mock.calls.filter(([input]) => input.action === 'fill')).toHaveLength(1);
+  });
   it('does not report success or offer a retry after an uncertain write', async () => {
     const run = vi.fn().mockResolvedValueOnce(detection()).mockRejectedValueOnce(new Error('Timed out'));
     const desktop = createDesktopSession({ run }); const found = await desktop('detect');

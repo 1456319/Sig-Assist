@@ -1,5 +1,10 @@
 import { recordPilotEvent } from './pilotDiagnostics';
 
+export const rxEntryFields = [
+  ['quantity', 'Quantity'], ['daysSupply', 'Days Supply'], ['startDate', 'Start Date'], ['deliveryDate', 'Delivery Date'],
+] as const;
+export type RxEntryField = typeof rxEntryFields[number][0];
+
 export interface FrameworkDetection {
   ok: boolean;
   error?: string;
@@ -14,14 +19,16 @@ export interface FrameworkDetection {
   scanMode?: string;
   windowSelectionRequired?: boolean;
   warnings?: string[];
-  fields?: Partial<Record<'sig' | 'times', { label: string; currentValue: string }>>;
+  fields?: Partial<Record<'sig' | 'times' | RxEntryField, { label: string; currentValue: string }>>;
   diagnostics?: unknown;
+  draftReady?: boolean;
+  completed?: RxEntryField[];
   verified?: boolean;
   uncertain?: boolean;
   next?: FrameworkDetection;
 }
 
-export async function frameworkDesktop(action: 'detect' | 'inspect' | 'target' | 'send', body: Record<string, unknown> = {}): Promise<FrameworkDetection> {
+export async function frameworkDesktop(action: 'detect' | 'inspect' | 'target' | 'send' | 'entry-fields' | 'fill', body: Record<string, unknown> = {}): Promise<FrameworkDetection> {
   if (!['http:', 'https:'].includes(location.protocol)) throw new Error('Launch Start-Iguana-Connector.bat in the same Windows/Citrix session as Framework.');
   const started = performance.now();
   try {

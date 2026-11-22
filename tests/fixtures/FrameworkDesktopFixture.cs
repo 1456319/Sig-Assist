@@ -18,20 +18,24 @@ public static class FrameworkDesktopFixture {
         var quantity = new TextBox { Name = "RxEntryPrescription_QtyEdit", AccessibleName = "Quantity", Text = "QUANTITY PRIVATE VALUE", Top = 300, Left = 20, Width = 500 };
         var days = new TextBox { Name = "RxEntryPrescription_DaysSupplyEdit", AccessibleName = "Days supply", Text = "DAYS PRIVATE VALUE", Top = 340, Left = 20, Width = 500 };
         var package = new TextBox { AccessibleName = "Package type", Text = "PACKAGE PRIVATE VALUE", Top = 380, Left = 20, Width = 500 };
-        var start = new TextBox { AccessibleName = "Start date", Text = "START PRIVATE VALUE", Top = 420, Left = 20, Width = 500 };
+        var start = new TextBox { Name = "RxEntry_StartDate", AccessibleName = "Start date", Text = "START PRIVATE VALUE", Top = 420, Left = 20, Width = 500 };
         var password = new TextBox { AccessibleName = "Refills", Text = "PASSWORD PRIVATE VALUE", UseSystemPasswordChar = true, Top = 460, Left = 20, Width = 500 };
-        var hidden = new TextBox { AccessibleName = "Delivery date", Text = "HIDDEN PRIVATE VALUE", Visible = false, Top = 500, Left = 20, Width = 500 };
+        var hidden = new TextBox { Name = "RxEntryPrescription_DeliveryDate", AccessibleName = "Delivery date", Text = "HIDDEN PRIVATE VALUE", Visible = false, Top = 500, Left = 20, Width = 500 };
         var secondSig = new TextBox { AccessibleName = "SIG", Text = "OTHER SIG PRIVATE VALUE", Visible = false, Top = 500, Left = 20, Width = 500 };
         var sourceSig = new TextBox { Name = "OrderSigTextBox", AccessibleName = "Order SIG", Text = "SOURCE SIG PRIVATE VALUE", ReadOnly = true, Top = 540, Left = 20, Width = 240 };
         var previewSig = new TextBox { Name = "LinkedSigTextBox", AccessibleName = "Preview SIG", Text = "PREVIEW SIG PRIVATE VALUE", ReadOnly = true, Top = 540, Left = 280, Width = 240 };
         var richSig = new RichTextBox { Name = "paneRichEdit", AccessibleName = "SIG", Text = "RICH SIG PRIVATE VALUE", Visible = false, Top = 60, Left = 20, Width = 500, Height = 30 };
-        entry.Controls.AddRange(new Control[] { pon, sig, times, second, patient, facility, drug, quantity, days, package, start, password, hidden, secondSig, sourceSig, previewSig, richSig });
+        var dcOption = new CheckBox { Text = "Dummy D/C option", AccessibleName = "Dummy D/C option",
+            Checked = true, Visible = false, Left = 20, Top = 575, Width = 200 };
+        entry.Controls.AddRange(new Control[] { pon, sig, times, second, patient, facility, drug, quantity, days, package, start, password, hidden, secondSig, sourceSig, previewSig, richSig, dcOption });
         var orderWrapper = new Panel { Name = "ERxWorkQueueWizardView", AccessibleName = "Order wrapper", Left = 0, Top = 0, Width = 660, Height = 650 };
         orderWrapper.Controls.Add(entry); form.Controls.Add(orderWrapper);
         var otherOrder = new Panel { Name = "ERxWorkQueueWizardView", AccessibleName = "Other order", Visible = false, Left = 670, Top = 10, Width = 360, Height = 180 };
         otherOrder.Controls.Add(new TextBox { AccessibleName = "PON", Text = "UNRELATED-PON", Top = 20, Left = 10, Width = 300 });
         otherOrder.Controls.Add(new TextBox { AccessibleName = "SIG", Text = "UNRELATED SIG PRIVATE VALUE", Top = 60, Left = 10, Width = 300 });
         form.Controls.Add(otherOrder);
+        bool recalculateDays = false;
+        quantity.TextChanged += delegate { if (recalculateDays) days.Text = "3"; };
         Panel decorations = null;
         var timer = new Timer { Interval = 50 }; string seen = "";
         timer.Tick += delegate {
@@ -44,7 +48,14 @@ public static class FrameworkDesktopFixture {
                 if (command.ContainsKey("sig")) sig.Text = command["sig"];
                 if (command.ContainsKey("patient")) patient.Text = command["patient"];
                 if (command.ContainsKey("focus")) { form.Activate(); if (command["focus"] == "quantity") quantity.Focus(); else sig.Focus(); }
+                if (command.ContainsKey("recalculateDays")) recalculateDays = command["recalculateDays"] == "true";
                 if (command.ContainsKey("quantity")) quantity.Text = command["quantity"];
+                if (command.ContainsKey("daysSupply")) days.Text = command["daysSupply"];
+                if (command.ContainsKey("startDate")) start.Text = command["startDate"];
+                if (command.ContainsKey("deliveryDate")) hidden.Visible = command["deliveryDate"] == "true";
+                if (command.ContainsKey("showDcOption")) dcOption.Visible = command["showDcOption"] == "true";
+                if (command.ContainsKey("draftState")) File.WriteAllText(Path.Combine(args[0], "draft-state.json"),
+                    new JavaScriptSerializer().Serialize(new { quantity = quantity.Text, daysSupply = days.Text, startDate = start.Text, deliveryDate = hidden.Text }));
                 if (command.ContainsKey("wide")) {
                     if (command["wide"] == "true" && decorations == null) {
                         decorations = new Panel { AccessibleName = "Decorative controls", Left = 670, Top = 10, Width = 390, Height = 620 };

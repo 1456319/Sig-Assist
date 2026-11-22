@@ -15,7 +15,7 @@ export interface PilotFields {
   outcome?: typeof OUTCOMES[number];
   screen?: typeof SCREENS[number];
   metric?: 'dictionary' | 'rules' | 'expansions';
-  operation?: 'detect' | 'inspect' | 'target' | 'send' | 'docutrack';
+  operation?: 'detect' | 'inspect' | 'target' | 'send' | 'entry-fields' | 'fill' | 'docutrack';
   uncertain?: boolean;
   verified?: boolean;
   durationMs?: number;
@@ -40,7 +40,7 @@ function safeFields(value: PilotFields): PilotFields {
   if (SCREENS.includes(value.screen!)) fields.screen = value.screen;
   if (REASONS.includes(value.reason!)) fields.reason = value.reason;
   if (['dictionary', 'rules', 'expansions'].includes(value.metric!)) fields.metric = value.metric;
-  if (['detect', 'inspect', 'target', 'send', 'docutrack'].includes(value.operation!)) fields.operation = value.operation;
+  if (['detect', 'inspect', 'target', 'send', 'entry-fields', 'fill', 'docutrack'].includes(value.operation!)) fields.operation = value.operation;
   for (const key of ['uncertain', 'verified'] as const) if (typeof value[key] === 'boolean') fields[key] = value[key];
   for (const key of NUMBERS) if (typeof value[key] === 'number' && Number.isFinite(value[key]) && value[key]! >= 0) fields[key] = Math.round(value[key]!);
   return fields;

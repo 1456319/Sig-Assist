@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { downloadDesktopDiagnostics, frameworkDesktop, type FrameworkDetection } from '../lib/frameworkDesktop';
+import { downloadDesktopDiagnostics, frameworkDesktop, rxEntryFields, type FrameworkDetection, type RxEntryField } from '../lib/frameworkDesktop';
 import { reviewButtonClass, reviewInputClass } from './SigReviewPanel';
 
 export function FrameworkDetect({ disabled, onStart, onDetected }: { disabled: boolean; onStart: () => void; onDetected: (result: FrameworkDetection) => void }) {
@@ -41,7 +41,7 @@ export function FrameworkDetect({ disabled, onStart, onDetected }: { disabled: b
     <details><summary className="text-xs cursor-pointer">Framework detection help</summary>
       <p className="text-xs text-muted-foreground my-2">Run the connector inside the same Windows/Citrix session as Framework. On the first detection, bring your E-Rx entry window forward before returning here. Sig-Assist remembers the first entry window it finds while the connector stays open. Subsequent detections and diagnostics read only that window, even when other Framework instances have E-Rxs open. Choose entry window lets you select or switch it explicitly. Detection stops at the PON; Iguana supplies the directions and administration times. If the PON cannot be read, export desktop diagnostics. The export includes order text.</p>
       <label className="flex gap-2 text-xs my-2"><input type="checkbox" checked={positionReview} disabled={disabled || busy} onChange={event => setPositionReview(event.target.checked)} />Also position Framework at the SIG/admin-times section (slower). It looks for RxFill Indicator / All Fill Statuses, otherwise leaves the details at the bottom.</label>
-      <button type="button" className={reviewButtonClass} disabled={disabled || busy} onClick={() => evidence ? downloadDesktopDiagnostics(evidence) : void detect(true)}>Export desktop diagnostics</button>
+      <button type="button" className={reviewButtonClass} disabled={disabled || busy} onClick={() => void detect(true)}>Export desktop diagnostics</button>
     </details>
   </div>;
 }
@@ -57,6 +57,69 @@ export function AdministrationTimes({ times }: { times: string[] }) {
       catch { toast.error('Clipboard unavailable. Select the displayed times and copy them manually.'); }
     }}>Copy incoming times</button>}
   </aside>;
+}
+
+function RxEntryTransfer({ pon, blocked, canLive }: { pon: string; blocked?: string; canLive: boolean }) {
+  const [entry, setEntry] = useState<FrameworkDetection>();
+  const [values, setValues] = useState<Partial<Record<RxEntryField, string>>>({});
+  const [approved, setApproved] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState('');
+  const ready = entry?.draftReady === true && !!entry.token && entry.pon === pon;
+  const hasValues = Object.values(values).some(value => value?.trim());
+
+  async function read() {
+    setBusy(true); setApproved(false); setEntry(undefined); setStatus('Reading the active Rx Entry draft…');
+    try {
+      const result = await frameworkDesktop('entry-fields');
+      if (!result.ok) { setStatus(result.error || 'The Rx Entry window could not be read.'); return; }
+      setEntry(result);
+      setStatus(result.pon && result.pon !== pon ? 'The active Rx Entry PON differs from this order.'
+        : result.draftReady ? 'Enter only the values you want to replace.'
+          : 'The helper needs the PON, patient ID and an identified editable field in the same Rx Entry view.');
+    } catch (error) { setStatus(String(error)); }
+    finally { setBusy(false); }
+  }
+  async function fill() {
+    if (busy || blocked || !approved || !ready || !hasValues) return;
+    if (!entry?.expiresAt || entry.expiresAt < Date.now()) {
+      setEntry(undefined); setApproved(false); setStatus('The draft reading expired. Read the Rx Entry fields again.'); return;
+    }
+    const changes = Object.fromEntries(rxEntryFields.flatMap(([field]) =>
+      entry.fields?.[field] && values[field]?.trim() ? [[field, values[field]!.trim()]] : []));
+    if (!Object.keys(changes).length) return;
+    setBusy(true); setApproved(false); setEntry(undefined); setStatus('Entering the reviewed values…');
+    try {
+      const result = await frameworkDesktop('fill', { token: entry.token, pon, values: changes, approved: true, matched: true });
+      if (result.ok && result.verified) {
+        setValues({});
+        setStatus('Selected fields entered and read back. Review the draft in Framework before saving.');
+      } else {
+        const completed = rxEntryFields.filter(([field]) => result.completed?.includes(field)).map(([, label]) => label);
+        setStatus([result.error || 'Draft entry could not be verified.', completed.length ? `Read back before stopping: ${completed.join(', ')}.` : '',
+          completed.length || result.uncertain ? 'Inspect the full Framework draft before retrying.' : ''].filter(Boolean).join(' '));
+      }
+    } catch (error) { setStatus(`${String(error)} Inspect Framework before retrying; the result is unknown.`); }
+    finally { setBusy(false); }
+  }
+  return <details className="space-y-2">
+    <summary className="cursor-pointer text-sm">Fill Rx Entry fields</summary>
+    <button type="button" className={reviewButtonClass} disabled={!canLive || busy} onClick={() => void read()}>Read Rx Entry fields</button>
+    {entry && rxEntryFields.map(([field, label]) => {
+      const target = entry.fields?.[field];
+      return target ? <label className="block text-sm" key={field}>{label}
+        <span className="ml-2 text-xs text-muted-foreground">Current: {target.currentValue || '(empty)'}</span>
+        <input className={reviewInputClass} value={values[field] ?? ''} maxLength={32} disabled={!ready || busy}
+          placeholder={field.endsWith('Date') ? 'MM/DD/YYYY or leave blank' : 'Leave blank to skip'} onChange={event => { setValues(previous => ({ ...previous, [field]: event.target.value })); setApproved(false); }} />
+      </label> : <p key={field} className="text-xs text-muted-foreground">{label} could not be identified as an editable field.</p>;
+    })}
+    {ready && <>
+      <label className="flex gap-2 text-sm"><input type="checkbox" checked={approved} disabled={busy || !!blocked || !hasValues}
+        onChange={event => setApproved(event.target.checked)} />I matched the patient, drug and PON and reviewed these draft values in Framework’s format.</label>
+      <button type="button" className={reviewButtonClass} disabled={busy || !!blocked || !approved || !hasValues} onClick={() => void fill()}>Fill reviewed Rx Entry fields</button>
+    </>}
+    {status && <p className="text-sm" role="status">{status}</p>}
+  </details>;
 }
 
 export function FrameworkTransfer({ detected, pon, sig, blocked, parts = [], times, onDetected, onVerifiedSig }: {
@@ -132,6 +195,7 @@ export function FrameworkTransfer({ detected, pon, sig, blocked, parts = [], tim
         <p className="text-xs text-muted-foreground">Choose an editable times text field. Grid schedules may require entry in Framework.</p>
       </div>
     </details>
+    <RxEntryTransfer pon={pon} blocked={blockReason} canLive={canLive} />
     {!canLive && <p className="text-sm">Launch Start-Iguana-Connector.bat to send to Framework.</p>}
     <p className="text-xs text-muted-foreground">The technician decides which order receives the approved text. Transfer verifies the destination text; preview and save in Framework.</p>
     {!!status && <p className="text-sm" role="status">{status}</p>}

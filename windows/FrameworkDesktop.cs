@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -17,6 +18,8 @@ public sealed class ControlInfo {
     public string id, parentId, automationId, name, label, value, type, className;
     public int depth;
     public bool offscreen, hidden, enabled, writable, inOpenErx, inTriage;
+    public string[] supportedPatterns;
+    public string toggleState;
     [ScriptIgnore] public AutomationElement element;
 }
 public sealed class WindowInfo {
@@ -233,7 +236,7 @@ public static class FrameworkDesktop {
         return field == "sig" ? Regex.IsMatch(label, @"^(?:SIG|Prescription SIG|SIG code)$", RegexOptions.IgnoreCase)
             : Regex.IsMatch(label, @"^(?:Administration times|Admin times)$", RegexOptions.IgnoreCase);
     }
-    static ControlInfo Read(AutomationElement element) {
+    static ControlInfo Read(AutomationElement element, bool inspectPatterns = false) {
         if (element == null) return null;
         var current = element.Current;
         if (current.IsPassword) return null;
@@ -246,6 +249,13 @@ public static class FrameworkDesktop {
             var value = (ValuePattern)pattern;
             item.value = value.Current.Value;
             item.writable = !value.Current.IsReadOnly;
+        }
+        if (inspectPatterns && !item.offscreen && (item.type == "ControlType.Edit" || item.type == "ControlType.Document" ||
+            item.type == "ControlType.ComboBox" || item.type == "ControlType.CheckBox" || item.type == "ControlType.DataGrid" ||
+            item.type == "ControlType.ListItem")) {
+            item.supportedPatterns = element.GetSupportedPatterns().Select(supported => supported.ProgrammaticName).ToArray();
+            if (element.TryGetCurrentPattern(TogglePattern.Pattern, out pattern))
+                item.toggleState = ((TogglePattern)pattern).Current.ToggleState.ToString();
         }
         return item;
     }
@@ -276,7 +286,7 @@ public static class FrameworkDesktop {
         try { int handle = root.Current.NativeWindowHandle; return order.ContainsKey(handle) ? order[handle] : Int32.MaxValue; }
         catch { return Int32.MaxValue; }
     }
-    static DesktopSnapshot Scan(string testProcess, bool expandGrids = false, bool positionReview = false, EntryWindow entry = null) {
+    static DesktopSnapshot Scan(string testProcess, bool expandGrids = false, bool positionReview = false, EntryWindow entry = null, bool inspectPatterns = false) {
         var result = new DesktopSnapshot { scanMode = entry == null ? "discover-entry" : "remembered-entry", entryWindow = entry };
         var processes = new Dictionary<int, Process>();
         AutomationElement[] roots;
@@ -321,7 +331,7 @@ public static class FrameworkDesktop {
                 if (++visited > 1800) { window.incomplete = true; break; }
                 var next = pending.Pop();
                 try {
-                    var item = Read(next.element);
+                    var item = Read(next.element, inspectPatterns);
                     // Do not traverse password controls or their children.
                     if (item == null) continue;
                     item.parentId = next.parentId; item.depth = next.depth;
@@ -845,6 +855,147 @@ public static class FrameworkDesktop {
         if (!snapshot.windows.Any(w => w.controls.Any(c => c.id == selected.id))) throw new Exception("The selected field is outside Framework in this Windows session.");
         return Detect(snapshot, selected.id, field);
     }
+    // Shipped Rx Entry bindings. Write only to uniquely identified edit controls.
+    static readonly string[] DraftFieldOrder = { "quantity", "daysSupply", "startDate", "deliveryDate" };
+    static string DraftFieldLabel(string field) {
+        switch (field) {
+            case "quantity": return "Quantity";
+            case "daysSupply": return "Days Supply";
+            case "startDate": return "Start Date";
+            case "deliveryDate": return "Delivery Date";
+            default: throw new Exception("Unknown Rx Entry field.");
+        }
+    }
+    static bool MatchesName(ControlInfo control, params string[] names) {
+        return names.Contains(control.automationId) || names.Contains(control.name);
+    }
+    static bool IsRxEntry(ControlInfo control) {
+        return MatchesName(control, "RxEntryViewControl", "RxEntryView") || control.className == "RxEntryView";
+    }
+    static bool DraftField(ControlInfo control, string field) {
+        if (control.hidden || control.inTriage || control.offscreen || !control.enabled || !control.writable || control.type != "ControlType.Edit") return false;
+        string label = Label(control);
+        switch (field) {
+            case "quantity": return MatchesName(control, "RxEntryPrescription_QtyEdit") || label.Equals("Quantity", StringComparison.OrdinalIgnoreCase);
+            case "daysSupply": return MatchesName(control, "RxEntryPrescription_DaysSupplyEdit") || label.Equals("Days Supply", StringComparison.OrdinalIgnoreCase);
+            case "startDate": return MatchesName(control, "RxEntryStartDate", "RxEntry_StartDate") || label.Equals("Start Date", StringComparison.OrdinalIgnoreCase);
+            case "deliveryDate": return MatchesName(control, "RxEntryPrescription_DeliveryDate") || label.Equals("Delivery Date", StringComparison.OrdinalIgnoreCase);
+            default: return false;
+        }
+    }
+    static bool UnderControl(ControlInfo control, ControlInfo scope, Dictionary<string, ControlInfo> controls) {
+        while (!String.IsNullOrEmpty(control.parentId) && controls.TryGetValue(control.parentId, out control))
+            if (control.id == scope.id) return true;
+        return false;
+    }
+    sealed class DraftBinding {
+        public string scopeId, pon, patientId, facilityId;
+        public Dictionary<string, object> fields = new Dictionary<string, object>();
+        [ScriptIgnore] public Dictionary<string, ControlInfo> targets = new Dictionary<string, ControlInfo>();
+    }
+    static string UniqueValue(IEnumerable<ControlInfo> controls) {
+        var values = controls.Select(control => Trim(control.value)).Where(value => value != "").Distinct(StringComparer.Ordinal).ToArray();
+        return values.Length == 1 ? values[0] : null;
+    }
+    static DraftBinding BindDraft(DesktopSnapshot snapshot) {
+        var binding = new DraftBinding();
+        var window = snapshot.windows.SingleOrDefault();
+        if (window == null || window.incomplete) return binding;
+        var controls = window.controls.ToDictionary(control => control.id);
+        var entries = window.controls.Where(control => !control.hidden && !control.inTriage && IsRxEntry(control)).ToArray();
+        var scopes = entries.Where(entry => !entries.Any(other => UnderControl(other, entry, controls))).ToArray();
+        if (scopes.Length != 1) return binding;
+        var scope = scopes[0];
+        binding.scopeId = scope.id;
+        var children = window.controls.Where(control => !control.hidden && !control.inTriage && UnderControl(control, scope, controls)).ToArray();
+        var childIds = new HashSet<string>(children.Select(control => control.id));
+        var pons = children.Select(Pon).Concat(window.grids.Where(grid => childIds.Contains(grid.id))
+            .SelectMany(grid => grid.rows).Where(row => PonTitle(row.title) && ValidPon(row.value)).Select(row => row.value))
+            .Where(value => value != "").Distinct(StringComparer.Ordinal).ToArray();
+        binding.pon = pons.Length == 1 ? pons[0] : null;
+        binding.patientId = UniqueValue(children.Where(control => MatchesName(control, "RxEntry_PatientIdDisplay") ||
+            Label(control).Equals("Patient ID", StringComparison.OrdinalIgnoreCase)));
+        if (binding.patientId == null) {
+            var patientDisplay = children.Where(control => control.automationId == "RxEntry_PatientIdDisplay" &&
+                control.type == "ControlType.Text" && !String.IsNullOrWhiteSpace(control.name) && control.name != control.automationId).ToArray();
+            if (patientDisplay.Length == 1) binding.patientId = Trim(patientDisplay[0].name);
+        }
+        binding.facilityId = UniqueValue(children.Where(control => Label(control).Equals("Facility ID", StringComparison.OrdinalIgnoreCase)));
+        foreach (var field in DraftFieldOrder) {
+            var candidates = children.Where(candidate => DraftField(candidate, field)).ToArray();
+            if (candidates.Length != 1) continue;
+            var control = candidates[0];
+            binding.targets[field] = control;
+            binding.fields[field] = new { id = control.id, label = DraftFieldLabel(field), value = control.value };
+        }
+        return binding;
+    }
+    static object InspectDraft(DesktopSnapshot snapshot) {
+        var binding = BindDraft(snapshot);
+        return new { ok = true, pon = binding.pon, pons = binding.pon == null ? new string[0] : new[] { binding.pon },
+            entryWindow = snapshot.entryWindow, fields = binding.fields, draft = binding,
+            draftReady = binding.pon != null && binding.patientId != null && binding.fields.Count > 0 };
+    }
+    static bool ValidDraftValue(string field, string value) {
+        if (String.IsNullOrEmpty(value) || value.Length > 32) return false;
+        if (field == "quantity" || field == "daysSupply")
+            return Regex.IsMatch(value, @"^[0-9]+(?:[.,][0-9]+)?$");
+        // Both date editors in the supplied Rx Entry view use MM/dd/yyyy.
+        DateTime date;
+        return DateTime.TryParseExact(value, "MM/dd/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out date);
+    }
+    static object FillDraft(Dictionary<string, object> input, EntryWindow entry, string testProcess) {
+        var expected = Map(Map(input["expected"])["draft"]);
+        var fields = Map(expected["fields"]);
+        var values = Map(input["values"]);
+        var pon = Text(input["pon"]);
+        var completed = new List<string>();
+        bool attempted = false;
+        try {
+            if (!ValidPon(pon) || pon != Text(expected["pon"]) || Text(expected["patientId"]) == "")
+                throw new Exception("Read the exact PON and patient ID in Rx Entry before sending.");
+            if (values.Count == 0 || values.Any(item => !DraftFieldOrder.Contains(item.Key) || !fields.ContainsKey(item.Key) ||
+                !(item.Value is string) || !ValidDraftValue(item.Key, (string)item.Value)))
+                throw new Exception("Select identified fields and enter values in the displayed Framework format.");
+            foreach (var field in DraftFieldOrder.Where(values.ContainsKey)) {
+                var current = BindDraft(Scan(testProcess, false, false, entry));
+                if (current.scopeId != Text(expected["scopeId"]) || current.pon != pon || current.patientId != Text(expected["patientId"]) ||
+                    Text(current.facilityId) != Text(expected["facilityId"]))
+                    throw new Exception("The active Framework order changed or can no longer be verified.");
+                // Preflight every pending target before the first write and detect
+                // any Framework recalculation before replacing a later field.
+                foreach (var pending in values.Keys.Where(key => !completed.Contains(key))) {
+                    ControlInfo target;
+                    var previous = Map(fields[pending]);
+                    if (!current.targets.TryGetValue(pending, out target) || target.id != Text(previous["id"]) ||
+                        target.value != Text(previous["value"]))
+                        throw new Exception(DraftFieldLabel(pending) + " changed or can no longer be verified. Read the current draft again.");
+                }
+                var control = current.targets[field];
+                var fresh = Read(control.element);
+                if (fresh == null || fresh.id != control.id || !DraftField(fresh, field) || fresh.value != control.value)
+                    throw new Exception(DraftFieldLabel(field) + " is no longer ready to receive a value.");
+                string value = (string)values[field];
+                if (fresh.value != value) {
+                    writeAttempted = attempted = true;
+                    ((ValuePattern)control.element.GetCurrentPattern(ValuePattern.Pattern)).SetValue(value);
+                    var after = Read(control.element);
+                    if (after == null || after.id != control.id || after.value != value)
+                        throw new Exception(DraftFieldLabel(field) + " could not be read back exactly.");
+                    attempted = false;
+                }
+                completed.Add(field);
+            }
+            var final = BindDraft(Scan(testProcess, false, false, entry));
+            if (final.scopeId != Text(expected["scopeId"]) || final.pon != pon || final.patientId != Text(expected["patientId"]) ||
+                Text(final.facilityId) != Text(expected["facilityId"]) || values.Any(item => !final.targets.ContainsKey(item.Key) ||
+                    final.targets[item.Key].id != Text(Map(fields[item.Key])["id"]) || final.targets[item.Key].value != (string)item.Value))
+                throw new Exception("The selected values or order changed after entry. Review the Framework draft.");
+            return new { ok = true, verified = true, completed = completed };
+        } catch (Exception error) {
+            return new { ok = false, uncertain = attempted || writeAttempted, completed = completed, error = error.Message };
+        }
+    }
     static object Send(Dictionary<string, object> input, DesktopSnapshot snapshot, string testProcess) {
         var expected = Map(input["expected"]);
         string field = Text(input["field"]), value = Text(input["value"]);
@@ -861,8 +1012,8 @@ public static class FrameworkDesktop {
         if (fresh == null || fresh.offscreen || !fresh.enabled || !fresh.writable || fresh.type != "ControlType.Edit") throw new Exception("The chosen field cannot currently accept text. Make it visible and editable in Framework.");
         var warnings = new List<string>();
         var current = Map(Json.DeserializeObject(Serialize(Detect(snapshot))));
-        if (Serialize(current["pons"]) != Serialize(expected["pons"])) warnings.Add("The exposed PONs changed since detection. Verify the intended order in Framework.");
-        if (fresh.value != Text(info["value"])) warnings.Add("The destination text changed since it was identified. The technician-approved text replaced its current contents.");
+        if (Serialize(current["pons"]) != Serialize(expected["pons"])) throw new Exception("The exposed PONs changed since detection. Read the intended Framework order again.");
+        if (fresh.value != Text(info["value"])) throw new Exception("The destination text changed since it was identified. Review the current Framework text before sending.");
         foreach (object warning in (System.Collections.IEnumerable)current["warnings"]) warnings.Add(Text(warning));
         writeAttempted = true;
         ((ValuePattern)control.element.GetCurrentPattern(ValuePattern.Pattern)).SetValue(value);
@@ -1491,6 +1642,14 @@ public static class FrameworkDesktop {
             if (action == "dataset-snapshot") { Console.WriteLine(Serialize(DatasetSnapshot(entry, testProcess))); return 0; }
             if (action == "observe") { Console.WriteLine(Serialize(Observe(entry, input.ContainsKey("key") ? Text(input["key"]) : "", testProcess,
                 input.ContainsKey("scanOffset") ? Convert.ToInt32(input["scanOffset"]) : 0))); return 0; }
+            if (action == "entry-fields") {
+                if (entry == null) throw new Exception("Choose the Framework entry window first.");
+                Console.WriteLine(Serialize(InspectDraft(Scan(testProcess, false, false, entry)))); return 0;
+            }
+            if (action == "fill") {
+                if (entry == null) throw new Exception("Choose the Framework entry window first.");
+                Console.WriteLine(Serialize(FillDraft(input, entry, testProcess))); return 0;
+            }
             if (action == "send") {
                 var fields = Map(Map(input["expected"])["fields"]); string field = Text(input["field"]);
                 if (!fields.ContainsKey(field)) throw new Exception("Choose the destination field in Framework first.");
@@ -1498,7 +1657,7 @@ public static class FrameworkDesktop {
                 entry = new EntryWindow { pid = Convert.ToInt32(destination["pid"]), started = Text(destination["started"]),
                     id = Text(destination["window"]), handle = Convert.ToInt32(destination["handle"]) };
             }
-            var snapshot = Scan(testProcess, action == "detect" || action == "inspect", positionReview, entry);
+            var snapshot = Scan(testProcess, action == "detect" || action == "inspect", positionReview, entry, action == "inspect");
             object result = action == "detect" ? Detect(snapshot) : action == "inspect" ? (object)new { ok = true, diagnostics = snapshot } : action == "send" ? Send(input, snapshot, testProcess) : throwUnknown();
             Console.WriteLine(Serialize(result)); return 0;
         } catch (Exception error) { Console.WriteLine(Serialize(new { ok = false, uncertain = writeAttempted, error = error.Message })); return 0; }

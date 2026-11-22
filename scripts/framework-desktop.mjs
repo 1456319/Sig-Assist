@@ -75,7 +75,7 @@ export async function runDesktopHelper(input, { getExecutable = helperExecutable
   try { exe = await getExecutable(); }
   catch (error) { throw helperFailure(error?.message || 'Desktop helper could not start.', failureReasons.has(error?.failureReason) ? error.failureReason : 'HELPER_STARTUP_FAILED', error?.helperDurationMs ?? performance.now() - started); }
   let output;
-  try { output = await execute(exe, [], JSON.stringify(input), ['observe', 'dataset-snapshot'].includes(input.action) ? 8000 : input.action === 'window' ? 55000 : ['detect', 'inspect', 'docutrack'].includes(input.action) ? 45000 : 20000); }
+  try { output = await execute(exe, [], JSON.stringify(input), ['observe', 'dataset-snapshot'].includes(input.action) ? 8000 : input.action === 'window' ? 55000 : ['detect', 'inspect', 'docutrack', 'entry-fields', 'fill'].includes(input.action) ? 45000 : 20000); }
   catch (error) { throw helperFailure(error?.message || 'Desktop helper could not run.', error?.failureReason, error?.helperDurationMs ?? performance.now() - started); }
   try {
     const result = JSON.parse(output);
@@ -86,6 +86,13 @@ export async function runDesktopHelper(input, { getExecutable = helperExecutable
 
 // Bindings stay in this process, expire and are consumed before a write. The page
 // receives an opaque token, never a client-editable process/control selector.
+const rxEntryFields = new Set(['quantity', 'daysSupply', 'startDate', 'deliveryDate']);
+function validDraftValue(field, value) {
+  if (typeof value !== 'string' || !value || value.length > 32) return false;
+  const pattern = field === 'quantity' || field === 'daysSupply'
+    ? /^[0-9]+(?:[.,][0-9]+)?$/ : /^[0-9]{2}\/[0-9]{2}\/[0-9]{4}$/;
+  return pattern.test(value) && !/[\r\n]/.test(value);
+}
 export function createDesktopSession({ run = runDesktopHelper, now = Date.now } = {}) {
   const bindings = new Map(); let busy = false; let entryWindow, observationDone, finishObservation, passiveAction;
   // A frozen Framework window blocks every UI Automation read until the helper
@@ -117,7 +124,7 @@ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } 
       instances: result.instances, openErxWindows: result.openErxWindows, viewportStatus: result.viewportStatus,
       entryWindow: entryWindow ? { title: entryWindow.title, pid: entryWindow.pid } : undefined, scanMode: result.scanMode,
       fields: Object.fromEntries(Object.entries(result.fields ?? {}).map(([key, value]) => [key, { label: value.label, currentValue: value.value }])),
-      diagnostics: result.diagnostics };
+      diagnostics: result.diagnostics, ...(result.draft ? { draftReady: result.draftReady === true } : {}) };
   }
   return async function desktop(action, body = {}) {
     // A clinical request waits for the bounded passive read already in flight;
@@ -184,11 +191,27 @@ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } 
         bindings.clear(); return remember(await run({ action: 'target', field: body.field }));
       }
       if (action === 'inspect') return await run({ action: 'inspect', ...(entryWindow ? { entryWindow } : {}) });
-      if (action !== 'send') return { ok: false, error: 'Unknown desktop action.' };
+      if (action === 'entry-fields') {
+        if (!entryWindow) return { ok: false, error: 'Choose the Framework entry window first.' };
+        return remember(await run({ action, entryWindow }));
+      }
+      if (action !== 'send' && action !== 'fill') return { ok: false, error: 'Unknown desktop action.' };
       const bound = bindings.get(body.token);
       bindings.delete(body.token);
       if (!bound || bound.expiresAt < now()) throw new Error('Detection expired or was already used. Detect the open E-Rx again.');
       if (body.approved !== true || body.matched !== true || typeof body.pon !== 'string' || !body.pon.trim()) throw new Error('Match the intended order and approve the exact text before sending.');
+      if (action === 'fill') {
+        const detected = bound.detected;
+        if (!entryWindow || !detected.draft || detected.draftReady !== true || detected.pon !== body.pon ||
+            ['pid', 'started', 'id', 'handle'].some(key => detected.entryWindow?.[key] !== entryWindow[key]))
+          throw new Error('Read the matching PON and patient ID in the active Rx Entry window first.');
+        const values = body.values;
+        if (!values || typeof values !== 'object' || Array.isArray(values) || !Object.keys(values).length ||
+            Object.entries(values).some(([field, value]) => !rxEntryFields.has(field) || !detected.fields?.[field] || !validDraftValue(field, value)))
+          throw new Error('Select identified fields and enter values in the displayed Framework format.');
+        writeStarted = true;
+        return await run({ action, expected: detected, entryWindow, pon: body.pon, values });
+      }
       if (!['sig', 'times'].includes(body.field) || !bound.detected.fields?.[body.field]) throw new Error('Choose the destination field in Framework first.');
       if (typeof body.value !== 'string' || !body.value.trim() || body.value.length > (body.field === 'sig' ? 4000 : 500)) throw new Error('Invalid field text.');
       writeStarted = true;

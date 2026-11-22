@@ -58,6 +58,32 @@ describe('technician-controlled Framework sending', () => {
     expect(fetcher.mock.calls[0][0]).toBe('/connector/desktop/send');
     expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({ pon: 'PON-B', value: 'APPROVED SIG', approved: true, matched: true });
   });
+  it('requires review of exact Rx Entry values and reports a partial fill without retrying', async () => {
+    const draft = { ok: true, draftReady: true, pon: 'PON-B', token: 'draft-token', expiresAt: Date.now() + 300000,
+      fields: { quantity: { label: 'Quantity', currentValue: '7' }, startDate: { label: 'Start Date', currentValue: '11/24/2026' } } };
+    const fetcher = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify(draft))).mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: false, completed: ['quantity'], uncertain: true, error: 'Start Date changed.' })));
+    vi.stubGlobal('fetch', fetcher);
+    render(<Harness />);
+    fireEvent.click(screen.getByText('Fill Rx Entry fields'));
+    fireEvent.click(screen.getByRole('button', { name: 'Read Rx Entry fields' }));
+    fireEvent.change(await screen.findByLabelText(/Quantity/), { target: { value: '8' } });
+    fireEvent.change(screen.getByLabelText(/Start Date/), { target: { value: '11/25/2026' } });
+    const approved = screen.getByLabelText(/reviewed these draft values/);
+    const fill = screen.getByRole('button', { name: 'Fill reviewed Rx Entry fields' }) as HTMLButtonElement;
+    expect(fill.disabled).toBe(true);
+    fireEvent.click(approved);
+    fireEvent.change(screen.getByLabelText(/Quantity/), { target: { value: '9' } });
+    expect(fill.disabled).toBe(true);
+    fireEvent.click(approved);
+    fireEvent.click(fill);
+    await screen.findByText(/Read back before stopping: Quantity/);
+    expect(fetcher.mock.calls[1][0]).toBe('/connector/desktop/fill');
+    expect(JSON.parse(fetcher.mock.calls[1][1].body)).toEqual({
+      token: 'draft-token', pon: 'PON-B', values: { quantity: '9', startDate: '11/25/2026' }, matched: true, approved: true,
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
   it('keeps sending available without detected metadata and identifies a chosen field before a separate send', async () => {
     const fetcher = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify(found))).mockResolvedValueOnce(new Response(JSON.stringify({ ok: true, verified: true, next: found })));
     vi.stubGlobal('fetch', fetcher); render(<Harness />);

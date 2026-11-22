@@ -20,6 +20,12 @@ Use a dummy E-Rx in the same interactive Windows or Citrix session as the Sig-As
 
 The ordering reflects daily entry value and evidence available from the supplied installer. It assumes the added fields receive values reviewed by a technician, including any site-dependent date or schedule decisions.
 
+## Prototype behavior
+
+Open the selected dummy order in Sig-Assist, approve the SIG, and expand **Fill Rx Entry fields**. Choose **Read Rx Entry fields** with the draft open in the remembered window. Available fields show their current values. The grouped action requires a single visible Rx Entry view containing the exact PON and a readable patient ID. The installer establishes the Rx Entry form's internal E-Rx message identifier, while availability of the PON in the accessible draft view is a Wednesday test. Record where the PON disappears if it is only available on the preceding page.
+
+Enter the reviewed values and select the review checkbox. Dates use the shipped `MM/DD/YYYY` mask. Blank inputs skip a field. The pilot takes its values from this review form and does not calculate dates, quantities, or days supply. It applies Quantity, Days Supply, Start Date, and Delivery Date in that order. It stops when a pending field has changed, including when Framework recalculates a dependent value. If a group stops after a write, review the full draft and read it again before continuing. The SIG and administration-times actions are separate and now stop if the bound PON list or destination text changes after detection.
+
 ## Run order
 
 1. **Read the active order.** Open the dummy E-Rx and choose or detect the entry window once. Record when the PON and patient ID are readable together with the target fields. Check the directions wizard, product selection and Rx Entry separately. For each field capture the exact label, AutomationId, class, control type, parent view, enabled/read-only state, and Value, Text, RangeValue, SelectionItem or Toggle patterns as applicable. Record presence and state for the D/C controls. Workstation diagnostics may include order text, so only export dummy captures.
@@ -31,7 +37,7 @@ The ordering reflects daily entry value and evidence available from the supplied
 ## Automation and evidence
 
 - Run the existing Windows synthetic smoke test with `node scripts/smoke-framework-desktop.mjs`. It exercises the helper against a dummy WinForms process and can run in GitHub Actions. It cannot establish which installed Framework controls expose writable patterns.
-- Use Sig-Assist's existing desktop diagnostics on the dummy workstation for UI Automation discovery. For live entry tests, use the existing reviewed SIG/times buttons and the reviewed Rx Entry field group when the page binds it to the active order. Compare the actual draft after each case.
+- Use **Export desktop diagnostics** from Framework detection help on the dummy workstation for UI Automation discovery. An explicit inspection records the supported patterns and current toggle state of accessible, visible checkboxes. For live entry tests, use the existing reviewed SIG/times buttons and the reviewed Rx Entry field group when the page binds it to the active order. Compare the actual draft after each case.
 - Record case, build, active screen, field/pattern, same-order proof, requested dummy value, immediate read-back, value after focus moved, side effects, outcome, and time taken. A format or lookup assumption becomes a blocked case until verified. Use redacted logs or fixture data for durable results.
 - The program should draft reviewed values through the Windows accessibility API. Keep prescription save and workflow actions with the technician. The framework-read integration remains a separate, approved test, and FWDirect remains excluded.
 

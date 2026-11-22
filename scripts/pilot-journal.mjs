@@ -12,7 +12,7 @@ const codes = new Set(('screen.open customization.count dictionary.save connecto
 const enums = {
   outcome: ['ok', 'failed', 'unavailable', 'unknown', 'changed', 'file_system', 'browser_cache', 'browser_database'],
   screen: ['queue', 'workbench', 'dictionary', 'rules', 'expansions', 'settings'],
-  operation: ['detect', 'inspect', 'target', 'send', 'docutrack', 'observe'],
+  operation: ['detect', 'inspect', 'target', 'send', 'entry-fields', 'fill', 'docutrack', 'observe'],
   metric: ['dictionary', 'rules', 'expansions'],
   layer: ['intake', 'clinical', 'packaging', 'assembly', 'storage', 'ui'],
   level: ['DEBUG', 'INFO', 'WARN', 'ERROR'],
