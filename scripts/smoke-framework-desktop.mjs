@@ -29,7 +29,15 @@ try {
   });
   async function command(changes) {
     const text = JSON.stringify({ nonce: String(Date.now()), ...changes });
-    await writeFile(path.join(folder, 'command.json'), text);
+    const commandPath = path.join(folder, 'command.json');
+    for (let attempt = 0; ; attempt++) {
+      try { await writeFile(commandPath, text); break; }
+      catch (error) {
+        // The WinForms timer may hold the file open for a read.
+        if (attempt === 19 || !['EBUSY', 'EPERM'].includes(error.code)) throw error;
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+    }
     await until(async () => await readFile(path.join(folder, 'ack.json'), 'utf8') === text);
   }
   const first = await run({ action: 'detect' });
