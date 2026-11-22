@@ -6,12 +6,56 @@ import { parseSlidingScale } from '../src/lib/clinical/slidingScale';
 const drug = 'Insulin Lispro Injection 100 UNIT/ML';
 const run = (rawProse: string) => translateClinicalSig({ id: 'synthetic-site-scale', pon: 'SYNTHETIC', drugName: drug, rawProse, sourceFormat: 'manual_text' });
 const rawExample = 'Check blood sugar and administer according to sliding scale: if 150 - 200 then give 4 units, if 201 - 250 give 6 units, 251-300 then give 7 units if 301 - 350 give 10 units. If 351-400 give 12 units. If reading is 450+, give 14 units and recheck in 2 hours. If readings are still high, callD/NP. If <70 being hypoglycemic protocol FDM2. AND give 3 units four times daily with meals and at bedtime (h if resident did not eat) FDM2';
+const compoundExample = 'cbs sliding scale 150 - 199 give 2 units, 200 - 249give 4 units 250 - 299 give 6 units,300 - 349 give 8 units, 350 - 399 give 10 units and 400 to 450 give 12U and recheck in 2 hours. if still >400, call provider or md/np and document critical result. <70 [give 1mg glucagon IM] or [initiate hypoglycemic protocol] for ACHS DM II. AND give 5 units ac';
 
 describe('technician-specified insulin scale format', () => {
+  it.each(['400 to 450', '400 thru 450', '400 through 450', '400..450'])('preserves the entire latest compound example with %s', range => {
+    const prose = compoundExample.replace('400 to 450', range);
+    const result = run(prose);
+    expect(result.subOrders.map(part => part.suggestedSig)).toEqual([
+      'C.B.S. ACHS S.S. <70=[GIVE 1MG GLUCAGON IM] OR [INITIATE HYPOGLYCEMIC PROTOCOL];150-199=2U;200-249=4U;250-299=6U;300-349=8U;350-399=10U;400-450=12U&RECHECK 2H&IF STILL>400, CALL PROVIDER OR MD/NP AND DOCUMENT CRITICAL RESULT',
+      'INJ 5U SQ AC',
+    ]);
+    expect(result.abnormalities.some(a => a.id === 'sliding_scale_budget_exceeded')).toBe(true);
+    expect(result.abnormalities.some(a => a.id === 'sliding_scale_gap' || a.id === 'incomplete_sliding_scale')).toBe(false);
+    expect(translateFreeTextSig(prose, { drug }).sig).toBe(result.primarySig);
+  });
+  it('returns a usable draft with an explicit pharmacist warning for an omitted middle tier', () => {
+    const prose = compoundExample.replace('350 - 399 give 10 units ', '');
+    const result = run(prose);
+    expect(result.primarySig).not.toContain('350-399=');
+    expect(result.subOrders[1].suggestedSig).toBe('INJ 5U SQ AC');
+    expect(result.abnormalities).toContainEqual(expect.objectContaining({
+      id: 'sliding_scale_gap', message: expect.stringContaining('350–399'),
+    }));
+    expect(translateFreeTextSig(prose, { drug }).order.issues).toContainEqual(expect.objectContaining({
+      code: 'sliding-scale-gap', severity: 'blocking', message: expect.stringContaining('350–399'),
+    }));
+  });
+  it('does not let a shorter nested band create a spurious gap inside a longer band', () => {
+    const result = run('Sliding scale SQ AC:150-249=2 units;180-199=3 units;250-299=4 units.');
+    expect(result.abnormalities.map(a => a.id)).toContain('sliding_scale_overlap');
+    expect(result.abnormalities.map(a => a.id)).not.toContain('sliding_scale_gap');
+  });
+  it('leaves an unrecognized numeric follow-up in the source for clarification', () => {
+    const result = run('Sliding scale SQ AC:150-199=2 units;200-249=4 units and recheck in 2 hours. If still >225 give half the previous dose.');
+    expect(result.primarySig).toContain('IF STILL>225 GIVE HALF THE PREVIOUS DOSE');
+    expect(result.primarySig).not.toContain('>225=');
+    expect(result.abnormalities.some(a => a.id === 'incomplete_sliding_scale')).toBe(true);
+  });
+  it('does not use a rescue schedule as correction timing', () => {
+    const result = run('Sliding scale SQ AC:150-199=2 units;200+=4 units; <70 give 1mg glucagon IM at bedtime');
+    expect(result.primarySig).toBe('CBS AC SS <70=GIVE 1MG GLUCAGON IM AT BEDTIME;150-199=2U;200+=4U');
+  });
+  it('retains multiple explicit fixed-dose timings in a reviewable separate draft', () => {
+    const result = run('Sliding scale SQ ACHS:150-199=2 units;200+=4 units. AND give 3 units AC and QHS');
+    expect(result.subOrders[1].suggestedSig).toBe('GIVE 3 UNITS AC AND QHS');
+    expect(result.abnormalities.some(a => a.id === 'sliding_scale_fixed_review')).toBe(true);
+  });
   it('translates the complete example with independently scoped fixed dose and follow-up', () => {
     const result = run(rawExample);
-    expect(result.primarySig).toBe('C.B.S. WMHS S.S. <70=HYPOGLYCEMIC PROTOCOL;150-200=4U;201-250=6U;251-300=7U;301-350=10U;351-400=12U;450+=14U&RECHECK 2H&CALL MD IF STILL HIGH.PLUS3U(H IF NOT EATING)');
-    expect(result.abnormalities.map(a => a.id)).toEqual(expect.arrayContaining(['sliding_scale_gap', 'sliding_scale_concessions', 'sliding_scale_budget_exceeded']));
+    expect(result.primarySig).toBe('C.B.S. [FREQUENCY] S.S. <70=HYPOGLYCEMIC PROTOCOL;150-200=4U;201-250=6U;251-300=7U;301-350=10U;351-400=12U;450+=14U&RECHECK 2H&CALL MD IF STILL HIGH **SPLIT** INJ 3U SQ WMHS (H IF NOT EATING)');
+    expect(result.abnormalities.map(a => a.id)).toEqual(expect.arrayContaining(['incomplete_sliding_scale', 'sliding_scale_gap', 'sliding_scale_concessions', 'sliding_scale_budget_exceeded']));
     expect(result.primarySig).not.toContain('401-449=');
     expect(translateFreeTextSig(rawExample, { drug }).sig).toBe(result.primarySig);
   });
@@ -23,8 +67,8 @@ describe('technician-specified insulin scale format', () => {
     const result = run(prose);
     for (const band of ['<70=HYPOGLYCEMIC PROTOCOL', '150-200=4U', '201-250=6U', '251-300=7U', '301-350=10U', '351-400=12U', '450+=14U']) expect(result.primarySig).toContain(band);
     expect(result.primarySig).toContain('RECHECK 2H&CALL MD IF STILL HIGH');
-    expect(result.primarySig).toContain('PLUS3U(H IF NOT EATING)');
-    expect(result.abnormalities.some(a => a.id === 'incomplete_sliding_scale')).toBe(false);
+    expect(result.subOrders[1].suggestedSig).toBe('INJ 3U SQ WMHS (H IF NOT EATING)');
+    expect(result.primarySig).toContain('[FREQUENCY]');
   });
   it.each(['provider', 'MD/NP', 'NP/PA', 'supervisor', 'on-call care team'])('uses CALL MD for recipient %s', recipient => {
     expect(run(`Sliding scale SQ TID:150-200=2 units;201+=4 units and call ${recipient}`).primarySig)
@@ -36,15 +80,16 @@ describe('technician-specified insulin scale format', () => {
   ])('sorts the low-glucose clause wherever it appears: %s', bands => {
     expect(run(`Sliding scale SQ QID:${bands}`).primarySig).toBe('CBS QID SS <70=HYPOGLYCEMIC PROTOCOL&CALL MD;150-200=2U;201+=4U');
   });
-  it('uses the supplied glucagon rescue template without relabeling its volume as insulin units', () => {
+  it('retains the prescribed glucagon dose, volume and route and flags unspecified rescue doses', () => {
     const result = run('Sliding scale SQ QID:<70 administer 1 milliliter of glucagon intramuscularly and call NP;150-200=2 units;201+=4 units');
-    expect(result.primarySig).toBe('CBS QID SS <70=1ML GLUCAGON IM&CALL MD;150-200=2U;201+=4U');
-    expect(result.abnormalities.some(a => a.id === 'site_glucagon_rescue')).toBe(true);
-    expect(translateFreeTextSig('Sliding scale SQ QID:<70 give glucagon IM;150-200=2 units;201+=4 units', { drug }).order.issues.some(i => i.code === 'insulin-volume-input')).toBe(false);
+    expect(result.primarySig).toBe('CBS QID SS <70=ADMINISTER 1 MILLILITER OF GLUCAGON INTRAMUSCULARLY AND CALL MD;150-200=2U;201+=4U');
+    const underspecified = translateFreeTextSig('Sliding scale SQ QID:<70 give glucagon IM;150-200=2 units;201+=4 units', { drug });
+    expect(underspecified.sig).toContain('<70=GIVE GLUCAGON IM;');
+    expect(underspecified.order.issues).toContainEqual(expect.objectContaining({ code: 'sliding-scale-rescue-review', severity: 'blocking' }));
   });
   it('keeps protocol and glucagon together when both are supplied', () => {
     expect(run('Sliding scale SQ QID:<70 follow hypoglycemic protocol and give glucagon IM and call provider;150-200=2 units;201+=4 units').primarySig)
-      .toContain('<70=1ML GLUCAGON IM&HYPOGLYCEMIC PROTOCOL&CALL MD');
+      .toContain('<70=FOLLOW HYPOGLYCEMIC PROTOCOL AND GIVE GLUCAGON IM AND CALL MD');
   });
   it('does not invent a missing low-glucose parameter', () => {
     expect(run('Sliding scale SQ before meals:150-200=2 units;201+=4 units').primarySig).toBe('CBS AC SS 150-200=2U;201+=4U');
@@ -55,7 +100,7 @@ describe('technician-specified insulin scale format', () => {
   });
   it('retains an unfamiliar fixed-dose meal qualifier beside that dose', () => {
     const result = run('Sliding scale SQ TID:150-200=2 units;201+=4 units. AND give 3 units QID if resident ate at least half the meal');
-    expect(result.primarySig).toContain('PLUS3U QID IF RESIDENT ATE AT LEAST HALF THE MEAL');
+    expect(result.subOrders[1].suggestedSig).toBe('GIVE 3 UNITS QID IF RESIDENT ATE AT LEAST HALF THE MEAL');
     expect(result.abnormalities.some(a => a.id === 'sliding_scale_unparsed_action')).toBe(true);
   });
   it('retains band-specific schedules rather than making them a common frequency', () => {
@@ -66,11 +111,11 @@ describe('technician-specified insulin scale format', () => {
   });
   it('keeps a short diagnosis when no concession is necessary', () => {
     expect(run('Sliding scale SQ TID:<70=glucagon IM;150-200=2 units;201+=4 units for DM2').primarySig)
-      .toBe('CBS TID SS <70=1ML GLUCAGON IM;150-200=2U;201+=4U FDM2');
+      .toBe('CBS TID SS <70=GLUCAGON IM;150-200=2U;201+=4U FDM2');
   });
   it('retains a shared diagnosis supplied only after the fixed dose', () => {
     expect(run('Sliding scale SQ TID:150-200=2 units;201+=4 units. AND give 3 units QID FDM2').primarySig)
-      .toBe('CBS TID SS 150-200=2U;201+=4U FDM2.PLUS3U QID');
+      .toBe('CBS TID SS 150-200=2U;201+=4U FDM2 **SPLIT** INJ 3U SQ QID');
   });
   it('keeps the high-band recheck, conditional call and critical-result recording', () => {
     const result = run('Sliding scale SQ TID:150-200=2 units;201-350=4 units;>350=10 units and recheck in 2 hours. If still abnormal, call provider for instructions and record critical result');

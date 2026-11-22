@@ -6,9 +6,9 @@ The technician supplied these rules directly. They supersede older scale-output 
 - Use `lower-upper=nU;next=...`, with no padding around comparisons, equals signs, semicolons or ampersands. Preserve source bounds, inclusivity, doses and absent bands. Do not add a low-glucose band when none was supplied.
 - Sort condition/action pairs by glucose bound, even when a low-glucose clause appears late in the directions. Conditions retain their own actions.
 - CALL/NOTIFY recipient variants use `CALL MD`. Known verbose requests for further instructions are part of that notification, not a new dose.
-- Retain a stated hypoglycemic-protocol action. A glucagon rescue clause uses the site-specified `1ML GLUCAGON IM`; record this normalization for technician review. IM stays with glucagon, not the insulin scale.
+- Retain the prescribed glucagon dose, unit, route and relationship to the protocol, including an explicit choice between the two. An unspecified dose or route requires pharmacist clarification.
 - Retain a recheck interval, conditional follow-up, and any distinct clinical action. Shorten known wording rather than guessing a missing dose or silently deleting an unresolved instruction.
-- A separately supplied fixed insulin dose remains distinct from correction doses; preserve its schedule and hold qualifier. Never fold it into every glucose band.
+- A fixed insulin clause with a different schedule uses a separate editable draft. It keeps its own hold qualifiers. A fixed dose with a known schedule does not supply a missing correction schedule.
 
 ## Shared character budget and concessions
 
@@ -22,6 +22,12 @@ Apply these steps in order, stopping as soon as the whole group fits:
 4. Replace standalone CBS with literal `C.B.S.` to prevent expansion.
 
 Report applied concessions. If the best effort still exceeds 199, retain the best translated draft and show a prominent editable-over-budget notice. Length alone does not add a new approval gate or silently truncate instructions.
+
+## November 22 compound-order review
+
+The Lovable review supported separate timing, explicit tiers and the existing length warning. Its proposed high-range compression and protocol substitution changed the original directions. The regression keeps the bounded `400-450` tier, the separate repeat-reading condition `>400`, the recorded follow-up instructions and the glucagon-or-protocol choice. The correction draft is ACHS and the separate fixed-dose draft is AC. An omitted middle band stays absent and displays the exact gap in a red pharmacist-clarification alert. The yellow length notice remains separate.
+
+The automated checks exercise the clinical and classic entry points, the editable review interface and the portable build. Live Framework Preview Sig and downstream packaging acceptance still need verification on a dummy order, including the expanded timing, units and complete follow-up text.
 
 ## Required regression evidence
 

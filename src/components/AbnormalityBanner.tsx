@@ -8,16 +8,29 @@ interface AbnormalityBannerProps {
 
 export const AbnormalityBanner: React.FC<AbnormalityBannerProps> = ({ findings }) => {
   if (findings.length === 0) return null;
+  const needsClarification = (finding: AbnormalityFinding) =>
+    /^(?:incomplete_sliding_scale|sliding_scale_(?:gap|overlap|rescue_review|fixed_review))$/.test(finding.id);
+  const urgent = findings.filter(needsClarification);
+  const other = findings.filter(finding => !needsClarification(finding));
 
   return (
-    <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 p-4 text-amber-900 shadow-sm dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+    <>
+      {urgent.length > 0 && (
+        <div role="alert" className="mb-4 rounded-md border-2 border-red-600 bg-red-50 p-4 text-red-950 dark:bg-red-950 dark:text-red-100">
+          <h3 className="flex items-center gap-2 text-base font-bold"><AlertOctagon className="h-5 w-5" /> Pharmacist clarification required</h3>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+            {urgent.map((finding, index) => <li key={`${finding.id}-${index}`}><strong>{finding.title}.</strong> {finding.message}</li>)}
+          </ul>
+        </div>
+      )}
+    {other.length > 0 && <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 p-4 text-amber-900 shadow-sm dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
       <div className="flex items-center gap-2 font-semibold text-amber-800 dark:text-amber-200">
         <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
         <span>One or more abnormalities were identified. Review the directions on the electronic hardcopy carefully:</span>
       </div>
       <div className="mt-3 space-y-3">
-        {findings.map((f, index) => (
-          <div key={f.id} className="rounded border border-amber-200 bg-white/60 p-3 text-sm dark:border-amber-800 dark:bg-black/40">
+        {other.map((f, index) => (
+          <div key={`${f.id}-${index}`} className="rounded border border-amber-200 bg-white/60 p-3 text-sm dark:border-amber-800 dark:bg-black/40">
             <div className="flex items-center gap-2 font-medium">
               {f.tier === 'uncorrected_gap' && <AlertOctagon className="h-4 w-4 text-red-500" />}
               {f.tier === 'applied_correction' && <Info className="h-4 w-4 text-blue-500" />}
@@ -30,6 +43,7 @@ export const AbnormalityBanner: React.FC<AbnormalityBannerProps> = ({ findings }
           </div>
         ))}
       </div>
-    </div>
+    </div>}
+    </>
   );
 };

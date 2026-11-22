@@ -9,7 +9,7 @@ import { normalizeNumericDirections } from './numericDirections';
 import { hourlySchedule } from './hourlySchedule';
 import { looksLikeSlidingScale, parseSlidingScale } from './slidingScale';
 import { fitSlidingScaleBudget, scaleBudgetFindings } from './slidingScaleBudget';
-import { fixedScaleDoseRemainder } from './slidingScaleProse';
+import { fixedScaleDoseRemainder, hasMultipleFixedSchedules } from './slidingScaleProse';
 
 export interface FrequencyScheduleResult {
   readonly frequencyToken: string;
@@ -19,6 +19,7 @@ export interface FrequencyScheduleResult {
   readonly holdToken?: string;
   readonly stopToken?: string;
   readonly slidingScaleString?: string;
+  readonly slidingScaleParts?: [correction: string, fixed: string];
   readonly blendedTemplate?: string;
   readonly abnormalities: AbnormalityFinding[];
   readonly requiresManualTranslation?: boolean;
@@ -57,7 +58,8 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     const schedule = resolveFrequencyAndScheduleInternal(tail.primary);
     let frequency = schedule.frequencyToken;
     if (frequency === 'TIDAC' && !/\b(?:3|THREE) TIMES|\bTID\b/.test(tail.primary)) frequency = 'AC';
-    if (!schedule.frequencyToken || schedule.requiresManualTranslation || scale.incomplete) {
+    const usableSchedule = !!frequency && !schedule.requiresManualTranslation;
+    if (scale.incomplete || (!usableSchedule && !scale.independentFixedDose)) {
       if (!abnormalities.some(finding => finding.id === 'incomplete_sliding_scale')) {
         abnormalities.push({ id: 'incomplete_sliding_scale', tier: 'uncorrected_gap', title: 'Scale Schedule Requires Review',
           message: 'Review the retained scale wording and any frequency placeholder. No unresolved dose or instruction was discarded.', trigger: rawProse });
@@ -67,19 +69,36 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
       const budget = deferScaleBudget ? undefined : fitSlidingScaleBudget([text]);
       return { frequencyToken: `CBS ${frequency} SS`, slidingScaleString: budget?.parts[0] ?? text, abnormalities: [...abnormalities, ...(budget ? scaleBudgetFindings(budget) : [])], requiresManualTranslation: true };
     }
+    if (!usableSchedule) {
+      frequency = '[FREQUENCY]';
+      abnormalities.push({ id: 'incomplete_sliding_scale', tier: 'uncorrected_gap', title: 'Scale Schedule Requires Review',
+        message: 'The correction scale has no resolved schedule. Pharmacist clarification required before use. The fixed dose retains its separate schedule.' });
+    }
     const prefix = `CBS ${frequency} SS`;
     let base = '';
+    let separateFixed = false;
     if (scale.baseInstruction) {
       const dose = scale.baseInstruction.match(/\b(?:INJ|INJECT|GIVE|ADMINISTER)?\s*(\d+(?:\.\d+)?)\s*(?:UNITS?|U)\b/);
       if (dose) {
-        const baseSchedule = resolveFrequencyAndScheduleInternal(scale.baseInstruction).frequencyToken;
+        const baseTiming = resolveFrequencyAndScheduleInternal(scale.baseInstruction);
+        const baseSchedule = baseTiming.frequencyToken === 'TIDAC' && !/\b(?:3|THREE) TIMES|\bTID\b/.test(scale.baseInstruction)
+          ? 'AC' : baseTiming.frequencyToken;
         const rawHold = scale.baseInstruction.match(/\bH(?:OLD)?\s+(?:IF|WHEN|FOR)\s+[^.;)]+/)?.[0];
         const hold = rawHold
           ?.replace(/^HOLD\b/, 'H').replace(/\bRESIDENT\s+/g, '').replace(/DID NOT EAT|DOES NOT EAT|NOT EATEN/g, 'NOT EATING');
-        base = `PLUS${dose[1]}U${baseSchedule && baseSchedule !== frequency ? ` ${baseSchedule}` : ''}${hold ? `(${hold})` : ''}`;
         const rest = fixedScaleDoseRemainder(scale.baseInstruction, rawHold);
+        separateFixed = !!scale.independentFixedDose && (baseSchedule !== frequency || !usableSchedule);
+        if (scale.independentFixedDose && (!baseSchedule || baseTiming.requiresManualTranslation || hasMultipleFixedSchedules(scale.baseInstruction) || rest)) {
+          separateFixed = true;
+          base = scale.baseInstruction;
+          abnormalities.push({ id: 'sliding_scale_fixed_review', tier: 'uncorrected_gap', title: 'Fixed-Dose Instructions Require Review',
+            message: 'Review the separate fixed-dose wording and timing. It was retained without inheriting the correction schedule.' });
+        } else if (separateFixed) {
+          base = `INJ ${dose[1]}U SQ ${baseSchedule}${hold ? ` (${hold})` : ''}`;
+        } else {
+          base = `PLUS${dose[1]}U${baseSchedule && baseSchedule !== frequency ? ` ${baseSchedule}` : ''}${hold ? `(${hold})` : ''}${rest ? ` ${rest}` : ''}`;
+        }
         if (rest) {
-          base += ` ${rest}`;
           abnormalities.push({ id: 'sliding_scale_unparsed_action', tier: 'uncorrected_gap', title: 'Fixed-Dose Qualifier Retained',
             message: 'Additional fixed-dose wording remains beside its own dose for review.', trigger: rest });
         }
@@ -92,9 +111,12 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     const retained = [scale.retainedInstructions, tail.supplemental].filter(Boolean).join('. ');
     if (tail.supplemental) abnormalities.push({ id: 'sliding_scale_unparsed_action', tier: 'uncorrected_gap', title: 'Scale Instruction Retained for Review',
       message: 'An additional instruction was retained with its source qualifier. Compare its scope with the common scale schedule.', trigger: tail.supplemental });
-    const text = [core, base, retained.toUpperCase()].filter(Boolean).join('. ');
-    const budget = deferScaleBudget ? undefined : fitSlidingScaleBudget([text]);
-    return { frequencyToken: prefix, slidingScaleString: budget?.parts[0] ?? text, abnormalities: [...abnormalities, ...schedule.abnormalities, ...(budget ? scaleBudgetFindings(budget) : [])] };
+    const correction = [core, separateFixed ? '' : base, retained.toUpperCase()].filter(Boolean).join('. ');
+    const budget = deferScaleBudget ? undefined : fitSlidingScaleBudget(separateFixed ? [correction, base] : [correction]);
+    const parts = budget?.parts ?? (separateFixed ? [correction, base] : [correction]);
+    return { frequencyToken: prefix, slidingScaleString: parts.join(' **SPLIT** '),
+      slidingScaleParts: separateFixed ? [parts[0], parts[1]] : undefined,
+      abnormalities: [...abnormalities, ...schedule.abnormalities, ...(budget ? scaleBudgetFindings(budget) : [])], requiresManualTranslation: !usableSchedule };
   }
 
   // Hold parameters

@@ -95,11 +95,6 @@ function indication(text: string): string | undefined {
   const value = withoutDuration.match(/(?:for|indications?:)\s+(.+?)(?:\s+until\s+\d|\s+hold\b|$)/i)?.[1]?.trim();
   return value ? indications.find(([matcher]) => matcher.test(value))?.[1] ?? `FOR ${value.toUpperCase()}` : undefined;
 }
-function validateScale(bands: SlidingScaleBand[], issues: SigIssue[]): void {
-  const ranges = bands.filter((band) => band.lower !== undefined && band.upper !== undefined);
-  for (let i = 0; i < ranges.length - 1; i += 1) if (ranges[i].upper! + 1 < ranges[i + 1].lower!) issues.push({ code: 'sliding-scale-gap', severity: 'blocking', message: `Sliding scale has no coverage for ${ranges[i].upper! + 1}-${ranges[i + 1].lower! - 1}.` });
-}
-
 export function parseSigOrder(raw: string, options: SigParseOptions): ParsedSigOrder {
   const dateStripped = /until\s+\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}:\d{2})?/i.test(raw);
   const normalized = normalizeSigText(raw).replace(/until\s+\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}:\d{2})?/i, '').trim();
@@ -135,14 +130,17 @@ export function parseSigOrder(raw: string, options: SigParseOptions): ParsedSigO
     if (resolved.abnormalities.some(finding => finding.id === 'sliding_scale_unparsed_action')) issues.push({
       code: 'retained-sliding-scale-instructions', severity: 'warning', message: 'Additional scale instructions were retained with their qualifiers and need review against the common schedule.',
     });
-    if (resolved.requiresManualTranslation || !resolved.slidingScaleString) issues.push({ code: 'incomplete-sliding-scale', severity: 'warning', message: 'The complete scale needs technician review; unresolved source wording was retained.' });
+    if (resolved.requiresManualTranslation || !resolved.slidingScaleString) issues.push({ code: 'incomplete-sliding-scale', severity: 'blocking', message: 'The complete scale needs pharmacist clarification before use.' });
+    for (const finding of resolved.abnormalities.filter(item => /^sliding_scale_(?:gap|overlap|rescue_review|fixed_review)$/.test(item.id))) {
+      issues.push({ code: finding.id.replace(/_/g, '-'), severity: 'blocking', message: finding.message });
+    }
     for (const finding of resolved.abnormalities.filter(item => item.id.startsWith('sliding_scale_concession') || item.id === 'sliding_scale_budget_exceeded')) issues.push({ code: finding.id, severity: 'warning', message: finding.message });
   }
   if (compactHold) order.hold = { systolicBelow: Number(compactHold[1]), heartRateBelow: Number(compactHold[2]) };
   if (dateStripped) issues.push({ code: 'cut-date', severity: 'warning', message: 'A cut date was removed; verify it in the order date field.' });
   if (isUnknownElementalCandidate(options.drug)) issues.push({ code: 'unknown-elemental-equivalent', severity: 'blocking', message: 'This strength may describe an elemental equivalent, but the compound/formulation could not be verified.' });
   if (!isScale && /\b(?:insulin|humalog|novolog|lantus)\b/i.test(options.drug) && /\b(?:ml|milliliter)\b/i.test(normalized)) issues.push({ code: 'insulin-volume-input', severity: 'blocking', message: 'Insulin was entered in mL. Verify the intended unit dose before use.' });
-  if (slidingScale) validateScale(slidingScale, issues); else { if (!order.dose) issues.push({ code: 'missing-dose', severity: 'blocking', message: 'Could not identify a dose.' }); if (!order.route) issues.push({ code: 'missing-route', severity: 'warning', message: 'Could not identify a route.' }); if (!order.frequency) issues.push({ code: 'missing-frequency', severity: 'warning', message: 'Could not identify a frequency.' }); }
+  if (!isScale) { if (!order.dose) issues.push({ code: 'missing-dose', severity: 'blocking', message: 'Could not identify a dose.' }); if (!order.route) issues.push({ code: 'missing-route', severity: 'warning', message: 'Could not identify a route.' }); if (!order.frequency) issues.push({ code: 'missing-frequency', severity: 'warning', message: 'Could not identify a frequency.' }); }
   return order;
 }
 function number(value: number): string { return String(Number(value.toFixed(3))); }

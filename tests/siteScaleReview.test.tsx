@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MultiOrderCards } from '../src/components/MultiOrderCards';
+import { AbnormalityBanner } from '../src/components/AbnormalityBanner';
 import { SigReviewPanel } from '../src/components/SigReviewPanel';
 import { ReviewContext } from '../src/hooks/use-review-session';
 import { reviewStamp } from '../src/lib/reviewPolicy';
@@ -11,6 +12,17 @@ const session = { orders: [], setOrders: vi.fn(), exclusions: [], setExclusions:
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('editable shared insulin scale budget', () => {
+  it('shows a pharmacist clarification alert distinctly from the length warning', () => {
+    render(<AbnormalityBanner findings={[
+      { id: 'sliding_scale_gap', tier: 'uncorrected_gap', title: 'Sliding-Scale Coverage Gap', message: 'No prescribed dose band covers 350–399.' },
+      { id: 'sliding_scale_budget_exceeded', tier: 'uncorrected_gap', title: 'SIG exceeds 199 characters', message: 'Edit the draft.' },
+    ]} />);
+    const alert = screen.getByRole('alert');
+    expect(alert.textContent).toContain('Pharmacist clarification required');
+    expect(alert.textContent).toContain('350–399');
+    expect(alert.textContent).not.toContain('199 characters');
+    expect(screen.getByText(/SIG exceeds 199 characters/)).toBeTruthy();
+  });
   it('counts entered parts together, excludes the unified preview, and follows technician edits', () => {
     const first = 'CBS QID SS 150-200=2U';
     const second = 'PLUS3U QID ' + 'X'.repeat(95);

@@ -1,12 +1,41 @@
 import { normalizeNumericDirections } from './numericDirections';
 import type { ParsedSlidingScale } from './slidingScale';
 import type { AbnormalityFinding } from './types';
+import { hasNumericScaleFollowup, numericScaleFollowups, scaleConditionPattern as markers, scaleCoverageFindings } from './slidingScaleSyntax';
 
-const markers = /(?<![\d.])\b\d+(?:\.\d+)?\s*(?:-|TO)\s*\d+(?:\.\d+)?|\b\d+(?:\.\d+)?\s*\+|(?:[<>]=?|GREATER THAN(?: OR EQUALS?(?: TO)?)?|LESS THAN(?: OR EQUALS?(?: TO)?)?)\s*\d+(?:\.\d+)?/g;
 const schedulePattern = /\b(?:BEFORE\s+(?:EACH\s+)?MEALS?(?:\s+(?:AND|&)\s+(?:AT\s+)?BEDTIME)?|WITH\s+(?:EACH\s+)?MEALS?(?:\s+(?:AND|&)\s+(?:AT\s+)?BEDTIME)?|AFTER\s+MEALS?(?:\s+AND\s+(?:AT\s+)?BEDTIME)?|(?:AT\s+)?BEDTIME|(?:[1-4]|ONE|TWO|THREE|FOUR)\s+TIMES?\s+(?:(?:A|PER|EACH)\s+DAY|DAILY)|TWICE DAILY|DAILY|EVERY\s+\d+\s+HOURS?|Q\d+H|ACHS|AC\/HS|WMHS|PCHS|AC|QD|BID|TID|QID|QAM|QPM|QHS)\b/g;
 const scheduleText = (text: string) => [...text.matchAll(schedulePattern)].map(match => match[0]).join(' ');
+const diagnosisPattern = /\b(?:FDM[12]?|(?:FOR\s+)?(?:(?:TYPE [12] )?DIABETES(?: MELLITUS)?(?: TYPE [12])?|DM(?:[12]|\s+(?:II|I))?))\b/g;
 const coursePattern = /\b(?:FOR\s+(?:UP\s+TO\s+)?|X\s*)\d+(?:\.\d+|\s*[-/]\s*\d+)?\s*(?:DAYS?|D\b|WEEKS?|WKS?|WK\b|MONTHS?|MOS?|HOURS?|HRS?|HR\b|H\b)\b/g;
 const clean = (text: string) => text.replace(/^[\s,;:=.&]+|[\s,;:=.&]+$/g, '').trim();
+
+function rescueScope(action: string) {
+  const timing = [...action.matchAll(schedulePattern)].pop();
+  if (timing) {
+    const before = action.slice(0, timing.index);
+    if (/\bFOR\s*$/.test(before) && !clean(action.slice(timing.index + timing[0].length))) {
+      return { action: clean(before.replace(/\bFOR\s*$/, '')), schedule: timing[0] };
+    }
+  }
+  return { action: clean(action), schedule: '' };
+}
+
+export function hasMultipleFixedSchedules(text: string): boolean {
+  const timings = [...text.matchAll(schedulePattern)];
+  if (timings.length < 2) return false;
+  const [count, timing] = timings.map(match => match[0]);
+  return timings.length !== 2 || !(/^(?:4|FOUR) TIMES/.test(count) && /^(?:BEFORE|WITH|AFTER) .*BEDTIME$/.test(timing));
+}
+
+export function trailingScaleDose(text: string) {
+  return [...text.matchAll(/\b(AND|ALSO|PLUS)\s+(?:GIVE|INJECT|ADMINISTER)\s+\d+(?:\.\d+)?\s*(?:UNITS?|U)\b/g)]
+    .find(match => {
+      const prefix = text.slice(0, match.index);
+      if (/\.\s*$/.test(prefix)) return true;
+      const lastSchedule = [...prefix.matchAll(schedulePattern)].pop();
+      return lastSchedule && /^[\s,;.]*(?:DM(?:[12]|\s+(?:II|I))?\b[\s,;.]*)?$/.test(prefix.slice(lastSchedule.index + lastSchedule[0].length));
+    });
+}
 
 /** Anything beyond the recognized fixed dose/schedule must remain visible. */
 export function fixedScaleDoseRemainder(source: string, hold?: string): string {
@@ -22,7 +51,7 @@ export function parseProseSlidingScale(source: string): ParsedSlidingScale {
   let text = normalizeNumericDirections(source).replace(/[–—−]/g, '-').replace(/≥/g, '>=').replace(/≤/g, '<=')
     .replace(/\b(\d+)\s+(?:OR GREATER|AND ABOVE|OR MORE)\b/g, '>=$1')
     .replace(/\b(\d+)\s+(?:OR LESS(?!\s+THAN)|AND BELOW)\b/g, '<=$1')
-    .replace(/(\b\d+\s*-\s*\d+|[<>]=?\s*\d+|\b\d+\+)\s*MG\s*\/\s*DL\b/g, '$1');
+    .replace(new RegExp('(' + markers.source + ')\\s*MG\\s*\\/\\s*DL\\b', 'g'), '$1');
   const abnormalities: AbnormalityFinding[] = [];
   const finding = (id: string, message: string, trigger?: string) => abnormalities.push({ id, tier: 'uncorrected_gap', title: 'Scale Instruction Retained for Review', message, trigger });
   let baseInstruction: string | undefined;
@@ -30,10 +59,10 @@ export function parseProseSlidingScale(source: string): ParsedSlidingScale {
     abnormalities: [...abnormalities, { id: 'incomplete_sliding_scale', tier: 'uncorrected_gap', title: 'Sliding Scale Requires Review', message: reason, trigger: source }], incomplete: true });
 
   // A fixed clause after the table is independent of any preceding glucose band.
-  const trailingBase = [...text.matchAll(/\b(?:AND|PLUS)\s+(?:GIVE|INJECT|ADMINISTER)\s+\d+(?:\.\d+)?\s*(?:UNITS?|U)\b/g)]
-    .find(match => /[.;]\s*$/.test(text.slice(0, match.index)));
+  const trailingBase = trailingScaleDose(text);
   if (trailingBase) {
-    baseInstruction = text.slice(trailingBase.index + trailingBase[0].match(/^(?:AND|PLUS)\s+/)![0].length).trim();
+    const conjunction = trailingBase[0].match(/^(?:AND|ALSO|PLUS)\s+/)![0];
+    baseInstruction = text.slice(trailingBase.index + conjunction.length).trim();
     text = text.slice(0, trailingBase.index).trim();
   }
   const firstMarker = [...text.matchAll(markers)][0];
@@ -48,34 +77,39 @@ export function parseProseSlidingScale(source: string): ParsedSlidingScale {
   }
   const after = text.slice(firstMarker.index);
   if (/[.;]\s*(?:AT BEDTIME|WITH MEALS|BEFORE MEALS|QHS|ACHS|WMHS)\s*:/.test(after)) return fail('Separate scale schedules were retained without merging their bands.');
-  const found = [...after.matchAll(markers)];
+  const followups = numericScaleFollowups(after);
+  const found = [...after.matchAll(markers)].filter(marker => !followups.some(followup =>
+    marker.index >= followup.index && marker.index < followup.index + followup[0].length));
   const sections = found.map((marker, i) => after.slice(marker.index! + marker[0].length, found[i + 1]?.index));
   // A dose-specific schedule is not an ordinary common schedule. Retain its
   // entire wording until it can be represented without assigning it to all bands.
-  if (sections.slice(0, -1).some(section => scheduleText(section) && !/\b(?:SQ|SC|SUBQ|SUBCUTANEOUS(?:LY)?)\b/.test(section))) {
+  if (sections.slice(0, -1).some(section => scheduleText(section) && !/\bGLUCAGON\b/.test(section)
+      && !/,\s*(?:SQ|SC|SUBQ|SUBCUTANEOUS(?:LY)?)\b/.test(section))) {
     return fail('A glucose band has its own schedule. Its qualifier was retained without merging schedules.', scheduleText(header));
   }
   // The basal clause was removed from header above. Its route/schedule must
   // not leak back into the correction scale through the original full text.
-  const scaleText = `${header} ${after}`;
-  const routeSchedules = [...scaleText.matchAll(/\b(?:SQ|SUBQ|SC|SUBCUTANEOUS(?:LY)?)\b([^.;]*)/g)].map(m => scheduleText(m[1]));
-  const schedule = [scheduleText(header), ...routeSchedules, scheduleText(sections[sections.length - 1] || '')].filter(Boolean).join(' ')
-    // The technician's trailing additive clause supplies the shared schedule.
-    // An independently scheduled leading basal clause cannot supply a missing
-    // correction frequency (for example, QHS basal plus an unscheduled scale).
-    || (trailingBase ? scheduleText(baseInstruction || '') : '');
+  const routeSchedules = sections.slice(0, -1).map(section => section.match(/,\s*(?:SQ|SC|SUBQ|SUBCUTANEOUS(?:LY)?)\b(.*)/)?.[1] || '')
+    .map(scheduleText);
+  const tail = sections[sections.length - 1] || '';
+  const tailTiming = /\bGLUCAGON\b/.test(tail) ? rescueScope(tail.replace(diagnosisPattern, '')).schedule : scheduleText(tail);
+  const schedules = [...new Set([scheduleText(header), ...routeSchedules, tailTiming].filter(Boolean))];
+  if (schedules.length > 1) return fail('More than one correction-scale schedule was found. Their source scopes were retained.');
+  const schedule = schedules[0] || '';
   const diagnosisSource = `${text} ${baseInstruction || ''}`;
-  const diagnosis = diagnosisSource.match(/\bFDM[12]?\b/)?.[0] || (diagnosisSource.match(/\bFOR\s+((?:TYPE [12] )?DIABETES(?: MELLITUS)?(?: TYPE [12])?|DM[12]?)\b/)?.[1]);
+  const diagnosis = diagnosisSource.match(diagnosisPattern)?.[0]?.replace(/^FOR\s+/, '').replace(/^DM II$/, 'DM2').replace(/^DM I$/, 'DM1');
   const courses = [...header.matchAll(coursePattern)].map(match => match[0]);
   const shared = [schedule, ...courses, diagnosis ? `FOR ${diagnosis.replace(/^FDM/, 'DM')}` : ''].filter(Boolean).join(' ');
+  const outsideFollowups = followups.reduceRight((rest, match) => rest.slice(0, match.index) + rest.slice(match.index + match[0].length), after);
+  if (hasNumericScaleFollowup(outsideFollowups)) return fail('A repeat-reading threshold has an unresolved action. Its source scope was retained.', shared);
   // SS/CBS account for the ordinary preamble, not for extra source qualifiers.
   // Course wording goes through the existing duration resolver; other wording
   // remains visible instead of disappearing when the numeric table parses.
   const headerQualifier = clean(header
     .replace(/\bIF(?:\s+(?:(?:THE\s+)?(?:READING|BS|BG|BLOOD SUGAR|BLOOD GLUCOSE)(?:\s+IS)?))?\s*$/, '')
     .replace(schedulePattern, '').replace(coursePattern, '')
-    .replace(/\b(?:FDM[12]?|FOR\s+((?:TYPE [12] )?DIABETES(?: MELLITUS)?(?: TYPE [12])?|DM[12]?))\b/g, '')
-    .replace(/\b(?:CHECK\s+(?:THE\s+)?BLOOD\s+(?:SUGAR|GLUCOSE)|(?:SLIDING|CORRECTION)\s+SCALE|ACCORDING TO|AS PER)\b/g, '')
+    .replace(diagnosisPattern, '')
+    .replace(/\b(?:CBS|CHECK\s+(?:THE\s+)?BLOOD\s+(?:SUGAR|GLUCOSE)|(?:SLIDING|CORRECTION)\s+SCALE|ACCORDING TO|AS PER)\b/g, '')
     .replace(/\b(?:(?:INJECT|GIVE|ADMINISTER)(?:\s+INSULIN)?|AND|AS|PER|THE|SQ|SC|SUBQ|SUBCUTANEOUS(?:LY)?)\b/g, '')
     .replace(/\s+/g, ' '));
   if (headerQualifier) finding('sliding_scale_unparsed_action', 'A header qualifier remains beside the translated scale for technician review.', headerQualifier);
@@ -92,20 +126,32 @@ export function parseProseSlidingScale(source: string): ParsedSlidingScale {
     const nextPrefix = action.match(/(?:^|[.;,]\s*|\bAND\s+)((?:HOLD(?:\s+INSULIN)?|CALL MD)\s+(?:IF|FOR|WHEN)(?:\s+(?:BS|BG|CBS|BLOOD SUGAR|BLOOD GLUCOSE))?(?:\s+IS)?)$/);
     const currentCarry = carried; carried = '';
     if (nextPrefix && index + 1 < found.length) { carried = nextPrefix[1]; action = clean(action.slice(0, nextPrefix.index)); }
+    const followup = numericScaleFollowups(action)[0];
+    if (followup) {
+      if (!/\bRECHECK\b/.test(action.slice(0, followup.index)) || numericScaleFollowups(action).length > 1) {
+        return fail('A repeat-reading threshold could not be linked to its recheck.', shared);
+      }
+      action = clean(action.slice(0, followup.index) + ' ' + action.slice(followup.index + followup[0].length));
+    }
+    const rescue = /\bGLUCAGON\b/.test(action);
     action = clean(`${currentCarry} ${action}`)
       .replace(/(?:[.;,]\s*)?\bIF(?:\s+(?:(?:THE\s+)?(?:READINGS?|BS|BG|BLOOD SUGAR|BLOOD GLUCOSE)(?:\s+(?:IS|ARE))?))?\s*$/, '')
-      .replace(schedulePattern, '')
-      .replace(/\b(?:FDM[12]?|FOR\s+(?:(?:TYPE [12] )?DIABETES(?: MELLITUS)?(?: TYPE [12])?|DM[12]?))\b/g, '')
-      .replace(/\b(?:SQ|SC|SUBQ|SUBCUTANEOUS(?:LY)?)\b/g, '');
-    const actions: string[] = [];
-    const glucagon = /\bGLUCAGON\b/.test(action);
-    if (glucagon) {
-      action = action.replace(/\b(?:(?:GIVE|ADMINISTER|INJECT)\s+)?(?:\d+(?:\.\d+)?\s*(?:ML|MILLILITERS?|MG)\s+(?:OF\s+)?)?GLUCAGON(?:\s+\d+(?:\.\d+)?\s*(?:ML|MILLILITERS?|MG))?(?:\s+(?:IM|INTRAMUSCULAR(?:LY)?|INTO THE MUSCLE))?/g, '')
-        .replace(/\b(?:FOR LOW BLOOD SUGAR|FOR HYPOGLYCEMIA|BY INTRAMUSCULAR INJECTION)\b/g, '');
-      actions.push('1ML GLUCAGON IM');
-      abnormalities.push({ id: 'site_glucagon_rescue', tier: 'applied_correction', title: 'Site Glucagon Rescue Format Applied',
-        message: 'The supplied glucagon rescue clause uses the technician-specified 1ML GLUCAGON IM format. Compare the source rescue instruction.', trigger: sections[index] });
+      .replace(diagnosisPattern, '');
+    if (rescue) {
+      // Keep a rescue dose, route and AND/OR together. Only an explicit trailing
+      // FOR + common schedule is outside the rescue action.
+      action = rescueScope(action).action;
+      if (followup) return fail('A repeat-reading threshold is attached to a rescue clause and needs review.', shared);
+      if (!/\b\d+(?:\.\d+)?\s*(?:MG|ML|MILLILITERS?)\b/.test(action)
+        || !/\b(?:IM|INTRAMUSCULAR(?:LY)?|INTO THE MUSCLE)\b/.test(action)) {
+        finding('sliding_scale_rescue_review', 'The glucagon rescue dose or route needs pharmacist clarification. Source wording was retained.', action);
+      }
+      if (bands.some(band => band.condition === condition)) return fail('Repeated rescue conditions need review.', shared);
+      bands.push({ key: low ? -1e9 + values[0] : values[0], condition, action });
+      continue;
     }
+    action = action.replace(schedulePattern, '').replace(/\b(?:SQ|SC|SUBQ|SUBCUTANEOUS(?:LY)?)\b/g, '');
+    const actions: string[] = [];
     if (/\b\d+(?:\.\d+)?\s*(?:ML|MILLILITERS?|MG)\b/.test(action)) {
       return fail('A scale dose is stated as mass or volume. It was not relabeled as insulin units.', shared);
     }
@@ -123,6 +169,10 @@ export function parseProseSlidingScale(source: string): ParsedSlidingScale {
     action = action.replace(/\b(?:(?:FOLLOW|INITIATE|START|BEGIN|BEING|PERFORM|PER)\s+(?:THE\s+)?)?HYPOGLYCEMI[AC]\s+PROTOCOL\b/g, () => { actions.push('HYPOGLYCEMIC PROTOCOL'); return ''; });
     action = action.replace(/\bRECHECK\s+(?:(?:BS|BG|CBS|BLOOD SUGAR|BLOOD GLUCOSE)\s+)?(?:IN\s*|AFTER\s+)?(\d+(?:\.\d+)?)\s*(HOURS?|HRS?|H|MINUTES?|MINS?)\b/g,
       (_m, count: string, units: string) => { actions.push(`RECHECK ${count}${units.startsWith('H') ? 'H' : 'MIN'}`); return ''; });
+    if (followup) {
+      if (!actions.some(step => step.startsWith('RECHECK '))) return fail('The recheck interval requires review.', shared);
+      actions.push(followup[0].trim());
+    }
     action = action.replace(/\bIF\s+(?:(?:THE\s+)?(?:READINGS?|BLOOD SUGAR|GLUCOSE)\s+)?(?:(?:IS|ARE|REMAIN)\s+)?STILL\s+(HIGH|ABNORMAL)\s*,?\s*CALL MD\b/g,
       (_m, state: string) => { actions.push(`CALL MD IF STILL ${state}`); return ''; });
     action = action.replace(/\bCALL MD\b/g, () => { actions.push('CALL MD'); return ''; });
@@ -136,16 +186,16 @@ export function parseProseSlidingScale(source: string): ParsedSlidingScale {
     if (rest) { actions.push(rest); finding('sliding_scale_unparsed_action', 'Additional source wording remains beside its own scale condition.', rest); }
     const existing = bands.find(band => band.condition === condition);
     if (existing && existing.dose !== undefined && doseValue !== undefined && existing.dose !== doseValue) return fail('One scale condition has conflicting doses.', shared);
-    if (existing) existing.action = [...new Set([...existing.action.split('&'), ...actions])].join('&');
+    if (existing) {
+      existing.dose ??= doseValue;
+      existing.action = [...new Set([...existing.action.split('&'), ...actions])].join('&');
+    }
     else bands.push({ key: low ? -1e9 + values[0] : values[0], condition, action: [...new Set(actions)].join('&'), dose: doseValue });
   }
   if (!bands.some(band => band.dose !== undefined)) return fail('No numeric insulin correction dose was recognized.', shared);
   bands.sort((a, b) => a.key - b.key);
-  const intervals = bands.filter(band => band.dose !== undefined).map(band => {
-    const values = band.condition.match(/\d+(?:\.\d+)?/g)!.map(Number);
-    return values.length === 2 ? [values[0], values[1]] : band.condition.startsWith('<') ? [-Infinity, values[0] - (band.condition.startsWith('<=') ? 0 : 1)] : [values[0] + (band.condition.startsWith('>') ? 1 : 0), Infinity];
-  });
-  for (let i = 1; i < intervals.length; i++) if (intervals[i][0] !== intervals[i - 1][1] + 1) finding(intervals[i][0] <= intervals[i - 1][1] ? 'sliding_scale_overlap' : 'sliding_scale_gap', 'Source scale boundaries were retained; no missing or overlapping dose was invented.');
+  abnormalities.push(...scaleCoverageFindings(bands.filter(band => band.dose !== undefined).map(band => band.condition), source));
   return { bands: bands.map(band => `${band.condition}=${band.action}`).join(';'), schedule: shared, route: 'SQ', baseInstruction,
+    independentFixedDose: !!trailingBase && trailingBase[1] !== 'PLUS',
     retainedInstructions: headerQualifier || undefined, abnormalities, incomplete: false };
 }

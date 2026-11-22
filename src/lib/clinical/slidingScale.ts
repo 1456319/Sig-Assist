@@ -1,7 +1,8 @@
 import { normalizeNumericDirections } from './numericDirections';
 import { splitSupplementalDirections } from './instructionClauses';
 import type { AbnormalityFinding } from './types';
-import { parseProseSlidingScale } from './slidingScaleProse';
+import { parseProseSlidingScale, trailingScaleDose } from './slidingScaleProse';
+import { hasNumericScaleFollowup, numericScaleFollowups, scaleConditionPattern as conditionPattern, scaleCoverageFindings } from './slidingScaleSyntax';
 
 interface Band { key: number; condition: string; action: string }
 export interface ParsedSlidingScale {
@@ -11,6 +12,7 @@ export interface ParsedSlidingScale {
   abnormalities: AbnormalityFinding[];
   incomplete: boolean;
   baseInstruction?: string;
+  independentFixedDose?: boolean;
   retainedInstructions?: string;
   retainedSource?: string;
 }
@@ -22,7 +24,6 @@ const comparison = '(?:[<>]=?|GREATER THAN(?: OR EQUALS?(?: TO)?)?|LESS THAN(?: 
 const threshold = `(?:${comparison})\\s*\\d+(?:\\.\\d+)?`;
 const glucose = '(?:(?:BS|BG|CBS|BLOOD (?:SUGAR|GLUCOSE))\\s*)?';
 const conditionList = `${glucose}${threshold}(?:\\s+(?:OR|AND)\\s+${glucose}${threshold})*`;
-const conditionPattern = /(?<![\d.])\b\d+(?:\.\d+)?\s*(?:-|TO)\s*\d+(?:\.\d+)?|\b\d+(?:\.\d+)?\s*\+|(?:[<>]=?|GREATER THAN(?: OR EQUALS?(?: TO)?)?|LESS THAN(?: OR EQUALS?(?: TO)?)?)\s*\d+(?:\.\d+)?/g;
 
 function normalizeScale(raw: string): string {
   return normalizeNumericDirections(raw).replace(/\bSLIDING[\s-]+SCALE\b/g, 'SLIDING SCALE').replace(/[–—−]/g, '-')
@@ -33,7 +34,7 @@ function normalizeScale(raw: string): string {
     .replace(/\b(\d+(?:\.\d+)?)\s+(?:OR LESS(?!\s+THAN\b)|AND (?:BELOW|LOWER))\b/g, '<=$1')
     // Only a label immediately following a glucose condition is removable.
     // A purported dose of "2 mg/dL" must still fail the dose-unit check.
-    .replace(/((?<![\d.])\b\d+(?:\.\d+)?\s*(?:-|TO)\s*\d+(?:\.\d+)?|\b\d+(?:\.\d+)?\s*\+|(?:[<>]=?|GREATER THAN(?: OR EQUALS?(?: TO)?)?|LESS THAN(?: OR EQUALS?(?: TO)?)?)\s*\d+(?:\.\d+)?)\s*MG\s*\/\s*DL\b/g, '$1');
+    .replace(new RegExp('(' + conditionPattern.source + ')\\s*MG\\s*\\/\\s*DL\\b', 'g'), '$1');
 }
 
 /** Shared routing guard: never let a condition's dose become a fixed insulin dose. */
@@ -203,39 +204,33 @@ function parseLegacySlidingScale(raw: string): ParsedSlidingScale {
     else grouped.set(b.condition, { ...b });
   }
   const ordered = [...grouped.values()].sort((a, b) => a.key - b.key);
-  const doseIntervals = ordered.filter(b => /\dU\b/.test(b.action)).map(b => {
-    const numbers = b.condition.match(/\d+(?:\.\d+)?/g)!.map(Number);
-    if (numbers.length === 2) return { lower: numbers[0], upper: numbers[1] };
-    if (b.condition.startsWith('<')) return { lower: -Infinity, upper: numbers[0] - (b.condition.startsWith('<=') ? 0 : 1) };
-    return { lower: numbers[0] + (b.condition.startsWith('>') ? 1 : 0), upper: Infinity };
-  }).sort((a, b) => a.lower - b.lower);
-  for (let i = 1; i < doseIntervals.length; i++) {
-    const previous = doseIntervals[i - 1], next = doseIntervals[i];
-    if (next.lower !== previous.upper + 1) abnormalities.push({
-      id: next.lower <= previous.upper ? 'sliding_scale_overlap' : 'sliding_scale_gap',
-      tier: 'uncorrected_gap', title: 'Scale Boundaries Require Review',
-      message: next.lower <= previous.upper ? 'Prescribed dose bands overlap. No boundary or dose was changed.'
-        : `No dose band covers ${previous.upper + 1}${next.lower > previous.upper + 2 ? `–${next.lower - 1}` : ''}. The source boundaries were retained.`,
-      trigger: raw,
-    });
-  }
+  abnormalities.push(...scaleCoverageFindings(ordered.filter(b => /^\d+(?:\.\d+)?U\b/.test(b.action)).map(b => b.condition), raw));
   return { bands: ordered.map(b => `${b.condition}=${b.action}`).join(';'), schedule, route, abnormalities, incomplete: false, baseInstruction, retainedInstructions };
 }
 
 
 export function parseSlidingScale(raw: string): ParsedSlidingScale {
-  const canonical = raw.toUpperCase()
+  const source = raw.toUpperCase();
+  const canonicalize = (part: string) => part
     .replace(/\bCALLD\s*\/\s*NP\b/g, 'CALL MD')
     .replace(/\bCALL(?=MD\b)/g, 'CALL ')
     .replace(/\b(?:CALL|NOTIFY|NOTIFIED)\s+(?:MD|NP|PA)(?:\s*(?:\/|AND)\s*(?:MD|NP|PA))+/g, 'CALL MD')
     .replace(/\b(?:CALL|NOTIFY|NOTIFIED)\s+((?!(?:IF|FOR|WHEN|IN|AFTER)\b)[^;:,.=<>]+?)(?=\s+(?:IF|FOR|WHEN|AND|AT|IN|AFTER)\b|[;:,.=<>]|$)/g, 'CALL MD')
     .replace(/\bCALL MD\s+FOR (?:FURTHER (?:ORDERS|INSTRUCTIONS)|INSTRUCTIONS)\b/g, 'CALL MD');
+  const followups = numericScaleFollowups(source);
+  let cursor = 0;
+  const canonical = followups.map(match => {
+    const before = canonicalize(source.slice(cursor, match.index));
+    cursor = match.index + match[0].length;
+    return before + match[0];
+  }).join('') + canonicalize(source.slice(cursor));
   const legacy = parseLegacySlidingScale(canonical);
   const firstCondition = canonical.search(conditionPattern);
   const leadingHold = firstCondition >= 0 && /\bHOLD(?:\s+INSULIN)?\s+(?:IF|FOR|WHEN)[^.;]*$/.test(canonical.slice(0, firstCondition));
   const conditionalFollowup = /\bIF\s+(?:(?:THE\s+)?(?:READINGS?|BLOOD SUGAR|GLUCOSE)\s+)?(?:(?:IS|ARE)\s+)?STILL\s+(?:HIGH|ABNORMAL)\b/.test(canonical);
-  const result = legacy.incomplete || leadingHold || conditionalFollowup ? parseProseSlidingScale(canonical) : legacy;
-  const findings = canonical !== raw.toUpperCase() ? [{ id: 'site_scale_notification', tier: 'applied_correction' as const,
+  const result = legacy.incomplete || leadingHold || conditionalFollowup || hasNumericScaleFollowup(canonical) || /\bGLUCAGON\b/.test(canonical) || trailingScaleDose(canonical)
+    ? parseProseSlidingScale(canonical) : legacy;
+  const findings = canonical !== source && !result.incomplete ? [{ id: 'site_scale_notification', tier: 'applied_correction' as const,
     title: 'Site Notification Wording Applied', message: 'Notification recipient/purpose variants use CALL MD under the technician-specified scale format.', trigger: raw }] : [];
-  return { ...result, retainedSource: canonical, abnormalities: [...findings, ...result.abnormalities] };
+  return { ...result, retainedSource: source, abnormalities: [...findings, ...result.abnormalities] };
 }

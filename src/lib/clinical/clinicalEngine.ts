@@ -186,6 +186,17 @@ function translateClinicalSigInternal(inbound: InboundOrder, preferences?: Parti
       rawProseLength: inbound.rawProse.length
     }, undefined, traceId);
 
+    if (looksLikeSlidingScale(inbound.rawProse, inbound.drugName)) {
+      const scale = resolveFrequencyAndSchedule(inbound.rawProse, undefined, inbound.drugName, { deferScaleBudget: true });
+      const primarySig = scale.slidingScaleString || uppercaseDirections(inbound.rawProse);
+      const abnormalities = scale.abnormalities;
+      const subOrders = scale.slidingScaleParts
+        ? scale.slidingScaleParts.map((suggestedSig, index) => ({ id: index === 0 ? inbound.id + '_scale' : inbound.id + '_fixed',
+          label: index === 0 ? 'Correction scale' : 'Fixed dose', suggestedSig, abnormalities: [] }))
+        : [{ id: inbound.id + '_single', label: 'Order 1 of 1', suggestedSig: primarySig, abnormalities }];
+      return { primarySig, subOrders, abnormalities, traceId };
+    }
+
     const lidocaineEval = resolveLidocainePatch(
       inbound.drugName,
       inbound.rawProse,

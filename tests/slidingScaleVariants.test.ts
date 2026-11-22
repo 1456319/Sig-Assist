@@ -83,7 +83,7 @@ describe('distinct insulin scale grammar shapes', () => {
     const r = resolveFrequencyAndSchedule(raw, undefined, insulin);
     expect(r.requiresManualTranslation).toBe(true);
     expect(r.slidingScaleString).toMatch(/^CBS (?:TID|\[FREQUENCY\]) SS /);
-    expect(r.slidingScaleString).toContain(raw.toUpperCase().replace('NOTIFY PROVIDER', 'CALL MD'));
+    expect(r.slidingScaleString).toContain(raw.toUpperCase());
     expect(renderSig(parseSigOrder(raw, { drug: insulin }))).toBe(r.slidingScaleString);
   });
 
