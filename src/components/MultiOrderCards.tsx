@@ -164,9 +164,8 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
         <strong>Shared sliding-scale SIG budget: {groupExpandedLength} / 199 estimated expanded characters ({groupRawLength} typed).</strong>
         <p>All entered SIG parts count together. The unified preview is not counted twice. {Math.max(groupRawLength, groupExpandedLength) > 199 ? 'Best-effort concessions still exceed the budget; adjust the editable parts as needed.' : 'Review every part together before entry.'}</p>
       </div> : <div className="rounded-md border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-        <span className="font-semibold">Paxit Multi-Order Requirement:</span>
         <p className="mt-0.5 text-slate-600 dark:text-slate-400">
-          Paxit oral solids cannot have split SIGs on a single order. This medication must be entered into FrameworkLTC as separate orders (Order 1 of 2, Order 2 of 2) for automated pouch packaging. Review and copy each order card individually.
+          Review and copy each of the {subOrders.length} order cards individually. Match each card to its intended entry in FrameworkLTC.
         </p>
       </div>}
 

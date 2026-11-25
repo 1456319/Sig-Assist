@@ -4,7 +4,7 @@ Baseline was prototype commit `9304ba0f35b7ae04a3a8cb0dce71bac0bfa043ac`. The th
 
 ## Treatment clauses
 
-The additional PRN clause could lose its application site, schedule and procedure. Distinct wording now stays on a separate card with a review finding. Plain repeated application headers collapse only when their normalized site and retained qualifiers agree. Combined output and the split finding include every card. Regression cases cover changed site and side, duration, constrained frequency, an additional dressing action and several explicit application clauses. The existing sacrum duplicate case keeps its expected output.
+The additional PRN clause could lose its application site, schedule and procedure. Distinct wording now stays on a separate card with a review finding. Plain repeated application headers collapse only when their normalized site and retained qualifiers agree. Combined output and the split finding include every card. Regression cases cover changed site and side, duration, constrained frequency, an additional dressing action and several explicit application clauses. The existing sacrum duplicate case keeps its expected output. A UI regression also exercises rendering, approval and clipboard copy of the third card. The shared instruction now reflects the actual card count. This check and adjacent UI checks pass in a 17-test run after the full suite.
 
 The lab proposed a new general descriptor parser. The repair uses the existing site normalizer and a narrowly recognized duplicate header. Uncertain wording remains available for review.
 
@@ -24,7 +24,7 @@ The QA plan also misstated the existing export hashing and confused a capture ki
 
 ## Checkpoints and verification
 
-The treatment and transfer checkpoint is remote commit `6cfe2b555da7d4dae2b7e4f2cc3e8d15a3bec885`. The dataset and final runtime checkpoint is `1603822c51f7db439bd55cd35b3b15fddb625846` on `codex/lovable-audit-fixes`. All 1,392 tests in 94 files pass locally. Full lint, type checking, production build, the 388-code root-reference check and portable package verification pass. The Windows package reports v0.1.13, build `18e6086f7efb`. GitHub Windows/Linux checks and prototype publication are pending at this documentation checkpoint.
+The treatment and transfer checkpoint is remote commit `6cfe2b555da7d4dae2b7e4f2cc3e8d15a3bec885`. The dataset and final runtime checkpoint is `1603822c51f7db439bd55cd35b3b15fddb625846` on `codex/lovable-audit-fixes`. All 1,392 tests in 94 files pass locally. Full lint, type checking, production build, the 388-code root-reference check and portable package verification pass. The Windows package reports v0.1.13, build `1e1561461c2b`. GitHub Windows/Linux checks and prototype publication are pending at this documentation checkpoint.
 
 The first CI checkpoint caught an overly broad patient-match reset when the technician edited a SIG. The final implementation preserves that order/part confirmation while independently invalidating time approval when its text or context changes. The normal compound-PON lookup/review/transfer test passes again.
 
