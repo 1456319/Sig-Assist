@@ -128,14 +128,19 @@ export function FrameworkTransfer({ detected, pon, sig, blocked, parts = [], tim
   onDetected: (result?: FrameworkDetection) => void;
   onVerifiedSig?: (sig: string, partId?: string) => void;
 }) {
-  const [matched, setMatched] = useState(false);
+  const [matchedStamp, setMatchedStamp] = useState('');
   const [partId, setPartId] = useState('');
-  const [timeDraft, setTimeDraft] = useState(times.join(', '));
-  const [timesApproved, setTimesApproved] = useState(false);
+  const [timeEdit, setTimeEdit] = useState<{ context: string; value: string }>();
+  const [approvedTimesStamp, setApprovedTimesStamp] = useState('');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const part = parts.find(item => item.id === partId) ?? parts[0];
   const effectiveSig = part?.sig ?? sig;
+  const context = JSON.stringify([pon, part?.id, effectiveSig, times]);
+  const matched = matchedStamp === context;
+  const timeDraft = timeEdit?.context === context ? timeEdit.value : part ? '' : times.join(', ');
+  const timesStamp = JSON.stringify([context, timeDraft, detected?.token, detected?.fields?.times]);
+  const timesApproved = approvedTimesStamp === timesStamp;
   const blockReason = part ? part.blocked : blocked;
   const canLive = ['http:', 'https:'].includes(location.protocol);
   const pons = detected?.pons ?? (detected?.pon ? [detected.pon] : []);
@@ -174,8 +179,8 @@ export function FrameworkTransfer({ detected, pon, sig, blocked, parts = [], tim
     <h4 className="font-semibold">Send to Framework</h4>
     {pons.length > 1 && <p role="alert" className="text-sm text-amber-600 dark:text-amber-400">Multiple PONs detected: {pons.join(', ')}. Check the intended order. Sending remains available.</p>}
     {pons.length === 1 && pons[0] !== pon && <p role="alert" className="text-sm text-amber-600 dark:text-amber-400">Detected PON {pons[0]} differs from selected PON {pon}. Verify the intended order before sending.</p>}
-    {parts.length > 0 && <label className="block text-sm">Order part to send<select className={reviewInputClass} disabled={busy} value={part?.id ?? ''} onChange={event => setPartId(event.target.value)}>{parts.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select><span className="block font-mono text-xs mt-1">{effectiveSig}</span></label>}
-    <label className="flex gap-2 items-start text-sm"><input type="checkbox" role="switch" checked={matched} disabled={busy} onChange={event => setMatched(event.target.checked)} />I matched this patient, drug and PON with the intended Framework order and destination.</label>
+    {parts.length > 0 && <label className="block text-sm">Order part to send<select className={reviewInputClass} disabled={busy} value={part?.id ?? ''} onChange={event => { setPartId(event.target.value); setMatchedStamp(''); setApprovedTimesStamp(''); setTimeEdit(undefined); }}>{parts.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select><span className="block font-mono text-xs mt-1">{effectiveSig}</span></label>}
+    <label className="flex gap-2 items-start text-sm"><input type="checkbox" role="switch" checked={matched} disabled={busy} onChange={event => setMatchedStamp(event.target.checked ? context : '')} />I matched this patient, drug and PON with the intended Framework order and destination.</label>
     {detected?.fields?.sig && <p className="text-xs text-muted-foreground whitespace-pre-wrap">Destination: {detected.fields.sig.label || 'Technician-selected text field'} · Current Framework SIG: {detected.fields.sig.currentValue || '(empty)'}</p>}
     <div className="flex flex-wrap gap-2">
       <button type="button" className={reviewButtonClass} disabled={!canLive || busy || !matched || !!blockReason} onClick={() => void send('sig')}>Send approved SIG to Framework</button>
@@ -186,8 +191,9 @@ export function FrameworkTransfer({ detected, pon, sig, blocked, parts = [], tim
     <details><summary className="cursor-pointer text-sm">Transfer administration times</summary>
       <div className="space-y-2 mt-2">
         {detected?.fields?.times && <p className="text-xs">Current Framework times: {detected.fields.times.currentValue || '(empty)'}</p>}
-        <label className="block text-sm">Administration times to send<input className={reviewInputClass} value={timeDraft} disabled={busy} onChange={event => { setTimeDraft(event.target.value); setTimesApproved(false); }} /></label>
-        <label className="flex gap-2 text-sm"><input type="checkbox" role="switch" checked={timesApproved} disabled={busy || !timeDraft.trim()} onChange={event => setTimesApproved(event.target.checked)} />I checked these times against the E-Rx and Framework’s schedule format.</label>
+        {part && <p className="text-xs">Enter the times for {part.label}.{times.length > 0 ? ` E-Rx order times for reference: ${times.join(', ')}.` : ''}</p>}
+        <label className="block text-sm">Administration times to send<input className={reviewInputClass} value={timeDraft} disabled={busy} onChange={event => { setTimeEdit({ context, value: event.target.value }); setApprovedTimesStamp(''); }} /></label>
+        <label className="flex gap-2 text-sm"><input type="checkbox" role="switch" checked={timesApproved} disabled={busy || !timeDraft.trim()} onChange={event => setApprovedTimesStamp(event.target.checked ? timesStamp : '')} />I checked these times against the E-Rx and Framework’s schedule format.</label>
         <div className="flex flex-wrap gap-2">
           <button type="button" className={reviewButtonClass} disabled={!canLive || busy || !matched || !!blockReason || !timesApproved || !timeDraft.trim()} onClick={() => void send('times')}>Send approved times to Framework</button>
           <button type="button" className={reviewButtonClass} disabled={!canLive || busy} onClick={() => void choose('times')}>Choose Framework times field</button>
@@ -195,7 +201,7 @@ export function FrameworkTransfer({ detected, pon, sig, blocked, parts = [], tim
         <p className="text-xs text-muted-foreground">Choose an editable times text field. Grid schedules may require entry in Framework.</p>
       </div>
     </details>
-    <RxEntryTransfer pon={pon} blocked={blockReason} canLive={canLive} />
+    <RxEntryTransfer key={context} pon={pon} blocked={blockReason} canLive={canLive} />
     {!canLive && <p className="text-sm">Launch Start-Iguana-Connector.bat to send to Framework.</p>}
     <p className="text-xs text-muted-foreground">The technician decides which order receives the approved text. Transfer verifies the destination text; preview and save in Framework.</p>
     {!!status && <p className="text-sm" role="status">{status}</p>}

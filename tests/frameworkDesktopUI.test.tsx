@@ -10,6 +10,55 @@ function Harness({ initial }: { initial?: FrameworkDetection }) {
   return <FrameworkTransfer detected={detected} pon="PON-B" sig="APPROVED SIG" blocked={undefined} times={['0900']} onDetected={setDetected} />;
 }
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+const splitParts = [
+  { id: 'am', label: 'Morning part', sig: 'SAME REVIEWED SIG' },
+  { id: 'pm', label: 'Evening part', sig: 'SAME REVIEWED SIG' },
+];
+const timesFound: FrameworkDetection = { ...found, fields: { ...found.fields, times: { label: 'Times', currentValue: 'OLD TIMES' } } };
+function transfer(parts = splitParts, detected = timesFound, sig = 'APPROVED SIG', times = ['0900']) {
+  return <FrameworkTransfer detected={detected} pon="PON-B" sig={sig} blocked={undefined} times={times} parts={parts} onDetected={vi.fn()} />;
+}
+function approveTimes() {
+  fireEvent.change(screen.getByLabelText('Administration times to send'), { target: { value: '0715' } });
+  fireEvent.click(screen.getByLabelText(/I matched this patient, drug and PON/));
+  fireEvent.click(screen.getByLabelText(/I checked these times/));
+}
+describe('split administration-time review', () => {
+  it('starts split times empty and requires fresh review after changing identical-text parts', () => {
+    render(transfer());
+    expect((screen.getByLabelText('Administration times to send') as HTMLInputElement).value).toBe('');
+    approveTimes();
+    expect((screen.getByRole('button', { name: 'Send approved times to Framework' }) as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.change(screen.getByRole('combobox', { name: /Order part to send/ }), { target: { value: 'pm' } });
+    expect((screen.getByLabelText(/I checked these times/) as HTMLInputElement).checked).toBe(false);
+    expect((screen.getByLabelText(/I matched this patient, drug and PON/) as HTMLInputElement).checked).toBe(false);
+    expect((screen.getByRole('button', { name: 'Send approved times to Framework' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByLabelText('Administration times to send') as HTMLInputElement).value).toBe('');
+  });
+
+  it.each(['sig', 'destination', 'source times'])('invalidates time approval when %s changes without a remount', change => {
+    const view = render(transfer());
+    approveTimes();
+    view.rerender(transfer(
+      change === 'sig' ? [{ ...splitParts[0], sig: 'REVISED SIG' }, splitParts[1]] : splitParts,
+      change === 'destination' ? { ...timesFound, token: 'new-target-token' } : timesFound,
+      'APPROVED SIG', change === 'source times' ? ['1100'] : ['0900'],
+    ));
+    expect((screen.getByLabelText(/I checked these times/) as HTMLInputElement).checked).toBe(false);
+    expect((screen.getByRole('button', { name: 'Send approved times to Framework' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('keeps a single-part prefill and sends the explicitly approved times', async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true, verified: true })));
+    vi.stubGlobal('fetch', fetcher);
+    render(transfer([]));
+    expect((screen.getByLabelText('Administration times to send') as HTMLInputElement).value).toBe('0900');
+    approveTimes();
+    fireEvent.click(screen.getByRole('button', { name: 'Send approved times to Framework' }));
+    await waitFor(() => expect(fetcher).toHaveBeenCalledOnce());
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({ field: 'times', value: '0715', matched: true, approved: true });
+  });
+});
 describe('technician-controlled Framework sending', () => {
   it('offers explicit entry-window selection and displays the remembered window', async () => {
     const result = { ok: true, pon: 'PON-A', pons: ['PON-A'], entryWindow: { title: 'Framework entry fixture', pid: 41 } };

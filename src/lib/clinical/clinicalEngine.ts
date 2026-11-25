@@ -237,12 +237,12 @@ function translateClinicalSigInternal(inbound: InboundOrder, preferences?: Parti
             id: `treatment_order_split_${inbound.id}`,
             tier: 'applied_correction',
             title: 'Treatment Order Routine and PRN Split',
-            message: 'The treatment order directions contain both a scheduled routine application and a PRN application. Split into independent routine and PRN orders for FrameworkLTC entry.',
-            correction: `Split 1: ${subOrders[0].suggestedSig} | Split 2: ${subOrders[1].suggestedSig}`,
+            message: 'Treatment directions were split into separately reviewed orders. Check each routine, PRN and retained application against its source.',
+            correction: subOrders.map((part, index) => `Split ${index + 1}: ${part.suggestedSig}`).join(' | '),
             trigger: inbound.rawProse
           }
         ];
-        const unifiedSig = `${subOrders[0].suggestedSig} **SPLIT** ${subOrders[1].suggestedSig}`;
+        const unifiedSig = subOrders.map(part => part.suggestedSig).join(' **SPLIT** ');
         traceLogger.info('clinical', 'clinicalEngine', 'Formulated split sub-orders for treatment order', {
           primarySig: unifiedSig,
           subOrdersCount: subOrders.length,

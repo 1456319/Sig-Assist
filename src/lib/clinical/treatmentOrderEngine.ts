@@ -133,15 +133,32 @@ export function resolveTreatmentOrder(drugName: string, rawProse: string): Treat
   }
 
   const explicit = rawProse.split(/\s+AND\s+(?=APPLY\s+TO\b)/i);
-  if (explicit.length === 2 && /\b(?:AS NEEDED|PRN)\b/i.test(explicit[1])) {
-    const routine = resolveTreatmentOrder(drugName, explicit[0]);
-    if (routine?.isSplit && !/\b(?:CLEANSE|PAT DRY|COVER|WRAP|LEAVE)\b/i.test(explicit[1])) {
-      const reason = explicit[1].match(/\b(?:AS NEEDED|PRN)\s+(FOR\s+[^.;]+)/i)?.[1].toUpperCase();
-      const parts = routine.splitParts.map(part => ({ ...part,
-        sig: part.label.includes('(PRN)') && reason && !part.sig.includes(reason.replace(/^FOR /, '')) ? `${part.sig} ${reason}` : part.sig,
-      }));
-      return { ...routine, splitParts: parts };
+  if (explicit.length >= 2 && /\b(?:AS NEEDED|PRN)\b/i.test(explicit[explicit.length - 1])) {
+    const additional = explicit.pop()!;
+    const routine = resolveTreatmentOrder(drugName, explicit.join(' AND '));
+    if (routine?.isSplit) {
+      // Collapse only a plain repeated application header at the same site.
+      // Any other wording stays on its own card, with its own review finding.
+      const duplicate = additional.toUpperCase().trim().match(/^APPLY\s+(?:TOPICALLY\s+)?TO\s+(.+?)\s+(?:TOPICALLY\s+)?(?:AS NEEDED|PRN)(?:\s+(FOR\s+[^.;]+))?[.]?$/);
+      const prnPart = routine.splitParts.find(part => part.label.includes('(PRN)'));
+      const reason = duplicate?.[2];
+      const extraModifiers = new RegExp(`${SCHEDULE.source}|\\b(?:FOR|UP TO)\\s+\\d+|\\b(?:HOLD|STOP|UNTIL|AFTER|BEFORE|THEN|APPLY|CLEANSE|COVER|WRAP|LEAVE)\\b`, 'i');
+      if (duplicate && prnPart && prnPart.sig.startsWith(`TO ${normalizeSite(duplicate[1])}:`)
+        && !extraModifiers.test(duplicate[1] + ' ' + (reason || ''))
+        && !/\bX\d|\bUNTIL\b/.test(prnPart.sig)
+        && (!reason || !prnPart.sig.includes(' FOR ') || prnPart.sig.includes(reason.replace(/^FOR /, '')))) {
+        return { ...routine, splitParts: routine.splitParts.map(part => ({ ...part,
+          sig: part === prnPart && reason && !part.sig.includes(reason.replace(/^FOR /, '')) ? `${part.sig} ${reason}` : part.sig,
+        })) };
+      }
+      const review: AbnormalityFinding = { id: 'additional_treatment_clause', tier: 'uncorrected_gap', title: 'Additional Treatment Clause Retained for Review',
+        message: 'This application has distinct or uncertain site, procedure or schedule wording. Review its separate card against the source.', trigger: additional };
+      const parts = [...routine.splitParts, { label: 'Additional (PRN)', sig: additional.toUpperCase().replace(/\s+/g, ' ').trim(), abnormalities: [review] }];
+      return { ...routine, splitParts: parts.map((part, index) => ({ ...part,
+        label: `Order ${index + 1} of ${parts.length} ${part.label.match(/\([^)]*\)$/)?.[0] || ''}`.trim(),
+      })), abnormalities: [...routine.abnormalities, review] };
     }
+    explicit[1] = additional;
     if (routine?.singleSig) {
       if (/\b(?:CLEANSE|PAT DRY|COVER|WRAP|LEAVE)\b/i.test(explicit[1])) {
         const review: AbnormalityFinding = { id: 'separate_prn_procedure', tier: 'uncorrected_gap', title: 'Separate PRN Procedure Requires Review',
