@@ -48,84 +48,76 @@ export function SigDatasetPanel() {
     if (!frameworkEnabled || !capture.enabled) return;
     let stopped = false, timer: ReturnType<typeof setTimeout>;
     const controller = new AbortController();
-    const sources = new Map<string, QueueOrder | null>();
-    const enrichment = new Map<string, { values: Set<string>; retryAt?: number }>();
+    // Only the latest observation is eligible for asynchronous enrichment.
+    // Previously saved raw observations survive when a lookup becomes stale.
+    type Lookup = { pon: string; value: string; identity: string; queueContext: string; retryAt?: number; done?: boolean };
+    let lookup: Lookup | undefined;
     let enriching = false;
-    let last = '', lastError = '';
+    let currentIdentity = '', last = '', lastError = '';
+    const loadedFor = (pon: string) => latestOrders.current.filter(order => order.pon.trim() === pon);
+    const queueContext = (pon: string) => JSON.stringify(loadedFor(pon).map(order =>
+      [sourceStamp(order), order.facility, order.patientRef, order.cancelled, order.intakeHold]));
     async function enrichSources() {
-      if (enriching) return;
+      const job = lookup;
+      if (enriching || !job || job.done || job.retryAt !== undefined && Date.now() < job.retryAt) return;
+      const stillCurrent = () => !stopped && lookup === job && currentIdentity === job.identity && queueContext(job.pon) === job.queueContext;
+      if (!stillCurrent()) { job.done = true; return; }
       enriching = true;
       try {
-        for (const [pon, job] of enrichment) {
-          if (stopped) break;
-          if (job.retryAt !== undefined) {
-            if (Date.now() < job.retryAt) continue;
-            if (latestOrders.current.filter(order => order.pon.trim() === pon).length > 1) { enrichment.delete(pon); continue; }
-          }
-          let source: QueueOrder | undefined;
-          try { source = await findDatasetSource(pon, controller.signal); }
-          catch {
-            if (stopped) break;
-            lastError = 'Iguana source lookup unavailable; field observations remain saved without an original/final pairing.';
-            if (job.retryAt === undefined) { job.retryAt = Date.now() + 30_000; continue; }
-          }
-          if (stopped) break;
-          const stillUnambiguous = (candidate: QueueOrder) => {
-            const loaded = latestOrders.current.filter(order => order.pon.trim() === pon);
-            return loaded.length === 0 || (loaded.length === 1 && sourceStamp(loaded[0]) === sourceStamp(candidate));
-          };
-          if (source && !stillUnambiguous(source)) { enrichment.delete(pon); continue; }
-          sources.set(pon, source || null);
-          if (sources.size > 200) sources.delete(sources.keys().next().value!);
-          if (source) for (const value of job.values) {
-            if (stopped || !stillUnambiguous(source)) break;
-            if (await queueSigSample(orderDatasetInput(source, 'framework_observed', { finalSig: value }))) {
-              lastError = '';
-              if (!stopped) setFrameworkStatus('An exact incoming source was paired with a saved field observation. Collection continues; this does not verify a prescription save.');
-            }
-          }
-          enrichment.delete(pon);
+        let source: QueueOrder | undefined;
+        try { source = await findDatasetSource(job.pon, controller.signal); }
+        catch {
+          if (!stillCurrent()) return;
+          lastError = 'Iguana source lookup unavailable; field observations remain saved without a source match.';
+          if (job.retryAt === undefined) { job.retryAt = Date.now() + 30_000; return; }
+        }
+        job.done = true;
+        if (!source || !stillCurrent() || source.cancelled || source.intakeHold) return;
+        // PON alone identifies a candidate. The snapshot cannot verify patient,
+        // facility, source revision or the currently selected split.
+        const saved = await queueSigSample({ ...orderDatasetInput(source, 'framework_observed', { finalSig: job.value }), sourceMatch: 'pon_candidate' });
+        if (saved && stillCurrent()) {
+          lastError = '';
+          setFrameworkStatus('Possible incoming source saved with the field observation. Confirm the source and final SIG before using this as a translation example.');
         }
       } finally { enriching = false; }
     }
-    function enrichLater(pon: string, value: string) {
-      if (sources.has(pon)) return;
-      if (!enrichment.has(pon)) {
-        if (enrichment.size >= 200) { lastError = 'Source enrichment is behind capture; unpaired observations are retained.'; return; }
-        enrichment.set(pon, { values: new Set() });
-      }
-      enrichment.get(pon)?.values.add(value);
-      void enrichSources();
-    }
     async function tick() {
-      // Retry due enrichment separately from the field identity/dedup check.
-      void enrichSources();
       try {
         const result = await readFrameworkSigSnapshot(controller.signal);
         if (stopped) return;
         if (!result.ok || !result.pon?.trim() || !result.sig?.trim()) {
+          currentIdentity = ''; last = ''; lookup = undefined;
           setFrameworkStatus(frameworkSnapshotStatus(result));
         } else {
-          const pon = result.pon.trim(), value = result.sig.trim(), identity = JSON.stringify([pon, value]);
+          const pon = result.pon.trim(), value = result.sig.trim();
+          const loaded = loadedFor(pon), context = queueContext(pon);
+          const source = loaded.length === 1 && !loaded[0].cancelled && !loaded[0].intakeHold ? loaded[0] : undefined;
+          const identity = JSON.stringify([pon, value, source ? context : 'unpaired']);
+          if (lookup && lookup.queueContext !== context) lookup = undefined;
+          if (identity !== currentIdentity) { currentIdentity = identity; lookup = undefined; }
           if (identity !== last) {
-            const loaded = latestOrders.current.filter(order => order.pon.trim() === pon);
-            const source = loaded.length === 1 ? loaded[0] : loaded.length === 0 ? sources.get(pon) || undefined : undefined;
-            if (!stopped) {
-              const input = source ? orderDatasetInput(source, 'framework_observed', { finalSig: value }) : {
-                orderKey: `framework:${pon}`, revision: 1, drug: result.drug || '', rawSig: value, finalSig: value,
-                stage: 'framework_observed' as const, captureKind: 'framework_sig_observation' as const, origin: 'framework' as const,
-              };
-              const saved = await queueSigSample(input);
-              if (stopped) return;
-              if (saved) last = identity;
-              setFrameworkStatus(saved ? `Field observation saved locally${source ? ' with its exact incoming source' : '; original E-Rx prose was not available'}. This is not a verified save. ${lastError}` : 'Observation is pending local storage. Check dataset status.');
-              // Preserve the observation immediately. Slow Iguana enrichment
-              // must not delay the next native read and miss the next E-Rx.
-              if (saved && !source && loaded.length === 0) enrichLater(pon, value);
+            const input = source ? { ...orderDatasetInput(source, 'framework_observed', { finalSig: value }), sourceMatch: 'pon_candidate' as const } : {
+              orderKey: `framework:${pon}`, revision: 1, drug: result.drug || '', rawSig: value, finalSig: value,
+              stage: 'framework_observed' as const, captureKind: 'framework_sig_observation' as const, origin: 'framework' as const,
+              sourceMatch: 'unpaired' as const,
+            };
+            const saved = await queueSigSample(input);
+            if (stopped) return;
+            if (saved) last = identity;
+            setFrameworkStatus(saved ? (source
+              ? 'Field observation saved with a possible source matched by PON. Confirm the source and final SIG before using this as a translation example.'
+              : `Field observation saved locally; original E-Rx prose was not available. ${lastError}`)
+              : 'Observation is pending local storage. Check dataset status.');
+            // A stalled source lookup must never hold up the next native read.
+            if (saved && !source && loaded.length === 0) {
+              lookup = { pon, value, identity, queueContext: context };
             }
           }
+          // Retry only after a fresh field read, even when that read deduplicates.
+          void enrichSources();
         }
-      } catch (failure) { if (!stopped) setFrameworkStatus(failure instanceof Error ? failure.message : 'Passive SIG collection failed.'); }
+      } catch (failure) { currentIdentity = ''; last = ''; lookup = undefined; if (!stopped) setFrameworkStatus(failure instanceof Error ? failure.message : 'Passive SIG collection failed.'); }
       finally { if (!stopped) timer = setTimeout(() => void tick(), 5000); }
     }
     void tick();
@@ -137,7 +129,7 @@ export function SigDatasetPanel() {
       const page = await sigDatasetStore.page(cursor, 1000);
       if (!page.records.length) { setNotice('No additional samples at this export position. Reset the export position to download earlier samples again.'); return; }
       const policies = Object.entries(page.policies || {}).map(([id, exclusions]) => ({ type: 'exclusion_policy', id, exclusions }));
-      downloadDataset([{ type: 'sig_dataset_batch', schemaVersion: 1, appVersion: __SIG_ASSIST_VERSION__, buildId: __SIG_ASSIST_BUILD__, afterSeq: cursor, throughSeq: page.nextSeq }, ...policies, ...page.records], `sig-dataset-${cursor + 1}-${page.nextSeq}.jsonl`);
+      downloadDataset([{ type: 'sig_dataset_batch', schemaVersion: 1, appVersion: __SIG_ASSIST_VERSION__, buildId: __SIG_ASSIST_BUILD__, afterSeq: cursor, throughSeq: page.nextSeq }, ...policies, ...page.records.map(row => row.stage === 'framework_observed' && row.sourceMatch === undefined ? { ...row, sourceMatch: 'legacy_unverified' as const } : row)], `sig-dataset-${cursor + 1}-${page.nextSeq}.jsonl`);
       await sigDatasetStore.setExportPosition(page.nextSeq);
       setCursor(page.nextSeq);
       setNotice(`Download requested for ${page.records.length} samples. Check the saved file. ${page.hasMore ? 'More samples remain.' : 'Export is current.'} Dataset records are retained.`);

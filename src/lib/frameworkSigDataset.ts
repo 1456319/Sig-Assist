@@ -2,7 +2,7 @@ import { parseScriptLog } from './iguana/payload';
 import { ingestScriptEvents } from './iguana/intake';
 import { queryIguana } from './iguana/client';
 import { initialConnectorConfig, daysAgoMidnight } from './iguana/config';
-import type { QueueOrder } from './orderQueue';
+import { sourceStamp, type QueueOrder } from './orderQueue';
 
 export interface FrameworkSigSnapshot { ok: boolean; code?: string; pon?: string; sig?: string; drug?: string; observedAt?: string; partial?: boolean; retryAfterMs?: number }
 export function frameworkSnapshotStatus(snapshot: FrameworkSigSnapshot): string {
@@ -26,13 +26,15 @@ export async function readFrameworkSigSnapshot(signal?: AbortSignal): Promise<Fr
 // action. Returned source text stays in the local browser dataset.
 export async function findDatasetSource(pon: string, signal: AbortSignal): Promise<QueueOrder | undefined> {
   const quiet = () => {};
+  let recent: QueueOrder | undefined;
   for (const days of [1, 7]) {
     const result = await queryIguana({ ...initialConnectorConfig(), filter: pon, after: daysAgoMidnight(days), before: '' }, quiet, signal);
     const events = result.logs.flatMap(log => parseScriptLog(log, quiet));
     const intake = ingestScriptEvents([], events, () => '', quiet);
     const matches = intake.orders.filter(order => order.pon.trim() === pon && !order.intakeHold);
-    if (matches.length === 1 && !result.saturated) return matches[0];
     if (matches.length > 1 || result.saturated) return undefined;
+    if (days === 1) recent = matches[0];
+    else if (matches.length === 1 && !matches[0].cancelled && (!recent || sourceStamp(recent) === sourceStamp(matches[0]))) return matches[0];
   }
   return undefined;
 }

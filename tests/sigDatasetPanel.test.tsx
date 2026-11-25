@@ -240,7 +240,12 @@ describe('dataset collection panel', () => {
       revision: 1, stage: 'source_received', drug: 'Synthetic tablet', rawSig: `Synthetic instruction ${index + 1}`,
       exclusionPolicyId: 'synthetic-policy',
     }));
-    const snapshot = structuredClone(records);
+    records[0].stage = 'framework_observed';
+    records[1].stage = 'framework_observed';
+    records[1].sourceMatch = 'pon_candidate';
+    const storedSnapshot = structuredClone(records);
+    const snapshot = records.map(row => row.stage === 'framework_observed' && row.sourceMatch === undefined
+      ? { ...structuredClone(row), sourceMatch: 'legacy_unverified' } : structuredClone(row));
     const exclusions = [{ kind: 'code' as const, value: 'QD', replacement: 'DAILY' }];
     mocks.stats.mockResolvedValue({ total: records.length, stages: { ...stages, source_received: records.length } });
     mocks.page.mockImplementation(async (after: number, limit: number) => {
@@ -267,6 +272,9 @@ describe('dataset collection panel', () => {
     expect(first[0]).toMatchObject({ type: 'sig_dataset_batch', schemaVersion: 1, afterSeq: 0, throughSeq: 1000 });
     expect(first[1]).toEqual({ type: 'exclusion_policy', id: 'synthetic-policy', exclusions });
     expect(first.slice(2)).toEqual(snapshot.slice(0, 1000));
+    expect(records[0].sourceMatch).toBeUndefined();
+    expect(first[2].sourceMatch).toBe('legacy_unverified');
+    expect(first[3].sourceMatch).toBe('pon_candidate');
 
     fireEvent.click(download);
     await screen.findByText(/Download requested for 2 samples.*Export is current.*Dataset records are retained/);
@@ -289,7 +297,7 @@ describe('dataset collection panel', () => {
 
     expect(screen.getByText('SIG dataset · 1002 local observations · collecting')).toBeDefined();
     expect(screen.getByText(/Source observations: 1002/)).toBeDefined();
-    expect(records).toEqual(snapshot);
+    expect(records).toEqual(storedSnapshot);
     expect(mocks.clear).not.toHaveBeenCalled();
     expect(mocks.delete).not.toHaveBeenCalled();
     expect(mocks.record).not.toHaveBeenCalled();

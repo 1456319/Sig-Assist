@@ -14,6 +14,8 @@ export interface SigDatasetInput {
   finalSig?: string;
   partId?: string;
   stage: SigDatasetStage;
+  /** Passive source attribution only. PON matches require independent confirmation. */
+  sourceMatch?: 'pon_candidate' | 'unpaired' | 'legacy_unverified';
   captureKind?: 'erx_source' | 'framework_sig_observation';
   origin?: 'iguana' | 'manual' | 'framework' | 'demo';
   context?: { ndc?: string; strength?: string; dose?: string | number; doseUnit?: string; route?: string; frequency?: string; administrationTimes?: string[] };
@@ -67,6 +69,10 @@ function clinicalFields(input: SigDatasetInput): Omit<SigDatasetInput, 'orderKey
   if (!isObject(input) || !Number.isSafeInteger(input.revision) || input.revision < 0 || !STAGES.includes(input.stage) || typeof input.drug !== 'string' || typeof input.rawSig !== 'string') throw new Error('Invalid SIG dataset observation.');
   const result: Omit<SigDatasetInput, 'orderKey' | 'partId' | 'exclusions'> = { revision: input.revision, stage: input.stage, drug: input.drug, rawSig: input.rawSig, captureKind: input.captureKind ?? 'erx_source' };
   if (!['erx_source', 'framework_sig_observation'].includes(result.captureKind!)) throw new Error('Invalid SIG dataset capture kind.');
+  if (input.sourceMatch !== undefined) {
+    if (input.stage !== 'framework_observed' || !['pon_candidate', 'unpaired', 'legacy_unverified'].includes(input.sourceMatch)) throw new Error('Invalid passive SIG source match.');
+    result.sourceMatch = input.sourceMatch;
+  }
   for (const key of ['generatedSig', 'suggestedSig', 'finalSig', 'comment', 'defaultSigTemplate'] as const) {
     if (!optionalString(input[key])) throw new Error('Invalid SIG dataset text.');
     if (input[key] !== undefined) result[key] = input[key];
@@ -104,7 +110,7 @@ function clinicalFields(input: SigDatasetInput): Omit<SigDatasetInput, 'orderKey
 
 function validRecord(value: unknown): value is SigDatasetRecord {
   if (!isObject(value) || value.schemaVersion !== 1 || !Number.isSafeInteger(value.seq) || (value.seq as number) < 1 || typeof value.capturedAt !== 'string' || !Number.isFinite(Date.parse(value.capturedAt)) || typeof value.appVersion !== 'string' || typeof value.buildId !== 'string' || !HEX.test(String(value.orderId)) || !HEX.test(String(value.sampleId)) || !HEX.test(String(value.dedupKey)) || value.exclusionPolicyId !== undefined && !HEX.test(String(value.exclusionPolicyId))) return false;
-  const fields = ['schemaVersion', 'seq', 'capturedAt', 'appVersion', 'buildId', 'orderId', 'sampleId', 'dedupKey', 'exclusionPolicyId', 'revision', 'stage', 'drug', 'rawSig', 'captureKind', 'origin', 'generatedSig', 'suggestedSig', 'finalSig', 'comment', 'acceptable', 'warnings', 'context', 'defaultSigTemplate'];
+  const fields = ['schemaVersion', 'seq', 'capturedAt', 'appVersion', 'buildId', 'orderId', 'sampleId', 'dedupKey', 'exclusionPolicyId', 'revision', 'stage', 'drug', 'rawSig', 'captureKind', 'origin', 'generatedSig', 'suggestedSig', 'finalSig', 'comment', 'acceptable', 'warnings', 'context', 'defaultSigTemplate', 'sourceMatch'];
   if (Object.keys(value).some(key => !fields.includes(key))) return false;
   if (isObject(value.context) && Object.keys(value.context).some(key => !['ndc', 'strength', 'dose', 'doseUnit', 'route', 'frequency', 'administrationTimes'].includes(key))) return false;
   try { clinicalFields(value as unknown as SigDatasetInput); return true; } catch { return false; }

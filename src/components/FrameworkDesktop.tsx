@@ -137,7 +137,8 @@ export function FrameworkTransfer({ detected, pon, sig, blocked, parts = [], tim
   const part = parts.find(item => item.id === partId) ?? parts[0];
   const effectiveSig = part?.sig ?? sig;
   const context = JSON.stringify([pon, part?.id, effectiveSig, times]);
-  const matched = matchedStamp === context;
+  const matchContext = JSON.stringify([pon, part?.id]);
+  const matched = matchedStamp === matchContext;
   const timeDraft = timeEdit?.context === context ? timeEdit.value : part ? '' : times.join(', ');
   const timesStamp = JSON.stringify([context, timeDraft, detected?.token, detected?.fields?.times]);
   const timesApproved = approvedTimesStamp === timesStamp;
@@ -180,7 +181,7 @@ export function FrameworkTransfer({ detected, pon, sig, blocked, parts = [], tim
     {pons.length > 1 && <p role="alert" className="text-sm text-amber-600 dark:text-amber-400">Multiple PONs detected: {pons.join(', ')}. Check the intended order. Sending remains available.</p>}
     {pons.length === 1 && pons[0] !== pon && <p role="alert" className="text-sm text-amber-600 dark:text-amber-400">Detected PON {pons[0]} differs from selected PON {pon}. Verify the intended order before sending.</p>}
     {parts.length > 0 && <label className="block text-sm">Order part to send<select className={reviewInputClass} disabled={busy} value={part?.id ?? ''} onChange={event => { setPartId(event.target.value); setMatchedStamp(''); setApprovedTimesStamp(''); setTimeEdit(undefined); }}>{parts.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select><span className="block font-mono text-xs mt-1">{effectiveSig}</span></label>}
-    <label className="flex gap-2 items-start text-sm"><input type="checkbox" role="switch" checked={matched} disabled={busy} onChange={event => setMatchedStamp(event.target.checked ? context : '')} />I matched this patient, drug and PON with the intended Framework order and destination.</label>
+    <label className="flex gap-2 items-start text-sm"><input type="checkbox" role="switch" checked={matched} disabled={busy} onChange={event => setMatchedStamp(event.target.checked ? matchContext : '')} />I matched this patient, drug and PON with the intended Framework order and destination.</label>
     {detected?.fields?.sig && <p className="text-xs text-muted-foreground whitespace-pre-wrap">Destination: {detected.fields.sig.label || 'Technician-selected text field'} · Current Framework SIG: {detected.fields.sig.currentValue || '(empty)'}</p>}
     <div className="flex flex-wrap gap-2">
       <button type="button" className={reviewButtonClass} disabled={!canLive || busy || !matched || !!blockReason} onClick={() => void send('sig')}>Send approved SIG to Framework</button>

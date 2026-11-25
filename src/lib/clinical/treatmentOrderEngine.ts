@@ -142,7 +142,7 @@ export function resolveTreatmentOrder(drugName: string, rawProse: string): Treat
       const duplicate = additional.toUpperCase().trim().match(/^APPLY\s+(?:TOPICALLY\s+)?TO\s+(.+?)\s+(?:TOPICALLY\s+)?(?:AS NEEDED|PRN)(?:\s+(FOR\s+[^.;]+))?[.]?$/);
       const prnPart = routine.splitParts.find(part => part.label.includes('(PRN)'));
       const reason = duplicate?.[2];
-      const extraModifiers = new RegExp(`${SCHEDULE.source}|\\b(?:FOR|UP TO)\\s+\\d+|\\b(?:HOLD|STOP|UNTIL|AFTER|BEFORE|THEN|APPLY|CLEANSE|COVER|WRAP|LEAVE)\\b`, 'i');
+      const extraModifiers = new RegExp(`${SCHEDULE.source}|\\b(?:FOR|UP TO)\\s+\\d+|${ACTION_START.source}|\\b(?:STOP|UNTIL|AFTER|BEFORE|THEN|IF|WHEN|ONLY|EXCEPT|WITHOUT)\\b`, 'i');
       if (duplicate && prnPart && prnPart.sig.startsWith(`TO ${normalizeSite(duplicate[1])}:`)
         && !extraModifiers.test(duplicate[1] + ' ' + (reason || ''))
         && !/\bX\d|\bUNTIL\b/.test(prnPart.sig)

@@ -63,6 +63,17 @@ describe('local incremental SIG dataset', () => {
     expect(await createSigDatasetStore(databaseName).record(observation())).toEqual({ added: false, seq: 1 });
   });
 
+  it('preserves passive source certainty across reopen without reclassifying legacy rows', async () => {
+    const databaseName = name(), store = createSigDatasetStore(databaseName);
+    await store.record(observation({ stage: 'framework_observed' }));
+    await store.record(observation({ stage: 'framework_observed', sourceMatch: 'pon_candidate' }));
+    await store.record(observation({ stage: 'framework_observed', sourceMatch: 'unpaired' }));
+    const rows = (await createSigDatasetStore(databaseName).page(0)).records;
+    expect(rows.map(row => row.sourceMatch)).toEqual([undefined, 'pon_candidate', 'unpaired']);
+    expect(JSON.stringify(rows)).not.toContain(observation().orderKey);
+    await expect(store.record(observation({ sourceMatch: 'pon_candidate' }))).rejects.toThrow('Invalid passive SIG source match.');
+  });
+
   it('retains changed text, ratings, comments, source context, policy, parts and revisions', async () => {
     const store = createSigDatasetStore(name());
     const changes: Partial<SigDatasetInput>[] = [

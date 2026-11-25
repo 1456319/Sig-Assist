@@ -15,6 +15,7 @@ describe('additional treatment clauses', () => {
     'Apply to right heel as needed for itching.',
     'Apply to left heel twice daily as needed for itching.',
     'Apply to left heel as needed for itching for 7 days.',
+    'Apply to left heel as needed for itching only if skin intact.',
     'Apply to right elbow as needed, cover with dry dressing.',
   ])('preserves a distinct clause on its own card and in combined output: %s', extra => {
     const result = translate(extra);

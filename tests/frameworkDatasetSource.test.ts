@@ -24,4 +24,12 @@ describe('passive dataset source lookup', () => {
     vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(response(attributeExport([])))));
     expect(await findDatasetSource('SYNTHETIC-NOT-FOUND', new AbortController().signal)).toBeUndefined();
   });
+  it('checks the wider window before returning a recent candidate', async () => {
+    const pon = 'SYNTHETIC-REUSED';
+    const fetcher = vi.fn().mockResolvedValueOnce(response(attributeExport([{ payload: newRx({ pon }) }])))
+      .mockResolvedValueOnce(response(attributeExport([{ payload: newRx({ pon }) }, { payload: newRx({ pon, id: 'synthetic-msg-2' }).replace('DEMO-SITE', 'OTHER-FACILITY') }])));
+    vi.stubGlobal('fetch', fetcher);
+    expect(await findDatasetSource(pon, new AbortController().signal)).toBeUndefined();
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
 });
