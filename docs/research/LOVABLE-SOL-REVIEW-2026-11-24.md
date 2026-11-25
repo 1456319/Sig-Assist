@@ -24,4 +24,8 @@ The QA plan also misstated the existing export hashing and confused a capture ki
 
 ## Checkpoints and verification
 
-The treatment and transfer checkpoint is remote commit `6cfe2b555da7d4dae2b7e4f2cc3e8d15a3bec885` on `codex/lovable-audit-fixes`. Its portable package matches source. Treatment, temporal-sequence and transfer tests pass, together with type checking and targeted lint. Dataset regression tests and final integrated checks are in progress at this checkpoint. The earlier SSI changes remain on `codex/ssi-lovable-validation` and require an integration review before promotion.
+The treatment and transfer checkpoint is remote commit `6cfe2b555da7d4dae2b7e4f2cc3e8d15a3bec885`. The dataset and final runtime checkpoint is `1603822c51f7db439bd55cd35b3b15fddb625846` on `codex/lovable-audit-fixes`. All 1,392 tests in 94 files pass locally. Full lint, type checking, production build, the 388-code root-reference check and portable package verification pass. The Windows package reports v0.1.13, build `18e6086f7efb`. GitHub Windows/Linux checks and prototype publication are pending at this documentation checkpoint.
+
+The first CI checkpoint caught an overly broad patient-match reset when the technician edited a SIG. The final implementation preserves that order/part confirmation while independently invalidating time approval when its text or context changes. The normal compound-PON lookup/review/transfer test passes again.
+
+On the dummy workstation, open split B, identify its times editor, enter and approve B's times, then compare the actual schedules for A and B. Also compare one same-site duplicated treatment and the retained right-elbow card against the original source. The earlier SSI changes remain on `codex/ssi-lovable-validation` and require an integration review before promotion.
