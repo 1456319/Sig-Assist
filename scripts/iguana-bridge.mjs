@@ -270,7 +270,13 @@ export function createBridge({ htmlPath = defaultHtmlPath(), fetchImpl = fetch, 
         const body = JSON.parse(await limitedText(request, 512 * 1024));
         const action = request.url.split('/').pop();
         if (action === 'status') { send(200, journal.status()); return; }
-        if (action === 'observations') { if (!journal.status().active) observer.stop(); send(200, { ok: true, ...observer.updates(body.after, body.sessionId) }); return; }
+        if (action === 'observations') {
+          const status = journal.status();
+          if (!status.active) observer.stop();
+          // A metadata-only session must not replay a previous clinical session's ring.
+          if (!status.observeDesktop) { send(200, { ok: true, active: false, sessionId: status.sessionId, status: 'DESKTOP_OBSERVATION_OFF', eventSource: 'off', cursor: 0, gaps: 0, dropped: 0, frames: [] }); return; }
+          send(200, { ok: true, ...observer.updates(body.after, body.sessionId) }); return;
+        }
         if (action === 'start') {
           const status = await journal.start({ ...body, bridgeBuildId, desktopBuildId: await desktopBuildId() }); clearInterval(observationTimer);
           if (status.active && status.observeDesktop) observer.start(status.sessionId);

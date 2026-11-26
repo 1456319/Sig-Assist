@@ -130,10 +130,15 @@ it('serves recording controls only to same-origin JSON, never queries upstream f
   expect((await post('start', { appVersion: '0.1.7' })).ok).toBe(true);
   await new Promise(resolve => setTimeout(resolve, 40));
   const status = await (await post('status')).json(); expect(status.active).toBe(true); expect(calls).toContain('workflow-snapshot');
+  const frames = await (await post('observations')).json(); expect(frames.sessionId).toBe(status.sessionId); expect(frames.frames.length).toBeGreaterThan(0);
   expect((await post('stop')).ok).toBe(true);
   const bundle = await (await post('bundle')).json(); expect(path.dirname(bundle.directory)).toBe(folder);
   expect(await readFile(path.join(bundle.directory, bundle.bundleFile), 'utf8')).toContain('SELECTION_REQUIRED');
   const exported = await post('export'); expect(exported.headers.get('content-type')).toBe('application/x-ndjson'); expect(await exported.text()).not.toContain(folder);
+  const second = await (await post('start', { observeDesktop: false })).json();
+  const metadataOnly = await (await post('observations', { sessionId: status.sessionId })).json();
+  expect(metadataOnly).toMatchObject({ sessionId: second.sessionId, active: false, frames: [], status: 'DESKTOP_OBSERVATION_OFF' });
+  await post('stop');
 });
 
 it('keeps cumulative browser drops in the manifest without counting retries or repeated counters twice', async () => {

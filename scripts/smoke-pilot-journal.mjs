@@ -55,6 +55,7 @@ try {
   await page.getByText(/Automatic observer: OBSERVING/).waitFor();
   currentPon = 'SYNTHETIC:3'; currentSig = '3T PO QD'; emitNative({ kind: 'changed' });
   await until(() => recorded.some(frame => frame.pon === 'SYNTHETIC:3'));
+  await page.locator('details[aria-label="SIG dataset collection"] > summary').click();
   await page.getByText(/Framework observations: 6\./).waitFor();
   emitNative({ kind: 'invoked', control: 'save' });
   await until(() => recorded.some(frame => frame.kind === 'button_invoked' && frame.control === 'save'));
