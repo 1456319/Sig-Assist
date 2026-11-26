@@ -40,7 +40,7 @@ function parseCountToken(token: string): number {
 }
 
 function quantityFromStrength(drug: string, prose: string): { count: number; label: string; total: string } | undefined {
-  if (/[-/+]/.test(drug) || !/\b(?:BY MOUTH|ORALLY|PO)\b/.test(prose)) return undefined;
+  if (/[-/+]/.test(drug) || !/\b(?:BY MOUTH|ORALLY|PO|ENTERALLY|ETUBE)\b|\b(?:VIA|PER|BY|THROUGH)\s+(?:THE\s+)?(?:PEG|G|J|NG)[ -]?TUBE\b/.test(prose)) return undefined;
   const normalizedDrug = drug
     .replace(/(\d+(?:\.\d+)?)\s*\([^)]*\)\s*(MCG|MEQ|MG|GM|G)\b/gi, '$1 $2')
     .replace(/\([^)]*(?:FE|IRON|CA|CALCIUM|ELEMENTAL)[^)]*\)/gi, '');
@@ -158,7 +158,7 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
   if (sublingual && oral && !/\b(?:BY MOUTH|ORALLY|PO)\s+(?:OR|\/)\s*(?:SUBLINGUALLY|SL)\b|\bPO\/SL\b/.test(upperProse)) return manualResult('Conflicting Oral and Sublingual Routes');
   const tubeMatches = [...upperProse.matchAll(/\b(?:VIA|PER|BY|THROUGH)\s+(?:THE\s+)?(PEG|G|J|NG)[ -]?TUBE\b/g)];
   const tubeRoutes: Record<string, string> = { PEG: 'PEGT', G: 'GT', J: 'JT', NG: 'NG' };
-  const tubeRoute = tubeMatches[0] ? tubeRoutes[tubeMatches[0][1]] : undefined;
+  const tubeRoute = tubeMatches[0] ? tubeRoutes[tubeMatches[0][1]] : /\b(?:ENTERALLY|ETUBE)\b/.test(upperProse) ? 'ETUBE' : undefined;
   if (tubeRoute && (oral || sublingual || new Set(tubeMatches.map(m => m[1])).size > 1 || /\b(?:NOT|AVOID|WITHOUT)\b/.test(upperProse))) return manualResult('Conflicting Enteral Routes');
   const enteralRoute = tubeRoute || 'PO';
   const solidRoute = tubeRoute || (sublingual ? oral ? 'PO/SL' : 'SL' : 'PO');

@@ -46,7 +46,7 @@ function removeDiagnosisCodes(value: string): string {
 
 export function resolveIndicationToken(indication?: string): string | undefined {
   if (!indication) return undefined;
-  const cleaned = removeDiagnosisCodes(indication.toUpperCase().trim().replace(/^(?:FOR(?:\s+INDICATIONS\s+OF)?|RELATED\s+TO)\s+/, ''))
+  const cleaned = removeDiagnosisCodes(indication.toUpperCase().trim().replace(/^(?:(?:FOR(?:\s+INDICATIONS\s+OF)?|RELATED\s+TO|AS\s+NEEDED|PRN)\s+)+/, ''))
     .replace(/[.;,\s]+$/, '').trim()
     .replace(/^PAIN FOR (.+ PAIN\b)/, '$1')
     .replace(/^HEART HEALTHY$/, 'HEART HEALTH')
@@ -84,6 +84,9 @@ function indicationStart(prose: string): number | undefined {
   for (const match of upper.matchAll(/\b(?:FOR|RELATED\s+TO)\s+/g)) {
     if (match.index === undefined || /\bHOLD\s*$/.test(upper.slice(0, match.index))) continue;
     const tail = upper.slice(match.index + match[0].length);
+    // EHR text can repeat the complete PRN preamble or just FOR. Continue
+    // to the innermost FOR so schedule extraction cannot consume the reason.
+    if (/^(?:(?:AS\s+NEEDED|PRN)\s+)?FOR\s+/.test(tail)) continue;
     if (/^(?:(?:UP\s+TO\s+)?\d|HOLD\b|SBP\b|HEART\s+RATE\b)/.test(tail)) continue;
     return match.index;
   }

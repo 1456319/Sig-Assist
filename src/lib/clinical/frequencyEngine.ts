@@ -294,7 +294,7 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
   let blendedTemplate: string | undefined;
   if (defaultTemplate) {
     let base = defaultTemplate.trim();
-    const scheduledPreparation = base.match(/^((?:MIX|DISSOLVE)\b[\s\S]*\b(?:GIVE|TAKE)(?:\s+(?:PO|GT|PEGT|JT|NG))?)\s+(QD|BID|TID|QID|Q\d+H|QAM|QPM|QHS|(?:QD|QAM|QPM)DAY[1-7]+)\s*$/i);
+    const scheduledPreparation = base.match(/^((?:MIX|DISSOLVE)\b[\s\S]*\b(?:GIVE|TAKE)(?:\s+(?:PO|ETUBE|GT|PEGT|JT|NG))?)\s+(QD|BID|TID|QID|Q\d+H|QAM|QPM|QHS|(?:QD|QAM|QPM)DAY[1-7]+)\s*$/i);
     if (scheduledPreparation) {
       base = scheduledPreparation[1];
       if (scheduledPreparation[2].toUpperCase() !== frequencyToken) {
@@ -304,7 +304,7 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
       }
     }
     const ind = indicationToken ? ` ${indicationToken}` : '';
-    if (/\b(?:PO|GT|PEGT|JT|NG|GIVE|TAKE)$/.test(base.toUpperCase())) {
+    if (/\b(?:PO|ETUBE|GT|PEGT|JT|NG|GIVE|TAKE)$/.test(base.toUpperCase())) {
       const scheduleParts = [frequencyToken];
       if (prnToken) scheduleParts.push(prnToken, indicationToken || '', durationToken || '');
       else scheduleParts.push(durationToken || '', indicationToken || '');
