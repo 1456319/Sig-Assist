@@ -14,7 +14,8 @@ prescription fields.
 Clinical observations are saved only in the configured local recording folder.
 The browser reads acknowledged frames and adds separate, role-labelled samples
 to its local dataset. Recording continues through page reloads. Missed browser
-ring frames are reported; the local files remain the complete captured record.
+ring frames are reported; acknowledged frames remain in the local files. Native
+write-backlog overflow has a separate persisted capture-gap record/counter.
 Incoming/order, linked, default, structured and draft SIGs are never interchangeable.
 Observed PONs are not independently verified source identity. Button invocation,
 including Save, is intent evidence and never an automatic claim of completion.
@@ -23,8 +24,21 @@ Both the source and packaged prototype are checkpointed together. The temporary
 intensified logging removal marker remains HIGH priority. Do not upload clinical
 recordings to external audit services or commit them to this repository.
 
-At this checkpoint: 17 targeted observer, local-journal and recording-UI checks
-pass; the preceding rating checks (9) pass; portable build and ZIP/source identity
-checks pass. Full regressions, native Windows fixture execution, real DevExpress
-coverage, and final failure-path review are still pending. This is an explicit
-intermediate checkpoint, not a claim of tested end-to-end prescription automation.
+Remote preservation: `9ff5afb53ada8d76d6d5e8aae147501a25288b4f` contains the
+automatic recorder and packaged prototype; `25c9e88881da385d03e49b4eb760b84bcd642b18`
+corrects its native test script. The latter passes the native Windows fixture
+(distinct SIG/field reads plus actual change-event reception) and all Linux MVP
+checks. Its Windows startup fixture omitted the new observer module; that fixture
+copy is corrected in the next checkpoint. Real DevExpress coverage remains an
+on-site validation task.
+
+Subsequent refinements add automatic comment draft saving on pause/blur/order
+change, recording-session references in rating diagnostics, listener reconnect
+after failure, rejection of old-listener callbacks, read timings, visible native
+overflow diagnostics, and the MSI-confirmed ordinary-preview ` ; ` split delimiter
+in shared sliding-scale character estimates. The 157-check targeted run passed;
+the expanded full suite passed 1,423 checks and identified two old test assertions
+still counting a one-character delimiter. Those expectations are corrected to
+the vendor contract; final full regressions and Windows startup execution are
+pending. This is an explicit intermediate checkpoint, not a claim of verified
+end-to-end prescription automation or a transactional save API.

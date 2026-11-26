@@ -21,12 +21,12 @@ describe('editable shared insulin scale budget', () => {
     expect(estimateScaleExpansion(first).length).toBeLessThan(199);
     expect(estimateScaleExpansion(second).length).toBeLessThan(199);
     render(<ReviewContext.Provider value={session}><MultiOrderCards primarySig={`${first} **SPLIT** ${second}`} subOrders={subOrders} /></ReviewContext.Provider>);
-    const total = [first, second].map(estimateScaleExpansion).join(' ').length;
+    const total = [first, second].map(estimateScaleExpansion).join(' ; ').length;
     expect(screen.getByRole('alert').textContent).toContain(`${total} / 199`);
     expect(screen.queryByText(/Paxit Multi-Order Requirement/)).toBeNull();
     fireEvent.change(screen.getByRole('textbox', { name: /Draft SIG \(Fixed dose\)/ }), { target: { value: 'PLUS3U QID' } });
     expect(screen.queryByRole('alert')).toBeNull();
-    expect(screen.getByRole('status').textContent).toContain(`${[first, 'PLUS3U QID'].map(estimateScaleExpansion).join(' ').length} / 199`);
+    expect(screen.getByRole('status').textContent).toContain(`${[first, 'PLUS3U QID'].map(estimateScaleExpansion).join(' ; ').length} / 199`);
     expect((screen.getByRole('textbox', { name: /Draft SIG \(Fixed dose\)/ }) as HTMLTextAreaElement).value).toBe('PLUS3U QID');
   });
 

@@ -70,6 +70,17 @@ describe('optional translation ratings', () => {
     await saveTranslationFeedback({ ...source, context: { ...source.context!, revision: 2 } }, { kind: 'rating', rating: 4 });
     expect(mock.rows).toHaveLength(3);
   });
+  it('retains a brief explanation when the technician immediately moves to another order', async () => {
+    const source = input();
+    const host = render(<TranslationRating input={source} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Rate translation 9 out of 10' }));
+    fireEvent.click(screen.getByRole('button', { name: 'I will briefly explain the error' }));
+    fireEvent.change(screen.getByLabelText('Translation error explanation'), { target: { value: 'Extra period at the end' } });
+    host.unmount();
+    await waitFor(() => expect(mock.rows[0]?.notes).toBe('Extra period at the end'));
+    expect(mock.rows[0].translationFeedback!.events.some(e => e.kind === 'comment' && e.resolved === false)).toBe(true);
+    expect(mock.rows[0].translationFeedback!.original.rawProse).toBe(source.rawProse);
+  });
   it('preserves modes/comments following a failed initial rating and retries without duplicate history', async () => {
     const source = input(); mock.fail = true;
     await expect(saveTranslationFeedback(source, { kind: 'rating', rating: 3 })).rejects.toThrow();

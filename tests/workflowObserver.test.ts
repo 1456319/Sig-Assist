@@ -80,6 +80,31 @@ it('keeps unrecognized event names and snapshot diagnostics out of the observati
   expect(JSON.stringify(normalizeWorkflowSnapshot({ ...snapshot(), partial: true }))).not.toContain('VALID');
 });
 
+it('reconnects a failed event listener after backoff and ignores callbacks from its old subscription', async () => {
+  const listeners: Array<(event: unknown) => void> = [];
+  const close = vi.fn();
+  const { observer, records } = setup({ subscribeNative: async (_: unknown, emit: (event: unknown) => void) => { listeners.push(emit); return close; } });
+  await vi.advanceTimersByTimeAsync(500); listeners[0]({ kind: 'provider_unavailable' });
+  await vi.advanceTimersByTimeAsync(29000); expect(listeners).toHaveLength(1);
+  await vi.advanceTimersByTimeAsync(5500); expect(listeners).toHaveLength(2);
+  const count = records.length;
+  listeners[0]({ kind: 'invoked', control: 'save' }); await observer.drain(); expect(records).toHaveLength(count);
+  listeners[1]({ kind: 'invoked', control: 'next' }); await observer.drain(); expect(records.at(-1)?.control).toBe('next');
+});
+
+it('bounds the native write backlog and persists an explicit overflow gap', async () => {
+  let release: (saved: boolean) => void = () => {};
+  const records: Frame[] = [];
+  const onRecord = vi.fn(async (frame: Frame) => { records.push(frame); if (records.length === 1) return new Promise<boolean>(resolve => { release = resolve; }); return true; });
+  const { observer, event } = setup({ onRecord });
+  await vi.advanceTimersByTimeAsync(500);
+  for (let n = 0; n < 150; n++) event({ kind: 'invoked', control: 'button' });
+  expect(observer.updates().dropped).toBeGreaterThan(0);
+  release(true); await observer.finish();
+  expect(records.length).toBeLessThanOrEqual(102);
+  expect(records.some(row => row.kind === 'observation_gap')).toBe(true);
+});
+
 it('gives queued technician work priority and sanitizes the new passive action', async () => {
   let release: (data: unknown) => void = () => {};
   const entry = { pid: 123, started: '1', id: 'root', handle: 456 };

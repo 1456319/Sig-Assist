@@ -8,7 +8,7 @@ export interface WorkflowUpdates {
   ok: boolean; active: boolean; sessionId?: string; status: string; eventSource: string;
   cursor: number; gaps: number; dropped: number; frames: WorkflowFrame[];
 }
-let state = { active: false, status: 'STOPPED', eventSource: '', gaps: 0, frames: 0, error: '' };
+let state = { active: false, sessionId: '', status: 'STOPPED', eventSource: '', gaps: 0, dropped: 0, frames: 0, error: '' };
 const listeners = new Set<() => void>();
 export const workflowObservationState = () => state;
 export const subscribeWorkflowObservation = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };

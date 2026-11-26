@@ -2,6 +2,8 @@ import { SIG_CODE_REFERENCE } from './sigCodeReference';
 import type { AbnormalityFinding } from './types';
 
 export const SCALE_SIG_LIMIT = 199;
+// Framework ordinary PreviewSig joins StructuredSigDocuments with this delimiter.
+export const FRAMEWORK_SPLIT_SEPARATOR = ' ; ';
 // Site meanings supplied by the technician; these two codes are absent from
 // the bundled reference. This is an estimate, not a live Framework preview.
 const siteExpansions: Record<string, string> = {
@@ -46,8 +48,8 @@ export function fitSlidingScaleBudget(input: readonly string[], limit = SCALE_SI
   let parts = input.map(compactScaleSpacing);
   const concessions: ScaleConcession[] = parts.some((part, index) => part !== input[index]) ? ['spacing'] : [];
   const measure = () => {
-    const rawLength = parts.filter(Boolean).join(' ').length;
-    const estimatedExpandedLength = parts.filter(Boolean).map(estimateScaleExpansion).join(' ').length;
+    const rawLength = parts.filter(Boolean).join(FRAMEWORK_SPLIT_SEPARATOR).length;
+    const estimatedExpandedLength = parts.filter(Boolean).map(estimateScaleExpansion).join(FRAMEWORK_SPLIT_SEPARATOR).length;
     return { rawLength, estimatedExpandedLength, overLimit: Math.max(rawLength, estimatedExpandedLength) > limit };
   };
   const stages: Array<[ScaleConcession, (sig: string) => string]> = [

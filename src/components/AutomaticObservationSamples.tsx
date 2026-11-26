@@ -23,7 +23,7 @@ export function AutomaticObservationSamples() {
           cursor = frame.id; count++;
         }
         cursor = Math.max(cursor, update.cursor);
-        publishWorkflowObservation({ active: update.active, status: update.status, eventSource: update.eventSource, gaps, frames: count, error: '' });
+        publishWorkflowObservation({ active: update.active, sessionId: sessionId || '', status: update.status, eventSource: update.eventSource, gaps, dropped: update.dropped, frames: count, error: '' });
       } catch (error) {
         if (!stopped) publishWorkflowObservation({ error: error instanceof Error ? error.message : 'Automatic recording connection unavailable.' });
       } finally { if (!stopped) timer = setTimeout(() => void poll(), 1500); }

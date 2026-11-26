@@ -40,7 +40,7 @@ export async function startNativeEvents(binding, emit, { executable = helperExec
 
 export function createWorkflowObserver({ desktop, onRecord, subscribeNative = startNativeEvents, now = Date.now,
   fallbackMs = 5000, settleMs = 500, minReadMs = 1000, maxWaitMs = 2000, ringLimit = 300 } = {}) {
-  let sessionId, running = false, accepting = false, generation = 0, sequence = 0, ring = [], ringDropped = 0;
+  let sessionId, running = false, accepting = false, generation = 0, sequence = 0, ring = [], ringDropped = 0, queueDropped = 0, reportedDrops = 0;
   let timer, fallback, unsubscribe, bindingKey, subscribing = false, subscriptionRetryAt = 0, subscriptionGeneration = 0;
   let reading = false, requested = false, firstRequestAt = 0, lastReadAt = -Infinity, resumeAt = 0, failures = 0;
   let previous, lastCode, lastStatusAt = -Infinity, status = 'STOPPED', eventSource = 'waiting', writeChain = Promise.resolve();
@@ -49,18 +49,25 @@ export function createWorkflowObserver({ desktop, onRecord, subscribeNative = st
   function publish(frame, version = generation) {
     // Serialize local writes, acknowledge only saved records into the browser ring.
     // Bound native event backlog independently from the bounded snapshot ring.
-    if (queuedWrites >= 100) { ringDropped++; return; }
+    if (queuedWrites >= 100) { queueDropped++; return; }
     queuedWrites++;
     const frameSession = sessionId;
     writeChain = writeChain.then(async () => {
       if (version !== generation || !running) return;
-      const record = { ...frame, sessionId: frameSession, id: ++sequence, observedAt: frame.observedAt || iso() };
       try {
+        if (queueDropped > reportedDrops) {
+          const dropped = queueDropped - reportedDrops;
+          const gap = { sessionId: frameSession, id: ++sequence, observedAt: iso(), kind: 'observation_gap', dropped, evidence: 'queue_overflow', outcome: 'unverified' };
+          if (await onRecord(gap, frameSession) === false) { status = 'LOCAL_WRITE_STOPPED'; stop(); return; }
+          if (version !== generation || !running) return;
+          reportedDrops += dropped; ring.push(gap);
+        }
+        const record = { ...frame, sessionId: frameSession, id: ++sequence, observedAt: frame.observedAt || iso() };
         const saved = await onRecord(record, frameSession);
         if (version !== generation || !running) return;
         if (saved === false) { status = 'LOCAL_WRITE_STOPPED'; stop(); return; }
         ring.push(record);
-        if (ring.length > ringLimit) { ring.shift(); ringDropped++; }
+        while (ring.length > ringLimit) { ring.shift(); ringDropped++; }
       } catch { if (version === generation) { status = 'LOCAL_WRITE_FAILED'; stop(); } }
     }).finally(() => { queuedWrites--; });
   }
@@ -69,7 +76,10 @@ export function createWorkflowObserver({ desktop, onRecord, subscribeNative = st
     if (!accepting || !running || version !== generation) return;
     if (event.kind === 'heartbeat') return;
     if (event.kind === 'ready') eventSource = event.uia ? 'uia_and_windows_events' : 'windows_events';
-    if (event.kind === 'provider_unavailable') { eventSource = 'polling_fallback'; subscriptionRetryAt = now() + 30000; }
+    if (event.kind === 'provider_unavailable') {
+      unsubscribe?.(); unsubscribe = undefined; subscriptionGeneration++; subscribing = false;
+      eventSource = 'polling_fallback'; subscriptionRetryAt = now() + 30000;
+    }
     if (event.kind === 'invoked') publish({ kind: 'button_invoked', control: event.control, evidence: 'invoke_event', outcome: 'unverified',
       candidatePon: previous?.pon ?? null, association: 'preceding_observation_only' }, version);
     request();
@@ -85,7 +95,7 @@ export function createWorkflowObserver({ desktop, onRecord, subscribeNative = st
     }
     if (current && !unsubscribe && !subscribing && now() >= subscriptionRetryAt) {
       subscribing = true; const version = generation, subscription = ++subscriptionGeneration;
-      Promise.resolve().then(() => subscribeNative(current, event => native(nativeObservationEvent(event) || { kind: 'provider_unavailable' }, version))).then(close => {
+      Promise.resolve().then(() => subscribeNative(current, event => { if (subscription === subscriptionGeneration) native(nativeObservationEvent(event) || { kind: 'provider_unavailable' }, version); })).then(close => {
         if (!running || generation !== version || subscription !== subscriptionGeneration) { close?.(); return; }
         unsubscribe = close; subscribing = false;
       }).catch(() => { if (version === generation && subscription === subscriptionGeneration) { subscribing = false; eventSource = 'polling_fallback'; subscriptionRetryAt = now() + 30000; } });
@@ -116,7 +126,7 @@ export function createWorkflowObserver({ desktop, onRecord, subscribeNative = st
           failures++; resumeAt = now() + Math.min(60000, 10000 * 2 ** (failures - 1));
         } else if (snapshot.retryAfterMs) resumeAt = now() + snapshot.retryAfterMs;
         if (lastCode !== status || now() - lastStatusAt >= 30000) {
-          publish({ kind: 'observation_unavailable', code: status, evidence: 'read_attempt', outcome: 'unverified' }, version); lastStatusAt = now();
+          publish({ kind: 'observation_unavailable', code: status, readDurationMs: Math.max(0, now() - lastReadAt), evidence: 'read_attempt', outcome: 'unverified' }, version); lastStatusAt = now();
         }
         lastCode = status; previous = undefined; return;
       }
@@ -125,7 +135,7 @@ export function createWorkflowObserver({ desktop, onRecord, subscribeNative = st
       const removed = previous ? Object.keys(previous.fields).filter(role => !(role in snapshot.fields)) : [];
       const boundary = !previous ? 'order_visible' : snapshot.pon !== previous.pon ? 'order_changed' : snapshot.view !== previous.view ? 'view_changed' : 'fields_changed';
       if (!previous || changed.length || removed.length || snapshot.pon !== previous.pon || snapshot.view !== previous.view || snapshot.sigMode !== previous.sigMode || JSON.stringify(snapshot.unavailable) !== JSON.stringify(previous.unavailable)) {
-        publish({ kind: boundary, ...snapshot, changed, removed, evidence: 'visible_fields', outcome: 'unverified' }, version);
+        publish({ kind: boundary, ...snapshot, changed, removed, readDurationMs: Math.max(0, now() - lastReadAt), evidence: 'visible_fields', outcome: 'unverified' }, version);
       }
       previous = snapshot;
     } catch {
@@ -140,7 +150,7 @@ export function createWorkflowObserver({ desktop, onRecord, subscribeNative = st
   return {
     start(id = randomUUID()) {
       if (running && id === sessionId) return;
-      stop(); sessionId = id; running = true; accepting = true; sequence = 0; ring = []; ringDropped = 0; status = 'STARTING';
+      stop(); sessionId = id; running = true; accepting = true; sequence = 0; ring = []; ringDropped = 0; queueDropped = 0; reportedDrops = 0; status = 'STARTING';
       lastReadAt = -Infinity; firstRequestAt = 0; resumeAt = 0; failures = 0; lastCode = undefined; refreshBinding();
       request(); fallback = setInterval(() => { refreshBinding(); request(); }, fallbackMs); fallback.unref?.();
     },
@@ -150,7 +160,7 @@ export function createWorkflowObserver({ desktop, onRecord, subscribeNative = st
       const cursor = expectedSession === sessionId && Number.isSafeInteger(after) && after >= 0 ? after : 0;
       const oldest = ring[0]?.id ?? sequence + 1;
       return { active: running, sessionId, status, eventSource, cursor: ring.at(-1)?.id ?? 0,
-        gaps: cursor < oldest - 1 ? oldest - 1 - cursor : 0, dropped: ringDropped, frames: ring.filter(row => row.id > cursor) };
+        gaps: cursor < oldest - 1 ? oldest - 1 - cursor : 0, dropped: queueDropped, retiredFrames: ringDropped, frames: ring.filter(row => row.id > cursor) };
     },
   };
 }

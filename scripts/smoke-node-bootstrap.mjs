@@ -65,6 +65,7 @@ try {
   await cp(path.join(root, 'scripts/iguana-bridge.mjs'), path.join(folder, 'iguana-bridge.mjs'));
   await cp(path.join(root, 'scripts/framework-desktop.mjs'), path.join(folder, 'framework-desktop.mjs'));
   await cp(path.join(root, 'scripts/pilot-journal.mjs'), path.join(folder, 'pilot-journal.mjs'));
+  await cp(path.join(root, 'scripts/framework-observer.mjs'), path.join(folder, 'framework-observer.mjs'));
   await cp(path.join(root, 'windows/FrameworkDesktop.cs'), path.join(folder, 'FrameworkDesktop.cs'));
   await cp(path.join(root, 'windows-demo/index.html'), path.join(folder, 'index.html'));
 

@@ -3,6 +3,7 @@ import { getCitrixStorageAdapter } from './citrixStorage';
 import { browserRecords } from './browserDatabase';
 import { DISCREPANCY_SAVED_EVENT } from './discrepancyCases';
 import { feedbackKey, snapshotCopy, type TranslationFeedbackEvent, type TranslationFeedbackSnapshot } from './translationFeedbackModel';
+import { workflowObservationState } from './workflowObservation';
 
 type EventInput = Omit<TranslationFeedbackEvent, 'id' | 'at' | 'sequence' | 'appVersion' | 'buildId'>;
 interface PendingFeedback { id: string; at: string; order: number; input: TranslationFeedbackSnapshot; event: EventInput; appVersion: string; buildId: string }
@@ -72,7 +73,10 @@ function enqueue(job: PendingFeedback) {
 }
 export async function saveTranslationFeedback(input: TranslationFeedbackSnapshot, event: EventInput) {
   if (event.kind === 'rating' && (!Number.isInteger(event.rating) || event.rating! < 1 || event.rating! > 10)) return Promise.reject(new Error('Choose a rating from 1 to 10.'));
-  input = snapshotCopy({ ...input, presentationBuildId: input.presentationBuildId ?? __SIG_ASSIST_BUILD__,
+  const recording = workflowObservationState();
+  input = snapshotCopy({ ...input, ...(recording.active && recording.sessionId && input.context ? { context: { ...input.context,
+    diagnostics: { ...input.context?.diagnostics, recording: { sessionId: recording.sessionId, status: recording.status, eventSource: recording.eventSource, framesRead: recording.frames, replayGaps: recording.gaps, nativeDrops: recording.dropped } } } } : {}),
+    presentationBuildId: input.presentationBuildId ?? __SIG_ASSIST_BUILD__,
     presentationAppVersion: input.presentationAppVersion ?? __SIG_ASSIST_VERSION__ }); event = snapshotCopy(event);
   if (event.kind === 'rating' && event.rating === 10 && !negativeKeys.has(feedbackKey(input)) && !await findTranslationFeedback(input)) return undefined;
   const job: PendingFeedback = { id: id(), at: new Date().toISOString(), order: Date.now() * 1000 + counter++ % 1000, input, event,

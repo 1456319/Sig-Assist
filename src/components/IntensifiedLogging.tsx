@@ -37,7 +37,7 @@ export function IntensifiedLogging({ screen }: { screen: string }) {
   const active = state.status.active;
   const browserDroppedWorkflow = Math.max(state.droppedWorkflow, state.status.browserDroppedWorkflow || 0);
   const browserDroppedTranslation = Math.max(state.droppedTranslation, state.status.browserDroppedTranslation || 0);
-  const warning = state.status.fileError || state.status.limitReached || state.outboxError || !!state.error || browserDroppedWorkflow > 0 || browserDroppedTranslation > 0 || (state.status.droppedWorkflow || 0) > 0 || (state.status.droppedTranslation || 0) > 0;
+  const warning = observation.dropped > 0 || state.status.fileError || state.status.limitReached || state.outboxError || !!state.error || browserDroppedWorkflow > 0 || browserDroppedTranslation > 0 || (state.status.droppedWorkflow || 0) > 0 || (state.status.droppedTranslation || 0) > 0;
   const button = 'rounded border border-amber-600/50 px-2 py-1 text-xs disabled:opacity-50';
   return <section aria-label="Temporary intensified logging" className={`border-b px-4 py-2 text-xs ${warning ? 'bg-red-100 text-red-950 dark:bg-red-950 dark:text-red-100' : 'bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100'}`}>
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -51,6 +51,7 @@ export function IntensifiedLogging({ screen }: { screen: string }) {
       <span>Process prescriptions normally. No per-order checkpoints required.</span>
     </div>
     {active && <p role="status">Automatic observer: {state.status.desktopCode || observation.status}. Saved observations: {state.status.observationEvents || 0}. {observation.eventSource.replace(/_/g, ' ')}.</p>}
+    {observation.dropped > 0 && <p role="alert">{observation.dropped} native action records exceeded the recording buffer. The session contains a capture gap; inspect the local logs.</p>}
     <p>Recording stores clinical SIG text, PONs and readable order fields locally in the recording folder. No automatic upload, screenshots or keystroke capture.</p>
     {active && state.status.desktopCode === 'SELECTION_REQUIRED' && <button type="button" className={button} disabled={busy} onClick={() => void perform(chooseWindow)}>Choose observation window</button>}
     {(warning || notice || observation.error) && <p role="alert">{notice || state.error || observation.error || 'Recording needs attention. Open recording controls for details.'}</p>}

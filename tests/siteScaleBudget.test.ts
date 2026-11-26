@@ -32,7 +32,7 @@ describe('site scale concessions use the expanded shared budget', () => {
     expect(fitSlidingScaleBudget([second]).concessions).toEqual([]);
     const group = fitSlidingScaleBudget([first, second]);
     expect(group.concessions).toContain('literal_ss');
-    expect(group.estimatedExpandedLength).toBe(group.parts.map(estimateScaleExpansion).join(' ').length);
+    expect(group.estimatedExpandedLength).toBe(group.parts.map(estimateScaleExpansion).join(' ; ').length);
     expect(group.parts[1]).toContain('3U QID');
   });
   it.each(['FOR DM2', 'FOR DIABETES MELLITUS TYPE 2', 'FOR TYPE 2 DIABETES'])('omits a literal diagnosis only when the budget requires it: %s', diagnosis => {

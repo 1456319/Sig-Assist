@@ -12,14 +12,28 @@ function Rating({ input, disabled }: { input: TranslationFeedbackSnapshot; disab
   const [status, setStatus] = useState('');
   const changed = useRef(false);
   const latest = useRef(input); latest.current = input;
+  const pendingComment = useRef<{ comment: string; mode?: ExplanationMode; dirty: boolean }>({ comment: '', dirty: false });
+  const commentTimer = useRef<ReturnType<typeof setTimeout>>();
+  const mounted = useRef(true);
+  const persistComment = useRef<(finish?: boolean) => void>(() => {});
+  persistComment.current = (finish = false) => {
+    const draft = pendingComment.current;
+    if (!draft.dirty && !finish || !draft.comment.trim()) return;
+    clearTimeout(commentTimer.current); draft.dirty = false;
+    if (mounted.current) setStatus('Saving explanation…');
+    void saveTranslationFeedback(latest.current, { kind: 'comment', mode: draft.mode, comment: draft.comment,
+      draft: latest.current.currentDraft, resolved: finish }).then(() => { if (mounted.current) setStatus(finish ? 'Explanation saved.' : 'Explanation draft saved automatically.'); })
+      .catch(() => { if (mounted.current) setStatus('Explanation not saved to reports yet. Retry pending feedback or download its evidence.'); });
+  };
   useEffect(() => {
+    mounted.current = true;
     let active = true;
     void findTranslationFeedback(latest.current).then(report => {
       if (active && !changed.current && report) {
         const state = feedbackState(report); setScore(state.rating); setMode(state.mode); setComment(state.comment);
       }
     }).catch(() => {});
-    return () => { active = false; };
+    return () => { active = false; mounted.current = false; clearTimeout(commentTimer.current); persistComment.current(); };
   }, []);
   async function save(event: Parameters<typeof saveTranslationFeedback>[1]) {
     setStatus('Saving feedback…');
@@ -27,6 +41,7 @@ function Rating({ input, disabled }: { input: TranslationFeedbackSnapshot; disab
     catch { setStatus('Feedback not saved to reports yet. Continue processing; use Retry pending feedback in the report list.'); }
   }
   const choose = (rating: number) => {
+    persistComment.current();
     changed.current = true; setScore(rating); setMode(undefined);
     void save({ kind: 'rating', rating, draft: input.currentDraft });
   };
@@ -46,15 +61,16 @@ function Rating({ input, disabled }: { input: TranslationFeedbackSnapshot; disab
     {score !== undefined && score < 10 && <>
       <div className="flex flex-wrap gap-2">{choices.map(([value, label]) => <button key={value} type="button" disabled={disabled}
         aria-pressed={mode === value} className={`rounded border px-2 py-1 ${mode === value ? 'border-primary bg-primary/10' : 'border-border'}`}
-        onClick={() => { setMode(value); void save({ kind: 'explanation', mode: value, draft: input.currentDraft }); }}>{label}</button>)}</div>
+        onClick={() => { persistComment.current(); setMode(value); pendingComment.current.mode = value; void save({ kind: 'explanation', mode: value, draft: input.currentDraft }); }}>{label}</button>)}</div>
       {(mode === 'brief' || mode === 'detailed') && <div className="space-y-1">
         <textarea aria-label="Translation error explanation" rows={mode === 'detailed' ? 5 : 2} value={comment} disabled={disabled}
           className="w-full rounded border bg-background p-2" placeholder="Optional — describe what was wrong, or keep working."
-          onChange={e => setComment(e.target.value)} />
+          onChange={e => { setComment(e.target.value); pendingComment.current = { comment: e.target.value, mode, dirty: true };
+            clearTimeout(commentTimer.current); commentTimer.current = setTimeout(() => persistComment.current(), 900); }} onBlur={() => persistComment.current()} />
         <button type="button" className="rounded border px-2 py-1" disabled={disabled || !comment.trim()}
-          onClick={() => void save({ kind: 'comment', mode, comment, draft: input.currentDraft, resolved: true })}>Save explanation</button>
+          onClick={() => { pendingComment.current.comment = comment; pendingComment.current.mode = mode; persistComment.current(true); }}>Save explanation</button>
       </div>}
-      {mode === 'later' && <p>Saved in the deferred explanation queue with the original source and translation.</p>}
+      {mode === 'later' && <p>Marked for later explanation with the original source and translation. Pending writes appear in the feedback banner.</p>}
     </>}
     {status && <p role={status.includes('not saved') ? 'alert' : 'status'}>{status}</p>}
   </section>;

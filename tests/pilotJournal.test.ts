@@ -14,6 +14,23 @@ afterEach(async () => { for (const server of servers.splice(0)) await new Promis
 async function root() { const folder = await mkdtemp(path.join(tmpdir(), 'sig-pilot-')); folders.push(folder); return folder; }
 async function lines(directory: string) { const names = (await readdir(directory)).filter(n => n.endsWith('.jsonl') && !n.startsWith('TEMPORARY-')); return (await Promise.all(names.map(n => readFile(path.join(directory, n), 'utf8')))).flatMap(s => s.trim().split('\n').filter(Boolean).map(s => JSON.parse(s))); }
 
+it('persists explicit local clinical observations with separate SIG roles, scoped sessions and capture-gap diagnostics', async () => {
+  const journal = createPilotJournal({ baseDir: await root(), sync: false });
+  const session = await journal.start({ observeDesktop: true });
+  const frame = { id: 1, kind: 'order_visible', ok: true, code: 'OK', pon: 'SYNTHETIC:1', view: 'directions', fields: { message_sig: 'SYNTHETIC PROSE', draft_sig: '1T PO QD', password: 'DO NOT WRITE' }, patientName: 'DO NOT WRITE' };
+  expect(await journal.workflow(frame, 'another-session')).toBe(false);
+  expect(await journal.workflow(frame, session.sessionId)).toBe(true);
+  expect(await journal.workflow({ id: 2, kind: 'observation_gap', dropped: 4 }, session.sessionId)).toBe(true);
+  expect(await journal.workflow({ id: 3, kind: 'button_invoked', control: 'save', candidatePon: 'SYNTHETIC:1' }, session.sessionId)).toBe(true);
+  const saved = await lines(session.directory);
+  const observations = saved.filter(row => row.code === 'framework.observation').map(row => row.observation);
+  expect(observations[0]).toMatchObject({ fields: { message_sig: 'SYNTHETIC PROSE', draft_sig: '1T PO QD' }, outcome: 'unverified' });
+  expect(observations[2]).toMatchObject({ control: 'save', association: 'preceding_observation_only', outcome: 'unverified' });
+  expect(JSON.stringify(saved)).not.toContain('DO NOT WRITE');
+  expect(journal.status()).toMatchObject({ rawClinicalText: true, observationEvents: 3, observationDropped: 4 });
+  await journal.stop();
+});
+
 it('saves more than the old 1000-event ring, rotates independent streams, acknowledges retry batches once, and bundles inside the configured folder', async () => {
   const folder = await root(); const journal = createPilotJournal({ baseDir: folder, rotateBytes: 10000, sync: false });
   const status = await journal.start({ appVersion: '0.1.7', observeDesktop: false });

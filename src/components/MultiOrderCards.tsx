@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { useReviewSession } from '../hooks/use-review-session';
 import { copyBlockReason, reviewStamp } from '../lib/reviewPolicy';
 import { traceLogger } from '../lib/diagnostics/traceLogger';
-import { estimateScaleExpansion, isSlidingScaleSig } from '../lib/clinical/slidingScaleBudget';
+import { FRAMEWORK_SPLIT_SEPARATOR, estimateScaleExpansion, isSlidingScaleSig } from '../lib/clinical/slidingScaleBudget';
 import { TranslationRating, captureFeedbackCorrection } from './TranslationRating';
 import type { TranslationFeedbackSnapshot } from '../lib/translationFeedbackModel';
 
@@ -56,8 +56,8 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
   const { exclusions, policyRevision } = useReviewSession();
   const sharedScaleBudget = isSlidingScaleSig(primarySig || '') || subOrders.some(sub => isSlidingScaleSig(sub.suggestedSig));
   const enteredParts = subOrders.map(sub => drafts[sub.id] ?? sub.suggestedSig);
-  const groupRawLength = enteredParts.filter(Boolean).join(' ').length;
-  const groupExpandedLength = enteredParts.filter(Boolean).map(estimateScaleExpansion).join(' ').length;
+  const groupRawLength = enteredParts.filter(Boolean).join(FRAMEWORK_SPLIT_SEPARATOR).length;
+  const groupExpandedLength = enteredParts.filter(Boolean).map(estimateScaleExpansion).join(FRAMEWORK_SPLIT_SEPARATOR).length;
 
   React.useEffect(() => {
     if (unavailable) {

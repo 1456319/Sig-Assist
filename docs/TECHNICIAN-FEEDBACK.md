@@ -38,3 +38,31 @@ The technician's explicit yes/no decision should resolve questions that the tech
 Separate the technician's identity/eligibility decision from the application's execution result. If automatic read-back is unavailable, show **Did the refusal/save complete correctly? Yes / No** and record a yes as **technician-confirmed**, rather than claiming machine verification. A no or unknown result remains visible for recovery. This permits capable operation while keeping the actual observed result honest. No additional confirmation is needed for routine reversible preparation already authorized by the technician's decision.
 
 This release adds feedback and diagnostic groundwork. The clinical E-DC refusal and DocuTrack association/note/PV1 write adapters still require the installed-client validation described in the E-DC audit. This release does not enable those actions.
+
+## Optional per-translation stars (v0.1.15)
+
+Queue, Workbench and split cards offer ten optional stars directly below the
+automatic suggestion. An unrated translation remains unknown; it is not labelled
+perfect. A new ten creates no discrepancy record. Scores 1–9 immediately retain
+the source, baseline/presented suggestion, current draft, drug/PON, complete
+exclusion policy, available translation diagnostics and version/build. Each
+subsequent rating, explanation, copied correction, verified field transfer and
+retranslation is an additional event; earlier evidence remains intact. Changing
+a previously negative score to ten retains its existing history.
+
+Scores 6–9 offer **The error is obvious** and **I will briefly explain the error**.
+Scores 1–5 additionally offer no explanation, an in-depth explanation and explain
+later. No explanation blocks processing. Brief/detailed comments save after a
+short pause, on leaving the text box and when moving to another order. **Save
+explanation** marks the explanation complete.
+
+The discrepancy archive includes a deferred explanation queue. It shows the
+original evidence and can retranslate the saved source with the current engine
+and original preferences, storing the result as another iteration. It does not
+replace the original or assume a live PON lookup still identifies that order.
+
+Failed writes remain in a separate local IndexedDB outbox when available and
+retry periodically; the feedback banner offers retry and evidence download. If
+all local persistence fails, keep the page open or download before closing.
+The independent SIG dataset still collects permitted samples; a ten/unrated
+translation merely creates no new discrepancy report.

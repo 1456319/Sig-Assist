@@ -1807,7 +1807,7 @@ public static class FrameworkDesktop {
                             emit("invoked", name);
                         } catch { emit("changed", ""); }
                     });
-                    Automation.AddAutomationPropertyChangedEventHandler(root, TreeScope.Subtree, (sender, ev) => emit("changed", ""), ValuePattern.ValueProperty, AutomationElement.IsOffscreenProperty);
+                    Automation.AddAutomationPropertyChangedEventHandler(root, TreeScope.Subtree, (sender, ev) => emit("changed", ""), ValuePattern.ValueProperty, AutomationElement.IsOffscreenProperty, SelectionItemPattern.IsSelectedProperty, TogglePattern.ToggleStateProperty);
                     Automation.AddStructureChangedEventHandler(root, TreeScope.Subtree, (sender, ev) => emit("changed", ""));
                 }
                 uia = true; emit("ready", "");
@@ -1824,7 +1824,7 @@ public static class FrameworkDesktop {
             } catch { PostThreadMessage(threadId, 0x12, UIntPtr.Zero, IntPtr.Zero); }
         }, null, 1000, 2000)) {
             try { emit("ready", ""); WatchMessage msg; while (GetMessage(out msg, IntPtr.Zero, 0, 0) > 0) { TranslateMessage(ref msg); DispatchMessage(ref msg); } }
-            finally { if (hook1 != IntPtr.Zero) UnhookWinEvent(hook1); if (hook2 != IntPtr.Zero) UnhookWinEvent(hook2); if (parent != null) parent.Dispose(); }
+            finally { if (hook1 != IntPtr.Zero) UnhookWinEvent(hook1); if (hook2 != IntPtr.Zero) UnhookWinEvent(hook2); GC.KeepAlive(callback); if (parent != null) parent.Dispose(); }
         }
         return 0;
     }

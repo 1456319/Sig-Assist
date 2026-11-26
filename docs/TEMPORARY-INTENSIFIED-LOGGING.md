@@ -1,73 +1,116 @@
 # TEMPORARY INTENSIFIED LOGGING — REMOVAL PRIORITY: HIGH
 
-The separate SIG refinement dataset is described in `SIG-DATASET.md`. It is independent of this temporary metadata recorder and has separate IndexedDB storage and capture controls. Removing the temporary recorder must preserve shared UI Automation cache helpers used by `DatasetSnapshot`, or replace those dependencies explicitly; do not silently remove dataset collection with the recorder.
-
 **TEMPORARY_INTENSIFIED_LOGGING_REMOVAL_PRIORITY_HIGH**
 
-Prototype v0.1.9. Remove or substantially reduce this recorder once the E-Rx investigation has supplied the required evidence. The investigation may span many releases; this marker has no automatic expiry date. Review it before every production release. Preserve useful technician feedback and an appropriate operational audit when removing experimental capture.
+Prototype v0.1.15. Remove or substantially reduce this investigation recorder
+once the required workflow evidence has been collected. It has no automatic
+expiry. Preserve translation, technician feedback, ordinary error reporting and
+the separate local SIG dataset when removing experimental capture.
 
-## Record a session
+## Record normal work
 
-1. Extract the workstation update over the existing Sig-Assist folder. Its existing `iguana-site.json` is preserved. Close the old connector, then use `Start-Sig-Assist.bat` (or `Start-Iguana-Connector.bat`).
-2. Open **Temporary intensified logging** beneath the app header. Choose the Framework entry window, or reuse the window already selected through Find E-Rx. Explicit selection uses the existing eight-second window-choice workflow and can perform the normal active PON read. Once selected, periodic observation is passive.
-3. Click **Start pilot recording**. Check the displayed recording folder and observer status. Each recording gets a new dated/unique child folder under the configured root. A recording can collect browser/connector events before a Framework window is selected; `SELECTION_REQUIRED` explicitly identifies that gap.
-4. Work normally. Checkpoints are optional: mark one **after the action finishes and the screen settles**, not before or during it. Choose **Saved** only after Framework finishes saving. Duplicate or mistimed checkpoints do not invalidate the automatic recording. Use Feedback for comments. A checkpoint is your observation, not machine verification of a prescription save.
-5. Click **Stop and save recording**, wait for the pending browser count to reach zero, then **Save review bundle in recording folder**. The bundle is written beside that session's log parts, not to the browser's Downloads folder. Check any failure/drop notices before sharing. The final bundle contains the saved parts; you normally only need to share that bundle. Keep the parts locally for recovery.
+1. Extract the update into the existing Sig-Assist installation, preserving its
+   private `iguana-site.json` and `pilot-log-location.json`. Close the old
+   connector and launch the new `Start-Sig-Assist.bat` / connector launcher.
+2. Click **Start automatic recording**. The connector reuses the Framework window
+   already chosen in Find E-Rx. If none is selected, the app asks you to click
+   inside the intended entry window once. Check the recording folder and status.
+3. Process prescriptions normally, including opening orders, choosing products,
+   editing SIGs and other fields, previewing and saving. No per-order checkpoint
+   or Detect E-Rx click is required for the recorder. Detect E-Rx remains the
+   separate way to load an incoming order into the translation/review tool.
+4. Click **Stop and save recording**, wait for pending browser events to save,
+   then open **recording controls** and **Save review bundle in recording folder**.
+   Inspect drop/failure notices before sharing a bundle. Bundles can contain
+   clinical text: review/deidentify them before external sharing.
 
-The amber panel identifies temporary logging everywhere in the app, including while recording. Red notices report file failures, limits, dropped events, unavailable browser backup, and unsaved events. Logging starts only on explicit request. It does not resume automatically after a connector restart.
+Advanced controls retain optional manual markers. Mark these after the observed
+action; Saved means the technician observed completion. They do not submit or
+verify a prescription. A general feedback button and optional translation stars
+capture explanations without making them a prerequisite for processing.
 
-## Destination — configured roots only
+Logging starts only on explicit request. Native recording continues while the
+browser page reloads or is closed, while that connector and session stay active.
+A connector restart requires starting a new recording. Forced termination can
+leave the last manifest marked active; already synced JSONL parts remain intact.
 
-The supplied workstation update includes a private `pilot-log-location.json` containing the technician's requested UNC root followed by its mapped-drive alternative. The connector tries them in order, creates a session subfolder under the first writable existing root, and displays the exact selected path. It never silently redirects to AppData, TEMP, the source checkout, or Downloads when those roots are unavailable.
+## Destination
 
-Mapped drive letters must exist in the same Windows/Citrix session as the connector. An unavailable UNC path does not establish that its mapped alternative is mounted. Actual share permissions and drive mapping require the workstation check; CI validates the configured-root/failure behavior with temporary synthetic directories.
+Only configured recording roots are used. The workstation configuration tries
+the requested UNC root and mapped-drive alternative in order, creates a unique
+session subfolder under the first writable existing root, and displays its path.
+It never silently switches to TEMP, AppData or Downloads. Generic builds need a
+`pilot-log-location.json` with absolute `directories` beside the connector, or
+`SIG_ASSIST_PILOT_LOG_DIR`. Private paths/configurations stay outside this repo.
+Mapped drives must exist in the same Windows/Citrix session as the connector.
 
-Generic deployments can configure `directories` in `pilot-log-location.json` beside the connector or set `SIG_ASSIST_PILOT_LOG_DIR` before starting it. Do not put patient identifiers into paths or configuration. Workstation-specific path configuration stays outside the public repository. An unconfigured generic build leaves Start disabled with an explanation.
+## Automatic evidence
 
-## Information collected
+The observer binds to the selected window/process/start time. A persistent
+Windows accessibility/UI Automation listener triggers bounded snapshots after
+bursts settle (normally 500 ms; at least one second between reads). Five-second
+fallback polling covers providers without events. One snapshot runs at a time;
+technician-requested desktop operations have priority. A stalled read is killed
+after eight seconds and background reads back off for 10–60 seconds. Stopping
+releases subscriptions; a watchdog kills a listener that stops responding.
 
-- A manifest with session/build, runtime/platform, start/stop state, limits, saved/drop counts, and the temporary removal marker.
-- Separate workflow and translation JSONL files. Live trace subscribers capture metadata before the old 1,000-event display ring can discard events. A burst in one stream cannot consume the other stream's file budget.
-- Browser screen changes, button/input interaction types, non-password value lengths, visibility/lifecycle/error occurrence, customization counts, and pilot feedback-save metadata. No raw DOM labels, values, exception messages, URLs, input keys, or clipboard data are captured by this recorder.
-- Translation layer/component/severity, per-page anonymous trace references, counts/flags, and relevant string lengths. Original directions, output SIG strings, drugs, PONs and ordinary raw trace details are excluded from the new journal.
-- Local connector and desktop operation boundaries, timings, safe outcomes, uncertainty/read-back flags, and keyed PON references when the existing operation supplies a PON. Recording never starts another Iguana query.
-- Approximately every three seconds, a passive snapshot of the remembered Framework window's currently exposed control tree: known control IDs, type/family, hierarchy, focus/enabled/read-only/toggle/selection state, surveyed capability counts, advertised grid dimensions, string lengths and keyed change tokens. `patterns` and `patternCount` survey only Value, Toggle, SelectionItem and Grid availability; they are not a complete UIA pattern inventory. Subsequent snapshots contain changed/removed controls plus a summary.
+Explicit local clinical observations retain:
 
-Only a fixed vocabulary of ordinary field/button labels is retained, such as quantity, package type, start date, SIG, Next and Save. Control bounds help align those fields with PSR screenshots. Arbitrary names/values, unknown automation IDs and window titles are represented by per-recording HMAC tokens using a key kept only in connector memory. Tokens allow change detection and are not patient identifiers or a complete anonymization claim. They cannot reconstruct a SIG or validate its meaning. Tokens differ across new recordings. Snapshot observation time is separate from file-write time. Review exports before sharing. Regular Trace Logs, feedback comments, desktop diagnostic exports and PSR files retain their separately documented broader contents.
+- PON when uniquely visible, current wizard page and selected directions mode.
+- Separate `message_sig`, `order_sig`, `draft_sig`, `linked_sig`, `default_sig`
+  and `structured_sig` fields when exposed and read consistently. These roles
+  are not interchangeable, and an observed field is never a verified save.
+- Drug, quantity, days supply, batch, dates, package type and administration
+  times when readable. Missing, duplicate, changing or truncated fields are
+  unavailable, not guessed. Hidden/password values are excluded.
+- Actual UIA button-invocation events where supported, with static action/control
+  identifiers. Unknown labels become `button`; arbitrary patient labels are not
+  recorded. Invocations are intent evidence, not proof that a handler or save
+  completed. A later read remains a separate observation.
 
-## Passive observation boundaries
+This is passive observation: no clicking, typing, scrolling, accessibility
+recovery or prescription submission. The initial explicit window selection uses
+normal detection. Separate top-level dialogs, virtualized/offscreen fields,
+unsupported providers and very brief intermediate states can be missed. Native
+Windows fixture checks do not establish coverage of the real DevExpress screens.
+The current observer does not capture the expanded text of separate preview
+modal dialogs. Ordinary and structured preview expansion remain different paths.
 
-The new `observe` action validates the remembered process start/window identity. It never discovers a different window on failure, reads other Framework instances, moves focus, activates a window, scrolls, realizes virtual cells, changes accessibility settings, invokes a control, or writes a field. Password controls and descendants are skipped. Native snapshots are bounded to 800 captured controls, 1,600 visited nodes, depth 24 and a 1.2-second cooperative budget. The helper has an eight-second outer timeout. Unsupported providers, busy clinical operations, unavailable windows and partial snapshots are reported.
+The ordinary browser/connector metadata stream still excludes raw field text,
+PONs, input keys, clipboard contents and raw exception messages. The new explicit
+`framework.observation` records contain clinical text in the local translation
+stream; session manifests label `rawClinicalText`. No clinical recording is sent
+to external services automatically. Recording starts no additional Iguana query.
 
-Identity, runtime IDs and four capability-availability flags are cached per element. A validated focused parent or known view can also use one shallow element-and-immediate-children identity cache, with critical editors read before deeper traversal; there is no whole-window subtree cache. Values are fetched in a separate fresh, element-only read after password/process/visibility checks. No values are reused between samples. Up to 250ms of the existing 1.2-second budget can seed the validated focused field, its parent and nearest known view. Standard UIA Boolean defaults are preserved for non-edit containers, so an omitted IsPassword=false property does not prune their children; actual password controls remain excluded. Offscreen layout wrappers remain traversable, while their own values are excluded. A connector-owned `scanOffset` rotates sibling starting positions across snapshots; browser-supplied offsets are ignored. Summary counters `scanOffset`, `cacheReads` and `prioritySeeds` distinguish traversal rotation, cache reads and accepted focus/view seeds. Provider calls can overrun the cooperative deadline; these counters do not establish workstation latency or complete field coverage.
-
-The Windows synthetic smoke fixture adds 1,000 decorative controls plus quantity, days supply, package type and start-date editors. Its assertions check field reach, changed quantity tokens, unchanged focus and omitted password/hidden values. Windows compilation and UI Automation execution remain required; source inspection and Linux connector tests do not establish those results. Keep `TEMPORARY_INTENSIFIED_LOGGING_REMOVAL_PRIORITY_HIGH` visible while this investigation continues.
-
-Only descendants of the selected window are read; separate top-level dialogs and offscreen/virtualized content may be absent. This first observer is a state sampler, not a complete click recorder or event subscription: changes between samples can be missed. PSR and technician comments remain useful. No claim of a completed clinical save is derived from a changed screen or value token.
+The browser reads an acknowledged 300-frame ring without triggering native
+scans and adds role-labelled observations to its separate local SIG dataset.
+These are `framework_observed` / `unpaired`, never automatically acceptable or
+technician-confirmed training examples. Its independent five-second collector
+pauses while automatic recording runs. Dataset capture can be paused separately.
+On reload, old frame IDs deduplicate. Ring gaps are shown explicitly; use local
+files for frames that aged out. Native write-queue overflow has a separate gap
+record/counter: it means capture really missed actions, not just browser replay.
 
 ## Durability and limits
 
-The next prototype source also records fixed `failureReason` categories and a
-bounded `helperDurationMs` when a passive helper fails. Categories distinguish
-timeout, invalid output, process exit, startup failure and unknown failure.
-Neither raw exception messages nor stdout/stderr/path text are exported with
-these observer failures. The delivered v0.1.9 ZIP predates this diagnostic
-addition; its generic OBSERVATION_FAILED cannot establish why a helper failed.
+Workflow and translation streams rotate at 2 MB, with 64 MB per stream and an
+eight-hour monotonic session limit. Rotation and new sessions preserve old files.
+File writes are serialized and synced before acknowledgment. File failures stop
+capture and remain visible. Exports/bundles snapshot acknowledged files; sort by
+`seq` to reconstruct order across streams. UTC, timezone offset and monotonic
+elapsed times support midnight/wall-clock investigations.
 
-Each stream rotates at 2 MB and retains up to 64 MB per recording. A recording has an eight-hour monotonic duration limit; start another to continue. Neither rotation nor starting another session deletes older files. Keep recordings as long as the investigation needs them, then remove them deliberately.
-
-File appends are serialized; accepted browser batches are synced before acknowledgment. Retries use a persisted batch ID, which the connector acknowledges once during that session. Export/bundle operations take a consistent snapshot of acknowledged files. A combined bundle groups log parts; use the global `seq` field to reconstruct cross-stream order. UTC times, timezone offsets and monotonic elapsed times distinguish midnight and wall-clock changes.
-
-The browser keeps separate bounded pending queues (10,000 events per stream) and backs up pending batches at flush/page-hide boundaries. Acknowledgment failures retain the same batch for retry. Reloading the same browser origin while the same connector remains running restores that outbox. A forced process/browser termination before backup/flush can lose the newest pending events; this is not reported as durable file capture. Pending buffers now use a dedicated IndexedDB database rather than localStorage, so they do not consume the localStorage quota used by reports and customizations. Legacy diagnostic buffers are removed from localStorage only after a committed, read-back-verified database copy; corrupt legacy buffers are preserved. Reports, custom SIG codes, orders and other browser keys are never deleted by that migration. Browser database storage still has limits and can be unavailable; failures and corrupt buffers are flagged. An asynchronous page-hide backup is best effort, so stopping and flushing before closing remains necessary. A per-stream file limit drops further events in that stream with explicit counters. Translation overflow cannot evict workflow files. Browser drop counters are separate from file drop counters and are included in the manifest; zero file drops alone does not establish a complete browser capture. Pending queue status and persistence apply to the same browser origin, including its port. Queue status and persistence no longer translate every unapproved waiting order; the active order and reviewed split parts still use the clinical engine.
-
-Do not close an old connector before stopping/saving/exporting its recording. A forced connector exit may leave a manifest marked active; synced JSONL parts remain in the displayed folder. Previous-session folders are not auto-reopened or auto-deleted by the next connector. The emergency **Download pending browser events** action uses the browser's save location; explicitly select the recording folder for that manual fallback.
+Browser metadata has separate 10,000-event queues and an IndexedDB retry outbox.
+Repeated batch IDs are acknowledged once per session. Pending data, drop counts
+and failed backups are visible. Keep the page open until pending data is saved,
+or use the emergency download before closing. Page-hide backup is best effort.
+Do not clear browser storage to address quota errors: reports and custom codes
+must be preserved. Browser data belongs to the same profile/address/port.
 
 ## Removal work
 
-Search source and artifacts for `TEMPORARY_INTENSIFIED_LOGGING_REMOVAL_PRIORITY_HIGH`. Review/remove the UI panel, live trace subscription/outbox, bridge journal endpoints/timer, native observer, private destination configuration, file retention/bundles, packaging additions and associated pilot checks. Removing this recorder must not remove ordinary SIG translation, reviewed field transfer, technician feedback, or normal error reporting. The marker is deliberately prominent; it is not a build-time production exclusion.
-
-## Discrepancy save recovery in v0.1.8
-
-Discrepancy reports retain the connected-folder/localStorage paths and gain a separate local IndexedDB fallback if neither can accept a write. The archive merges local sources by report ID; archiving/restoring records a newer storage timestamp to supersede stale fallback copies. A corrupt archive is preserved rather than overwritten. Database success is acknowledged only when its transaction commits. These browser databases are local to that browser profile and origin, not a replacement for session exports or a shared pharmacy archive.
-
-If all destinations fail, the correction and notes remain visible and **Download this report** writes an individual case bundle without clearing the form or claiming archive success. Verify the downloaded file before closing. This manual file includes original order text and may contain PHI; keep it in approved local storage. The automatic pilot journal records only the report-save outcome/destination, never report contents. Do not clear browser data to fix a full store: that would remove reports and custom codes.
+Search for the HIGH-priority removal marker in source and packaged files. Review
+`IntensifiedLogging`, metadata subscribers/outboxes, `framework-observer.mjs`,
+bridge journal routes, the native WatchEvents/WorkflowSnapshot paths, local file
+retention/bundling and packaging. Preserve shared helpers required by the
+independent dataset reader. This marker is not a build-time production exclusion.

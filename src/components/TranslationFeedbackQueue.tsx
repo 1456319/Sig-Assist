@@ -17,7 +17,7 @@ export function FeedbackOutbox() {
   }, []);
   if (!count) return null;
   return <div className="border-b border-amber-500 bg-amber-50 p-2 text-xs text-amber-950" role="status">
-    {count} feedback updates pending. <button type="button" className="underline" onClick={() => void retryTranslationFeedback()}>Retry pending feedback</button>{' '}
+    {count} feedback updates pending. Keep this page open until saved, or download the pending evidence. <button type="button" className="underline" onClick={() => void retryTranslationFeedback()}>Retry pending feedback</button>{' '}
     <button type="button" className="underline" onClick={() => {
       const url = URL.createObjectURL(new Blob([JSON.stringify({ format: 'sig-assist-pending-ratings', pending: pendingFeedback() }, null, 2)], { type: 'application/json' }));
       const link = document.createElement('a'); link.href = url; link.download = 'sig-assist-unsaved-ratings.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 60000);

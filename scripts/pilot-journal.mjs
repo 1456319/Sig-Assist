@@ -155,10 +155,14 @@ export function createPilotJournal({ baseDir, baseDirs = baseDir ? [baseDir] : [
     })),
     workflow: (raw, expectedSessionId) => serialize(() => guarded(async () => {
       if (!session?.active || !session.observeDesktop || session.sessionId !== expectedSessionId) return false;
-      const kinds = new Set(['order_visible', 'order_changed', 'view_changed', 'fields_changed', 'button_invoked', 'observation_unavailable']);
+      const kinds = new Set(['order_visible', 'order_changed', 'view_changed', 'fields_changed', 'button_invoked', 'observation_unavailable', 'observation_gap']);
       if (!kinds.has(raw?.kind) || !Number.isSafeInteger(raw.id) || raw.id < 1) return false;
       let observation;
-      if (raw.kind === 'button_invoked') {
+      if (raw.kind === 'observation_gap') {
+        if (!Number.isSafeInteger(raw.dropped) || raw.dropped < 1) return false;
+        observation = { dropped: raw.dropped, evidence: 'queue_overflow' };
+        session.observationDropped = (session.observationDropped || 0) + raw.dropped;
+      } else if (raw.kind === 'button_invoked') {
         const allowed = new Set(['BackButton', 'NextButton', 'CancelButton', 'PreviewSigButton', 'PreviewLinkedSigButton', 'AddSplitButton', 'RemoveSplitButton', 'NewBatchButton', 'save', 'save and close', 'process request', 'refuse request', 'preview sig', 'quit', 'cancel', 'next', 'back', 'button']);
         observation = { control: allowed.has(raw.control) ? raw.control : 'button', evidence: 'invoke_event', candidatePon: typeof raw.candidatePon === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,99}$/.test(raw.candidatePon) ? raw.candidatePon : null, association: 'preceding_observation_only' };
       } else if (raw.kind === 'observation_unavailable') observation = { ...normalizeWorkflowSnapshot({ ok: false, code: raw.code }), evidence: 'read_attempt' };
@@ -167,6 +171,7 @@ export function createPilotJournal({ baseDir, baseDirs = baseDir ? [baseDir] : [
         if (!observation.ok) return false;
         observation.evidence = 'visible_fields';
       }
+      if (Number.isFinite(raw.readDurationMs) && raw.readDurationMs >= 0) observation.readDurationMs = Math.min(60000, Math.round(raw.readDurationMs));
       const saved = await append('translation', 'framework.observation', { observation: { ...observation, id: raw.id, kind: raw.kind, outcome: 'unverified', observedAt: /^\d{4}-\d\d-\d\dT[0-9:.]+Z$/.test(raw.observedAt || '') ? raw.observedAt : new Date(now()).toISOString() } });
       session.desktopCode = raw.kind === 'observation_unavailable' ? observation.code : 'OBSERVING';
       session.observationEvents = (session.observationEvents || 0) + (saved ? 1 : 0);

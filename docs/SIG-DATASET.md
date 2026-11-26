@@ -29,3 +29,16 @@ Keep the same browser and localhost address while collecting. A different origin
 ## First workstation check
 
 Use a few dummy orders first. Verify the original text, actual Framework SIG, stage and exported JSONL agree; include a manual Framework edit and an order processed without using Detect again. Check that ambiguous/hidden/unreadable screens show an unavailable status instead of an unrelated SIG. Then expand collection incrementally. Collecting a large number of unlabeled drafts alone will not establish correct translations.
+
+## Automatic recorder input (v0.1.15)
+
+Starting automatic recording also feeds saved Framework field observations into
+the local dataset without a second collector button. Source/message, editable
+order, draft, linked, default and structured SIG roles retain separate provenance.
+The sample records session/frame, view, role, observation time, directions mode
+and readable non-SIG order fields. PON equality alone does not verify source
+identity, an observed draft does not establish an actual save, and these samples
+remain unpaired and unrated. The dedicated five-second dataset reader pauses
+while the recorder is active. Pausing dataset collection does not stop the
+connector's local recording. Native capture gaps and browser replay gaps are
+reported separately; review the local recording files alongside dataset exports.
