@@ -42,3 +42,14 @@ still counting a one-character delimiter. Those expectations are corrected to
 the vendor contract; final full regressions and Windows startup execution are
 pending. This is an explicit intermediate checkpoint, not a claim of verified
 end-to-end prescription automation or a transactional save API.
+
+## Final verification in progress
+
+`dcb649f7f275ede72fcf126867657505efe1f8a3` preserves the refined source,
+documentation and packaged v0.1.15, build `d2fe7592d876`. All 1,427 tests across
+100 files pass locally, with no increased timeouts (four workers). Lint, type
+checking, the 388-code reference, package manifest and ZIP/source comparison pass.
+The Ubuntu CI job also passes. The packaged-browser recorder smoke now exercises
+automatic selection, three consecutive observed orders, page reload, dataset
+replay, optional manual markers, local bundle export and existing quota/report
+recovery. Windows startup and that expanded Edge scenario are still running.
