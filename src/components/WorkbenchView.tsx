@@ -25,6 +25,7 @@ import { HL7_SAMPLE } from '../lib/clinical/fixtures';
 import { queueSigSample } from '../lib/sigDatasetCapture';
 import { SigDatasetConfirmation } from './SigDatasetPanel';
 import type { QueueOrder } from '../lib/orderQueue';
+import type { TranslationFeedbackSnapshot } from '../lib/translationFeedbackModel';
 
 const FREETEXT_SAMPLE = 'Take 1 tablet twice daily after meals prn';
 
@@ -116,7 +117,7 @@ function TraceStepCard({ step, defaultOpen }: { step: TraceStep; defaultOpen?: b
   );
 }
 
-function WorkbenchReview({ result, source, datasetOrder }: { result: ParseResult; source: string; datasetOrder: QueueOrder }) {
+function WorkbenchReview({ result, source, datasetOrder, ratingSource }: { result: ParseResult; source: string; datasetOrder: QueueOrder; ratingSource: Omit<TranslationFeedbackSnapshot, 'presentedSig' | 'currentDraft'> }) {
   const [draft, setDraft] = useState(result.finalSig.toUpperCase());
   const [approved, setApproved] = useState<string>();
   const isUserEditedRef = useRef(false);
@@ -134,6 +135,7 @@ function WorkbenchReview({ result, source, datasetOrder }: { result: ParseResult
 
   const { exclusions } = useReviewSession();
   return <><SigReviewPanel source={source} suggestion={result.finalSig} draft={draft} approved={approved}
+    ratingSource={ratingSource}
     unavailable={result.inputMode === 'hl7' && !!result.hl7Extraction?.warning}
     warnings={result.steps.flatMap(step => step.warnings)}
     onEdit={value => {
@@ -243,6 +245,7 @@ export function WorkbenchView() {
   }, [result, clinicalResult, rawInput, clinicalInbound]);
 
   const source = JSON.stringify([rawInput, inputMode, drugName, defaultSig, effectiveResult]);
+  const baselineClinical = useMemo(() => clinicalInbound ? translateClinicalSig(clinicalInbound).primarySig : '', [clinicalInbound]);
   const datasetRawSig = clinicalInbound?.rawProse || rawInput;
   const datasetDrug = drugName || clinicalInbound?.drugName || '';
   const datasetOrder: QueueOrder = {
@@ -250,6 +253,13 @@ export function WorkbenchView() {
     facility: '', patientRef: '', pon: clinicalInbound?.pon || '', drug: datasetDrug, directions: datasetRawSig,
     defaultSig: defaultSig || clinicalInbound?.defaultSigTemplate, revision: 1, previousSources: [],
     draft: effectiveResult?.finalSig || '', cancelled: false,
+  };
+  const ratingSource: Omit<TranslationFeedbackSnapshot, 'presentedSig' | 'currentDraft'> = {
+    orderKey: datasetOrder.id, pon: datasetOrder.pon || 'MANUAL_ENTRY', drugName: datasetDrug, rawProse: datasetRawSig,
+    generatedSig: baselineClinical || result?.finalSig || '', preferences: { exclusions, policyRevision },
+    context: { source: 'workbench', revision: 1, policyRevision, exclusions, defaultSigTemplate: datasetOrder.defaultSig,
+      abnormalities: clinicalResult?.abnormalities, subOrders: clinicalResult?.subOrders,
+      diagnostics: { inputMode, parserSteps: result?.steps, dictionary, techRules, expansions } },
   };
 
   useEffect(() => {
@@ -434,6 +444,7 @@ export function WorkbenchView() {
 
               {clinicalResult && clinicalResult.subOrders.length > 1 ? (
                 <MultiOrderCards
+                  ratingSource={ratingSource}
                   key={clinicalInbound?.id || `${drugName}:${rawInput}`}
                   primarySig={clinicalResult.primarySig}
                   subOrders={clinicalResult.subOrders}
@@ -444,7 +455,7 @@ export function WorkbenchView() {
                     drug: datasetDrug, rawSig: datasetRawSig, defaultSigTemplate: datasetOrder.defaultSig, suggestedSig: part.suggestedSig, finalSig: draftSig, partId: part.id, exclusions }); }}
                 />
               ) : effectiveResult ? (
-                <WorkbenchReview key={`${inputMode}:${rawInput}:${drugName}:${defaultSig}`} result={effectiveResult} source={source} datasetOrder={datasetOrder} />
+                <WorkbenchReview key={`${inputMode}:${rawInput}:${drugName}:${defaultSig}`} result={effectiveResult} source={source} datasetOrder={datasetOrder} ratingSource={ratingSource} />
               ) : (
                 <p className="text-sm text-muted-foreground">Enter original directions to prepare a draft for review.</p>
               )}

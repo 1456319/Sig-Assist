@@ -1,5 +1,6 @@
 import { browserRecords } from './browserDatabase';
 import type { DiscrepancyReport } from './clinical/types';
+import { mergeFeedbackHistory } from './translationFeedbackModel';
 const records = browserRecords('sig-assist-discrepancies-v1');
 function stamp(report: DiscrepancyReport) { return Math.max(...[report.timestamp, report.archivedAt, report.storageUpdatedAt].map(x => Date.parse(x || '') || 0)); }
 function valid(value: unknown): value is DiscrepancyReport { return !!value && typeof value === 'object' && typeof (value as DiscrepancyReport).id === 'string' && typeof (value as DiscrepancyReport).timestamp === 'string'; }
@@ -8,7 +9,7 @@ export function mergeDiscrepancyReports(...groups: DiscrepancyReport[][]): Discr
   for (const report of groups.flat()) {
     if (!valid(report)) throw new Error('A saved discrepancy archive could not be read. Existing data was preserved.');
     const before = merged.get(report.id);
-    if (!before || stamp(report) >= stamp(before)) merged.set(report.id, report);
+    merged.set(report.id, before ? mergeFeedbackHistory(before, report, stamp(report) >= stamp(before) ? report : before) : report);
   }
   return [...merged.values()];
 }
@@ -21,6 +22,6 @@ export async function readDatabaseDiscrepancies(): Promise<DiscrepancyReport[]> 
 export async function writeDatabaseDiscrepancies(reports: DiscrepancyReport[]): Promise<void> {
   await records.merge(reports.map(report => [report.id, report]), (existing, incoming) => {
     if (!valid(incoming) || existing !== undefined && !valid(existing)) throw new Error('Invalid discrepancy backup.');
-    return existing === undefined || stamp(incoming) >= stamp(existing as DiscrepancyReport) ? incoming : existing;
+    return existing === undefined ? incoming : mergeDiscrepancyReports([existing as DiscrepancyReport], [incoming])[0];
   });
 }

@@ -7,8 +7,11 @@ import { useReviewSession } from '../hooks/use-review-session';
 import { copyBlockReason, reviewStamp } from '../lib/reviewPolicy';
 import { traceLogger } from '../lib/diagnostics/traceLogger';
 import { estimateScaleExpansion, isSlidingScaleSig } from '../lib/clinical/slidingScaleBudget';
+import { TranslationRating, captureFeedbackCorrection } from './TranslationRating';
+import type { TranslationFeedbackSnapshot } from '../lib/translationFeedbackModel';
 
 export interface MultiOrderCardsProps {
+  ratingSource?: Omit<TranslationFeedbackSnapshot, 'presentedSig' | 'currentDraft' | 'partId'>;
   primarySig?: string;
   subOrders: SubOrderResult[];
   unavailable?: boolean;
@@ -30,6 +33,7 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
   onDraftChange,
   onApprovalChange,
   onCopySubOrder,
+  ratingSource,
 }) => {
   const [drafts, setDrafts] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
@@ -115,6 +119,7 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
     try {
       if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(draftSig);
+        if (ratingSource) captureFeedbackCorrection({ ...ratingSource, partId: subOrder.id, presentedSig: subOrder.suggestedSig, currentDraft: draftSig }, draftSig);
         traceLogger.info('ui', 'MultiOrderCards', 'Copied sub-order Sig to clipboard', {
           subOrderId: subOrder.id,
           label: subOrder.label,
@@ -214,6 +219,7 @@ export const MultiOrderCards: React.FC<MultiOrderCardsProps> = ({
                 onChange={(e) => handleDraftChange(subOrder.id, e.target.value)}
               />
               <p className={`mt-1 text-xs ${draftSig.length > 199 ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>{draftSig.length} / 199 characters{draftSig.length > 199 ? ' · over the Framework SIG limit; edit before sending' : ''}</p>
+              {ratingSource && <TranslationRating input={{ ...ratingSource, partId: subOrder.id, presentedSig: subOrder.suggestedSig, currentDraft: draftSig }} disabled={unavailable} />}
               <button type="button" className="mt-1 text-xs underline disabled:opacity-40" disabled={unavailable || !draftSig.trim()} onClick={() => selectDraft(subOrder.id)}>Select final SIG ({subOrder.label})</button>
             </div>
 

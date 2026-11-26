@@ -4,11 +4,14 @@ import { toast } from 'sonner';
 import { copyBlockReason, excludedMatches, finalSig, reviewStamp, type SigExclusion } from '../lib/reviewPolicy';
 import { useReviewSession } from '../hooks/use-review-session';
 import { estimateScaleExpansion, isSlidingScaleSig } from '../lib/clinical/slidingScaleBudget';
+import { TranslationRating, captureFeedbackCorrection } from './TranslationRating';
+import type { TranslationFeedbackSnapshot } from '../lib/translationFeedbackModel';
 
 export const reviewInputClass = 'w-full rounded-md border border-border bg-background p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary';
 export const reviewButtonClass = 'rounded-md border border-border px-3 py-2 text-sm hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed';
 
 interface Props {
+  ratingSource?: Omit<TranslationFeedbackSnapshot, 'presentedSig' | 'currentDraft'>;
   source: string;
   suggestion: string;
   draft: string;
@@ -21,7 +24,7 @@ interface Props {
   onResetSuggestion?: () => void;
 }
 
-export function SigReviewPanel({ source, suggestion, draft, approved, unavailable = false, warnings, onEdit, onApprove, onCopied, onResetSuggestion }: Props) {
+export function SigReviewPanel({ source, suggestion, draft, approved, unavailable = false, warnings, onEdit, onApprove, onCopied, onResetSuggestion, ratingSource }: Props) {
   const { exclusions, setExclusions, policyRevision } = useReviewSession();
   const [code, setCode] = useState('');
   const [replacement, setReplacement] = useState('');
@@ -54,6 +57,7 @@ export function SigReviewPanel({ source, suggestion, draft, approved, unavailabl
         throw new Error('Clipboard API unavailable in this context.');
       }
       await navigator.clipboard.writeText(finalSig(draft));
+      if (ratingSource) captureFeedbackCorrection({ ...ratingSource, presentedSig: suggestion, currentDraft: draft }, finalSig(draft));
       onCopied?.(stamp);
       toast.success('Reviewed SIG copied. Match the PON and preview it in Framework.');
     } catch {
@@ -69,6 +73,7 @@ export function SigReviewPanel({ source, suggestion, draft, approved, unavailabl
     <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
       <h3 className="text-sm font-semibold">Draft suggestion · review required</h3>
       <p className="font-mono text-sm whitespace-pre-wrap">{suggestionExcluded ? 'Suggestion excluded for this session.' : finalSig(suggestion) || 'No complete suggestion. Enter a corrected SIG below.'}</p>
+      {ratingSource && <TranslationRating input={{ ...ratingSource, presentedSig: suggestion, currentDraft: draft }} disabled={unavailable} />}
       <p className="text-xs text-muted-foreground">Compare every source clause. The parser can omit instructions; a suggestion is not a verified prescription.</p>
       {warnings.length > 0 && <ul className="list-disc pl-5 text-sm text-amber-600 dark:text-amber-400">{warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>}
     </div>

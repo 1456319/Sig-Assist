@@ -24,6 +24,7 @@ import { OrderQueueView } from './OrderQueueView';
 import { TraceLogDrawer } from './TraceLogDrawer';
 import { TechnicianFeedback } from './TechnicianFeedback';
 import { IntensifiedLogging } from './IntensifiedLogging';
+import { FeedbackOutbox } from './TranslationFeedbackQueue';
 import { SigDatasetPanel } from './SigDatasetPanel';
 import { observeCustomizationCounts, recordPilotEvent } from '../lib/pilotDiagnostics';
 
@@ -156,6 +157,7 @@ export function AppLayout() {
           </div>
         </header>
         <IntensifiedLogging screen={activeView} />
+        <FeedbackOutbox />
         <SigDatasetPanel />
 
         {/* View */}

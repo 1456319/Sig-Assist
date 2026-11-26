@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { getCitrixStorageAdapter } from '../lib/citrixStorage';
 import { DISCREPANCY_SAVED_EVENT, exportDiscrepancyCases } from '../lib/discrepancyCases';
+import { TranslationFeedbackQueue } from './TranslationFeedbackQueue';
 
 export function DiscrepancyArchive() {
   const [count, setCount] = useState<number | null>(null);
@@ -66,6 +67,7 @@ export function DiscrepancyArchive() {
   };
 
   return <section aria-label="Saved discrepancy cases" className="rounded-lg border border-border bg-card p-4 space-y-2">
+    <TranslationFeedbackQueue />
     <div className="flex flex-wrap items-center justify-between gap-3">
       <p className="text-sm font-medium">{error || (count === null ? 'Loading saved reports…' : `${count} saved discrepancy reports`)}</p>
       <button type="button" onClick={() => handleExport()} disabled={exporting || !count || !!error}

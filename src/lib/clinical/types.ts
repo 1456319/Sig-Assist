@@ -1,4 +1,5 @@
 import type { IguanaOrderMetadata } from '../iguana/types';
+import type { TranslationFeedbackData } from '../translationFeedbackModel';
 
 export interface InboundOrder {
   readonly id: string;
@@ -37,6 +38,7 @@ export interface ClinicalSigResult {
 }
 
 export interface DiscrepancyReport {
+  readonly translationFeedback?: TranslationFeedbackData;
   readonly storageUpdatedAt?: string;
   readonly archivedAt?: string;
   readonly id: string;
@@ -60,6 +62,7 @@ export interface DiscrepancyReport {
     readonly abnormalities?: readonly AbnormalityFinding[];
     readonly subOrders?: readonly { id: string; label: string; suggestedSig: string; draftSig?: string }[];
     readonly iguana?: IguanaOrderMetadata;
+    readonly diagnostics?: Record<string, unknown>;
   };
 }
 

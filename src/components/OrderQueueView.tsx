@@ -20,6 +20,8 @@ import { AdministrationTimes, FrameworkTransfer } from './FrameworkDesktop';
 import type { FrameworkDetection } from '../lib/frameworkDesktop';
 import { orderDatasetInput, queueSigSample } from '../lib/sigDatasetCapture';
 import { SigDatasetConfirmation } from './SigDatasetPanel';
+import { captureFeedbackCorrection } from '../lib/translationFeedback';
+import type { TranslationFeedbackSnapshot } from '../lib/translationFeedbackModel';
 
 import { DocuTrackQueue, EdcWarning } from './DocuTrackQueue';
 import { edcMatch, type EdcSnapshot } from '../lib/docutrackQueue';
@@ -69,6 +71,14 @@ export function OrderQueueView() {
   // Titles/categories are stable; finding IDs may contain source identities or
   // timestamps and therefore do not belong in the refinement export.
   const datasetWarnings = clinicalResult?.abnormalities.map(finding => `${finding.tier}: ${finding.title}`);
+  const ratingSource: Omit<TranslationFeedbackSnapshot, 'presentedSig' | 'currentDraft'> | undefined = selected ? {
+    orderKey: selected.id, pon: selected.pon, drugName: selected.drug, rawProse: selected.directions,
+    generatedSig: baselineSig || '', preferences: { exclusions, policyRevision },
+    context: { source: 'queue', revision: selected.revision, exclusions, policyRevision, defaultSigTemplate: selected.defaultSig,
+      iguana: selected.iguana, abnormalities: clinicalResult?.abnormalities,
+      diagnostics: { facility: selected.facility, patientRef: selected.patientRef },
+      subOrders: clinicalResult?.subOrders.map(sub => ({ id: sub.id, label: sub.label, suggestedSig: sub.suggestedSig })) },
+  } : undefined;
 
   useEffect(() => {
     if (selected) {
@@ -276,6 +286,7 @@ export function OrderQueueView() {
           <AdministrationTimes times={selected.iguana?.administrationTimes ?? []} />
           {clinicalResult && clinicalResult.subOrders.length > 1 ? (
             <MultiOrderCards
+              ratingSource={ratingSource}
               key={`${selected.id}:${selected.revision}`}
               primarySig={clinicalResult.primarySig}
               subOrders={clinicalResult.subOrders}
@@ -314,6 +325,7 @@ export function OrderQueueView() {
             />
           ) : (
             <SigReviewPanel key={`${selected.id}:${selected.revision}`} source={sourceStamp(selected)} suggestion={clinicalResult?.primarySig || parsed?.sig || selected.draft}
+              ratingSource={ratingSource}
               draft={selected.draft} approved={selected.approved} unavailable={selected.cancelled || !!selected.intakeHold || reviseId === selected.id}
               warnings={parsed?.order.issues.map(issue => `${issue.severity.toUpperCase()}: ${issue.message}`) || []}
               onEdit={draft => updateSelected(order => editDraft(order, draft))}
@@ -333,7 +345,10 @@ export function OrderQueueView() {
             }) : []}
             blocked={copyBlockReason(sourceStamp(selected), selected.draft, exclusions, selected.approved, selected.cancelled || !!selected.intakeHold || reviseId === selected.id, policyRevision)}
             onDetected={setDesktop}
-            onVerifiedSig={(sig, partId) => { void queueSigSample(orderDatasetInput(selected, 'verified_transfer', { suggestion: partId ? clinicalResult?.subOrders.find(sub => sub.id === partId)?.suggestedSig : (clinicalResult?.primarySig || parsed?.sig), generatedSig: baselineSig, finalSig: sig, partId, exclusions, warnings: datasetWarnings })); }} />
+            onVerifiedSig={(sig, partId) => {
+              if (ratingSource) captureFeedbackCorrection({ ...ratingSource, partId,
+                presentedSig: (partId ? clinicalResult?.subOrders.find(sub => sub.id === partId)?.suggestedSig : clinicalResult?.primarySig || parsed?.sig) || '', currentDraft: sig }, sig, true);
+              void queueSigSample(orderDatasetInput(selected, 'verified_transfer', { suggestion: partId ? clinicalResult?.subOrders.find(sub => sub.id === partId)?.suggestedSig : (clinicalResult?.primarySig || parsed?.sig), generatedSig: baselineSig, finalSig: sig, partId, exclusions, warnings: datasetWarnings })); }} />
           {!selected.cancelled && !selected.intakeHold && reviseId !== selected.id && <SigDatasetConfirmation
             key={`dataset:${selected.id}:${selected.revision}`} order={selected} suggestion={clinicalResult?.primarySig || parsed?.sig || ''} generatedSig={baselineSig} exclusions={exclusions} warnings={datasetWarnings}
             parts={(clinicalResult?.subOrders.length || 0) > 1 ? clinicalResult!.subOrders.map(sub => ({ id: sub.id, label: sub.label, suggestion: sub.suggestedSig, sig: selected.subOrderDrafts?.[sub.id] ?? sub.suggestedSig })) : []} />}
