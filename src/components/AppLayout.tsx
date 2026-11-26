@@ -1,3 +1,4 @@
+import { AutomaticObservationSamples } from './AutomaticObservationSamples';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 import {
@@ -157,7 +158,7 @@ export function AppLayout() {
           </div>
         </header>
         <IntensifiedLogging screen={activeView} />
-        <FeedbackOutbox />
+        <FeedbackOutbox /><AutomaticObservationSamples />
         <SigDatasetPanel />
 
         {/* View */}

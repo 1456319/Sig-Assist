@@ -18,6 +18,7 @@ export interface SigDatasetInput {
   sourceMatch?: 'pon_candidate' | 'unpaired' | 'legacy_unverified';
   captureKind?: 'erx_source' | 'framework_sig_observation';
   origin?: 'iguana' | 'manual' | 'framework' | 'demo';
+  observation?: { sessionId: string; frame: number; role: string; view: string; observedAt: string; sigMode?: string; fields: Record<string, string> };
   context?: { ndc?: string; strength?: string; dose?: string | number; doseUnit?: string; route?: string; frequency?: string; administrationTimes?: string[] };
   exclusions?: SigExclusion[];
   warnings?: string[];
@@ -105,12 +106,23 @@ function clinicalFields(input: SigDatasetInput): Omit<SigDatasetInput, 'orderKey
       result.context.administrationTimes = [...input.context.administrationTimes];
     }
   }
+  if (input.observation !== undefined) {
+    const o = input.observation;
+    if (!isObject(o) || typeof o.sessionId !== 'string' || o.sessionId.length > 100 || !Number.isSafeInteger(o.frame) || o.frame < 1 || typeof o.role !== 'string' || typeof o.view !== 'string' || typeof o.observedAt !== 'string' || !Number.isFinite(Date.parse(o.observedAt)) || !optionalString(o.sigMode) || !isObject(o.fields)) throw new Error('Invalid SIG dataset observation context.');
+    const fields: Record<string, string> = {};
+    const allowed = ['quantity', 'days_supply', 'start_date', 'delivery_date', 'delivery_id', 'batch', 'drug', 'package_type', 'admin_times'];
+    for (const [key, value] of Object.entries(o.fields)) {
+      if (!allowed.includes(key) || typeof value !== 'string' || value.length > 4000) throw new Error('Invalid SIG dataset observation field.');
+      fields[key] = value;
+    }
+    result.observation = { sessionId: o.sessionId, frame: o.frame, role: o.role, view: o.view, observedAt: o.observedAt, ...(o.sigMode ? { sigMode: o.sigMode } : {}), fields };
+  }
   return result;
 }
 
 function validRecord(value: unknown): value is SigDatasetRecord {
   if (!isObject(value) || value.schemaVersion !== 1 || !Number.isSafeInteger(value.seq) || (value.seq as number) < 1 || typeof value.capturedAt !== 'string' || !Number.isFinite(Date.parse(value.capturedAt)) || typeof value.appVersion !== 'string' || typeof value.buildId !== 'string' || !HEX.test(String(value.orderId)) || !HEX.test(String(value.sampleId)) || !HEX.test(String(value.dedupKey)) || value.exclusionPolicyId !== undefined && !HEX.test(String(value.exclusionPolicyId))) return false;
-  const fields = ['schemaVersion', 'seq', 'capturedAt', 'appVersion', 'buildId', 'orderId', 'sampleId', 'dedupKey', 'exclusionPolicyId', 'revision', 'stage', 'drug', 'rawSig', 'captureKind', 'origin', 'generatedSig', 'suggestedSig', 'finalSig', 'comment', 'acceptable', 'warnings', 'context', 'defaultSigTemplate', 'sourceMatch'];
+  const fields = ['schemaVersion', 'seq', 'capturedAt', 'appVersion', 'buildId', 'orderId', 'sampleId', 'dedupKey', 'exclusionPolicyId', 'revision', 'stage', 'drug', 'rawSig', 'captureKind', 'origin', 'generatedSig', 'suggestedSig', 'finalSig', 'comment', 'acceptable', 'warnings', 'context', 'defaultSigTemplate', 'sourceMatch', 'observation'];
   if (Object.keys(value).some(key => !fields.includes(key))) return false;
   if (isObject(value.context) && Object.keys(value.context).some(key => !['ndc', 'strength', 'dose', 'doseUnit', 'route', 'frequency', 'administrationTimes'].includes(key))) return false;
   try { clinicalFields(value as unknown as SigDatasetInput); return true; } catch { return false; }

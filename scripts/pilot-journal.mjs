@@ -1,9 +1,10 @@
 // TEMPORARY_INTENSIFIED_LOGGING_REMOVAL_PRIORITY_HIGH
-// Remove/reduce after the E-Rx investigation. Opt-in, local files, no raw PHI.
+// Remove/reduce after the E-Rx investigation. Opt-in, local clinical files.
 import { mkdir, open, writeFile, stat, access } from 'node:fs/promises';
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import path from 'node:path';
+import { normalizeWorkflowSnapshot } from './framework-desktop.mjs';
 
 export const REMOVAL_PRIORITY = 'TEMPORARY_INTENSIFIED_LOGGING_REMOVAL_PRIORITY_HIGH';
 export const CONTROL_IDS = new Set(('ERxQueueButton ERxGrid ERxPatientOrderGrid FolderGridControl DirectionsView paneRichEdit RxEntryViewControl RxEntryPrescription_QtyEdit RxEntryPrescription_DaysSupplyEdit RxEntryPrescription_ProfileOnly ProductSelectionView CompoundAutoSuggestEdit RxBatch MoveRxBatchUserControl PatientViewControl chkPatientProfileReviewed WorkQueueView PART_Editor PART_OkButton PART_YesButton PART_NoButton PART_Item PART_GridControl PART_Content PART_DockLayoutManager Name Value Display Title CloseButton CancelButton OrderSigTextBox LinkedSigTextBox ERxWorkQueueWizardView ERxWorkQueueDirectionsView PrescriptionTabDirectionsView ERxWorkQueueView RxEntryView ERxTriageManagerView PatientOrdersView FrameworkEcmPopup').split(' '));
@@ -122,7 +123,7 @@ export function createPilotJournal({ baseDir, baseDirs = baseDir ? [baseDir] : [
       }
       if (!directory) throw Object.assign(new Error('Configured recording destinations are unavailable.'), { code: 'DESTINATION_UNAVAILABLE' });
       key = randomBytes(32); previous = new Map(); unsynced.clear(); fileErrorCode = undefined;
-      session = { sessionId, directory, active: true, startedMs, startedTick: monotonic(), startedAt: new Date(startedMs).toISOString(), appVersion: version(body?.appVersion), observeDesktop: body?.observeDesktop !== false, seq: 0, workflowEvents: 0, translationEvents: 0, droppedWorkflow: 0, droppedTranslation: 0, browserDroppedWorkflow: 0, browserDroppedTranslation: 0, browserDrops: new Map(), limitReached: false, fileError: false, batches: new Set(), files: [], streams: { workflow: { bytes: 0, part: 1, partBytes: 0 }, translation: { bytes: 0, part: 1, partBytes: 0 } } };
+      session = { sessionId, directory, active: true, startedMs, startedTick: monotonic(), startedAt: new Date(startedMs).toISOString(), appVersion: version(body?.appVersion), observeDesktop: body?.observeDesktop !== false, automaticObservation: body?.observeDesktop !== false, rawClinicalText: body?.observeDesktop !== false, seq: 0, workflowEvents: 0, translationEvents: 0, droppedWorkflow: 0, droppedTranslation: 0, browserDroppedWorkflow: 0, browserDroppedTranslation: 0, browserDrops: new Map(), limitReached: false, fileError: false, batches: new Set(), files: [], streams: { workflow: { bytes: 0, part: 1, partBytes: 0 }, translation: { bytes: 0, part: 1, partBytes: 0 } } };
       for (const field of ['appBuildId', 'bridgeBuildId', 'desktopBuildId']) if (/^[a-f0-9]{64}$/.test(body?.[field] || '')) session[field] = body[field];
       await append('workflow', 'session.start', { appVersion: session.appVersion, nodeVersion: process.version, platform: process.platform, arch: process.arch, observeDesktop: session.observeDesktop }); await manifest(); return status();
     })),
@@ -151,6 +152,25 @@ export function createPilotJournal({ baseDir, baseDirs = baseDir ? [baseDir] : [
       // A session is bounded; reject further clients visibly rather than evict retry IDs.
       if (session.batches.size >= 100000) { session.active = false; session.stopReason = 'BATCH_LIMIT'; }
       await manifest(); return status();
+    })),
+    workflow: (raw, expectedSessionId) => serialize(() => guarded(async () => {
+      if (!session?.active || !session.observeDesktop || session.sessionId !== expectedSessionId) return false;
+      const kinds = new Set(['order_visible', 'order_changed', 'view_changed', 'fields_changed', 'button_invoked', 'observation_unavailable']);
+      if (!kinds.has(raw?.kind) || !Number.isSafeInteger(raw.id) || raw.id < 1) return false;
+      let observation;
+      if (raw.kind === 'button_invoked') {
+        const allowed = new Set(['BackButton', 'NextButton', 'CancelButton', 'PreviewSigButton', 'PreviewLinkedSigButton', 'AddSplitButton', 'RemoveSplitButton', 'NewBatchButton', 'save', 'save and close', 'process request', 'refuse request', 'preview sig', 'quit', 'cancel', 'next', 'back', 'button']);
+        observation = { control: allowed.has(raw.control) ? raw.control : 'button', evidence: 'invoke_event', candidatePon: typeof raw.candidatePon === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,99}$/.test(raw.candidatePon) ? raw.candidatePon : null, association: 'preceding_observation_only' };
+      } else if (raw.kind === 'observation_unavailable') observation = { ...normalizeWorkflowSnapshot({ ok: false, code: raw.code }), evidence: 'read_attempt' };
+      else {
+        observation = normalizeWorkflowSnapshot(raw);
+        if (!observation.ok) return false;
+        observation.evidence = 'visible_fields';
+      }
+      const saved = await append('translation', 'framework.observation', { observation: { ...observation, id: raw.id, kind: raw.kind, outcome: 'unverified', observedAt: /^\d{4}-\d\d-\d\dT[0-9:.]+Z$/.test(raw.observedAt || '') ? raw.observedAt : new Date(now()).toISOString() } });
+      session.desktopCode = raw.kind === 'observation_unavailable' ? observation.code : 'OBSERVING';
+      session.observationEvents = (session.observationEvents || 0) + (saved ? 1 : 0);
+      await manifest(); return saved;
     })),
     desktop: (raw, expectedSessionId) => serialize(() => guarded(async () => {
       if (!session?.active || expectedSessionId && session.sessionId !== expectedSessionId) return;

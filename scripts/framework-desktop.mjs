@@ -75,7 +75,7 @@ export async function runDesktopHelper(input, { getExecutable = helperExecutable
   try { exe = await getExecutable(); }
   catch (error) { throw helperFailure(error?.message || 'Desktop helper could not start.', failureReasons.has(error?.failureReason) ? error.failureReason : 'HELPER_STARTUP_FAILED', error?.helperDurationMs ?? performance.now() - started); }
   let output;
-  try { output = await execute(exe, [], JSON.stringify(input), ['observe', 'dataset-snapshot'].includes(input.action) ? 8000 : input.action === 'window' ? 55000 : ['detect', 'inspect', 'docutrack', 'entry-fields', 'fill'].includes(input.action) ? 45000 : 20000); }
+  try { output = await execute(exe, [], JSON.stringify(input), ['observe', 'dataset-snapshot', 'workflow-snapshot'].includes(input.action) ? 8000 : input.action === 'window' ? 55000 : ['detect', 'inspect', 'docutrack', 'entry-fields', 'fill'].includes(input.action) ? 45000 : 20000); }
   catch (error) { throw helperFailure(error?.message || 'Desktop helper could not run.', error?.failureReason, error?.helperDurationMs ?? performance.now() - started); }
   try {
     const result = JSON.parse(output);
@@ -87,6 +87,17 @@ export async function runDesktopHelper(input, { getExecutable = helperExecutable
 // Bindings stay in this process, expire and are consumed before a write. The page
 // receives an opaque token, never a client-editable process/control selector.
 const rxEntryFields = new Set(['quantity', 'daysSupply', 'startDate', 'deliveryDate']);
+export const observationRoles = new Set(['order_sig', 'message_sig', 'draft_sig', 'linked_sig', 'default_sig', 'structured_sig', 'quantity', 'days_supply', 'start_date', 'delivery_date', 'delivery_id', 'batch', 'drug', 'package_type', 'admin_times']);
+export function normalizeWorkflowSnapshot(raw) {
+  const codes = new Set(['OK', 'SELECTION_REQUIRED', 'BUSY', 'PASSIVE_PAUSED', 'READ_TIMEOUT', 'WINDOW_UNAVAILABLE', 'FRAMEWORK_NOT_RESPONDING', 'CURRENT_ORDER_UNAVAILABLE', 'CURRENT_ORDER_AMBIGUOUS', 'PON_AMBIGUOUS', 'ORDER_CHANGED', 'READ_LIMIT', 'WORKFLOW_SNAPSHOT_FAILED']);
+  const code = codes.has(raw?.code) ? raw.code : 'WORKFLOW_SNAPSHOT_FAILED';
+  if (raw?.ok !== true || code !== 'OK' || raw.partial === true) return { ok: false, code: code === 'OK' ? 'READ_LIMIT' : code, ...(raw?.retryAfterMs > 0 ? { retryAfterMs: Math.min(60000, raw.retryAfterMs) } : {}) };
+  const fields = Object.fromEntries(Object.entries(raw.fields ?? {}).filter(([role, value]) => observationRoles.has(role) && typeof value === 'string' && value.length <= 4000 && !/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(value)));
+  const pon = typeof raw.pon === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,99}$/.test(raw.pon) && raw.pon !== 'PON' ? raw.pon : null;
+  const view = ['directions', 'product_selection', 'work_queue', 'patient_orders', 'rx_entry'].includes(raw.view) ? raw.view : 'unknown';
+  return { ok: true, code: 'OK', view, pon, fields, unavailable: Array.isArray(raw.unavailable) ? [...new Set(raw.unavailable.filter(role => observationRoles.has(role)))] : [],
+    sigMode: ['message', 'linked', 'default', 'structured', 'order'].includes(raw.sigMode) ? raw.sigMode : null, association: pon ? 'pon_observed' : 'unpaired', partial: false };
+}
 function validDraftValue(field, value) {
   if (typeof value !== 'string' || !value || value.length > 32) return false;
   const pattern = field === 'quantity' || field === 'daysSupply'
@@ -126,10 +137,10 @@ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } 
       fields: Object.fromEntries(Object.entries(result.fields ?? {}).map(([key, value]) => [key, { label: value.label, currentValue: value.value }])),
       diagnostics: result.diagnostics, ...(result.draft ? { draftReady: result.draftReady === true } : {}) };
   }
-  return async function desktop(action, body = {}) {
+  const desktop = async function desktop(action, body = {}) {
     // A clinical request waits for the bounded passive read already in flight;
     // it must not fail merely because the recorder briefly owns the helper.
-    const passive = action === 'observe' || action === 'dataset-snapshot';
+    const passive = ['observe', 'dataset-snapshot', 'workflow-snapshot'].includes(action);
     if (passive && entryWindow) { const paused = passivePaused(); if (paused) return paused; }
     if (!passive && observationDone) { clinicalWaiting++; try { await observationDone; } finally { clinicalWaiting--; } }
     // The dataset collector waits for the recorder's bounded read rather than
@@ -144,6 +155,17 @@ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } 
     if (passive) { passiveAction = action; observationDone = new Promise(resolve => { finishObservation = resolve; }); }
     let writeStarted = false;
     try {
+      if (action === 'workflow-snapshot') {
+        if (!entryWindow) return { ok: false, code: 'SELECTION_REQUIRED' };
+        try {
+          const result = await run({ action, entryWindow });
+          passiveOutcome(result?.code === 'FRAMEWORK_NOT_RESPONDING');
+          return { ...normalizeWorkflowSnapshot(result), observedAt: new Date(now()).toISOString() };
+        } catch (error) {
+          const stalled = error?.failureReason === 'HELPER_TIMEOUT'; passiveOutcome(stalled);
+          return { ok: false, code: stalled ? 'READ_TIMEOUT' : 'WORKFLOW_SNAPSHOT_FAILED' };
+        }
+      }
       // Separate local dataset reader. Never reuse a write token, discover a
       // window, or pass a page-supplied selector to the native helper.
       if (action === 'dataset-snapshot') {
@@ -221,4 +243,7 @@ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } 
     } catch (error) { return { ok: false, uncertain: writeStarted, error: error.message }; }
     finally { busy = false; if (passive) { const finish = finishObservation; observationDone = undefined; finishObservation = undefined; passiveAction = undefined; finish?.(); } }
   };
+  // Internal observer binding only. HTTP callers cannot supply process/window selectors.
+  desktop.observationBinding = () => entryWindow ? { ...entryWindow } : undefined;
+  return desktop;
 }

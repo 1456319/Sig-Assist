@@ -7,7 +7,7 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const inputs = [
   'package.json', 'package-lock.json', 'index.html', 'vite.config.ts', 'tsconfig.app.json',
   'scripts/build-identity.mjs', 'scripts/build-demo.mjs', 'scripts/package-demo.py',
-  'scripts/iguana-bridge.mjs', 'scripts/framework-desktop.mjs', 'scripts/pilot-journal.mjs',
+  'scripts/iguana-bridge.mjs', 'scripts/framework-desktop.mjs', 'scripts/pilot-journal.mjs', 'scripts/framework-observer.mjs',
   'windows/FrameworkDesktop.cs', 'windows/Start-Sig-Assist.cmd', 'windows/Start-Sig-Assist-LAN.cmd',
   'windows-demo/Start-Sig-Assist.bat', 'windows-demo/Start-Iguana-Connector.bat',
   'docs/TECHNICIAN-FEEDBACK.md', 'docs/TEMPORARY-INTENSIFIED-LOGGING.md', 'docs/SIG-DATASET.md',

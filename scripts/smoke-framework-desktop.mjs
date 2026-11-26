@@ -10,6 +10,7 @@ const exec = promisify(execFile);
 if (process.platform !== 'win32') throw new Error('This smoke test needs Windows UI Automation.');
 const folder = await mkdtemp(path.join(tmpdir(), 'sig-desktop-'));
 let app;
+let eventWatcher;
 async function until(predicate) {
   const end = Date.now() + 10000;
   while (Date.now() < end) { try { if (await predicate()) return; } catch { /* starting */ } await new Promise(resolve => setTimeout(resolve, 100)); }
@@ -61,6 +62,35 @@ try {
   const captured = await dataset();
   assert.deepEqual(captured, { ok: true, code: 'OK', pon: 'SYNTHETIC-1', sig: 'OLD SIG', partial: false });
   assert.doesNotMatch(JSON.stringify(captured), /SOURCE SIG|PREVIEW SIG|PAT-1|FAC-1|Synthetic tablet|PRIVATE VALUE/);
+  const workflow = () => run({ action: 'workflow-snapshot', entryWindow: entry.entryWindow });
+  const observed = await workflow();
+  assert.equal(observed.ok, true, JSON.stringify(observed));
+  assert.equal(observed.pon, 'SYNTHETIC-1');
+  assert.equal(observed.fields.draft_sig, 'OLD SIG');
+  assert.equal(observed.fields.order_sig, 'SOURCE SIG PRIVATE VALUE');
+  assert.equal(observed.fields.linked_sig, 'PREVIEW SIG PRIVATE VALUE');
+  assert.equal(observed.fields.quantity, 'QUANTITY PRIVATE VALUE');
+  assert.equal(observed.fields.admin_times, '0900, 2100');
+  assert.doesNotMatch(JSON.stringify(observed), /PAT-1|FAC-1|PASSWORD PRIVATE VALUE|HIDDEN PRIVATE VALUE/);
+  const events = []; let eventBuffer = '';
+  eventWatcher = spawn(helper, ['--test-process', 'SigAssistFrameworkFixture'], { stdio: ['pipe', 'pipe', 'pipe'] });
+  eventWatcher.stdout.setEncoding('utf8');
+  eventWatcher.stdout.on('data', chunk => {
+    eventBuffer += chunk; let end;
+    while ((end = eventBuffer.indexOf('\n')) >= 0) {
+      const line = eventBuffer.slice(0, end); eventBuffer = eventBuffer.slice(end + 1);
+      try { events.push(JSON.parse(line)); } catch { /* Wait for complete JSONL records only. */ }
+    }
+  });
+  eventWatcher.stdin.end(JSON.stringify({ action: 'watch', entryWindow: entry.entryWindow, parentPid: process.pid }));
+  await until(() => events.some(event => event.kind === 'ready'));
+  const eventCount = events.length;
+  await command({ sig: 'AUTOMATIC EVENT SYNTHETIC SIG' });
+  await until(() => events.slice(eventCount).some(event => event.kind === 'changed'));
+  assert.equal((await workflow()).fields.draft_sig, 'AUTOMATIC EVENT SYNTHETIC SIG');
+  assert.doesNotMatch(JSON.stringify(events), /AUTOMATIC EVENT|PRIVATE VALUE|SYNTHETIC-1/);
+  eventWatcher.kill(); eventWatcher = undefined;
+  await command({ sig: 'OLD SIG' });
   // Exercise actual Windows responsiveness without relying on a mocked helper
   // timeout. The fixture acknowledges before blocking its own UI thread.
   await command({ hangMs: '15000' });
@@ -233,4 +263,4 @@ try {
   assert.equal(unavailable.code, 'WINDOW_UNAVAILABLE');
   console.log('Windows UI Automation passed: passive dataset association/refusals, PON detection, SIG/times read-back, reviewed transfer, readonly refusal, explicit selection, wide-tree field reach, fresh value tokens and passive focus/privacy checks.');
 
-} finally { app?.kill(); await rm(folder, { recursive: true, force: true, maxRetries: 8, retryDelay: 150 }); }
+} finally { eventWatcher?.kill(); app?.kill(); await rm(folder, { recursive: true, force: true, maxRetries: 8, retryDelay: 150 }); }

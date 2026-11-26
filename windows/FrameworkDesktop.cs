@@ -9,6 +9,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Web.Script.Serialization;
 using System.Windows.Automation;
 using System.Windows.Automation.Text;
@@ -1625,6 +1626,208 @@ public static class FrameworkDesktop {
         return new { ok = true, code = "OK", controls, nodeCount = controls.Count, visitedCount = visited, errors, scanOffset, cacheReads, prioritySeeds,
             elapsedMs = watch.ElapsedMilliseconds, partial = limited || errors > 0 || pending.Count > 0 };
     }
+    // Read-only automatic workflow capture. Names below come from the shipped
+    // XAML; Name and AutomationId are deliberately checked separately.
+    static readonly Dictionary<string, string> WorkflowFields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
+        { "MessageDirectionsTextEdit", "message_sig" }, { "OrderSigTextBox", "order_sig" },
+        { "DirectionsSigTextEdit", "draft_sig" }, { "LinkedSigTextBox", "linked_sig" },
+        { "DefaultDirectionsTextEdit", "default_sig" }, { "StructuredSigTextEdit", "structured_sig" },
+        { "RxEntryPrescription_QtyEdit", "quantity" }, { "RxEntryPrescription_DaysSupplyEdit", "days_supply" },
+        { "RxEntryStartDate", "start_date" }, { "RxEntry_StartDate", "start_date" },
+        { "RxEntryPrescription_DeliveryDate", "delivery_date" }, { "RxEntryPrescription_DeliveryId", "delivery_id" },
+        { "NewBatchLookupEdit", "batch" }, { "RxBatch", "batch" }, { "DrugInfoTextEdit", "drug" },
+        { "RxEntryPrescription_PackageType", "package_type" }
+    };
+    static string WorkflowPage(string id, string name, string cls) {
+        foreach (string value in new[] { id, name, cls }) {
+            if (value == "DirectionsView" || value == "ERxWorkQueueDirectionsView") return "directions";
+            if (value == "ProductSelectionView" || value == "ERxWorkQueueProductSelectionView" || value == "ERxWorkQueueProductSelectionHL7View") return "product_selection";
+            if (value == "ERxWorkQueueView" || value == "WorkQueueView") return "work_queue";
+            if (value == "PatientOrdersView" || value == "ERxWorkQueuePatientOrdersView") return "patient_orders";
+            if (value == "RxEntryViewControl" || value == "RxEntryView") return "rx_entry";
+        }
+        return "";
+    }
+    static bool WorkflowWithin(AutomationElement element, string ancestor, EntryWindow entry) {
+        for (int depth = 0; element != null && depth < 32; depth++) {
+            var c = element.Current;
+            if (c.ProcessId != entry.pid || c.IsPassword) return false;
+            if (c.IsOffscreen && (depth == 0 || WorkflowPage(c.AutomationId, c.Name, c.ClassName) != "" || DatasetView(c.AutomationId) || DatasetView(c.ClassName))) return false;
+            if (Id(element) == ancestor) return true;
+            element = TreeWalker.RawViewWalker.GetParent(element);
+        }
+        return false;
+    }
+    static string WorkflowText(AutomationElement element, DatasetScope scope, EntryWindow entry) {
+        if (!WorkflowWithin(element, scope.id, entry)) throw new InvalidOperationException();
+        object pattern;
+        if (element.TryGetCurrentPattern(ValuePattern.Pattern, out pattern)) {
+            string value = ((ValuePattern)pattern).Current.Value;
+            if (value == null || value.Length > 4000) throw new InvalidOperationException();
+            if (value.Length >= 2000) {
+                if (!element.TryGetCurrentPattern(TextPattern.Pattern, out pattern)) throw new InvalidOperationException();
+                return DatasetDocumentText((TextPattern)pattern, 4000, true);
+            }
+            return value;
+        }
+        if (element.TryGetCurrentPattern(TextPattern.Pattern, out pattern)) return DatasetDocumentText((TextPattern)pattern, 4000, false);
+        throw new InvalidOperationException();
+    }
+    static object WorkflowSnapshot(EntryWindow entry, string testProcess) {
+        if (entry == null) return DatasetFailure("SELECTION_REQUIRED");
+        if (NotResponding(entry, testProcess)) return DatasetFailure("FRAMEWORK_NOT_RESPONDING");
+        try {
+            var root = RememberedRoot(entry, testProcess); var watch = Stopwatch.StartNew();
+            var conditions = new[] { "ERxWorkQueueWizardView", "ERxWorkQueueView", "RxEntryViewControl", "RxEntryView" }
+                .SelectMany(n => new Condition[] { new PropertyCondition(AutomationElement.AutomationIdProperty, n), new PropertyCondition(AutomationElement.ClassNameProperty, n) }).ToArray();
+            var candidates = root.FindAll(TreeScope.Descendants, new OrCondition(conditions)).Cast<AutomationElement>().Take(33).ToList();
+            if (DatasetView(root.Current.AutomationId) || DatasetView(root.Current.ClassName)) candidates.Add(root);
+            if (candidates.Count > 32 || watch.ElapsedMilliseconds > 3000) return DatasetFailure("READ_LIMIT", true);
+            var visible = candidates.Where(e => WorkflowWithin(e, entry.id, entry)).ToArray();
+            var outer = visible.Where(e => !visible.Any(p => Id(p) != Id(e) && WorkflowWithin(e, Id(p), entry))).ToArray();
+            if (outer.Length != 1) return DatasetFailure(outer.Length == 0 ? "CURRENT_ORDER_UNAVAILABLE" : "CURRENT_ORDER_AMBIGUOUS");
+            var scope = new DatasetScope { element = outer[0], id = Id(outer[0]) };
+            var pending = new Stack<KeyValuePair<AutomationElement, int>>(); pending.Push(new KeyValuePair<AutomationElement, int>(scope.element, 0));
+            var fields = new Dictionary<string, List<AutomationElement>>(); var pages = new HashSet<string>();
+            var modes = new HashSet<string>(); int visited = 0;
+            var request = ObservationIdentityRequest();
+            while (pending.Count > 0) {
+                if (++visited > 640 || watch.ElapsedMilliseconds > 3000) return DatasetFailure("READ_LIMIT", true);
+                var next = pending.Pop(); var element = next.Key.GetUpdatedCache(request);
+                if (ObservationBoolean(element, AutomationElement.IsPasswordProperty) || !Object.Equals(Cached(element, AutomationElement.ProcessIdProperty), entry.pid)) continue;
+                string id = Text(Cached(element, AutomationElement.AutomationIdProperty)), name = Text(Cached(element, AutomationElement.NameProperty)), cls = Text(Cached(element, AutomationElement.ClassNameProperty));
+                bool offscreen = ObservationBoolean(element, AutomationElement.IsOffscreenProperty);
+                var page = WorkflowPage(id, name, cls);
+                if (id == "ERxTriageManagerView" || cls == "ERxTriageManagerView" || offscreen && page != "") continue;
+                if (!offscreen) {
+                    if (page != "") pages.Add(page);
+                    var type = Cached(element, AutomationElement.ControlTypeProperty) as ControlType;
+                    if (id == "ERxGrid" && type == ControlType.DataGrid) scope.grids.Add(element);
+                    string label = DatasetLabel(element);
+                    if (PonLabel.IsMatch(label) || PonInline.IsMatch(name)) scope.pons.Add(element);
+                    string role;
+                    if (!WorkflowFields.TryGetValue(id, out role)) WorkflowFields.TryGetValue(name, out role);
+                    if (role == null && (type == ControlType.Edit || type == ControlType.Document || type == ControlType.ComboBox)) {
+                        if (Regex.IsMatch(label, @"^(?:SIG|Prescription SIG|SIG code)$", RegexOptions.IgnoreCase)) role = "draft_sig";
+                        else if (Regex.IsMatch(label, @"^(?:Administration Times|Admin Times)$", RegexOptions.IgnoreCase)) role = "admin_times";
+                        else if (Regex.IsMatch(label, @"^(?:Drug name|Drug|Product)$", RegexOptions.IgnoreCase)) role = "drug";
+                        else if (Regex.IsMatch(label, @"^(?:Quantity|Qty)$", RegexOptions.IgnoreCase)) role = "quantity";
+                        else if (Regex.IsMatch(label, @"^Days['’]? supply$", RegexOptions.IgnoreCase)) role = "days_supply";
+                        else if (Regex.IsMatch(label, @"^Package type$", RegexOptions.IgnoreCase)) role = "package_type";
+                        else if (Regex.IsMatch(label, @"^Start date$", RegexOptions.IgnoreCase)) role = "start_date";
+                        else if (Regex.IsMatch(label, @"^Delivery date$", RegexOptions.IgnoreCase)) role = "delivery_date";
+                        else if (Regex.IsMatch(label, @"^(?:Rx batch|Batch)$", RegexOptions.IgnoreCase)) role = "batch";
+                    }
+                    if (role != null) { if (!fields.ContainsKey(role)) fields[role] = new List<AutomationElement>(); fields[role].Add(element); }
+                    string modeName = new[] { "UseOrderSigRadioButton", "DirectionsFromTheMessageRadioButton", "DirectionsFromLinkedOrderRadioButton", "UseDefaultDirectionsRadioButton" }.FirstOrDefault(n => n == id || n == name);
+                    if (modeName != null) {
+                        object p;
+                        if (element.TryGetCurrentPattern(SelectionItemPattern.Pattern, out p) && ((SelectionItemPattern)p).Current.IsSelected) modes.Add(modeName);
+                        else if (element.TryGetCurrentPattern(TogglePattern.Pattern, out p) && ((TogglePattern)p).Current.ToggleState == ToggleState.On) modes.Add(modeName);
+                    }
+                }
+                var child = TreeWalker.RawViewWalker.GetFirstChild(element);
+                if (next.Value >= 24 && child != null) return DatasetFailure("READ_LIMIT", true);
+                int siblings = 0;
+                while (child != null) {
+                    if (++siblings > 640 || watch.ElapsedMilliseconds > 3000) return DatasetFailure("READ_LIMIT", true);
+                    pending.Push(new KeyValuePair<AutomationElement, int>(child, next.Value + 1)); child = TreeWalker.RawViewWalker.GetNextSibling(child);
+                }
+            }
+            // WorkQueue is a shell around the selected wizard page.
+            if (pages.Count > 1) pages.Remove("work_queue");
+            if (pages.Count > 1) return DatasetFailure("CURRENT_ORDER_AMBIGUOUS");
+            string[] before; try { before = DatasetPons(scope, entry, watch); } catch { before = new string[0]; }
+            if (before.Length > 1) return DatasetFailure("PON_AMBIGUOUS");
+            var values = new Dictionary<string, string>(); var unavailable = new List<string>();
+            foreach (var pair in fields) {
+                if (pair.Value.Count != 1) { unavailable.Add(pair.Key); continue; }
+                try {
+                    if (watch.ElapsedMilliseconds > 3000) return DatasetFailure("READ_LIMIT", true);
+                    string value = WorkflowText(pair.Value[0], scope, entry);
+                    if (value != WorkflowText(pair.Value[0], scope, entry)) return DatasetFailure("ORDER_CHANGED");
+                    values[pair.Key] = value;
+                } catch { unavailable.Add(pair.Key); }
+            }
+            string[] after; try { after = DatasetPons(scope, entry, watch); } catch { after = new string[0]; }
+            if (!before.SequenceEqual(after) || !WorkflowWithin(scope.element, entry.id, entry)) return DatasetFailure("ORDER_CHANGED");
+            string mode = modes.Count != 1 ? "unknown" : modes.First() == "UseOrderSigRadioButton" ? "order" : modes.First() == "DirectionsFromTheMessageRadioButton" ? "message" : modes.First() == "DirectionsFromLinkedOrderRadioButton" ? "linked" : "default";
+            return new { ok = true, code = "OK", view = pages.FirstOrDefault() ?? "order_window", pon = before.FirstOrDefault(),
+                fields = values, unavailable, sigMode = mode, partial = false,
+                association = before.Length == 1 ? "pon_observed" : "unpaired", elapsedMs = watch.ElapsedMilliseconds };
+        } catch { return DatasetFailure("WINDOW_UNAVAILABLE"); }
+    }
+    [StructLayout(LayoutKind.Sequential)] struct WatchMessage { public IntPtr hwnd; public uint message; public UIntPtr wParam; public IntPtr lParam; public uint time; public int x, y; public uint reserved; }
+    delegate void WatchCallback(IntPtr hook, uint eventId, IntPtr hwnd, int objectId, int childId, uint threadId, uint time);
+    [DllImport("user32.dll")] static extern IntPtr SetWinEventHook(uint min, uint max, IntPtr module, WatchCallback callback, uint pid, uint thread, uint flags);
+    [DllImport("user32.dll")] static extern bool UnhookWinEvent(IntPtr hook);
+    [DllImport("user32.dll")] static extern int GetMessage(out WatchMessage message, IntPtr hwnd, uint min, uint max);
+    [DllImport("user32.dll")] static extern bool TranslateMessage(ref WatchMessage message);
+    [DllImport("user32.dll")] static extern IntPtr DispatchMessage(ref WatchMessage message);
+    [DllImport("user32.dll")] static extern bool PostThreadMessage(uint thread, uint message, UIntPtr wParam, IntPtr lParam);
+    [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
+    static bool WatchOwned(IntPtr hwnd, EntryWindow entry) {
+        for (int depth = 0; hwnd != IntPtr.Zero && depth < 32; depth++) {
+            uint pid; GetWindowThreadProcessId(hwnd, out pid); if (pid != entry.pid) return false;
+            if (hwnd.ToInt64() == entry.handle) return true;
+            var parent = GetParent(hwnd); hwnd = parent != IntPtr.Zero ? parent : GetWindow(hwnd, 4);
+        }
+        return false;
+    }
+    static int WatchEvents(EntryWindow entry, string testProcess, int parentPid) {
+        if (entry == null) throw new InvalidOperationException("Observation window required.");
+        var root = RememberedRoot(entry, testProcess); uint threadId = GetCurrentThreadId();
+        var gate = new object(); var clock = Stopwatch.StartNew(); long lastGeneric = -1000; int suppressed = 0;
+        bool uia = false; var parent = parentPid > 0 ? Process.GetProcessById(parentPid) : null;
+        Action<string, string> emit = (kind, control) => {
+            lock (gate) {
+                if (kind == "changed" && clock.ElapsedMilliseconds - lastGeneric < 100) { suppressed++; return; }
+                if (kind == "changed") lastGeneric = clock.ElapsedMilliseconds;
+                Console.WriteLine(Serialize(new { kind, control, uia, suppressed })); Console.Out.Flush(); suppressed = 0;
+            }
+        };
+        WatchCallback callback = (hook, ev, hwnd, obj, child, tid, time) => {
+            if (ev != 0x800B && WatchOwned(hwnd, entry)) emit("changed", "");
+        };
+        var hook1 = SetWinEventHook(0x8002, 0x800E, IntPtr.Zero, callback, (uint)entry.pid, 0, 0);
+        var hook2 = SetWinEventHook(3, 3, IntPtr.Zero, callback, (uint)entry.pid, 0, 0);
+        var subscriptions = new Thread(() => {
+            try {
+                var cache = new CacheRequest(); cache.TreeScope = TreeScope.Element;
+                foreach (var property in new[] { AutomationElement.NameProperty, AutomationElement.AutomationIdProperty, AutomationElement.ProcessIdProperty, AutomationElement.IsPasswordProperty }) cache.Add(property);
+                using (cache.Activate()) {
+                    Automation.AddAutomationEventHandler(InvokePattern.InvokedEvent, root, TreeScope.Subtree, (sender, ev) => {
+                        try {
+                            var element = (AutomationElement)sender; var c = element.Cached;
+                            if (c.ProcessId != entry.pid || c.IsPassword) return;
+                            string name = c.AutomationId, value = (c.Name ?? "").Replace("&", "").Replace("_", "").Trim();
+                            var known = new[] { "BackButton", "NextButton", "CancelButton", "PreviewSigButton", "PreviewLinkedSigButton", "AddSplitButton", "RemoveSplitButton", "NewBatchButton" };
+                            if (!known.Contains(name)) name = known.Contains(c.Name) ? c.Name :
+                                Regex.IsMatch(value, @"^(?:Save|Save and Close|Process Request|Refuse Request|Preview Sig|Quit|Cancel|Next|Back)$", RegexOptions.IgnoreCase) ? value.ToLowerInvariant() : "button";
+                            emit("invoked", name);
+                        } catch { emit("changed", ""); }
+                    });
+                    Automation.AddAutomationPropertyChangedEventHandler(root, TreeScope.Subtree, (sender, ev) => emit("changed", ""), ValuePattern.ValueProperty, AutomationElement.IsOffscreenProperty);
+                    Automation.AddStructureChangedEventHandler(root, TreeScope.Subtree, (sender, ev) => emit("changed", ""));
+                }
+                uia = true; emit("ready", "");
+            } catch { emit("provider_unavailable", ""); }
+        });
+        subscriptions.IsBackground = true; subscriptions.SetApartmentState(ApartmentState.MTA); subscriptions.Start();
+        using (var timer = new Timer(state => {
+            try {
+                using (var target = Process.GetProcessById(entry.pid)) {
+                    if (parent != null && parent.HasExited || target.StartTime.ToUniversalTime().Ticks.ToString() != entry.started)
+                        PostThreadMessage(threadId, 0x12, UIntPtr.Zero, IntPtr.Zero);
+                    else emit("heartbeat", "");
+                }
+            } catch { PostThreadMessage(threadId, 0x12, UIntPtr.Zero, IntPtr.Zero); }
+        }, null, 1000, 2000)) {
+            try { emit("ready", ""); WatchMessage msg; while (GetMessage(out msg, IntPtr.Zero, 0, 0) > 0) { TranslateMessage(ref msg); DispatchMessage(ref msg); } }
+            finally { if (hook1 != IntPtr.Zero) UnhookWinEvent(hook1); if (hook2 != IntPtr.Zero) UnhookWinEvent(hook2); if (parent != null) parent.Dispose(); }
+        }
+        return 0;
+    }
     [STAThread]
     public static int Main(string[] args) {
         Console.InputEncoding = Encoding.UTF8; Console.OutputEncoding = new UTF8Encoding(false);
@@ -1639,6 +1842,8 @@ public static class FrameworkDesktop {
             bool positionReview = input.ContainsKey("positionReview") && Object.Equals(input["positionReview"], true);
             if (action == "window") { Console.WriteLine(Serialize(ChooseEntryWindow(testProcess, positionReview))); return 0; }
             var entry = input.ContainsKey("entryWindow") ? InputWindow(input["entryWindow"]) : null;
+            if (action == "watch") return WatchEvents(entry, testProcess, input.ContainsKey("parentPid") ? Convert.ToInt32(input["parentPid"]) : 0);
+            if (action == "workflow-snapshot") { Console.WriteLine(Serialize(WorkflowSnapshot(entry, testProcess))); return 0; }
             if (action == "dataset-snapshot") { Console.WriteLine(Serialize(DatasetSnapshot(entry, testProcess))); return 0; }
             if (action == "observe") { Console.WriteLine(Serialize(Observe(entry, input.ContainsKey("key") ? Text(input["key"]) : "", testProcess,
                 input.ContainsKey("scanOffset") ? Convert.ToInt32(input["scanOffset"]) : 0))); return 0; }

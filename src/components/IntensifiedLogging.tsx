@@ -2,6 +2,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { IntensifiedRecorder, downloadJournalBlob, INTENSIFIED_REMOVAL_MARKER } from '../lib/diagnostics/intensifiedLogging';
 import { frameworkDesktop } from '../lib/frameworkDesktop';
+import { workflowObservationState, subscribeWorkflowObservation } from '../lib/workflowObservation';
 
 export function IntensifiedLogging({ screen }: { screen: string }) {
   const [recorder] = useState(() => new IntensifiedRecorder());
@@ -22,6 +23,17 @@ export function IntensifiedLogging({ screen }: { screen: string }) {
     const status = await recorder.saveBundle();
     setNotice(`Review bundle saved inside the recording folder: ${status.bundleFile}. Check the pending-event count before sharing.`);
   }
+  async function chooseWindow() {
+    setNotice('Click inside the intended Framework entry window within 8 seconds.');
+    const result = await frameworkDesktop('detect', { chooseWindow: true });
+    if (!result.ok) throw new Error('Framework window selection failed. Recording remains active; choose the observation window to retry.');
+    setNotice('Framework window selected. Continue processing normally; checkpoints are optional.');
+  }
+  async function start() {
+    const status = await recorder.start(observe, screen);
+    if (observe && status.selectionRequired) await chooseWindow();
+  }
+  const observation = useSyncExternalStore(subscribeWorkflowObservation, workflowObservationState);
   const active = state.status.active;
   const browserDroppedWorkflow = Math.max(state.droppedWorkflow, state.status.browserDroppedWorkflow || 0);
   const browserDroppedTranslation = Math.max(state.droppedTranslation, state.status.browserDroppedTranslation || 0);
@@ -31,25 +43,27 @@ export function IntensifiedLogging({ screen }: { screen: string }) {
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
       <strong>TEMPORARY INTENSIFIED LOGGING · {active ? state.error ? 'CHECK CONNECTION · BUFFERING' : 'RECORDING' : 'OFF'}</strong>
       <span>REMOVAL PRIORITY: HIGH — remove or reduce after investigation.</span>
-      <button type="button" className="underline" aria-expanded={expanded || active} onClick={() => setExpanded(!expanded)}>{expanded || active ? 'Recording controls' : 'Open recording controls'}</button>
+      <button type="button" className="underline" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? 'Hide recording controls' : 'Open recording controls'}</button>
     </div>
-    {(expanded || active) && <div className="space-y-2 pt-2">
-      <p>Local files only. Captures workflow, translation metadata, failures and optional passive Framework snapshots. Screenshots, keystrokes and exact patient/order text are excluded. Use Feedback for optional explanations.</p>
+    <div className="flex flex-wrap items-center gap-2 pt-2">
+      <button type="button" className={button} disabled={busy || active || !state.available || !state.status.configured} onClick={() => void perform(start)}>Start automatic recording</button>
+      <button type="button" className={button} disabled={busy || !active} onClick={() => void perform(() => recorder.stop())}>Stop and save recording</button>
+      <span>Process prescriptions normally. No per-order checkpoints required.</span>
+    </div>
+    {active && <p role="status">Automatic observer: {state.status.desktopCode || observation.status}. Saved observations: {state.status.observationEvents || 0}. {observation.eventSource.replace(/_/g, ' ')}.</p>}
+    <p>Recording stores clinical SIG text, PONs and readable order fields locally in the recording folder. No automatic upload, screenshots or keystroke capture.</p>
+    {active && state.status.desktopCode === 'SELECTION_REQUIRED' && <button type="button" className={button} disabled={busy} onClick={() => void perform(chooseWindow)}>Choose observation window</button>}
+    {(warning || notice || observation.error) && <p role="alert">{notice || state.error || observation.error || 'Recording needs attention. Open recording controls for details.'}</p>}
+    {expanded && <div className="space-y-2 pt-2">
+      <p>Advanced diagnostics and optional manual markers. Readable incoming, linked, default and draft SIGs retain separate labels. A button invocation or field observation does not prove a prescription was saved. Use Feedback for optional explanations.</p>
       <div className="flex flex-wrap items-center gap-2">
         <label className="flex gap-1 items-center"><input type="checkbox" checked={observe} disabled={active || busy} onChange={e => setObserve(e.target.checked)} />Observe selected Framework window</label>
-        <button type="button" className={button} disabled={busy || active || !state.available || !state.status.configured} onClick={() => void perform(() => recorder.start(observe, screen))}>Start pilot recording</button>
-        <button type="button" className={button} disabled={busy || !active} onClick={() => void perform(() => recorder.stop())}>Stop and save recording</button>
         <button type="button" className={button} disabled={busy || !state.status.sessionId} onClick={() => void perform(exportJournal)}>Save review bundle in recording folder</button>
         <button type="button" className={button} disabled={busy} onClick={() => void perform(() => recorder.connect())}>Check connector</button>
-        <button type="button" className={button} disabled={busy || !state.available} onClick={() => void perform(async () => {
-          setNotice('Click inside the intended Framework entry window within 8 seconds.');
-          const result = await frameworkDesktop('detect', { chooseWindow: true });
-          if (!result.ok) throw new Error('Framework window selection failed. Use Find E-Rx detection help.');
-          setNotice('Framework entry window selected. Passive observation will use that window.');
-        })}>Choose observation window</button>
+        <button type="button" className={button} disabled={busy || !state.available} onClick={() => void perform(chooseWindow)}>Choose observation window</button>
       </div>
       {active && <div className="flex flex-wrap gap-2 items-center">
-        <label>Checkpoint <select aria-label="Recording checkpoint" className="bg-background border rounded px-1 text-foreground" value={checkpoint} onChange={e => setCheckpoint(e.target.value)}>
+        <label>Optional manual checkpoint <select aria-label="Recording checkpoint" className="bg-background border rounded px-1 text-foreground" value={checkpoint} onChange={e => setCheckpoint(e.target.value)}>
           <option value="order-opened">Order opened</option><option value="product-selected">Product selected</option><option value="sig-reviewed">SIG reviewed</option><option value="fields-ready">Fields ready</option><option value="saved">Saved</option><option value="abandoned">Abandoned</option><option value="problem-observed">Problem observed</option>
         </select></label>
         <button type="button" className={button} disabled={busy} onClick={() => void perform(() => recorder.checkpoint(checkpoint))}>Mark checkpoint</button>
@@ -62,7 +76,7 @@ export function IntensifiedLogging({ screen }: { screen: string }) {
       {state.status.maxDurationMs && <p>Limits: {state.status.maxDurationMs / 3600000} hours per recording; {Math.round((state.status.maxStreamBytes || 0) / 1048576)} MB per stream. Existing recordings stay until you delete them.</p>}
       {state.status.desktopCode && <p>Framework observer: {state.status.desktopCode}{state.status.desktopPartial ? ' · partial snapshot' : ''}. {state.status.desktopCode === 'SELECTION_REQUIRED' && 'Choose an observation window or use Detect open E-Rx.'}{state.status.desktopCode === 'WINDOW_UNAVAILABLE' && 'Restore the selected window or choose it again.'}</p>}
       {(warning || notice) && <div role="alert" className="space-y-1">
-        {notice && <p>{notice}</p>}{state.error && <p>{state.error}</p>}
+        
         {state.outboxError && <p>Pending-event browser backup is unavailable. Keep this page open until its events are saved, or download pending events.</p>}
         {state.status.fileError && <p>FILE WRITE FAILED{state.status.fileErrorCode ? ` (${state.status.fileErrorCode})` : ''}. Recording stopped; inspect the destination before restarting.</p>}
         {state.status.limitReached && <p>CAPTURE LIMIT REACHED. Some events were not saved. Start a new recording to continue.</p>}

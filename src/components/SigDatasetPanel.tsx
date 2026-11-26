@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { workflowObservationState, subscribeWorkflowObservation } from '../lib/workflowObservation';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useReviewSession } from '../hooks/use-review-session';
 import { sourceStamp, type QueueOrder } from '../lib/orderQueue';
 import { sigDatasetStore } from '../lib/sigDataset';
@@ -14,6 +15,7 @@ function downloadDataset(rows: unknown[], name: string) {
 
 export function SigDatasetPanel() {
   const { orders, ready } = useReviewSession();
+  const observation = useSyncExternalStore(subscribeWorkflowObservation, workflowObservationState);
   const [capture, setCapture] = useState(datasetCaptureState);
   const [stats, setStats] = useState<{ total: number; stages: Record<string, number> }>();
   const [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState(false);
@@ -45,7 +47,7 @@ export function SigDatasetPanel() {
     }
   }, [orders, ready, capture.enabled]);
   useEffect(() => {
-    if (!frameworkEnabled || !capture.enabled) return;
+    if (!frameworkEnabled || !capture.enabled || observation.active) return;
     let stopped = false, timer: ReturnType<typeof setTimeout>;
     const controller = new AbortController();
     // Only the latest observation is eligible for asynchronous enrichment.
@@ -122,7 +124,7 @@ export function SigDatasetPanel() {
     }
     void tick();
     return () => { stopped = true; controller.abort(); clearTimeout(timer); };
-  }, [frameworkEnabled, capture.enabled]);
+  }, [frameworkEnabled, capture.enabled, observation.active]);
   async function exportBatch() {
     setBusy(true); setNotice(''); setExportError('');
     try {
@@ -156,10 +158,11 @@ export function SigDatasetPanel() {
         <button className={reviewButtonClass} disabled={busy || !cursorReady || !cursor} onClick={() => void resetExport()}>Reset export position</button>
         <button className={reviewButtonClass} onClick={() => retryDatasetCapture()}>Retry pending dataset writes</button>
         {!!capture.pending && <button className={reviewButtonClass} onClick={() => downloadDataset(pendingDatasetExport(), 'sig-dataset-unsaved.jsonl')}>Download unsaved samples</button>}
-        <button className={reviewButtonClass} disabled={!['http:', 'https:'].includes(location.protocol)} onClick={() => setFrameworkEnabled(value => !value)}>{frameworkEnabled ? 'Stop passive Framework SIG collection' : 'Start passive Framework SIG collection'}</button>
+        <button className={reviewButtonClass} disabled={observation.active || !['http:', 'https:'].includes(location.protocol)} onClick={() => setFrameworkEnabled(value => !value)}>{frameworkEnabled ? 'Stop passive Framework SIG collection' : 'Start passive Framework SIG collection'}</button>
       </div>
       <p className="text-xs text-muted-foreground">Export position: {cursorReady ? cursor : 'loading'}. This position is saved between sessions; samples are retained.</p>
-      <p role="status">{frameworkStatus}</p>
+      <p role="status">{observation.active ? `Automatic recorder supplies Framework SIG observations (${observation.frames} saved frames read by this page). Separate passive polling is paused.` : frameworkStatus}</p>
+      {observation.gaps > 0 && <p role="alert">{observation.gaps} frames aged out before this page read them. Use the local recording files for the complete captured session.</p>}
       <p className="text-xs text-muted-foreground">Passive collection reads the remembered entry window without scrolling, clicking, or submitting anything. It can retain field edits observed between five-second checks; it cannot prove every processed order or detect a save from field presence alone.</p>
       {(error || capture.error) && <p role="alert" className="text-destructive">{capture.error || error} {capture.pending ? 'Keep this page open; retry or download unsaved samples before closing.' : ''}</p>}
       {exportError && <p role="alert" className="text-destructive">{exportError}</p>}

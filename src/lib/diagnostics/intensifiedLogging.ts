@@ -14,7 +14,7 @@ export interface JournalStatus {
   browserDroppedWorkflow?: number; browserDroppedTranslation?: number;
   limitReached?: boolean; fileError?: boolean; stopReason?: string; desktopCode?: string; desktopPartial?: boolean;
   maxStreamBytes?: number; maxDurationMs?: number;
-  bundleFile?: string;
+  bundleFile?: string; selectionRequired?: boolean; automaticObservation?: boolean; observationEvents?: number; rawClinicalText?: boolean;
   fileErrorCode?: string;
 }
 export interface RecorderState {
@@ -179,6 +179,7 @@ export class IntensifiedRecorder {
     await this.restore(status.sessionId); this.publish({ available: true, status, error: '' }); this.attach();
     this.record('screen.open', { screen }); this.record('browser.lifecycle', { state: 'pageshow', port: Number(location.port) }); await this.persist();
     if (!this.timer) this.timer = setInterval(() => { void this.flush(); }, 1500);
+    return status;
   }
   async flush() {
     if (this.running) return this.running;

@@ -105,14 +105,14 @@ it('preserves fixed observer failure reasons and bounded duration in saved snaps
 it('serves recording controls only to same-origin JSON, never queries upstream for recording, and saves the bundle to its session root', async () => {
   const folder = await root(); const calls: unknown[] = [];
   const journal = createPilotJournal({ baseDir: folder, sync: false });
-  const server: Server = createBridge({ journal, desktop: async (action: string) => { calls.push(action); return { ok: false, code: 'SELECTION_REQUIRED' }; }, fetchImpl: () => { throw new Error('NO UPSTREAM'); }, observationIntervalMs: 20 });
+  const server: Server = createBridge({ journal, desktop: async (action: string) => { calls.push(action); return { ok: false, code: 'SELECTION_REQUIRED' }; }, fetchImpl: () => { throw new Error('NO UPSTREAM'); }, observationIntervalMs: 20, observerOptions: { settleMs: 0, minReadMs: 0 } });
   servers.push(server); await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   const address = server.address() as { port: number }; const base = `http://127.0.0.1:${address.port}`;
   const post = (action: string, body = {}, origin = base) => fetch(`${base}/connector/pilot/${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: origin }, body: JSON.stringify(body) });
   expect((await post('start', {}, 'https://other.example')).status).toBe(403);
   expect((await post('start', { appVersion: '0.1.7' })).ok).toBe(true);
   await new Promise(resolve => setTimeout(resolve, 40));
-  const status = await (await post('status')).json(); expect(status.active).toBe(true); expect(calls).toContain('observe');
+  const status = await (await post('status')).json(); expect(status.active).toBe(true); expect(calls).toContain('workflow-snapshot');
   expect((await post('stop')).ok).toBe(true);
   const bundle = await (await post('bundle')).json(); expect(path.dirname(bundle.directory)).toBe(folder);
   expect(await readFile(path.join(bundle.directory, bundle.bundleFile), 'utf8')).toContain('SELECTION_REQUIRED');
