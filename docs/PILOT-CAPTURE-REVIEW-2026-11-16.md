@@ -39,3 +39,13 @@ The previous recorder persisted pending diagnostic buffers in localStorage, comp
 - Retain the conspicuous `TEMPORARY_INTENSIFIED_LOGGING_REMOVAL_PRIORITY_HIGH` marker.
 
 The native reader's coverage still needs improvement before requesting another long capture. Its passive scope and cooperative budget are unchanged in this release. The supplied data is enough to identify this limitation; the technician need not repeat the session merely because the checkpoint timing was uncertain.
+
+## Rechecked against the current prototype on November 25
+
+All nine supplied streams were parsed again against prototype `cc358c88b89ad5262196ef70da72c569bfdeeb08`. Their 33,118 sequence numbers are unique and contiguous. Every stream record matches the final review bundle. The earlier bundle matches its first 33,096 records. The four browser overflow changes are cumulative totals of 15,037, 25,562, 28,091 and 30,634. Summing every repeated overflow notification would overcount the loss.
+
+This is the same v0.1.7 capture reviewed above. Every translation record contains allowlisted trace metadata. Original directions, generated SIG strings and technician corrections are absent. All 288 readable desktop snapshots are partial. Their changed-control metadata supplies familiar workflow views and generic controls, with no readable quantity, days-supply, start-date or SIG-preview binding. Existing source mappings cannot be validated from missing values or hashed identifiers.
+
+Current regression checks pass for the 1,200-row queue behavior, browser overflow accounting, IndexedDB diagnostic buffering, discrepancy backup and storage recovery. The six relevant test files contain 45 passing tests. The current source also has bounded rotating/priority native observation, a separate passive SIG snapshot reader and stalled-read backoff. The old recording cannot establish their installed-workstation coverage.
+
+Further translation refinement needs a deidentified original/generated/corrected SIG example. Further native entry mapping needs a current explicit desktop diagnostic export on the E-Rx and Rx Entry screens, with dummy records. These focused inputs can establish the actual labels, accessibility patterns and values available in the installed Framework session.
