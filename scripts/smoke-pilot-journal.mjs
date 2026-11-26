@@ -9,6 +9,13 @@ import { createPilotJournal } from './pilot-journal.mjs';
 const temp = await mkdtemp(path.join(tmpdir(), 'sig-pilot-browser-'));
 const root = path.join(temp, 'Synthetic Recording Root'); await mkdir(root);
 const journal = createPilotJournal({ baseDirs: [path.join(temp, 'unavailable-root'), root] });
+const recorded = [], workflow = journal.workflow;
+journal.workflow = async (...args) => { const saved = await workflow(...args); if (saved) recorded.push(args[0]); return saved; };
+async function until(predicate) {
+  const end = Date.now() + 10000;
+  while (Date.now() < end) { if (predicate()) return; await new Promise(resolve => setTimeout(resolve, 50)); }
+  throw new Error('Automatic recorder did not acknowledge the expected synthetic observation.');
+}
 let selected = false, browser, emitNative = () => {};
 let currentPon = 'SYNTHETIC:1', currentSig = '1T PO QD';
 const desktopCalls = [];
@@ -40,17 +47,17 @@ try {
   assert.equal(await page.getByLabel('Recording checkpoint', { exact: true }).count(), 0, 'No checkpoint UI in normal processing');
   await page.getByRole('button', { name: 'Start automatic recording', exact: true }).click();
   await page.getByText('Framework window selected.', { exact: false }).waitFor();
-  await page.getByText(/Saved observations: 1\./).waitFor();
+  await until(() => recorded.some(frame => frame.pon === 'SYNTHETIC:1'));
   currentPon = 'SYNTHETIC:2'; currentSig = '2T PO BID'; emitNative({ kind: 'changed' });
-  await page.getByText(/Saved observations: 2\./).waitFor();
+  await until(() => recorded.some(frame => frame.pon === 'SYNTHETIC:2'));
   // Recording survives a page reload; no per-order detect/checkpoint is required.
   await page.reload();
-  await page.getByText(/Saved observations: 2\./).waitFor();
+  await page.getByText(/Automatic observer: OBSERVING/).waitFor();
   currentPon = 'SYNTHETIC:3'; currentSig = '3T PO QD'; emitNative({ kind: 'changed' });
-  await page.getByText(/Saved observations: 3\./).waitFor();
+  await until(() => recorded.some(frame => frame.pon === 'SYNTHETIC:3'));
   await page.getByText(/Framework observations: 6\./).waitFor();
   emitNative({ kind: 'invoked', control: 'save' });
-  await page.getByText(/Saved observations: 4\./).waitFor();
+  await until(() => recorded.some(frame => frame.kind === 'button_invoked' && frame.control === 'save'));
   assert.equal(desktopCalls.filter(action => action === 'detect').length, 1);
   assert.equal(desktopCalls.filter(action => action === 'dataset-snapshot').length, 0);
   await page.getByRole('button', { name: 'Open recording controls', exact: true }).click();

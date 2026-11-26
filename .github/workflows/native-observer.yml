@@ -8,6 +8,12 @@ on:
       - tests/fixtures/FrameworkDesktopFixture.cs
       - scripts/framework-desktop.mjs
       - scripts/smoke-framework-desktop.mjs
+      - scripts/framework-observer.mjs
+      - scripts/pilot-journal.mjs
+      - scripts/smoke-pilot-journal.mjs
+      - src/components/IntensifiedLogging.tsx
+      - src/components/AutomaticObservationSamples.tsx
+      - src/lib/workflowObservation.ts
 permissions:
   contents: read
 jobs:
@@ -24,3 +30,17 @@ jobs:
       # MVP checks still verifies the complete integrated prototype separately.
       - name: Verify passive observation and reviewed desktop transfer
         run: node scripts/smoke-framework-desktop.mjs
+  recorder-browser:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Verify packaged page matches current source
+        run: node scripts/build-identity.mjs
+      - name: Verify automatic multi-order recording and recovery in Edge
+        run: node scripts/smoke-pilot-journal.mjs
