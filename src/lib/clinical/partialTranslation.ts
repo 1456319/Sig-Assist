@@ -7,7 +7,9 @@ import { hourlySchedule } from './hourlySchedule';
 export function translateRecognizedPhrases(rawProse: string): string {
   // A partial insulin scale is not a useful or safe substitute for the source scale.
   if (/\bSLIDING[\s-]+SCALE\b/i.test(rawProse)) return rawProse.replace(/\s+/g, ' ').trim().toUpperCase();
-  const prose = normalizeNumericDirections(rawProse);
+  const prose = normalizeNumericDirections(rawProse)
+    .replace(/\b(?:(?:AS\s+NEEDED|PRN)\s+FOR\s+){2,}/g, 'AS NEEDED FOR ')
+    .replace(/\bFOR(?:\s+FOR)+\s+/g, 'FOR ');
   const span = indicationSpan(prose);
   const translate = (text: string) => text
     .replace(/\bBY\s+MOUTH\b|\bORALLY\b/g, 'PO')

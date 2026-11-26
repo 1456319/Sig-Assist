@@ -269,6 +269,12 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
       message: 'The named meals were kept beside the supplied frequency. Verify that the frequency and named meal timing agree before copying.', trigger: namedMeals });
   } else if (/\bWITH BREAKFAST\b/.test(scheduleProse)) {
     frequencyToken = ['QD', 'QAM', ''].includes(frequencyToken) ? 'QDW/B' : `${frequencyToken} WITH BREAKFAST`;
+  } else if (/\bWITH LUNCH\b/.test(scheduleProse)) {
+    // QDW/L is the technician-reported site code. Keep an explicit afternoon
+    // qualifier alongside it and retain other supplied frequencies literally.
+    frequencyToken = /^QD(?: |$)/.test(frequencyToken) ? frequencyToken.replace(/^QD/, 'QDW/L') : frequencyToken ? `${frequencyToken} WITH LUNCH` : 'QDW/L';
+    abnormalities.push({ id: 'site_lunch_code', tier: 'applied_correction', title: 'Site Lunch Code Applied',
+      message: 'QDW/L follows the reported once-daily-with-lunch convention. Verify its expansion in Framework Preview Sig.', trigger: rawProse });
   }
   if (/\bWITH\s+(?:EACH\s+)?(?:MEALS?|FOOD)\b/i.test(scheduleProse) || /\bWM\b/.test(scheduleProse)) {
     if (!frequencyToken && /\bWITH\s+(?:EACH\s+)?MEALS?\b/.test(scheduleProse)) {

@@ -46,7 +46,12 @@ function assembleSig(
       message: 'The provided template says DISSOLVE. Product labeling states that the granules do not dissolve; verify the preparation wording with the pharmacist.', trigger: preparationTemplate });
   }
 
-  if (doseRes.preparationTemplate && (!defaultTemplate?.trim() || doseRes.preparationWasExplicit)) {
+  const generatedPreparation = doseRes.preparationTemplate && (!defaultTemplate?.trim() || doseRes.preparationWasExplicit);
+  if (generatedPreparation && doseRes.preparationInstructions) {
+    allAbnormalities.push({ id: 'cholestyramine_preparation_wording', tier: 'potential_error', title: 'Cholestyramine Site Preparation Requires Review',
+      message: 'The reported site template adds a 4 oz preparation and spacing instructions. DIS expands to DISSOLVE. Product labeling describes mixing to a uniform suspension. Verify preparation wording, the selected product and other-drug spacing with the pharmacist.',
+      correction: `${doseRes.preparationTemplate} ${doseRes.preparationInstructions}`, trigger: drugName });
+  } else if (generatedPreparation) {
     const packet = doseRes.preparationTemplate.includes('PACKET');
     allAbnormalities.push({ id: 'peg_packet_preparation', tier: 'applied_correction', title: packet ? 'PEG Packet Preparation Added' : 'PEG Powder Preparation Added',
       message: doseRes.preparationWasExplicit ? 'The source mixing amount and liquid were retained in the PEG 17 g preparation. Verify the container and route.' : 'Preparation instructions were added from the PEG 17 g template. Verify the container, route and Framework Preview Sig before copying.',
@@ -62,6 +67,7 @@ function assembleSig(
   }
 
   const finish = (sig: string) => {
+    if (generatedPreparation && doseRes.preparationInstructions) sig += ` ${doseRes.preparationInstructions}`;
     if (clauses.supplemental) {
       if (doseRes.apapLimitToken && sig.split(/\s+/).includes(doseRes.apapLimitToken) && /^(?:DO NOT|NOT TO) EXCEED\s*\d[\d,]*(?:\.\d+)?\s*(?:MG|GMS?|GRAMS?|G)\s+OF\s+(?:ACETAMINOPHEN|TYLENOL|APAP)\s+(?:IN|PER)\s+(?:A\s+)?24\s*(?:HOURS?|HRS?|HR|H)(?:\s+PERIOD)?[.;]?$/i.test(clauses.supplemental.trim())) return sig;
       const repeat = clauses.supplemental.toUpperCase().trim();
@@ -286,7 +292,7 @@ function translateClinicalSigInternal(inbound: InboundOrder, preferences?: Parti
     // An explicit second administration is a separate regimen, not an
     // indication or supplemental sentence. Keep routine and PRN frequencies,
     // doses and course restrictions on their own clauses.
-    const regimens = inbound.rawProse.split(/\s+AND\s+(?=(?:(?:GIVE|TAKE|ADMINISTER|INJECT)\s+\d+(?:\.\d+)?|\d+(?:\.\d+)?\s*(?:ML|VIALS?)\s+INHALE)\b)/i);
+    const regimens = inbound.rawProse.split(/\s+AND\s+(?=(?:(?:GIVE|TAKE|ADMINISTER|INJECT)\s+\d+(?:\.\d+)?|\d+(?:\.\d+)?\s*(?:ML|MILLILITERS?|VIALS?)\s+INHALE)\b)/i);
     if (regimens.length > 1 && regimens.some(p => /\b(?:AS NEEDED|PRN)\b/i.test(p))
         && regimens.some(p => !/\b(?:AS NEEDED|PRN)\b/i.test(p))) {
       const compiled = regimens.map(p => assembleSig(inbound.drugName, p, inbound.defaultSigTemplate, preferences, inbound.indication));

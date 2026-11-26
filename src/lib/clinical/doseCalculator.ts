@@ -4,6 +4,7 @@ import { splitSupplementalDirections } from './instructionClauses';
 import { normalizeNumericDirections } from './numericDirections';
 import { SIG_CODE_REFERENCE } from './sigCodeReference';
 import { resolvePegPreparation } from './pegPreparation';
+import { resolveCholestyraminePreparation } from './cholestyraminePreparation';
 
 export interface DoseCalculationResult {
   readonly doseToken: string;
@@ -14,6 +15,7 @@ export interface DoseCalculationResult {
   readonly siteToken?: string;
   readonly requiresManualTranslation?: boolean;
   readonly preparationTemplate?: string;
+  readonly preparationInstructions?: string;
   readonly scheduleProse?: string;
   readonly preparationWasExplicit?: boolean;
 }
@@ -162,6 +164,8 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
   if (tubeRoute && (oral || sublingual || new Set(tubeMatches.map(m => m[1])).size > 1 || /\b(?:NOT|AVOID|WITHOUT)\b/.test(upperProse))) return manualResult('Conflicting Enteral Routes');
   const enteralRoute = tubeRoute || 'PO';
   const solidRoute = tubeRoute || (sublingual ? oral ? 'PO/SL' : 'SL' : 'PO');
+  const cholestyramine = resolveCholestyraminePreparation(upperDrug, fullProse, oral && !sublingual && !tubeRoute ? 'PO' : '');
+  if (cholestyramine) return { doseToken: '1PKT', routeToken: 'PO', abnormalities, isApap, apapLimitToken, ...cholestyramine };
   const peg = resolvePegPreparation(upperDrug, fullProse, oral || !!tubeRoute ? enteralRoute : undefined);
   if (peg) return { doseToken: peg.preparationTemplate.includes('PACKET') ? '1PKT' : 'ADM 17GM', routeToken: enteralRoute, abnormalities, isApap, apapLimitToken, ...peg };
 
