@@ -61,6 +61,10 @@ async function persist(job: PendingFeedback): Promise<DiscrepancyReport | undefi
 }
 function enqueue(job: PendingFeedback) {
   const run = async () => {
+    // Merge older durable jobs before any newly queued event is persisted.
+    // Loading only for a ten still lets an older low score arrive after a new
+    // low score on reload and incorrectly become the latest rating.
+    await loadPendingFeedback();
     try { await outbox.put(job.id, job); } catch { /* file/report fallback may still succeed */ }
     const report = await persist(job);
     try { await outbox.remove(job.id); } catch { /* retry is idempotent if an acknowledged job remains */ }

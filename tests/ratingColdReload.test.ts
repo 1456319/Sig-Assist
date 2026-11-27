@@ -15,15 +15,15 @@ const snapshot: TranslationFeedbackSnapshot = { orderKey: 'synthetic-reload', po
   presentationBuildId: 'synthetic-build', context: { source: 'queue', revision: 1 } };
 beforeEach(() => { mock.rows = []; vi.resetModules(); });
 
-it('a ten chosen right after a cold reload supersedes an unsaved earlier low rating', async () => {
+it.each([8, 10])('a score of %i after cold reload follows the unsaved earlier low rating', async rating => {
   // Previous page session: rating 3 reached the outbox but not reports.
   await browserRecords('sig-assist-rating-outbox-v1').put('old-job', { id: 'old-job', at: '2026-11-27T00:00:00.000Z', order: 1,
     input: snapshot, event: { kind: 'rating', rating: 3, draft: snapshot.currentDraft }, appVersion: 'old', buildId: 'old' });
   const feedback = await import('../src/lib/translationFeedback');
-  // Technician changes the score to 10 before any outbox load has finished.
-  await feedback.saveTranslationFeedback(snapshot, { kind: 'rating', rating: 10, draft: snapshot.currentDraft });
+  // Technician changes the score before any outbox load has finished.
+  await feedback.saveTranslationFeedback(snapshot, { kind: 'rating', rating, draft: snapshot.currentDraft });
   await feedback.retryTranslationFeedback();
   expect(mock.rows).toHaveLength(1);
-  expect(mock.rows[0]!.translationFeedback!.events.map(e => e.rating)).toEqual([3, 10]);
-  expect(feedbackState(mock.rows[0]!).rating).toBe(10);
+  expect(mock.rows[0]!.translationFeedback!.events.map(e => e.rating)).toEqual([3, rating]);
+  expect(feedbackState(mock.rows[0]!).rating).toBe(rating);
 });

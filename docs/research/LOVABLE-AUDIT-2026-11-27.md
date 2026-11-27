@@ -130,3 +130,45 @@ follow-up. Do not silently apply taper-specific per-card limits to insulin-scale
 groups, whose shared 199-character budget remains unchanged. Two additional
 synthetic wound/punctuation controls exercise the actual typed-product path;
 they do not prove that every historical policy/wording variant is resolved.
+
+## Runtime checkpoints and integration check
+
+- `19a12fa7240dafb6d5eb6971389cf3f05b89c892`: independent event degradation.
+- `d09be1cff3092459de2ad8ccc7d826fc5b22cf79`: treatment course, rating durability,
+  split scope labels and preserved lab reports/candidates.
+- `6ace0036f213486253460bcb2b703f3924069044`: bounded-course repair and final
+  matching v0.1.17 downloads, build `3ed40918e4df`.
+
+Every checkpoint was fetched and its changed file contents verified against the
+remote branch. The final local suite passes **1,445 tests in 104 files**;
+full lint, typecheck, 388-code reference and archive/source checks pass. The
+working tree was aligned only after content verification. Final Windows/Linux
+CI and publication are pending at this documentation checkpoint.
+
+Clinical and QA were given the final pinned runtime for one focused independent
+integration pass within any remaining credits (no purchase/upgrade). Requests:
+clinical `umsg_01m8eggt59er5r5fjwfv4w592n`, QA
+`umsg_01m8eggqssewyr6p32rtbmg06k`, in the same projects/threads above.
+Engineering's allocation was exhausted, so no duplicate request was sent there.
+Poll these requests before declaring the audit fully completed.
+
+### Independent QA integration and adjacent root regression
+
+QA completed its focused follow-up: 16 checks at `6ace003` passed, covering
+low-to-ten reload, unchanged original evidence, split isolation, storage
+recovery and idempotent retries. It withdrew its browser_cache attribution.
+Its report and controls are preserved beside the first reports. Root ran the
+two added controls too, correcting their cleanup to use the actual BrowserRecords
+API (there is no `clear` method) and checking the edited draft explicitly.
+
+Root then tested an adjacent case outside that lab's check: an earlier queued
+3 followed by a new **8** after reload was saved as `[8,3]`, so the older score
+incorrectly won. Loading only on ten was insufficient. Every queued persistence
+operation now loads older durable jobs before merging; immediate in-memory
+failure/correction capture is retained. Both low-to-low and low-to-ten histories
+are ordered correctly; actual failed writes still remain retryable.
+
+This next v0.1.17 package has build `ff9daa2db152` and supersedes the earlier
+same-version fingerprints. The 1,446-test full local run and two extra recovery
+controls pass; a final combined run and CI follow. No new clinical write action
+or mandatory technician prompt was added.
