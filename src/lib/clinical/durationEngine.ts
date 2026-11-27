@@ -26,7 +26,9 @@ export function resolveDuration(upper: string): { token?: string; abnormalities:
         message: 'The complete duration could not be represented with a verified SIG code. Original directions were retained; verify the stop date before copying.', trigger: match[0] });
       return { abnormalities, unsupported: true };
     }
-    tokens.add(token);
+    // An upper bound is not an instruction to complete a fixed course.
+    // Keep the qualifier literal rather than encode it as an ordinary XnD.
+    tokens.add(/\bUP\s+TO\b/.test(match[0]) ? match[0].replace(/\s+/g, ' ').trim() : token);
   }
   if (tokens.size > 1) {
     abnormalities.push({ id: 'conflicting_durations', tier: 'potential_error', title: 'Conflicting Durations',

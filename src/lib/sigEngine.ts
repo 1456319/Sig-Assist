@@ -19,7 +19,7 @@ export interface Dose { quantity: number; unit: DoseUnit; calculatedAmount?: Con
 export interface SlidingScaleBand { lower?: number; upper?: number; dose?: number; action?: string; }
 export interface ParsedSigOrder {
   raw: string; normalized: string; drug: string; dose?: Dose; route?: Route; frequency?: Frequency;
-  prn: boolean; durationDays?: number; indication?: string; slidingScale?: SlidingScaleBand[];
+  prn: boolean; durationDays?: number; maximumCourse?: string; indication?: string; slidingScale?: SlidingScaleBand[];
   hold?: { systolicBelow?: number; heartRateBelow?: number }; dateStripped: boolean; issues: SigIssue[];
   slidingScaleSig?: string;
   namedMealQualifier?: string;
@@ -91,7 +91,7 @@ function scale(text: string, drugName?: string): SlidingScaleBand[] | undefined 
 function indication(text: string): string | undefined {
   // A duration is not an indication. Remove only the already-parsed duration
   // clause from this extraction view; the original source remains unchanged.
-  const withoutDuration = text.replace(/\bfor\s+\d+\s+days?\b[.,;]?/gi, ' ');
+  const withoutDuration = text.replace(/\bfor\s+(?:up\s+to\s+)?\d+\s+days?\b[.,;]?/gi, ' ');
   const value = withoutDuration.match(/(?:for|indications?:)\s+(.+?)(?:\s+until\s+\d|\s+hold\b|$)/i)?.[1]?.trim();
   return value ? indications.find(([matcher]) => matcher.test(value))?.[1] ?? `FOR ${value.toUpperCase()}` : undefined;
 }
@@ -114,7 +114,8 @@ export function parseSigOrder(raw: string, options: SigParseOptions): ParsedSigO
   const primaryDose = !isScale && parseDose(clauses.primary, strength);
   const retainLater = !!clauses.supplemental && !!primaryDose;
   const primary = primaryDose ? clauses.primary : normalized;
-  const order: ParsedSigOrder = { raw, normalized, drug: options.drug, dose: parseDose(primary, strength), route: route(primary), frequency: frequency(primary), prn: /as needed|\bprn\b/.test(primary), durationDays: Number(primary.match(/for\s+(\d+)\s+days?/)?.[1]) || undefined, indication: indication(primary), slidingScale, dateStripped, issues };
+  const order: ParsedSigOrder = { raw, normalized, drug: options.drug, dose: parseDose(primary, strength), route: route(primary), frequency: frequency(primary), prn: /as needed|\bprn\b/.test(primary), durationDays: Number(primary.match(/for\s+(\d+)\s+days?/)?.[1]) || undefined,
+    maximumCourse: primary.match(/\bfor\s+up\s+to\s+\d+\s+days?\b/i)?.[0].toUpperCase(), indication: indication(primary), slidingScale, dateStripped, issues };
   order.namedMealQualifier = namedMealQualifier(clauses.primary);
   // A later dose/monitoring/notify clause is its own instruction: read the
   // first clause's dose and schedule, and keep the rest verbatim for review.
@@ -156,7 +157,8 @@ export function renderSig(order: ParsedSigOrder): string {
   if (order.slidingScaleSig !== undefined) return order.slidingScaleSig;
   if (order.slidingScale) return `CBS ${order.frequency === 'ACHS' ? 'ACHS' : 'AC'} SS ${order.slidingScale.map((band) => band.lower === undefined ? `<${band.upper! + 1}=${band.action}` : band.upper === undefined ? `>${band.lower - 1}=${band.action ?? `${number(band.dose ?? 0)}U`}` : `${band.lower}-${band.upper}=${number(band.dose ?? 0)}U`).join(';')}`;
   const tokens: Array<string | undefined> = [order.dose && doseToken(order.dose, order.route), order.route, order.frequency, order.namedMealQualifier, order.prn ? 'PRN' : undefined];
-  if (order.prn) { tokens.push(order.indication); if (order.durationDays) tokens.push(`X${order.durationDays}D`); } else { if (order.durationDays) tokens.push(`X${order.durationDays}D`); tokens.push(order.indication); }
+  const course = order.maximumCourse ?? (order.durationDays ? `X${order.durationDays}D` : undefined);
+  if (order.prn) tokens.push(order.indication, course); else tokens.push(course, order.indication);
   if (order.hold) tokens.push(`HR${order.hold.heartRateBelow}SBP${order.hold.systolicBelow}`);
   const sig = tokens.filter(Boolean).join(' ').toUpperCase();
   return order.supplemental ? `${sig}. ${order.supplemental.toUpperCase()}` : sig;

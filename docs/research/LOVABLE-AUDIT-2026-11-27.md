@@ -104,3 +104,29 @@ suite counts differ; root's full checkout and CI are the validation authority.
 The event checkpoint `19a12fa7240dafb6d5eb6971389cf3f05b89c892` passed the native
 Windows/packaged Edge workflow in run 45999496654, including forced UIA failure
 with subsequent real WinEvent field changes. It does not establish live coverage.
+
+## Private discrepancy replay and additional supported repair
+
+Root downloaded the seven-case export privately and replayed its source with
+each captured exclusion policy. Raw cases and replay results stay outside Git
+and external labs. A combined current preview is not directly comparable to a
+report's selected split-card suggestion; this is not an accuracy benchmark.
+Some reports also concern formatting choices already represented by overrides.
+No claim is made that all seven technician observations are resolved.
+
+One clear qualifier-loss case was independently reproduced with a different
+synthetic medication and course: `FOR UP TO 5 DAYS` became fixed `X5D` in the
+clinical path; classic could also absorb the bounded course into the indication.
+The shared duration resolver now retains the literal upper-bound course.
+Classic stores/renders it separately from a fixed day count and indication.
+Equal numeric bounded/fixed courses no longer silently collapse to one token.
+Three new checks fail on baseline and pass after the repair; an exact-course
+control still passes. The existing duration test that expected `FOR UP TO 10
+DAYS` to lose its qualifier was corrected, not relaxed.
+
+Remaining source-to-tablet conversion, oral-gel amount annotation, sequential
+tablet-taper cards and exact part-level punctuation/policy effects merit focused
+follow-up. Do not silently apply taper-specific per-card limits to insulin-scale
+groups, whose shared 199-character budget remains unchanged. Two additional
+synthetic wound/punctuation controls exercise the actual typed-product path;
+they do not prove that every historical policy/wording variant is resolved.
