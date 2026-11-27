@@ -46,7 +46,7 @@ export function splitSupplementalDirections(rawProse: string, options?: { allowS
       // A comma-terminated qualifier after a comma/conjunction is still part
       // of the primary schedule ('PO, BEFORE BREAKFAST, DO NOT CRUSH').
       if (/,/.test(prefix) && /^(?:,|AND|(?:AND\s+)?THEN)$/i.test(boundary.text)) continue;
-      if (!/^(?:AT|AFTER|BEFORE|DURING|WHEN|UNLESS|UNTIL|ONLY|NEVER|NOT|IN\s+THE\s+(?:MORNING|AFTERNOON|EVENING)|FOR\s+(?:THE\s+NEXT\s+)?\d+\s+(?:DAYS?|WEEKS?|MONTHS?))\b/i.test(prefix)) continue;
+      if (!/^(?:AT|AFTER|BEFORE|DURING|WHEN|UNLESS|UNTIL|ONLY|NEVER|NOT|IN\s+THE\s+(?:MORNING|AFTERNOON|EVENING)|FOR\s+(?:(?:THE\s+NEXT|UP\s+TO)\s+)?\d+\s+(?:DAYS?|WEEKS?|MONTHS?))\b/i.test(prefix)) continue;
       // THEN expresses a phase change and remains part of the retained clause.
       supplementalStart = /\bTHEN\b/i.test(boundary.text) ? boundary.start : afterBoundary;
       break;

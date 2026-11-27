@@ -1,0 +1,52 @@
+--- a/src/lib/clinical/instructionClauses.ts
++++ b/src/lib/clinical/instructionClauses.ts
+@@ -46,7 +46,7 @@
+       // A comma-terminated qualifier after a comma/conjunction is still part
+       // of the primary schedule ('PO, BEFORE BREAKFAST, DO NOT CRUSH').
+       if (/,/.test(prefix) && /^(?:,|AND|(?:AND\s+)?THEN)$/i.test(boundary.text)) continue;
+-      if (!/^(?:AT|AFTER|BEFORE|DURING|WHEN|UNLESS|UNTIL|ONLY|NEVER|NOT|IN\s+THE\s+(?:MORNING|AFTERNOON|EVENING)|FOR\s+(?:THE\s+NEXT\s+)?\d+\s+(?:DAYS?|WEEKS?|MONTHS?))\b/i.test(prefix)) continue;
++      if (!/^(?:AT|AFTER|BEFORE|DURING|WHEN|UNLESS|UNTIL|ONLY|NEVER|NOT|IN\s+THE\s+(?:MORNING|AFTERNOON|EVENING)|FOR\s+(?:(?:THE\s+NEXT|UP\s+TO)\s+)?\d+\s+(?:DAYS?|WEEKS?|MONTHS?))\b/i.test(prefix)) continue;
+       // THEN expresses a phase change and remains part of the retained clause.
+       supplementalStart = /\bTHEN\b/i.test(boundary.text) ? boundary.start : afterBoundary;
+       break;
+--- a/src/lib/clinical/treatmentOrderEngine.ts
++++ b/src/lib/clinical/treatmentOrderEngine.ts
+@@ -77,7 +77,14 @@
+   }
+   // Extract the action course before a PRN reason can consume it. The same
+   // action supplies both routine and PRN cards; separate procedures stay scoped.
+-  body = body.replace(/\b(?:FOR\s+(?:UP\s+TO\s+)?|X\s*)\d+(?:\.\d+|\s*[-/]\s*\d+)?\s*(?:DAYS?|D\b|WEEKS?|WKS?|MONTHS?|MOS?|HOURS?|HRS?|H\b)\b/g, match => {
++  body = body.replace(/\b(?:FOR\s+(?:UP\s+TO\s+)?|X\s*)\d+(?:\.\d+|\s*[-/]\s*\d+)?\s*(?:DAYS?|D\b|WEEKS?|WKS?|MONTHS?|MOS?|HOURS?|HRS?|H\b)\b/g, (match: string, offset: number) => {
++    // An explicitly lasting/present symptom owns its interval. Do not move
++    // that interval to the treatment course or the routine card.
++    if (/\b(?:PRESENT|LASTING)\s*$/.test(source.slice(0, offset))) {
++      result.abnormalities.push({ id: 'treatment_condition_duration_retained', tier: 'uncorrected_gap', title: 'Condition Duration Retained for Review',
++        message: 'This interval describes a source condition, not an established treatment course. Its wording remains with the condition for review.', trigger: source });
++      return match;
++    }
+     const duration = resolveFrequencyAndSchedule(`DAILY ${match}`);
+     result.abnormalities.push(...duration.abnormalities);
+     result.duration = [result.duration, /\bUP TO\b/.test(match) ? match : duration.durationToken || match].filter(Boolean).join(' ');
+--- a/src/lib/sigEngine.ts
++++ b/src/lib/sigEngine.ts
+@@ -4,6 +4,7 @@
+ import { namedMealQualifier, resolveFrequencyAndSchedule } from './clinical/frequencyEngine';
+ import { splitSupplementalDirections } from './clinical/instructionClauses';
+ import { evaluatePaxitPackaging } from './clinical/paxitEngine';
++import { resolveDuration } from './clinical/durationEngine';
+ 
+ /**
+  * A structured foundation for free-text SIG translation. Extraction, safety
+@@ -139,6 +140,12 @@
+     if (resolved.requiresManualTranslation || !resolved.slidingScaleString) issues.push({ code: 'incomplete-sliding-scale', severity: 'warning', message: 'The complete scale needs technician review; unresolved source wording was retained.' });
+     for (const finding of resolved.abnormalities.filter(item => item.id.startsWith('sliding_scale_concession') || item.id === 'sliding_scale_budget_exceeded')) issues.push({ code: finding.id, severity: 'warning', message: finding.message });
+   }
++  // The classic one-course field cannot choose between different fixed or
++  // bounded courses. Use the shared resolver's conflict rule and retain both.
++  if (!isScale && resolveDuration(primary.toUpperCase()).abnormalities.some(finding => finding.id === 'conflicting_durations')) {
++    order.retainedRegimen = normalized.toUpperCase();
++    issues.push({ code: 'conflicting-durations', severity: 'warning', message: 'Conflicting fixed or maximum courses were retained together. Verify their source scope before copying.' });
++  }
+   if (compactHold) order.hold = { systolicBelow: Number(compactHold[1]), heartRateBelow: Number(compactHold[2]) };
+   if (dateStripped) issues.push({ code: 'cut-date', severity: 'warning', message: 'A cut date was removed; verify it in the order date field.' });
+   if (isUnknownElementalCandidate(options.drug)) issues.push({ code: 'unknown-elemental-equivalent', severity: 'blocking', message: 'This strength may describe an elemental equivalent, but the compound/formulation could not be verified.' });

@@ -58,6 +58,11 @@ function resolveFrequencyAndScheduleInternal(rawProse: string, defaultTemplate?:
     let frequency = schedule.frequencyToken;
     if (frequency === 'TIDAC' && !/\b(?:3|THREE) TIMES|\bTID\b/.test(tail.primary)) frequency = 'AC';
     if (!schedule.frequencyToken || schedule.requiresManualTranslation || scale.incomplete) {
+      // A retained later half-scale action can contaminate the parser's common
+      // schedule. An explicit single-code table header still owns that table;
+      // do not replace its TID with the later action's bedtime qualifier.
+      const header = upper.match(/^(?:SLIDING|CORRECTION)\s+SCALE\s+(?:(?:SQ|SC|SUBQ|SUBCUTANEOUS(?:LY)?)\s+)?(QD|BID|TID|QID|QAM|QPM|QHS|ACHS|WMHS|AC)\s*:/);
+      if (scale.incomplete && header) frequency = header[1];
       if (!abnormalities.some(finding => finding.id === 'incomplete_sliding_scale')) {
         abnormalities.push({ id: 'incomplete_sliding_scale', tier: 'uncorrected_gap', title: 'Scale Schedule Requires Review',
           message: 'Review the retained scale wording and any frequency placeholder. No unresolved dose or instruction was discarded.', trigger: rawProse });

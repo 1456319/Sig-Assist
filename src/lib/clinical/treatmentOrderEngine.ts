@@ -77,7 +77,14 @@ function parseModifiers(source: string): TreatmentModifiers {
   }
   // Extract the action course before a PRN reason can consume it. The same
   // action supplies both routine and PRN cards; separate procedures stay scoped.
-  body = body.replace(/\b(?:FOR\s+(?:UP\s+TO\s+)?|X\s*)\d+(?:\.\d+|\s*[-/]\s*\d+)?\s*(?:DAYS?|D\b|WEEKS?|WKS?|MONTHS?|MOS?|HOURS?|HRS?|H\b)\b/g, match => {
+  body = body.replace(/\b(?:FOR\s+(?:UP\s+TO\s+)?|X\s*)\d+(?:\.\d+|\s*[-/]\s*\d+)?\s*(?:DAYS?|D\b|WEEKS?|WKS?|MONTHS?|MOS?|HOURS?|HRS?|H\b)\b/g, (match: string, offset: number) => {
+    // An explicitly lasting/present symptom owns its interval. Do not move
+    // that interval to the treatment course or the routine card.
+    if (/\b(?:PRESENT|LASTING)\s*$/.test(source.slice(0, offset))) {
+      result.abnormalities.push({ id: 'treatment_condition_duration_retained', tier: 'uncorrected_gap', title: 'Condition Duration Retained for Review',
+        message: 'This interval describes a source condition, not an established treatment course. Its wording remains with the condition for review.', trigger: source });
+      return match;
+    }
     const duration = resolveFrequencyAndSchedule(`DAILY ${match}`);
     result.abnormalities.push(...duration.abnormalities);
     result.duration = [result.duration, /\bUP TO\b/.test(match) ? match : duration.durationToken || match].filter(Boolean).join(' ');

@@ -4,6 +4,7 @@ import { looksLikeSlidingScale, parseSlidingScale } from './clinical/slidingScal
 import { namedMealQualifier, resolveFrequencyAndSchedule } from './clinical/frequencyEngine';
 import { splitSupplementalDirections } from './clinical/instructionClauses';
 import { evaluatePaxitPackaging } from './clinical/paxitEngine';
+import { resolveDuration } from './clinical/durationEngine';
 
 /**
  * A structured foundation for free-text SIG translation. Extraction, safety
@@ -138,6 +139,12 @@ export function parseSigOrder(raw: string, options: SigParseOptions): ParsedSigO
     });
     if (resolved.requiresManualTranslation || !resolved.slidingScaleString) issues.push({ code: 'incomplete-sliding-scale', severity: 'warning', message: 'The complete scale needs technician review; unresolved source wording was retained.' });
     for (const finding of resolved.abnormalities.filter(item => item.id.startsWith('sliding_scale_concession') || item.id === 'sliding_scale_budget_exceeded')) issues.push({ code: finding.id, severity: 'warning', message: finding.message });
+  }
+  // The classic one-course field cannot choose between different fixed or
+  // bounded courses. Use the shared resolver's conflict rule and retain both.
+  if (!isScale && resolveDuration(primary.toUpperCase()).abnormalities.some(finding => finding.id === 'conflicting_durations')) {
+    order.retainedRegimen = normalized.toUpperCase();
+    issues.push({ code: 'conflicting-durations', severity: 'warning', message: 'Conflicting fixed or maximum courses were retained together. Verify their source scope before copying.' });
   }
   if (compactHold) order.hold = { systolicBelow: Number(compactHold[1]), heartRateBelow: Number(compactHold[2]) };
   if (dateStripped) issues.push({ code: 'cut-date', severity: 'warning', message: 'A cut date was removed; verify it in the order date field.' });

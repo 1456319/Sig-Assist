@@ -172,3 +172,38 @@ This next v0.1.17 package has build `ff9daa2db152` and supersedes the earlier
 same-version fingerprints. The 1,446-test full local run and two extra recovery
 controls pass; a final combined run and CI follow. No new clinical write action
 or mandatory technician prompt was added.
+
+### Clinical integration follow-up: completed with credits exhausted
+
+The clinical lab inspected `6ace003`, ran 253 selected baseline controls and a
+15-fixture holdout, and supplied three small candidates. Root reproduced its
+**7 failing / 6 passing** baseline checks and all 13 pass after selective
+integration:
+
+1. A later `For up to n days, take ...` prefix stays with the later action,
+   preserving the earlier fixed course and avoiding a false cross-action
+   conflict. This extends the existing clause boundary grammar.
+2. A condition `PRESENT` or `LASTING` for a stated interval retains that wording
+   beside the condition; it is not turned into a treatment course. This lexical
+   rule is narrow, not a general condition/course classifier. The clinical
+   treatment cards remain useful; classic treatment parity is still deferred.
+3. Classic consults the shared duration conflict rule on its scoped primary
+   clause and retains the whole conflicting regimen with a warning, rather than
+   silently selecting the maximum over a fixed course. Scales are excluded.
+
+The lab also reported an unpatched fallback header mismatch. Root independently
+reproduced it: a clearly TID-labelled table acquired QHS from a retained later
+half-dose action. On the incomplete fallback only, an explicit single-code
+`Sliding/Correction scale [SQ] TID:` header now retains its own frequency. All
+original unresolved instructions and the review finding remain. This is not
+general schedule disambiguation or a claim the half-dose action was translated.
+The new regression covers both entry points; 180 adjacent scale/scope controls
+pass without loosening existing expectations.
+
+The lab's full run had four archive/Git-environment failures and one 10,000-row
+dataset timeout, which it correctly left unclassified. Root's real-checkout
+full runs include that dataset case and have passed; do not label the lab
+timeout a repaired product defect or claim its environment reproduced ours.
+The lab's unrelated lockfile update was not adopted. Reports and candidates are
+preserved as evidence, not an instruction to reapply patches. No external audit
+turn remains running; no further credit request or purchase is needed.
