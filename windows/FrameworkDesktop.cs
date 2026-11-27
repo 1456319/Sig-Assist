@@ -1807,7 +1807,7 @@ public static class FrameworkDesktop {
         }
         return false;
     }
-    static int WatchEvents(EntryWindow entry, string testProcess, int parentPid) {
+    static int WatchEvents(EntryWindow entry, string testProcess, int parentPid, bool testUiaUnavailable) {
         if (entry == null) throw new InvalidOperationException("Observation window required.");
         var root = RememberedRoot(entry, testProcess); uint threadId = GetCurrentThreadId();
         var gate = new object(); var clock = Stopwatch.StartNew(); long lastGeneric = -1000; int suppressed = 0;
@@ -1826,6 +1826,8 @@ public static class FrameworkDesktop {
         var hook2 = SetWinEventHook(3, 3, IntPtr.Zero, callback, (uint)entry.pid, 0, 0);
         var subscriptions = new Thread(() => {
             try {
+                // Synthetic fixture only; the connector never supplies a test process.
+                if (testProcess != null && testUiaUnavailable) throw new InvalidOperationException();
                 var cache = new CacheRequest(); cache.TreeScope = TreeScope.Element;
                 foreach (var property in new[] { AutomationElement.NameProperty, AutomationElement.AutomationIdProperty, AutomationElement.ProcessIdProperty, AutomationElement.IsPasswordProperty }) cache.Add(property);
                 using (cache.Activate()) {
@@ -1844,7 +1846,7 @@ public static class FrameworkDesktop {
                     Automation.AddStructureChangedEventHandler(root, TreeScope.Subtree, (sender, ev) => emit("changed", ""));
                 }
                 uia = true; emit("ready", "");
-            } catch { emit("provider_unavailable", ""); }
+            } catch { emit(hook1 != IntPtr.Zero || hook2 != IntPtr.Zero ? "uia_unavailable" : "provider_unavailable", ""); }
         });
         subscriptions.IsBackground = true; subscriptions.SetApartmentState(ApartmentState.MTA); subscriptions.Start();
         using (var timer = new Timer(state => {
@@ -1875,7 +1877,8 @@ public static class FrameworkDesktop {
             bool positionReview = input.ContainsKey("positionReview") && Object.Equals(input["positionReview"], true);
             if (action == "window") { Console.WriteLine(Serialize(ChooseEntryWindow(testProcess, positionReview))); return 0; }
             var entry = input.ContainsKey("entryWindow") ? InputWindow(input["entryWindow"]) : null;
-            if (action == "watch") return WatchEvents(entry, testProcess, input.ContainsKey("parentPid") ? Convert.ToInt32(input["parentPid"]) : 0);
+            if (action == "watch") return WatchEvents(entry, testProcess, input.ContainsKey("parentPid") ? Convert.ToInt32(input["parentPid"]) : 0,
+                testProcess != null && input.ContainsKey("testUiaUnavailable") && Object.Equals(input["testUiaUnavailable"], true));
             if (action == "workflow-snapshot") { Console.WriteLine(Serialize(WorkflowSnapshot(entry, testProcess))); return 0; }
             if (action == "dataset-snapshot") { Console.WriteLine(Serialize(DatasetSnapshot(entry, testProcess))); return 0; }
             if (action == "observe") { Console.WriteLine(Serialize(Observe(entry, input.ContainsKey("key") ? Text(input["key"]) : "", testProcess,

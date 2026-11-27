@@ -103,6 +103,27 @@ it('reconnects a failed event listener after backoff and ignores callbacks from 
   listeners[1]({ kind: 'invoked', control: 'next' }); await observer.drain(); expect(records.at(-1)?.control).toBe('next');
 });
 
+it('keeps working Windows event hooks when only UIA subscriptions are unavailable', async () => {
+  const { observer, records, event, close, desktop } = setup();
+  await vi.advanceTimersByTimeAsync(500);
+  event({ kind: 'uia_unavailable', uia: false });
+  expect(close).not.toHaveBeenCalled();
+  expect(observer.updates().eventSource).toBe('windows_events');
+  desktop.mockResolvedValue(snapshot('DUMMY:2', '2T PO QD'));
+  event({ kind: 'changed' }); await vi.advanceTimersByTimeAsync(1000);
+  expect(records.at(-1)).toMatchObject({ kind: 'order_changed', pon: 'DUMMY:2' });
+});
+
+it('ignores unknown sidecar events without retiring the working listener', async () => {
+  const { observer, records, event, close } = setup();
+  await vi.advanceTimersByTimeAsync(500);
+  event({ kind: 'future_diagnostic', control: 'PRIVATE TEXT' });
+  expect(close).not.toHaveBeenCalled();
+  event({ kind: 'invoked', control: 'next' }); await observer.drain();
+  expect(records.at(-1)?.control).toBe('next');
+  expect(JSON.stringify(records)).not.toContain('PRIVATE TEXT');
+});
+
 it('bounds the native write backlog and persists an explicit overflow gap', async () => {
   let release: (saved: boolean) => void = () => {};
   const records: Frame[] = [];

@@ -104,6 +104,27 @@ try {
   assert.equal((await workflow()).fields.draft_sig, 'AUTOMATIC EVENT SYNTHETIC SIG');
   assert.doesNotMatch(JSON.stringify(events), /AUTOMATIC EVENT|PRIVATE VALUE|SYNTHETIC-1/);
   eventWatcher.kill(); eventWatcher = undefined;
+  // Force only the UIA subscription to fail in the test-only helper mode.
+  // Real WinEvent hooks must remain alive and forward subsequent field changes.
+  events.length = 0; eventBuffer = '';
+  eventWatcher = spawn(helper, ['--test-process', 'SigAssistFrameworkFixture'], { stdio: ['pipe', 'pipe', 'pipe'] });
+  eventWatcher.stdout.setEncoding('utf8');
+  eventWatcher.stdout.on('data', chunk => {
+    eventBuffer += chunk; let end;
+    while ((end = eventBuffer.indexOf('\n')) >= 0) {
+      const line = eventBuffer.slice(0, end); eventBuffer = eventBuffer.slice(end + 1);
+      try { events.push(JSON.parse(line)); } catch { /* Complete records only. */ }
+    }
+  });
+  eventWatcher.stdin.end(JSON.stringify({ action: 'watch', entryWindow: entry.entryWindow, parentPid: process.pid, testUiaUnavailable: true }));
+  await until(() => events.some(event => event.kind === 'uia_unavailable'));
+  const degradedCount = events.length;
+  await command({ sig: 'WINDOWS EVENT FALLBACK SYNTHETIC SIG' });
+  await until(() => events.slice(degradedCount).some(event => event.kind === 'changed'));
+  assert.ok(!events.some(event => event.kind === 'provider_unavailable'));
+  assert.equal((await workflow()).fields.draft_sig, 'WINDOWS EVENT FALLBACK SYNTHETIC SIG');
+  assert.doesNotMatch(JSON.stringify(events), /SYNTHETIC SIG|PRIVATE VALUE|SYNTHETIC-1/);
+  eventWatcher.kill(); eventWatcher = undefined;
   await command({ sig: 'OLD SIG' });
   // Exercise actual Windows responsiveness without relying on a mocked helper
   // timeout. The fixture acknowledges before blocking its own UI thread.

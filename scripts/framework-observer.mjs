@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { helperExecutable, normalizeWorkflowSnapshot } from './framework-desktop.mjs';
 
 const controls = new Set(['BackButton', 'NextButton', 'CancelButton', 'PreviewSigButton', 'PreviewLinkedSigButton', 'AddSplitButton', 'RemoveSplitButton', 'NewBatchButton', 'save', 'done', 'save and close', 'process request', 'refuse request', 'preview sig', 'quit', 'cancel', 'next', 'back', 'button']);
-const kinds = new Set(['ready', 'changed', 'invoked', 'provider_unavailable', 'heartbeat']);
+const kinds = new Set(['ready', 'changed', 'invoked', 'uia_unavailable', 'provider_unavailable', 'heartbeat']);
 export function nativeObservationEvent(raw) {
   if (!raw || !kinds.has(raw.kind)) return null;
   return { kind: raw.kind, ...(raw.kind === 'invoked' ? { control: controls.has(raw.control) ? raw.control : 'button' } : {}),
@@ -76,6 +76,9 @@ export function createWorkflowObserver({ desktop, onRecord, subscribeNative = st
     if (!accepting || !running || version !== generation) return;
     if (event.kind === 'heartbeat') return;
     if (event.kind === 'ready') eventSource = event.uia ? 'uia_and_windows_events' : 'windows_events';
+    // UIA and WinEvent are independent providers in the same sidecar. A
+    // missing UIA subscription does not retire working Windows event hooks.
+    if (event.kind === 'uia_unavailable') eventSource = 'windows_events';
     if (event.kind === 'provider_unavailable') {
       unsubscribe?.(); unsubscribe = undefined; subscriptionGeneration++; subscribing = false;
       eventSource = 'polling_fallback'; subscriptionRetryAt = now() + 30000;
@@ -95,7 +98,10 @@ export function createWorkflowObserver({ desktop, onRecord, subscribeNative = st
     }
     if (current && !unsubscribe && !subscribing && now() >= subscriptionRetryAt) {
       subscribing = true; const version = generation, subscription = ++subscriptionGeneration;
-      Promise.resolve().then(() => subscribeNative(current, event => { if (subscription === subscriptionGeneration) native(nativeObservationEvent(event) || { kind: 'provider_unavailable' }, version); })).then(close => {
+      Promise.resolve().then(() => subscribeNative(current, event => {
+        const normalized = nativeObservationEvent(event);
+        if (normalized && subscription === subscriptionGeneration) native(normalized, version);
+      })).then(close => {
         if (!running || generation !== version || subscription !== subscriptionGeneration) { close?.(); return; }
         unsubscribe = close; subscribing = false;
       }).catch(() => { if (version === generation && subscription === subscriptionGeneration) { subscribing = false; eventSource = 'polling_fallback'; subscriptionRetryAt = now() + 30000; } });

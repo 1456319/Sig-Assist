@@ -41,3 +41,29 @@ Independently reproduce supported findings, checkpoint coherent repairs with
 matching page/BUILD/ZIP, verify remote preservation and CI, and record decisions
 and remaining workstation checks here. FWDirect remains excluded. Retain
 technician review and temporary intensified-logging HIGH-removal markers.
+
+## Engineering response and first repair
+
+The engineering turn completed with `out_of_credits`. It inspected the pinned
+source and reported two baseline-failing mocked observer tests, but did not run
+Windows, apply a candidate or write its requested report. Root independently
+reproduced both failures (9 existing controls passed) before repairing them.
+
+- **Accepted:** a failed UIA subscription used `provider_unavailable`, causing
+  JavaScript to kill the whole sidecar, including working WinEvent hooks. The
+  helper now reports `uia_unavailable` when at least one Windows hook survives;
+  the observer retains the listener and reports `windows_events`.
+- **Accepted:** the injected subscriber wrapper treated every unknown event as
+  fatal. Unknown events are now ignored, matching the actual JSONL decoder.
+- **Regression:** a test-only native flag forces UIA subscription failure; the
+  Windows smoke test requires a subsequent real WinEvent field change while
+  the helper remains alive. JavaScript regressions verify continued capture and
+  actual provider failure/reconnect behavior. Native execution is pending CI.
+- **Deferred, static:** top-level owned popup Invoke coverage, Win32 invoked
+  fallback, rich-editor patterns and the visible-PON miss need concrete provider
+  fixtures/workstation evidence. No event is promoted to proof of a saved Rx.
+  The current smoke test still does not prove Invoke-event arrival.
+
+The initial runtime repair is v0.1.17, build `8305676344df`; local observer and
+journal tests and portable package identity checks pass. Broader final checks
+and external clinical/QA dispositions follow in later checkpoints.
