@@ -44,6 +44,12 @@ describe('offline JSONL dataset replay', () => {
     expect(parsed).toMatchObject({ duplicateObservations: 2, observations: 5 });
     expect(parsed.samples).toHaveLength(3);
   });
+  it('rejects different definitions of the same policy id across distinct incremental batches', () => {
+    const parsed = parseSigDatasetBatches([batch([row(1, { exclusionPolicyId: hash(9) })], [policy()]),
+      batch([row(2, { exclusionPolicyId: hash(9) })], [policy('QAM')], 1, 2)]);
+    expect(parsed.samples).toHaveLength(0);
+    expect(parsed.issues.some(i => i.code === 'conflicting_policy')).toBe(true);
+  });
   it('recognizes identical rows with reordered JSON keys', () => {
     const reversed = Object.fromEntries(Object.entries(row(1)).reverse());
     expect(parseSigDatasetBatches([batch([row(1)]), batch([reversed])])).toMatchObject({ duplicateObservations: 1, issues: [] });
@@ -95,6 +101,26 @@ describe('offline JSONL dataset replay', () => {
       const confirmed = row(2, { stage: 'technician_confirmed', sampleId: source.sampleId, finalSig: '1T PO QD', acceptable: true, ...change });
       expect(replaySigDataset(parseSigDatasetBatches([batch([source, confirmed])])).summary.literalComparisons).toBe(0);
     }
+  });
+  it('compares only the latest correction while keeping every confirmation in history', () => {
+    const source = row(1), first = row(2, { stage: 'technician_confirmed', sampleId: source.sampleId, finalSig: '1T PO QD', acceptable: true });
+    const corrected = row(3, { ...first, seq: 3, dedupKey: hash(103), finalSig: '1T PO DAILY', capturedAt: '2026-11-27T12:01:00Z' });
+    const replay = replaySigDataset(parseSigDatasetBatches([batch([source, first, corrected])]));
+    expect(replay.summary).toMatchObject({ translated: 3, literalComparisons: 1, literalMatches: 0, stages: { technician_confirmed: 2 } });
+    expect(replay.results[1]).toMatchObject({ record: { finalSig: '1T PO QD' }, literalFinalMatch: null });
+    expect(replay.results[2]).toMatchObject({ literalFinalMatch: false });
+  });
+  it.each([false, undefined])('does not revive an older accepted final when the latest confirmation is %s', acceptable => {
+    const source = row(1), first = row(2, { stage: 'technician_confirmed', sampleId: source.sampleId, finalSig: '1T PO QD', acceptable: true });
+    const changed = row(3, { ...first, seq: 3, dedupKey: hash(103), acceptable });
+    expect(replaySigDataset(parseSigDatasetBatches([batch([source, first, changed])])).summary.literalComparisons).toBe(0);
+  });
+  it('uses collector sequence order for confirmations despite reversed files or a clock rollback', () => {
+    const source = row(1), first = row(2, { stage: 'technician_confirmed', sampleId: source.sampleId, finalSig: '1T PO QD', acceptable: true });
+    const corrected = row(3, { ...first, seq: 3, dedupKey: hash(103), finalSig: '1T PO DAILY', capturedAt: '2026-11-27T11:59:00Z' });
+    const replay = replaySigDataset(parseSigDatasetBatches([batch([corrected], [], 2, 3), batch([source, first])]));
+    expect(replay.summary).toMatchObject({ literalComparisons: 1, literalMatches: 0 });
+    expect(replay.results[0]).toMatchObject({ literalFinalMatch: false });
   });
   it('never compares a combined split preview with one final card', () => {
     const source = row(1, { drug: 'ZINC OXIDE 20% PASTE', rawSig: 'Apply to sacrum every shift and as needed for redness for 7 days.' });

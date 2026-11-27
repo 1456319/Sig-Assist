@@ -73,3 +73,7 @@ a matching source sample/revision/drug/prose, and a current single-part result.
 Split-card finals, unpaired finals and unrated examples are not whole-order
 answers. Even eligible literal agreement is a formatting check, not a clinical
 correctness determination. Original input/context and final text stay distinct.
+Only the latest confirmation per salted sample/revision can be compared; earlier
+confirmations remain in history. Collector sequence determines that order, so
+reversed downloads or a workstation clock change cannot restore an older answer.
+A newer rejection or unrated confirmation also supersedes an older acceptance.

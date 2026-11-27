@@ -28,6 +28,7 @@ function canonical(value: unknown): string {
  */
 export function parseSigDatasetBatches(files: string[]) {
   const issues: ReplayIssue[] = [], candidates: ReplaySample[] = [];
+  const policyDefinitions = new Map<string, string>(), conflictingPolicies = new Set<string>();
   let batches = 0, policySnapshots = 0, observations = 0;
   const issue = (file: number, line: number, code: string) => issues.push({ file, line, code });
   const finish = (batch: Batch | undefined) => {
@@ -64,9 +65,11 @@ export function parseSigDatasetBatches(files: string[]) {
         if (!hex(value.id) || !isSigDatasetExclusions(value.exclusions)) { issue(file, i + 1, 'invalid_policy'); return; }
         policySnapshots++;
         const previous = batch.policies.get(value.id);
-        if (previous && canonical(previous) !== canonical(value.exclusions)) {
+        const definition = canonical(value.exclusions), earlierDefinition = policyDefinitions.get(value.id);
+        if (previous && canonical(previous) !== definition || earlierDefinition !== undefined && earlierDefinition !== definition) {
+          conflictingPolicies.add(value.id);
           batch.invalidPolicies.add(value.id); issue(file, i + 1, 'conflicting_policy');
-        } else batch.policies.set(value.id, value.exclusions);
+        } else { batch.policies.set(value.id, value.exclusions); policyDefinitions.set(value.id, definition); }
       } else if (isSigDatasetRecord(value)) {
         observations++;
         if (value.seq <= batch.afterSeq || value.seq > batch.throughSeq) { issue(file, i + 1, 'sequence_outside_batch'); return; }
@@ -80,6 +83,9 @@ export function parseSigDatasetBatches(files: string[]) {
   const seen = new Map<string, { sample: ReplaySample; value: string }>(), conflicts = new Set<string>();
   let duplicateObservations = 0;
   for (const sample of candidates) {
+    if (sample.record.exclusionPolicyId && conflictingPolicies.has(sample.record.exclusionPolicyId)) {
+      issue(sample.file, sample.line, 'missing_or_conflicting_policy'); continue;
+    }
     const key = sample.record.dedupKey, value = canonical([sample.record, sample.exclusions]);
     const previous = seen.get(key);
     if (!previous) seen.set(key, { sample, value });
@@ -97,6 +103,15 @@ export function replaySigDataset(parsed: ReturnType<typeof parseSigDatasetBatche
   // salted sample identity, revision, drug and prose for whole-source comparison.
   const sourceSamples = new Set(parsed.samples.filter(s => s.record.stage === 'source_received' && s.record.captureKind !== 'framework_sig_observation')
     .map(s => canonical([s.record.sampleId, s.record.revision, s.record.drug, s.record.rawSig])));
+  // Same salted sample identity comes from one collector DB. Its increasing
+  // sequence is authoritative even if exports arrive reversed or the clock moves.
+  // Include rejected/unrated confirmations so an older acceptance cannot revive.
+  const confirmationKey = (s: ReplaySample) => canonical([s.record.sampleId, s.record.revision]);
+  const latestConfirmed = new Map<string, ReplaySample>();
+  for (const sample of parsed.samples) if (sample.record.stage === 'technician_confirmed') {
+    const key = confirmationKey(sample), previous = latestConfirmed.get(key);
+    if (!previous || sample.record.seq > previous.record.seq) latestConfirmed.set(key, sample);
+  }
   const results = parsed.samples.map(sample => {
     const { record } = sample;
     stages[record.stage] = (stages[record.stage] ?? 0) + 1;
@@ -112,6 +127,7 @@ export function replaySigDataset(parsed: ReturnType<typeof parseSigDatasetBatche
       // must remain stable across repeated runs and count each observation once.
       for (const category of new Set(flags.map(f => `${f.tier}: ${f.title}`))) findings[category] = (findings[category] ?? 0) + 1;
       const eligible = record.stage === 'technician_confirmed' && record.acceptable === true && !!record.finalSig?.trim()
+        && latestConfirmed.get(confirmationKey(sample)) === sample
         && result.subOrders.length <= 1 && sourceSamples.has(canonical([record.sampleId, record.revision, record.drug, record.rawSig]));
       // Literal formatting agreement only; never call it clinical accuracy.
       const literalFinalMatch = eligible ? result.primarySig === record.finalSig!.trim().toUpperCase() : null;

@@ -1,0 +1,14 @@
+// @vitest-environment node
+import { expect, it } from 'vitest';
+import { parseSigDatasetBatches, replaySigDataset } from '../src/lib/sigDatasetReplay';
+import type { SigDatasetRecord } from '../src/lib/sigDataset';
+const hash = (n: number) => n.toString(16).padStart(64, '0');
+const row = (seq: number, c: Partial<SigDatasetRecord> = {}): SigDatasetRecord => ({ schemaVersion: 1, seq, capturedAt: '2026-11-27T12:00:00Z', appVersion: '0.1.18', buildId: hash(1),
+  orderId: hash(2), sampleId: hash(10), dedupKey: hash(seq + 100), revision: 1, stage: 'source_received', captureKind: 'erx_source', drug: 'SYNTHETIC TABLET 25 MG', rawSig: 'Take 1 tablet by mouth daily.', ...c });
+const batch = (rows: unknown[]) => [{ type: 'sig_dataset_batch', schemaVersion: 1, appVersion: '0.1.18', buildId: hash(1), afterSeq: 0, throughSeq: rows.length }, ...rows].map(v => JSON.stringify(v)).join('\n');
+it('a corrected re-confirmation of one sample counts as one literal comparison', () => {
+  const conf = { stage: 'technician_confirmed' as const, acceptable: true };
+  const s = replaySigDataset(parseSigDatasetBatches([batch([row(1), row(2, { ...conf, finalSig: '1T PO QD' }), row(3, { ...conf, finalSig: '1T PO QD' }), row(4, { ...conf, finalSig: '1T PO DAILY' })])])).summary;
+  expect(s.literalComparisons).toBe(1);
+});
+

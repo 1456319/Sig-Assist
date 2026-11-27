@@ -1,0 +1,26 @@
+--- a/src/lib/sigDatasetReplay.ts	2026-11-27 13:14:44.140833166 +0000
++++ b/src/lib/sigDatasetReplay.ts	2026-11-27 13:14:44.172833167 +0000
+@@ -97,6 +97,13 @@
+   // salted sample identity, revision, drug and prose for whole-source comparison.
+   const sourceSamples = new Set(parsed.samples.filter(s => s.record.stage === 'source_received' && s.record.captureKind !== 'framework_sig_observation')
+     .map(s => canonical([s.record.sampleId, s.record.revision, s.record.drug, s.record.rawSig])));
++  // A later confirmation of the same sample/revision supersedes earlier ones
++  // (append-only history); only the latest is a literal comparison.
++  const latestConfirmed = new Map<string, ReplaySample>();
++  for (const s of parsed.samples) if (s.record.stage === 'technician_confirmed') {
++    const k = canonical([s.record.sampleId, s.record.revision]), prev = latestConfirmed.get(k);
++    if (!prev || s.record.capturedAt > prev.record.capturedAt || s.record.capturedAt === prev.record.capturedAt && s.record.seq > prev.record.seq) latestConfirmed.set(k, s);
++  }
+   const results = parsed.samples.map(sample => {
+     const { record } = sample;
+     stages[record.stage] = (stages[record.stage] ?? 0) + 1;
+@@ -112,7 +119,7 @@
+       // must remain stable across repeated runs and count each observation once.
+       for (const category of new Set(flags.map(f => `${f.tier}: ${f.title}`))) findings[category] = (findings[category] ?? 0) + 1;
+       const eligible = record.stage === 'technician_confirmed' && record.acceptable === true && !!record.finalSig?.trim()
+-        && result.subOrders.length <= 1 && sourceSamples.has(canonical([record.sampleId, record.revision, record.drug, record.rawSig]));
++        && latestConfirmed.get(canonical([record.sampleId, record.revision])) === sample && result.subOrders.length <= 1 && sourceSamples.has(canonical([record.sampleId, record.revision, record.drug, record.rawSig]));
+       // Literal formatting agreement only; never call it clinical accuracy.
+       const literalFinalMatch = eligible ? result.primarySig === record.finalSig!.trim().toUpperCase() : null;
+       return { ...sample, status: 'translated' as const, result, literalFinalMatch };
+
