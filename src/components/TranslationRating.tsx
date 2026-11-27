@@ -6,6 +6,7 @@ export function TranslationRating({ input, disabled = false }: { input: Translat
   return <Rating key={feedbackKey(input)} input={input} disabled={disabled} />;
 }
 function Rating({ input, disabled }: { input: TranslationFeedbackSnapshot; disabled: boolean }) {
+  const scope = input.partId ? input.context?.subOrders?.find(part => part.id === input.partId)?.label : undefined;
   const [score, setScore] = useState<number>();
   const [mode, setMode] = useState<ExplanationMode>();
   const [comment, setComment] = useState('');
@@ -50,6 +51,7 @@ function Rating({ input, disabled }: { input: TranslationFeedbackSnapshot; disab
     : [['none', "I don't want to explain the error"], ['brief', 'I will briefly describe the error'],
       ['detailed', 'I will give an in-depth explanation of the error'], ['later', 'I will explain the error later']];
   return <section aria-label="Optional translation rating" className="mt-2 space-y-2 text-xs">
+    {scope && <p className="font-medium">Rating {scope}. Comments are saved with this card.</p>}
     <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Rate automatic translation from 1 to 10">
       <span className="mr-1">Translation quality (optional)</span>
       {Array.from({ length: 10 }, (_, i) => i + 1).map(rating => <button key={rating} type="button" disabled={disabled}
@@ -63,7 +65,7 @@ function Rating({ input, disabled }: { input: TranslationFeedbackSnapshot; disab
         aria-pressed={mode === value} className={`rounded border px-2 py-1 ${mode === value ? 'border-primary bg-primary/10' : 'border-border'}`}
         onClick={() => { persistComment.current(); setMode(value); pendingComment.current.mode = value; void save({ kind: 'explanation', mode: value, draft: input.currentDraft }); }}>{label}</button>)}</div>
       {(mode === 'brief' || mode === 'detailed') && <div className="space-y-1">
-        <textarea aria-label="Translation error explanation" rows={mode === 'detailed' ? 5 : 2} value={comment} disabled={disabled}
+        <textarea aria-label={scope ? `Translation error explanation · ${scope}` : 'Translation error explanation'} rows={mode === 'detailed' ? 5 : 2} value={comment} disabled={disabled}
           className="w-full rounded border bg-background p-2" placeholder="Optional — describe what was wrong, or keep working."
           onChange={e => { setComment(e.target.value); pendingComment.current = { comment: e.target.value, mode, dirty: true };
             clearTimeout(commentTimer.current); commentTimer.current = setTimeout(() => persistComment.current(), 900); }} onBlur={() => persistComment.current()} />

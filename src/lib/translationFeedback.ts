@@ -73,6 +73,9 @@ function enqueue(job: PendingFeedback) {
 }
 export async function saveTranslationFeedback(input: TranslationFeedbackSnapshot, event: EventInput) {
   if (event.kind === 'rating' && (!Number.isInteger(event.rating) || event.rating! < 1 || event.rating! > 10)) return Promise.reject(new Error('Choose a rating from 1 to 10.'));
+  // A previous page may have durably queued a low score before report storage
+  // recovered. Load that evidence before deciding this is a fresh, discardable ten.
+  if (event.kind === 'rating' && event.rating === 10) await loadPendingFeedback();
   const recording = workflowObservationState();
   input = snapshotCopy({ ...input, ...(recording.active && recording.sessionId && input.context ? { context: { ...input.context,
     diagnostics: { ...input.context?.diagnostics, recording: { sessionId: recording.sessionId, status: recording.status, eventSource: recording.eventSource, framesRead: recording.frames, replayGaps: recording.gaps, nativeDrops: recording.dropped } } } } : {}),

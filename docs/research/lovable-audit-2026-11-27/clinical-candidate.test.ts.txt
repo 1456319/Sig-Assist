@@ -1,0 +1,30 @@
+import { describe, it, expect } from 'vitest';
+import { translateClinicalSig } from '../src/lib/clinical/clinicalEngine';
+import { translateFreeTextSig } from '../src/lib/sigEngine';
+const I = 'INSULIN LISPRO 100 UNIT/ML INJECTION', Z = 'ZINC OXIDE 20% PASTE';
+const clin = (id: string, drugName: string, rawProse: string) =>
+  translateClinicalSig({ id, pon: id, drugName, rawProse, sourceFormat: 'manual_text' } as never);
+const scale = (rescue: string) => `Inject subcutaneously per sliding scale before meals: less than 70 ${rescue} and call MD, 150-199 2 units, 200-249 4 units.`;
+describe('audit 2026-11-27 holdout', () => {
+  it('glucagon_rescue_keeps_stated_non_template_dose', () => {
+    const s = scale('give glucagon 0.5 mg IM');
+    expect(clin('G1', I, s).primarySig).toContain('<70=0.5MG GLUCAGON IM&CALL MD');
+    expect(clin('G1', I, s).primarySig).not.toContain('1ML GLUCAGON');
+    expect(translateFreeTextSig(s, { drug: I }).sig).toContain('0.5MG GLUCAGON IM');
+  });
+  it('glucagon_rescue_1mg_control_keeps_site_template', () => {
+    expect(clin('G2', I, scale('give glucagon 1 mg IM')).primarySig).toContain('<70=1ML GLUCAGON IM&CALL MD');
+  });
+  it('treatment_routine_prn_split_keeps_shared_duration_on_routine_card', () => {
+    const r = clin('T1', Z, 'Apply to sacrum every shift and as needed for incontinence for 14 days.');
+    expect(r.subOrders?.length).toBe(2);
+    expect(r.subOrders?.[0]?.suggestedSig).toMatch(/QS .*X14D|X14D/);
+    expect(r.subOrders?.[1]?.suggestedSig).toMatch(/PRN\b.*FOR INCONTINENCE/);
+    expect(r.subOrders?.[1]?.suggestedSig).toMatch(/X14D|14 DAYS/);
+  });
+  it('treatment_prn_reason_without_duration_control', () => {
+    const r = clin('T2', Z, 'Apply to sacrum every shift and as needed for incontinence.');
+    expect(r.subOrders?.[1]?.suggestedSig).toContain('PRN FOR INCONTINENCE');
+    expect(r.subOrders?.[0]?.suggestedSig).not.toContain('INCONTINENCE');
+  });
+});

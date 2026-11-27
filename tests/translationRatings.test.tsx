@@ -21,6 +21,21 @@ beforeEach(() => { mock.rows = []; mock.fail = false; });
 afterEach(async () => { cleanup(); mock.fail = false; await retryTranslationFeedback(); vi.restoreAllMocks(); });
 
 describe('optional translation ratings', () => {
+  it('labels a split rating and its explanation with the actual card scope', async () => {
+    const source = input(); source.partId = 'second';
+    source.context = { ...source.context, subOrders: [
+      { id: 'first', label: 'Order 1 of 2', suggestedSig: '1T PO QAM' },
+      { id: 'second', label: 'Order 2 of 2 (PRN)', suggestedSig: '1T PO PRN' },
+    ] };
+    render(<TranslationRating input={source} />);
+    expect(screen.getByText('Rating Order 2 of 2 (PRN). Comments are saved with this card.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Rate translation 9 out of 10' }));
+    fireEvent.click(screen.getByRole('button', { name: 'I will briefly explain the error' }));
+    expect(screen.getByLabelText('Translation error explanation · Order 2 of 2 (PRN)')).toBeTruthy();
+    await waitFor(() => expect(mock.rows).toHaveLength(1));
+    expect(mock.rows[0].translationFeedback?.original.partId).toBe('second');
+    expect(mock.rows[0].context?.subOrders).toHaveLength(2);
+  });
   it('creates no report or pending evidence for an ignored rating or a fresh ten', async () => {
     render(<TranslationRating input={input()} />);
     expect(mock.rows).toHaveLength(0);

@@ -1,0 +1,26 @@
+--- a/src/lib/clinical/treatmentOrderEngine.ts	2026-11-27 12:28:24.386061847 +0000
++++ b/src/lib/clinical/treatmentOrderEngine.ts	2026-11-27 12:28:39.850012137 +0000
+@@ -75,7 +75,7 @@
+       message: 'The source changes schedule over time. Its wording was kept in order for technician review.', trigger: result.frequency });
+     return retainResidualClause(result);
+   }
+-  const prn = body.match(/\b(?:(AND|&)\s+)?(?:AS\s+NEEDED|PRN)\b(?:\s+FOR\s+([^.;]+))?/);
++  const prn = body.match(/\b(?:(AND|&)\s+)?(?:AS\s+NEEDED|PRN)\b(?:\s+FOR\s+((?:(?!\s(?:FOR\s+(?:UP\s+TO\s+)?|X\s*)\d)[^.;])+))?/);
+   if (prn) {
+     result.prn = true;
+     result.separatePrn = Boolean(prn[1]);
+--- a/src/lib/clinical/slidingScaleProse.ts	2026-11-27 12:28:24.389347279 +0000
++++ b/src/lib/clinical/slidingScaleProse.ts	2026-11-27 12:28:39.854497849 +0000
+@@ -100,9 +100,11 @@
+     const actions: string[] = [];
+     const glucagon = /\bGLUCAGON\b/.test(action);
+     if (glucagon) {
++      const stated = action.match(/(\d+(?:\.\d+)?)\s*(ML|MILLILITERS?|MG)\b/);
++      const sourceDose = stated && !(Number(stated[1]) === 1) ? `${stated[1]}${stated[2].startsWith('MI') ? 'ML' : stated[2]}` : '';
+       action = action.replace(/\b(?:(?:GIVE|ADMINISTER|INJECT)\s+)?(?:\d+(?:\.\d+)?\s*(?:ML|MILLILITERS?|MG)\s+(?:OF\s+)?)?GLUCAGON(?:\s+\d+(?:\.\d+)?\s*(?:ML|MILLILITERS?|MG))?(?:\s+(?:IM|INTRAMUSCULAR(?:LY)?|INTO THE MUSCLE))?/g, '')
+         .replace(/\b(?:FOR LOW BLOOD SUGAR|FOR HYPOGLYCEMIA|BY INTRAMUSCULAR INJECTION)\b/g, '');
+-      actions.push('1ML GLUCAGON IM');
++      actions.push(sourceDose ? `${sourceDose} GLUCAGON IM` : '1ML GLUCAGON IM');
+       abnormalities.push({ id: 'site_glucagon_rescue', tier: 'applied_correction', title: 'Site Glucagon Rescue Format Applied',
+         message: 'The supplied glucagon rescue clause uses the technician-specified 1ML GLUCAGON IM format. Compare the source rescue instruction.', trigger: sections[index] });
+     }

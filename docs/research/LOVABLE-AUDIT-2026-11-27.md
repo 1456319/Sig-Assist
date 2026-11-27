@@ -67,3 +67,40 @@ reproduced both failures (9 existing controls passed) before repairing them.
 The initial runtime repair is v0.1.17, build `8305676344df`; local observer and
 journal tests and portable package identity checks pass. Broader final checks
 and external clinical/QA dispositions follow in later checkpoints.
+
+## Clinical and QA decisions
+
+Both turns finished and their reports/candidates are preserved in
+`lovable-audit-2026-11-27/`. They used fresh pinned source and synthetic data,
+but did not read every requested handoff or execute Windows. Their reported
+suite counts differ; root's full checkout and CI are the validation authority.
+
+- **Accepted treatment-course loss:** PRN reason capture swallowed a trailing
+  duration, leaving the routine card without its course. Root reproduced five
+  failures plus one passing numeric-reason control. Rather than adopt a new
+  negative-lookahead regex, the existing course extraction now runs before PRN
+  extraction, after the sequential-phase guard. Both cards retain the action's
+  course; separate procedures remain scoped. Tests include days, weeks, an
+  up-to limit, a reason containing a number and a PRN clause with no reason.
+- **Accepted cold-reload rating loss:** root reproduced `[3]` instead of `[3,10]`
+  when a low rating existed only in the durable outbox. A ten now waits for
+  pending evidence to load before deciding whether it is a fresh ten that
+  should create no discrepancy. Earlier evidence and the revised score survive.
+- **Accepted scope clarity:** split-rating text and explanation labels name
+  the actual card. Group evidence is retained; this does not claim the technician
+  intended to rate a different card or require extra interactions.
+- **Withheld glucagon candidate:** the lab proposes preserving non-one doses
+  while treating any numeric one (MG or ML) as the site's 1ML IM template.
+  That is not an independently established product/dose/volume contract, and
+  changing the user's explicit rescue template requires a site decision. No
+  candidate dose conversion is installed; this finding remains unresolved.
+- **Rejected attribution:** the QA report conjectures that `browser_cache`
+  proves an unsaved rating-outbox case. It does not: browser_cache is a report
+  persistence outcome. No link to those four recorded saves is established.
+- **Deferred:** classic treatment-path parity, independent basal/scale rendering,
+  actual rich-editor/Invoke coverage and supported vendor service contracts.
+  Preserve source drafts and uncertainty; no guessed endpoint is activated.
+
+The event checkpoint `19a12fa7240dafb6d5eb6971389cf3f05b89c892` passed the native
+Windows/packaged Edge workflow in run 45999496654, including forced UIA failure
+with subsequent real WinEvent field changes. It does not establish live coverage.

@@ -75,6 +75,14 @@ function parseModifiers(source: string): TreatmentModifiers {
       message: 'The source changes schedule over time. Its wording was kept in order for technician review.', trigger: result.frequency });
     return retainResidualClause(result);
   }
+  // Extract the action course before a PRN reason can consume it. The same
+  // action supplies both routine and PRN cards; separate procedures stay scoped.
+  body = body.replace(/\b(?:FOR\s+(?:UP\s+TO\s+)?|X\s*)\d+(?:\.\d+|\s*[-/]\s*\d+)?\s*(?:DAYS?|D\b|WEEKS?|WKS?|MONTHS?|MOS?|HOURS?|HRS?|H\b)\b/g, match => {
+    const duration = resolveFrequencyAndSchedule(`DAILY ${match}`);
+    result.abnormalities.push(...duration.abnormalities);
+    result.duration = [result.duration, /\bUP TO\b/.test(match) ? match : duration.durationToken || match].filter(Boolean).join(' ');
+    return '';
+  });
   const prn = body.match(/\b(?:(AND|&)\s+)?(?:AS\s+NEEDED|PRN)\b(?:\s+FOR\s+([^.;]+))?/);
   if (prn) {
     result.prn = true;
@@ -82,12 +90,6 @@ function parseModifiers(source: string): TreatmentModifiers {
     result.prnReason = prn[2] ? `FOR ${prn[2].trim()}` : '';
     body = body.slice(0, prn.index) + body.slice(prn.index! + prn[0].length);
   }
-  body = body.replace(/\b(?:FOR\s+(?:UP\s+TO\s+)?|X\s*)\d+(?:\.\d+|\s*[-/]\s*\d+)?\s*(?:DAYS?|D\b|WEEKS?|WKS?|MONTHS?|MOS?|HOURS?|HRS?|H\b)\b/g, match => {
-    const duration = resolveFrequencyAndSchedule(`DAILY ${match}`);
-    result.abnormalities.push(...duration.abnormalities);
-    result.duration = [result.duration, /\bUP TO\b/.test(match) ? match : duration.durationToken || match].filter(Boolean).join(' ');
-    return '';
-  });
   let firstSchedule = -1;
   body = body.replace(SCHEDULE, (match: string, offset: number) => {
     if (firstSchedule < 0) firstSchedule = offset;
