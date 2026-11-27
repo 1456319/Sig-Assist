@@ -40,6 +40,8 @@ Do not purchase credits or upgrade subscriptions.
    provenance. Audit optional ratings, deferred explanations, retries, history
    merging, browser persistence, and replay without duplicates or stale joins.
    A ten/unrated translation creates no new discrepancy; unrated is unknown.
+   Session 2 also shows a rating on card one with a comment about card two;
+   assess whether rating scope is clear and group evidence remains available.
 4. **SIG functionality.** Focus on sliding scales, split character budgets,
    treatment clauses/shift schedules and preservation of qualifiers. The narrow
    `PRN. IF` punctuation correction is now covered by a synthetic case. Avoid a
@@ -71,6 +73,11 @@ download/source identity; retain a clear continuation note for anything still
 requiring a workstation capture. Do not claim live coverage from fixture passes.
 
 At preparation time, all 1,429 local tests and native Windows/packaged Edge
-regressions pass. The full pipeline for runtime commit 1556c3e is recorded at
+regressions pass. Windows and Ubuntu MVP checks and prototype publication passed
+for runtime commit 1556c3e, recorded at
 https://github.com/1456319/Sig-Assist/actions/runs/45943064371
-and must be checked for completion rather than assumed successful.
+Recheck the latest head's pipeline after further overnight work.
+
+One overall audit is scheduled to start at 07:30 America/New_York on November 27.
+No Lovable build/review message or credit-spending request was submitted while
+preparing this handoff. This is a single scheduled run, not recurring credit use.

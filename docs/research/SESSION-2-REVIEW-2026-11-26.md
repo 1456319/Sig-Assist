@@ -55,10 +55,13 @@ These are site workflow statements from the recording, not general prescribing
 or legal rules and not yet authority to automate every affected field.
 
 - Assisted living: written quantity or duration is required by this workflow;
-  when both are absent, the demonstrated exception is Profile Only with 0.1 in
+  when both are absent, the technician-described exception is Profile Only with 0.1 in
   quantity, days supply and total quantity written.
 - The demonstrated split is a bulk routine/PRN split; Paxit splitting is a
   separate workflow. The technician identified a removable period after PRN.
+  The visible 9/10 rating is on the first card while its comment refers to the
+  second split. Future rating analysis must inspect the whole group/comment,
+  rather than assuming the rated card itself contains the reported defect.
 - Duplicate administration-time rows are not acceptable. A day-shift start/end
   pair represents one range, not two doses. Bulk can retain a range such as
   7-3; the stated Paxit convention is 0701. Do not generalize from intermediate
@@ -77,8 +80,9 @@ or legal rules and not yet authority to automate every affected field.
   Do not substitute wall-clock today/tomorrow for the batch date or hardcode a
   particular 9-prefixed route from one example. Three days is not necessarily
   three doses. No new automatic field writes are introduced in this checkpoint.
-- Always choosing the recommended option applies to the demonstrated dialog;
-  it is not a general instruction to accept every dialog automatically.
+- Always choosing the recommended option was noted during product selection /
+  generic substitution; it is not a general instruction to accept every dialog
+  automatically or select an arbitrary product.
 
 ## Immediate work
 
@@ -126,7 +130,7 @@ ZIP/source identity checks pass locally. Native Windows wrapper-alias, sibling
 ambiguity and dense-grid regressions pass, as does the packaged Edge recorder:
 https://github.com/1456319/Sig-Assist/actions/runs/45943064366
 
-The full Windows/Linux MVP pipeline is still running at this checkpoint:
+The full Windows/Linux MVP pipeline and prototype publication also passed:
 https://github.com/1456319/Sig-Assist/actions/runs/45943064371
 Live field/event coverage remains unverified until a new workstation session.
 No claim is made that the event-provider or rich-editor limitations are solved.
