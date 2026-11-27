@@ -292,7 +292,9 @@ function calculateDoseAndVolumeInternal(drugName: string, rawProse: string): Dos
     const count = countMatch ? countMatch[1] : '1';
     return {
       doseToken: `${count}P`,
-      routeToken: oral ? 'PO' : 'BY INHALATION',
+      // "Inhale orally" describes oral inhalation, not swallowing a dose.
+      // Retain the legacy oral-only path when no inhalation/puff is stated.
+      routeToken: oral && !inhaled && !/\b(?:PUFFS?|INHALATIONS?)\b/.test(upperProse) ? 'PO' : 'BY INHALATION',
       abnormalities,
       isApap,
       apapLimitToken

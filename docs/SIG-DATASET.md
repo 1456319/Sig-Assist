@@ -42,3 +42,34 @@ remain unpaired and unrated. The dedicated five-second dataset reader pauses
 while the recorder is active. Pausing dataset collection does not stop the
 connector's local recording. Native capture gaps and browser replay gaps are
 reported separately; review the local recording files alongside dataset exports.
+
+## Offline batch replay
+
+From a source checkout with dependencies installed, run:
+
+```sh
+npm run dataset:replay -- --out ../private/replay.jsonl ../private/sig-dataset-1-1000.jsonl
+```
+
+Supply additional batch filenames to combine incremental or overlapping exports.
+Omit `--out` for aggregate console results only. The explicit output file retains
+clinical text and must stay outside Git and external audit labs. Existing output
+files are never overwritten. The command uses the current clinical engine without
+starting the app, opening a listener, uploading data or changing collector storage.
+
+The reader separates batch headers, saved exclusion policies and observations;
+accepts UTF-8 BOM/CRLF; detects truncated, malformed and unordered batches; and
+deduplicates overlapping observations by their opaque dedup keys. Sequence
+numbers from independent browser databases do not imply identical samples.
+Missing/conflicting policies or conflicting observations are reported rather
+than replayed with a guessed policy. Any parse issue or translator exception
+returns a nonzero exit status; inspect issues before using partial results.
+Use complete regular batch exports, not the distinct emergency unsaved format.
+
+Counts describe observations, distinct drug/prose pairs and finding categories,
+not translation accuracy. Passive Framework observations remain a separate skipped
+cohort. Literal comparisons require an explicitly accepted technician confirmation,
+a matching source sample/revision/drug/prose, and a current single-part result.
+Split-card finals, unpaired finals and unrated examples are not whole-order
+answers. Even eligible literal agreement is a formatting check, not a clinical
+correctness determination. Original input/context and final text stay distinct.

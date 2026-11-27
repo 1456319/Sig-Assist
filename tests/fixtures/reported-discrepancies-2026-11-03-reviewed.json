@@ -695,9 +695,9 @@
     ],
     "drugName": "Fluticasone-Salmeterol Inhalation Aerosol Powder Breath Activated 250-50 MCG/ACT",
     "rawProse": "1 puff inhale orally two times a day for asthma Rinse mouth with water after use",
-    "expected": "1P PO BID FASTH. RMAU WITH WATER",
+    "expected": "1P BY INHALATION BID FASTH. RMAU WITH WATER",
     "subOrders": [
-      "1P PO BID FASTH. RMAU WITH WATER"
+      "1P BY INHALATION BID FASTH. RMAU WITH WATER"
     ],
     "status": "translated",
     "reviewNote": ""

@@ -27,3 +27,45 @@ purchase or upgrade, using public source and synthetic examples only.
 Next: implement parser/replay plus synthetic regressions, run this private batch,
 record aggregate results and supported repairs, regenerate matching prototype
 downloads for runtime changes, and verify remote checkpoints and CI.
+
+## Implementation and independently reproduced repair
+
+The offline parser/replay and `npm run dataset:replay` command now accept complete
+incremental JSONL exports. Twenty synthetic tests cover schema validation,
+policies, BOM/CRLF, range/truncation checks, overlapping batches, conflicts,
+provenance, split comparisons and a 10,000-observation import. The private batch
+replays all 203 observations with zero parse issues or translator exceptions.
+Its 200 source observations contain 134 distinct drug/prose pairs and 135 opaque
+order identities. They must not be described as 200 unique source examples.
+No confirmed final qualifies for a whole-source literal comparison under the
+strict provenance/split checks; there is no accuracy percentage to report.
+
+One narrow functional defect was reproduced using three fresh synthetic
+inhaler examples: explicit oral inhalation/puffs generated a swallowed `PO`
+route. The inhaler path now keeps explicit inhalation/puff wording as
+`BY INHALATION`. A genuine oral-tablet control retains its original behavior.
+The three new route checks fail on the original implementation and pass with
+the repair. The tablet control was corrected to include its existing calculated
+strength annotation before validation. The known oral-only legacy inhaler
+correction is outside this narrow change.
+
+Primary labeling context: [DailyMed Albuterol Sulfate HFA](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=77d34a3c-ccc6-420a-ad31-a1af55f7de76)
+specifies oral inhalation. This supports preserving the stated inhalation route;
+no new dose recommendation or product conversion was introduced.
+
+At this checkpoint 101 focused tests pass, and typecheck plus targeted lint
+pass. Full validation, matching portable downloads, independent QA review and
+final remote status follow below. Remaining retained/manual wording is a review
+queue, not proof of a mistranslation; this run does not resolve all treatment,
+oral-gel, taper or rescue-template cases identified by the earlier audit.
+
+The first full run found two older regression snapshots that expected `PO`
+for explicitly inhaled puffs. Only their expected route strings (including the
+matching split snapshot) were corrected; their original source text was retained.
+Full lint and the 388-code reference check pass. The matching v0.1.18 portable
+page, BUILD.json and ZIP have been generated and archive/source identity passes.
+
+Final local run: **1,486 tests in 109 files pass**. Typecheck, full lint,
+388-code reference, production build and portable archive/source checks pass.
+Version 0.1.18 build `3fba289f3e19` includes the offline replay and route repair.
+Remote Windows/Linux CI and focused external QA are pending at this checkpoint.

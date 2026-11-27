@@ -128,6 +128,9 @@ function validRecord(value: unknown): value is SigDatasetRecord {
   try { clinicalFields(value as unknown as SigDatasetInput); return true; } catch { return false; }
 }
 
+// Offline replay uses the same schema as the collector; it never opens its DB.
+export { validRecord as isSigDatasetRecord, validExclusions as isSigDatasetExclusions };
+
 function guarded(fail: (error: unknown) => void, work: () => void): () => void {
   return () => { try { work(); } catch (error) { fail(error); } };
 }
