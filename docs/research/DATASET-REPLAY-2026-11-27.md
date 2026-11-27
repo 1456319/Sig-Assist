@@ -115,3 +115,18 @@ identity checks pass. The private batch again replays all 203 observations
 without parse issues or translator exceptions. Version 0.1.19 build
 `f58da0989477` includes the integrated audit repairs and matching downloads.
 Remote Windows/Linux CI remains pending until recorded below.
+
+### Windows CI timing repair
+
+The earlier v0.1.18 checkpoint passed Windows/Linux and publication in run
+46005181916. Final v0.1.19 run 46005973785 passed Ubuntu and 1,490 of 1,491
+Windows tests. Its sole failure was the existing recorder endpoint test in
+`tests/pilotJournal.test.ts`: it read observations after a fixed 40 ms delay,
+before the asynchronous write had completed. All new replay/route checks passed.
+The endpoint assertion now waits for an actual nonempty observation response,
+bounded to three seconds, and keeps the same session/content/bundle assertions.
+No runtime code, SIG output, build identity or download bytes change in this
+test-only repair. The final Windows rerun must pass before claiming full CI.
+All nine recorder tests, targeted lint and build identity pass locally after
+the repair. The three-second bound preserves a failure when no observation
+ever arrives; it replaces an assumed scheduling delay with an observed result.

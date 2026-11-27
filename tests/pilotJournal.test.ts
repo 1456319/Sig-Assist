@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -131,9 +131,13 @@ it('serves recording controls only to same-origin JSON, never queries upstream f
   const post = (action: string, body = {}, origin = base) => fetch(`${base}/connector/pilot/${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: origin }, body: JSON.stringify(body) });
   expect((await post('start', {}, 'https://other.example')).status).toBe(403);
   expect((await post('start', { appVersion: '0.1.7' })).ok).toBe(true);
-  await new Promise(resolve => setTimeout(resolve, 40));
+  const frames = await vi.waitFor(async () => {
+    const observed = await (await post('observations')).json();
+    expect(observed.frames.length).toBeGreaterThan(0);
+    return observed;
+  }, { timeout: 3000, interval: 20 });
   const status = await (await post('status')).json(); expect(status.active).toBe(true); expect(calls).toContain('workflow-snapshot');
-  const frames = await (await post('observations')).json(); expect(frames.sessionId).toBe(status.sessionId); expect(frames.frames.length).toBeGreaterThan(0);
+  expect(frames.sessionId).toBe(status.sessionId);
   expect((await post('stop')).ok).toBe(true);
   const bundle = await (await post('bundle')).json(); expect(path.dirname(bundle.directory)).toBe(folder);
   expect(await readFile(path.join(bundle.directory, bundle.bundleFile), 'utf8')).toContain('SELECTION_REQUIRED');
