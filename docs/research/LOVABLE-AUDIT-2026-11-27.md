@@ -1,7 +1,7 @@
 # Functionality audit — November 27, 2026
 
-Status: repairs and all external reviews completed; final-runtime Windows CI
-is pending at the latest checkpoint below. Authoritative fetched baseline is
+Status: complete. All external reviews, selected repairs, final Windows/Linux
+checks and prototype publication have passed. Authoritative fetched baseline is
 `1a0105c435da70bb5bb45dd20200e3dca189527e`, v0.1.16, build `1ba9dbed1a9b`.
 The morning handoff, session-2 review, November 18 README, November 24
 implementation review and recent messages in all three existing labs were read.
@@ -222,7 +222,7 @@ responses, supported repairs and runnable regressions are remotely preserved.
 The first event repair passed full Windows/Linux MVP and publication run
 45999496533, plus native/Edge run 45999496654. The treatment/rating checkpoint
 passed full Windows/Linux/publication run 46000121058. Final-runtime CI is still
-running at this documentation checkpoint; completion evidence follows below.
+complete; final evidence is recorded below.
 
 ### Remaining concrete work
 
@@ -247,7 +247,12 @@ need correction. This audit adds no automatic clinical writes or new checkpoint
 burden. Temporary intensified logging HIGH-removal markers remain visible.
 
 Final source run: https://github.com/1456319/Sig-Assist/actions/runs/46002272740
-Ubuntu has passed; Windows remains in progress at this preservation checkpoint.
-All preceding runtime checkpoints have now passed Windows/Linux and publication,
-including 46000958731 and 46001527378. This does not substitute for the final
-source's Windows result.
+**Windows, Ubuntu and prototype publication all passed** for final runtime
+`aa60497aec1136ff86e118068008492507ed1b32`. Windows includes native desktop
+fallback/transfer fixtures, launchers, direct UNC/file Edge workflows, clipboard,
+Iguana capture/bridge, recorder recovery and package/archive checks. The final
+10,000-row dataset regression passes in both the local suite and full CI.
+All preceding runtime checkpoints also passed, including 46000958731 and
+46001527378. Subsequent commits in this run contain documentation only; no
+runtime change remains untested or unpreserved. Live provider coverage is still
+subject to the specific workstation checks above.
