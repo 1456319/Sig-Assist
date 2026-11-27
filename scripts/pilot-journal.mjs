@@ -163,7 +163,7 @@ export function createPilotJournal({ baseDir, baseDirs = baseDir ? [baseDir] : [
         observation = { dropped: raw.dropped, evidence: 'queue_overflow' };
         session.observationDropped = (session.observationDropped || 0) + raw.dropped;
       } else if (raw.kind === 'button_invoked') {
-        const allowed = new Set(['BackButton', 'NextButton', 'CancelButton', 'PreviewSigButton', 'PreviewLinkedSigButton', 'AddSplitButton', 'RemoveSplitButton', 'NewBatchButton', 'save', 'save and close', 'process request', 'refuse request', 'preview sig', 'quit', 'cancel', 'next', 'back', 'button']);
+        const allowed = new Set(['BackButton', 'NextButton', 'CancelButton', 'PreviewSigButton', 'PreviewLinkedSigButton', 'AddSplitButton', 'RemoveSplitButton', 'NewBatchButton', 'save', 'done', 'save and close', 'process request', 'refuse request', 'preview sig', 'quit', 'cancel', 'next', 'back', 'button']);
         observation = { control: allowed.has(raw.control) ? raw.control : 'button', evidence: 'invoke_event', candidatePon: typeof raw.candidatePon === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,99}$/.test(raw.candidatePon) ? raw.candidatePon : null, association: 'preceding_observation_only' };
       } else if (raw.kind === 'observation_unavailable') observation = { ...normalizeWorkflowSnapshot({ ok: false, code: raw.code }), evidence: 'read_attempt' };
       else {

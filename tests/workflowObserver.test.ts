@@ -76,6 +76,7 @@ it('only exposes acknowledged frames, reports ring gaps, preserves queued writes
 it('keeps unrecognized event names and snapshot diagnostics out of the observation contract', () => {
   expect(nativeObservationEvent({ kind: 'invoked', control: 'PRIVATE PATIENT NAME', password: 'secret' })).toEqual({ kind: 'invoked', control: 'button', suppressed: 0 });
   expect(nativeObservationEvent({ kind: 'private event' })).toBeNull();
+  expect(nativeObservationEvent({ kind: 'invoked', control: 'done' })).toMatchObject({ kind: 'invoked', control: 'done' });
   expect(normalizeWorkflowSnapshot({ ...snapshot(), fields: { draft_sig: 'VALID SIG', password: 'SECRET' }, patientName: 'DO NOT RETURN' })).toMatchObject({ fields: { draft_sig: 'VALID SIG' } });
   expect(JSON.stringify(normalizeWorkflowSnapshot({ ...snapshot(), partial: true }))).not.toContain('VALID');
 });

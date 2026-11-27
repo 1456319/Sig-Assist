@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { helperExecutable, normalizeWorkflowSnapshot } from './framework-desktop.mjs';
 
-const controls = new Set(['BackButton', 'NextButton', 'CancelButton', 'PreviewSigButton', 'PreviewLinkedSigButton', 'AddSplitButton', 'RemoveSplitButton', 'NewBatchButton', 'save', 'save and close', 'process request', 'refuse request', 'preview sig', 'quit', 'cancel', 'next', 'back', 'button']);
+const controls = new Set(['BackButton', 'NextButton', 'CancelButton', 'PreviewSigButton', 'PreviewLinkedSigButton', 'AddSplitButton', 'RemoveSplitButton', 'NewBatchButton', 'save', 'done', 'save and close', 'process request', 'refuse request', 'preview sig', 'quit', 'cancel', 'next', 'back', 'button']);
 const kinds = new Set(['ready', 'changed', 'invoked', 'provider_unavailable', 'heartbeat']);
 export function nativeObservationEvent(raw) {
   if (!raw || !kinds.has(raw.kind)) return null;

@@ -1678,13 +1678,35 @@ public static class FrameworkDesktop {
         if (NotResponding(entry, testProcess)) return DatasetFailure("FRAMEWORK_NOT_RESPONDING");
         try {
             var root = RememberedRoot(entry, testProcess); var watch = Stopwatch.StartNew();
-            var conditions = new[] { "ERxWorkQueueWizardView", "ERxWorkQueueView", "RxEntryViewControl", "RxEntryView" }
-                .SelectMany(n => new Condition[] { new PropertyCondition(AutomationElement.AutomationIdProperty, n), new PropertyCondition(AutomationElement.ClassNameProperty, n) }).ToArray();
-            var candidates = root.FindAll(TreeScope.Descendants, new OrCondition(conditions)).Cast<AutomationElement>().Take(33).ToList();
-            if (DatasetView(root.Current.AutomationId) || DatasetView(root.Current.ClassName)) candidates.Add(root);
-            if (candidates.Count > 32 || watch.ElapsedMilliseconds > 3000) return DatasetFailure("READ_LIMIT", true);
-            var visible = candidates.Where(e => WorkflowWithin(e, entry.id, entry)).ToArray();
-            var outer = visible.Where(e => !visible.Any(p => Id(p) != Id(e) && WorkflowWithin(e, Id(p), entry))).ToArray();
+            // Find only outer order scopes. FindAll(Descendants) used to walk
+            // every cell inside each scope before the bounded reader even ran.
+            var candidates = new List<AutomationElement>();
+            var discovery = new Stack<KeyValuePair<AutomationElement, int>>();
+            discovery.Push(new KeyValuePair<AutomationElement, int>(root, 0));
+            var discoveryCache = ObservationIdentityRequest(); int discoveryVisited = 0;
+            while (discovery.Count > 0) {
+                if (++discoveryVisited > 640 || watch.ElapsedMilliseconds > 3000) return DatasetFailure("READ_LIMIT", true);
+                var nextScope = discovery.Pop(); var candidate = nextScope.Key.GetUpdatedCache(discoveryCache);
+                if (ObservationBoolean(candidate, AutomationElement.IsPasswordProperty) || !Object.Equals(Cached(candidate, AutomationElement.ProcessIdProperty), entry.pid)) continue;
+                string candidateId = Text(Cached(candidate, AutomationElement.AutomationIdProperty)), candidateClass = Text(Cached(candidate, AutomationElement.ClassNameProperty));
+                bool isScope = DatasetView(candidateId) || DatasetView(candidateClass);
+                if (isScope) {
+                    if (WorkflowWithin(candidate, entry.id, entry)) candidates.Add(candidate);
+                    if (candidates.Count > 32) return DatasetFailure("READ_LIMIT", true);
+                    continue;
+                }
+                if (candidateId == "ERxTriageManagerView" || candidateClass == "ERxTriageManagerView" || Cached(candidate, AutomationElement.ControlTypeProperty) as ControlType == ControlType.DataGrid
+                    || new[] { "ERxGrid", "ERxOrderGrid", "ERxPatientOrderGrid", "PatientOrdersGrid", "FolderGridControl" }.Contains(candidateId)) continue;
+                var descendant = TreeWalker.RawViewWalker.GetFirstChild(candidate, discoveryCache);
+                if (nextScope.Value >= 24 && descendant != null) return DatasetFailure("READ_LIMIT", true);
+                int siblings = 0;
+                while (descendant != null) {
+                    if (++siblings > 640 || watch.ElapsedMilliseconds > 3000) return DatasetFailure("READ_LIMIT", true);
+                    discovery.Push(new KeyValuePair<AutomationElement, int>(descendant, nextScope.Value + 1));
+                    descendant = TreeWalker.RawViewWalker.GetNextSibling(descendant, discoveryCache);
+                }
+            }
+            var outer = candidates.ToArray();
             if (outer.Length != 1) return DatasetFailure(outer.Length == 0 ? "CURRENT_ORDER_UNAVAILABLE" : "CURRENT_ORDER_AMBIGUOUS");
             var scope = new DatasetScope { element = outer[0], id = Id(outer[0]) };
             var pending = new Stack<KeyValuePair<AutomationElement, int>>(); pending.Push(new KeyValuePair<AutomationElement, int>(scope.element, 0));
@@ -1814,7 +1836,7 @@ public static class FrameworkDesktop {
                             string name = c.AutomationId, value = (c.Name ?? "").Replace("&", "").Replace("_", "").Trim();
                             var known = new[] { "BackButton", "NextButton", "CancelButton", "PreviewSigButton", "PreviewLinkedSigButton", "AddSplitButton", "RemoveSplitButton", "NewBatchButton" };
                             if (!known.Contains(name)) name = known.Contains(c.Name) ? c.Name :
-                                Regex.IsMatch(value, @"^(?:Save|Save and Close|Process Request|Refuse Request|Preview Sig|Quit|Cancel|Next|Back)$", RegexOptions.IgnoreCase) ? value.ToLowerInvariant() : "button";
+                                Regex.IsMatch(value, @"^(?:Save|Done|Save and Close|Process Request|Refuse Request|Preview Sig|Quit|Cancel|Next|Back)$", RegexOptions.IgnoreCase) ? value.ToLowerInvariant() : "button";
                             emit("invoked", name);
                         } catch { emit("changed", ""); }
                     });

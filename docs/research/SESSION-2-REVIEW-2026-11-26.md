@@ -98,6 +98,9 @@ The general field walk also stops at known detail/selection grids instead of
 descending through every cell. The existing bounded detail-grid PON reader stays
 separate. A synthetic 800-cell neighboring grid checks that ordinary field capture
 is not starved by unrelated table traversal. The read timeout is not increased.
+That fixture also exposed a broad traversal in scope discovery. It is replaced
+with a bounded search that stops at recognized outer order containers, excludes
+known tables, and retains ambiguity between independent visible order scopes.
 
 The recorder now distinguishes VIEW_ONLY and IDENTITY_ONLY from actual readable
 fields. The manifest/UI report field snapshots, button events, screen-only
