@@ -28,6 +28,9 @@ public static class FrameworkDesktopFixture {
         var dcOption = new CheckBox { Text = "Dummy D/C option", AccessibleName = "Dummy D/C option",
             Checked = true, Visible = false, Left = 20, Top = 575, Width = 200 };
         entry.Controls.AddRange(new Control[] { pon, sig, times, second, patient, facility, drug, quantity, days, package, start, password, hidden, secondSig, sourceSig, previewSig, richSig, dcOption });
+        var quantityAliasWrapper = new Panel { Name = "RxEntryPrescription_QtyEdit", AccessibleName = "RxEntryPrescription_QtyEdit", Bounds = quantity.Bounds, Visible = false };
+        var independentQuantity = new TextBox { Name = "RxEntryPrescription_QtyEdit", AccessibleName = "Quantity", Text = "INDEPENDENT SYNTHETIC QUANTITY", Left = 20, Top = 500, Width = 500, Visible = false };
+        entry.Controls.Add(quantityAliasWrapper); entry.Controls.Add(independentQuantity);
         var orderWrapper = new Panel { Name = "ERxWorkQueueWizardView", AccessibleName = "Order wrapper", Left = 0, Top = 0, Width = 660, Height = 650 };
         orderWrapper.Controls.Add(entry); form.Controls.Add(orderWrapper);
         var otherOrder = new Panel { Name = "ERxWorkQueueWizardView", AccessibleName = "Other order", Visible = false, Left = 670, Top = 10, Width = 360, Height = 180 };
@@ -50,6 +53,11 @@ public static class FrameworkDesktopFixture {
                 if (command.ContainsKey("focus")) { form.Activate(); if (command["focus"] == "quantity") quantity.Focus(); else sig.Focus(); }
                 if (command.ContainsKey("recalculateDays")) recalculateDays = command["recalculateDays"] == "true";
                 if (command.ContainsKey("quantity")) quantity.Text = command["quantity"];
+                if (command.ContainsKey("quantityAliases")) {
+                    if (command["quantityAliases"] == "true") { quantityAliasWrapper.Controls.Add(quantity); quantity.Left = 0; quantity.Top = 0; quantityAliasWrapper.Visible = true; }
+                    else { entry.Controls.Add(quantity); quantity.Left = 20; quantity.Top = 300; quantityAliasWrapper.Visible = false; }
+                }
+                if (command.ContainsKey("independentQuantity")) independentQuantity.Visible = command["independentQuantity"] == "true";
                 if (command.ContainsKey("daysSupply")) days.Text = command["daysSupply"];
                 if (command.ContainsKey("startDate")) start.Text = command["startDate"];
                 if (command.ContainsKey("deliveryDate")) hidden.Visible = command["deliveryDate"] == "true";

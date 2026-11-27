@@ -130,7 +130,7 @@ export function createWorkflowObserver({ desktop, onRecord, subscribeNative = st
         }
         lastCode = status; previous = undefined; return;
       }
-      failures = 0; resumeAt = 0; status = 'OBSERVING'; lastCode = 'OK';
+      failures = 0; resumeAt = 0; status = Object.values(snapshot.fields).some(value => value.trim()) ? 'OBSERVING' : snapshot.pon ? 'IDENTITY_ONLY' : 'VIEW_ONLY'; lastCode = 'OK';
       const changed = Object.keys(snapshot.fields).filter(role => previous?.fields?.[role] !== snapshot.fields[role]);
       const removed = previous ? Object.keys(previous.fields).filter(role => !(role in snapshot.fields)) : [];
       const boundary = !previous ? 'order_visible' : snapshot.pon !== previous.pon ? 'order_changed' : snapshot.view !== previous.view ? 'view_changed' : 'fields_changed';

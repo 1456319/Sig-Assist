@@ -28,6 +28,9 @@ it('persists explicit local clinical observations with separate SIG roles, scope
   expect(observations[2]).toMatchObject({ control: 'save', association: 'preceding_observation_only', outcome: 'unverified' });
   expect(JSON.stringify(saved)).not.toContain('DO NOT WRITE');
   expect(journal.status()).toMatchObject({ rawClinicalText: true, observationEvents: 3, observationDropped: 4 });
+  expect(journal.status()).toMatchObject({ fieldSnapshots: 1, buttonEvents: 1 });
+  await journal.workflow({ id: 4, kind: 'view_changed', ok: true, code: 'OK', pon: null, view: 'directions', fields: {} }, session.sessionId);
+  expect(journal.status()).toMatchObject({ desktopCode: 'VIEW_ONLY', fieldSnapshots: 1, screenOnlySnapshots: 1 });
   await journal.stop();
 });
 

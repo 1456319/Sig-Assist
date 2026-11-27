@@ -95,7 +95,11 @@ export function normalizeWorkflowSnapshot(raw) {
   const fields = Object.fromEntries(Object.entries(raw.fields ?? {}).filter(([role, value]) => observationRoles.has(role) && typeof value === 'string' && value.length <= 4000 && !/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(value)));
   const pon = typeof raw.pon === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,99}$/.test(raw.pon) && raw.pon !== 'PON' ? raw.pon : null;
   const view = ['directions', 'product_selection', 'work_queue', 'patient_orders', 'rx_entry'].includes(raw.view) ? raw.view : 'unknown';
+  const reasons = new Set(['AMBIGUOUS_CONTROLS', 'TEXT_OR_LINEAGE_UNAVAILABLE']);
+  const unavailableReasons = Object.fromEntries(Object.entries(raw.unavailableReasons ?? {}).filter(([role, reason]) => observationRoles.has(role) && reasons.has(reason)));
   return { ok: true, code: 'OK', view, pon, fields, unavailable: Array.isArray(raw.unavailable) ? [...new Set(raw.unavailable.filter(role => observationRoles.has(role)))] : [],
+    ...(Object.keys(unavailableReasons).length ? { unavailableReasons } : {}),
+    ...(Number.isSafeInteger(raw.aliasesCollapsed) && raw.aliasesCollapsed >= 0 ? { aliasesCollapsed: Math.min(640, raw.aliasesCollapsed) } : {}),
     sigMode: ['message', 'linked', 'default', 'structured', 'order'].includes(raw.sigMode) ? raw.sigMode : null, association: pon ? 'pon_observed' : 'unpaired', partial: false };
 }
 function validDraftValue(field, value) {

@@ -173,8 +173,15 @@ export function createPilotJournal({ baseDir, baseDirs = baseDir ? [baseDir] : [
       }
       if (Number.isFinite(raw.readDurationMs) && raw.readDurationMs >= 0) observation.readDurationMs = Math.min(60000, Math.round(raw.readDurationMs));
       const saved = await append('translation', 'framework.observation', { observation: { ...observation, id: raw.id, kind: raw.kind, outcome: 'unverified', observedAt: /^\d{4}-\d\d-\d\dT[0-9:.]+Z$/.test(raw.observedAt || '') ? raw.observedAt : new Date(now()).toISOString() } });
-      session.desktopCode = raw.kind === 'observation_unavailable' ? observation.code : 'OBSERVING';
+      const hasFields = Object.values(observation.fields || {}).some(value => value.trim());
+      if (raw.kind !== 'button_invoked' && raw.kind !== 'observation_gap') session.desktopCode = raw.kind === 'observation_unavailable' ? observation.code : hasFields ? 'OBSERVING' : observation.pon ? 'IDENTITY_ONLY' : 'VIEW_ONLY';
       session.observationEvents = (session.observationEvents || 0) + (saved ? 1 : 0);
+      if (saved) {
+        if (hasFields) session.fieldSnapshots = (session.fieldSnapshots || 0) + 1;
+        else if (observation.ok) session.screenOnlySnapshots = (session.screenOnlySnapshots || 0) + 1;
+        if (raw.kind === 'button_invoked') session.buttonEvents = (session.buttonEvents || 0) + 1;
+        if (raw.kind === 'observation_unavailable') session.failedObservationReads = (session.failedObservationReads || 0) + 1;
+      }
       await manifest(); return saved;
     })),
     desktop: (raw, expectedSessionId) => serialize(() => guarded(async () => {

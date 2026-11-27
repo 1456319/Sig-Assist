@@ -80,6 +80,16 @@ it('keeps unrecognized event names and snapshot diagnostics out of the observati
   expect(JSON.stringify(normalizeWorkflowSnapshot({ ...snapshot(), partial: true }))).not.toContain('VALID');
 });
 
+it('reports readable screens with no fields as partial capability instead of useful field capture', async () => {
+  const { observer, desktop } = setup();
+  desktop.mockResolvedValue({ ...snapshot(), pon: null, fields: {} } as unknown as ReturnType<typeof snapshot>);
+  await vi.advanceTimersByTimeAsync(500); expect(observer.updates().status).toBe('VIEW_ONLY');
+  desktop.mockResolvedValue({ ...snapshot(), fields: {} }); observer.request();
+  await vi.advanceTimersByTimeAsync(1000); expect(observer.updates().status).toBe('IDENTITY_ONLY');
+  desktop.mockResolvedValue(snapshot()); observer.request();
+  await vi.advanceTimersByTimeAsync(1000); expect(observer.updates().status).toBe('OBSERVING');
+});
+
 it('reconnects a failed event listener after backoff and ignores callbacks from its old subscription', async () => {
   const listeners: Array<(event: unknown) => void> = [];
   const close = vi.fn();

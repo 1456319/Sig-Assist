@@ -72,6 +72,15 @@ try {
   assert.equal(workflowObserved.fields.quantity, 'QUANTITY PRIVATE VALUE');
   assert.equal(workflowObserved.fields.admin_times, '0900, 2100');
   assert.doesNotMatch(JSON.stringify(workflowObserved), /PAT-1|FAC-1|PASSWORD PRIVATE VALUE|HIDDEN PRIVATE VALUE/);
+  await command({ quantityAliases: 'true' });
+  const aliases = await workflow();
+  assert.equal(aliases.fields.quantity, 'QUANTITY PRIVATE VALUE', JSON.stringify(aliases));
+  assert.ok(aliases.aliasesCollapsed >= 1, 'A named wrapper and its inner editor are one field.');
+  await command({ independentQuantity: 'true' });
+  const independent = await workflow();
+  assert.equal(independent.fields.quantity, undefined);
+  assert.equal(independent.unavailableReasons.quantity, 'AMBIGUOUS_CONTROLS');
+  await command({ quantityAliases: 'false', independentQuantity: 'false' });
   const events = []; let eventBuffer = '';
   eventWatcher = spawn(helper, ['--test-process', 'SigAssistFrameworkFixture'], { stdio: ['pipe', 'pipe', 'pipe'] });
   eventWatcher.stdout.setEncoding('utf8');

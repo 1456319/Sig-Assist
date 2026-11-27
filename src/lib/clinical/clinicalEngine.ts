@@ -462,7 +462,7 @@ export function translateClinicalSig(inbound: InboundOrder, preferences?: Partia
   const result = translateClinicalSigInternal(inbound, preferences);
   const scale = looksLikeSlidingScale(inbound.rawProse, inbound.drugName);
   const finalize = (sig: string) => {
-    const policy = applyOutputCodePolicy(sig, preferences?.exclusions);
+    const policy = applyOutputCodePolicy(sig.replace(/\bPRN\.(?=\s+IF\b)/g, 'PRN'), preferences?.exclusions);
     const findings: AbnormalityFinding[] = [];
     if (!scale && policy.sig.length > 199) findings.push({ id: 'sig_length_review', tier: 'uncorrected_gap', title: 'SIG Length Requires Review',
       message: `The suggestion is ${policy.sig.length} characters. Condense it for the reported 199-character destination limit; no instructions were truncated.` });

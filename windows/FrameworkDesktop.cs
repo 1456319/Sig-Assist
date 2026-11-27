@@ -1740,20 +1740,27 @@ public static class FrameworkDesktop {
             string[] before; try { before = DatasetPons(scope, entry, watch); } catch { before = new string[0]; }
             if (before.Length > 1) return DatasetFailure("PON_AMBIGUOUS");
             var values = new Dictionary<string, string>(); var unavailable = new List<string>();
+            var unavailableReasons = new Dictionary<string, string>(); int aliasesCollapsed = 0;
             foreach (var pair in fields) {
-                if (pair.Value.Count != 1) { unavailable.Add(pair.Key); continue; }
+                // DevExpress repeats the named wrapper on its PART_Editor.
+                // Collapse only proven ancestor/descendant aliases of this role;
+                // two independent sibling editors remain ambiguous.
+                var unique = pair.Value.GroupBy(e => Id(e)).Select(g => g.First()).ToArray();
+                var editors = unique.Where(e => !unique.Any(child => Id(child) != Id(e) && WorkflowWithin(child, Id(e), entry))).ToArray();
+                aliasesCollapsed += unique.Length - editors.Length;
+                if (editors.Length != 1) { unavailable.Add(pair.Key); unavailableReasons[pair.Key] = "AMBIGUOUS_CONTROLS"; continue; }
                 try {
                     if (watch.ElapsedMilliseconds > 3000) return DatasetFailure("READ_LIMIT", true);
-                    string value = WorkflowText(pair.Value[0], scope, entry);
-                    if (value != WorkflowText(pair.Value[0], scope, entry)) return DatasetFailure("ORDER_CHANGED");
+                    string value = WorkflowText(editors[0], scope, entry);
+                    if (value != WorkflowText(editors[0], scope, entry)) return DatasetFailure("ORDER_CHANGED");
                     values[pair.Key] = value;
-                } catch { unavailable.Add(pair.Key); }
+                } catch { unavailable.Add(pair.Key); unavailableReasons[pair.Key] = "TEXT_OR_LINEAGE_UNAVAILABLE"; }
             }
             string[] after; try { after = DatasetPons(scope, entry, watch); } catch { after = new string[0]; }
             if (!before.SequenceEqual(after) || !WorkflowWithin(scope.element, entry.id, entry)) return DatasetFailure("ORDER_CHANGED");
             string mode = modes.Count != 1 ? "unknown" : modes.First() == "UseOrderSigRadioButton" ? "order" : modes.First() == "DirectionsFromTheMessageRadioButton" ? "message" : modes.First() == "DirectionsFromLinkedOrderRadioButton" ? "linked" : "default";
             return new { ok = true, code = "OK", view = pages.FirstOrDefault() ?? "order_window", pon = before.FirstOrDefault(),
-                fields = values, unavailable, sigMode = mode, partial = false,
+                fields = values, unavailable, unavailableReasons, aliasesCollapsed, sigMode = mode, partial = false,
                 association = before.Length == 1 ? "pon_observed" : "unpaired", elapsedMs = watch.ElapsedMilliseconds };
         } catch { return DatasetFailure("WINDOW_UNAVAILABLE"); }
     }

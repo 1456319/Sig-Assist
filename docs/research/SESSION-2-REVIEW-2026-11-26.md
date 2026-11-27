@@ -86,3 +86,25 @@ or legal rules and not yet authority to automate every affected field.
 
 The complete original evidence stays private. No raw screenshot, patient name,
 PON, address, phone number or private server/path is included here.
+
+## v0.1.16 corrective checkpoint
+
+The next prototype collapses only same-role nested field aliases, preserves
+sibling ambiguity, and reports fixed unavailable-reason codes without provider
+exception text. A native synthetic wrapper/editor regression exercises both
+successful alias resolution and independent-field rejection.
+
+The recorder now distinguishes VIEW_ONLY and IDENTITY_ONLY from actual readable
+fields. The manifest/UI report field snapshots, button events, screen-only
+snapshots and unsuccessful reads separately. This corrects the misleading health
+display; it does not establish that the live provider's traversal/event problems
+are solved. The independent dataset's displayed sample count is not proof of
+native field capture.
+
+A narrow clinical-output fix removes the hanging period from `PRN. IF` before
+output exclusions are applied, preserving the complete condition and source text.
+Its regression uses a synthetic wound location and no patient data. Other site
+procedure notes remain documented rather than silently becoming universal rules.
+
+Native Windows execution, final full checks and the next live capture are pending
+at this intermediate checkpoint. The raw PSR/clinical logs are not committed.

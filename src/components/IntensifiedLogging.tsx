@@ -51,6 +51,8 @@ export function IntensifiedLogging({ screen }: { screen: string }) {
       <span>Process prescriptions normally. No per-order checkpoints required.</span>
     </div>
     {active && <p role="status">Automatic observer: {state.status.desktopCode || observation.status}. Saved observations: {state.status.observationEvents || 0}. {observation.eventSource.replace(/_/g, ' ')}.</p>}
+    {active && <p>Field snapshots: {state.status.fieldSnapshots || 0} · button events: {state.status.buttonEvents || 0} · screen-only snapshots: {state.status.screenOnlySnapshots || 0} · unsuccessful reads: {state.status.failedObservationReads || 0}.</p>}
+    {active && ['VIEW_ONLY', 'IDENTITY_ONLY'].includes(state.status.desktopCode || observation.status) && <p role="alert">Only screen/order identity is readable right now. No field values were captured in this snapshot. PSR can provide visual evidence while compatibility is investigated.</p>}
     {observation.dropped > 0 && <p role="alert">{observation.dropped} native action records exceeded the recording buffer. The session contains a capture gap; inspect the local logs.</p>}
     <p>Recording stores clinical SIG text, PONs and readable order fields locally in the recording folder. No automatic upload, screenshots or keystroke capture.</p>
     {active && state.status.desktopCode === 'SELECTION_REQUIRED' && <button type="button" className={button} disabled={busy} onClick={() => void perform(chooseWindow)}>Choose observation window</button>}

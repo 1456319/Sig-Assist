@@ -15,6 +15,7 @@ export interface JournalStatus {
   limitReached?: boolean; fileError?: boolean; stopReason?: string; desktopCode?: string; desktopPartial?: boolean;
   maxStreamBytes?: number; maxDurationMs?: number;
   bundleFile?: string; selectionRequired?: boolean; automaticObservation?: boolean; observationEvents?: number; rawClinicalText?: boolean;
+  fieldSnapshots?: number; screenOnlySnapshots?: number; buttonEvents?: number; failedObservationReads?: number;
   fileErrorCode?: string;
 }
 export interface RecorderState {
