@@ -81,6 +81,11 @@ try {
   assert.equal(independent.fields.quantity, undefined);
   assert.equal(independent.unavailableReasons.quantity, 'AMBIGUOUS_CONTROLS');
   await command({ quantityAliases: 'false', independentQuantity: 'false' });
+  await command({ observationGrid: 'true' });
+  const besideGrid = await workflow();
+  assert.equal(besideGrid.ok, true, JSON.stringify(besideGrid));
+  assert.equal(besideGrid.fields.draft_sig, 'OLD SIG', 'A dense adjacent detail table must not starve field capture.');
+  await command({ observationGrid: 'false' });
   const events = []; let eventBuffer = '';
   eventWatcher = spawn(helper, ['--test-process', 'SigAssistFrameworkFixture'], { stdio: ['pipe', 'pipe', 'pipe'] });
   eventWatcher.stdout.setEncoding('utf8');

@@ -1702,7 +1702,11 @@ public static class FrameworkDesktop {
                 if (!offscreen) {
                     if (page != "") pages.Add(page);
                     var type = Cached(element, AutomationElement.ControlTypeProperty) as ControlType;
-                    if (id == "ERxGrid" && type == ControlType.DataGrid) scope.grids.Add(element);
+                    // Dense detail/selection tables consume the whole raw-tree
+                    // budget before adjacent editors are reached. PON extraction
+                    // already has a separate bounded detail-grid reader.
+                    if (id == "ERxGrid") { scope.grids.Add(element); continue; }
+                    if (type == ControlType.DataGrid || new[] { "ERxOrderGrid", "ERxPatientOrderGrid", "PatientOrdersGrid", "FolderGridControl" }.Contains(id)) continue;
                     string label = DatasetLabel(element);
                     if (PonLabel.IsMatch(label) || PonInline.IsMatch(name)) scope.pons.Add(element);
                     string role;

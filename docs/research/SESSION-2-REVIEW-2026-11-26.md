@@ -94,6 +94,11 @@ sibling ambiguity, and reports fixed unavailable-reason codes without provider
 exception text. A native synthetic wrapper/editor regression exercises both
 successful alias resolution and independent-field rejection.
 
+The general field walk also stops at known detail/selection grids instead of
+descending through every cell. The existing bounded detail-grid PON reader stays
+separate. A synthetic 800-cell neighboring grid checks that ordinary field capture
+is not starved by unrelated table traversal. The read timeout is not increased.
+
 The recorder now distinguishes VIEW_ONLY and IDENTITY_ONLY from actual readable
 fields. The manifest/UI report field snapshots, button events, screen-only
 snapshots and unsuccessful reads separately. This corrects the misleading health

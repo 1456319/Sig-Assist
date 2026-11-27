@@ -31,6 +31,7 @@ public static class FrameworkDesktopFixture {
         var quantityAliasWrapper = new Panel { Name = "RxEntryPrescription_QtyEdit", AccessibleName = "RxEntryPrescription_QtyEdit", Bounds = quantity.Bounds, Visible = false };
         var independentQuantity = new TextBox { Name = "RxEntryPrescription_QtyEdit", AccessibleName = "Quantity", Text = "INDEPENDENT SYNTHETIC QUANTITY", Left = 20, Top = 500, Width = 500, Visible = false };
         entry.Controls.Add(quantityAliasWrapper); entry.Controls.Add(independentQuantity);
+        Panel observationGrid = null;
         var orderWrapper = new Panel { Name = "ERxWorkQueueWizardView", AccessibleName = "Order wrapper", Left = 0, Top = 0, Width = 660, Height = 650 };
         orderWrapper.Controls.Add(entry); form.Controls.Add(orderWrapper);
         var otherOrder = new Panel { Name = "ERxWorkQueueWizardView", AccessibleName = "Other order", Visible = false, Left = 670, Top = 10, Width = 360, Height = 180 };
@@ -58,6 +59,14 @@ public static class FrameworkDesktopFixture {
                     else { entry.Controls.Add(quantity); quantity.Left = 20; quantity.Top = 300; quantityAliasWrapper.Visible = false; }
                 }
                 if (command.ContainsKey("independentQuantity")) independentQuantity.Visible = command["independentQuantity"] == "true";
+                if (command.ContainsKey("observationGrid")) {
+                    if (command["observationGrid"] == "true" && observationGrid == null) {
+                        observationGrid = new Panel { Name = "ERxOrderGrid", AccessibleName = "Synthetic detail grid", Left = 550, Top = 10, Width = 70, Height = 300 };
+                        observationGrid.SuspendLayout();
+                        for (int i = 0; i < 800; i++) observationGrid.Controls.Add(new Label { Text = "Cell " + i, AccessibleName = "Synthetic cell " + i, Left = 0, Top = i % 20 * 14, Width = 60, Height = 14 });
+                        observationGrid.ResumeLayout(); entry.Controls.Add(observationGrid);
+                    } else if (command["observationGrid"] != "true" && observationGrid != null) { entry.Controls.Remove(observationGrid); observationGrid.Dispose(); observationGrid = null; }
+                }
                 if (command.ContainsKey("daysSupply")) days.Text = command["daysSupply"];
                 if (command.ContainsKey("startDate")) start.Text = command["startDate"];
                 if (command.ContainsKey("deliveryDate")) hidden.Visible = command["deliveryDate"] == "true";
