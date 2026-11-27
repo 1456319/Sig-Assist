@@ -1,6 +1,7 @@
 # Functionality audit — November 27, 2026
 
-Status: in progress. Authoritative fetched prototype baseline is
+Status: repairs and all external reviews completed; final-runtime Windows CI
+is pending at the latest checkpoint below. Authoritative fetched baseline is
 `1a0105c435da70bb5bb45dd20200e3dca189527e`, v0.1.16, build `1ba9dbed1a9b`.
 The morning handoff, session-2 review, November 18 README, November 24
 implementation review and recent messages in all three existing labs were read.
@@ -207,3 +208,46 @@ timeout a repaired product defect or claim its environment reproduced ours.
 The lab's unrelated lockfile update was not adopted. Reports and candidates are
 preserved as evidence, not an instruction to reapply patches. No external audit
 turn remains running; no further credit request or purchase is needed.
+
+## Final runtime validation
+
+Final runtime checkpoint: `aa60497aec1136ff86e118068008492507ed1b32`,
+v0.1.17 build `aba60f0b7ff9` (supersedes the earlier v0.1.17 checkpoints).
+**1,462 tests in 107 files pass locally**, including all new scope checks and
+the 10,000-row dataset regression. Full lint, typecheck, 388-code reference,
+production build and portable page/manifest/ZIP identity checks pass. Every
+changed file was fetched and hash-verified against prototype. All audit
+responses, supported repairs and runnable regressions are remotely preserved.
+
+The first event repair passed full Windows/Linux MVP and publication run
+45999496533, plus native/Edge run 45999496654. The treatment/rating checkpoint
+passed full Windows/Linux/publication run 46000121058. Final-runtime CI is still
+running at this documentation checkpoint; completion evidence follows below.
+
+### Remaining concrete work
+
+1. A short dummy-workstation session must establish actual field-bearing
+   capture and delivered button events in the mixed native provider. Keep PSR
+   beside the passive recorder until useful coverage is demonstrated. Add an
+   actual Invoke fixture, including owned popups, before expanding that claim.
+2. Trace exact translation/dictionary/saved-status service handlers and their
+   contracts from the installer inventory. No guessed URL, unvalidated COM
+   method or FWDirect path is activated by this audit.
+3. Resolve the explicit glucagon-template/non-template-dose policy with actual
+   site product context. The proposed conversion is withheld. Continue scoped
+   SSI/base-dose partial rendering and classic treatment parity separately.
+4. Continue the private discrepancy autopsies for sequential tablet taper,
+   source-strength quantities, oral-gel annotation and part-specific policy
+   effects. Retain the existing site exclusions and per-card versus shared-scale
+   length distinctions. A useful retained draft is not a verified final Rx.
+
+Paxit sweepers remain batch-date anchored with full ordered three-day quantity,
+days supply 3 and delivery ID beginning with 9; midnight changes which defaults
+need correction. This audit adds no automatic clinical writes or new checkpoint
+burden. Temporary intensified logging HIGH-removal markers remain visible.
+
+Final source run: https://github.com/1456319/Sig-Assist/actions/runs/46002272740
+Ubuntu has passed; Windows remains in progress at this preservation checkpoint.
+All preceding runtime checkpoints have now passed Windows/Linux and publication,
+including 46000958731 and 46001527378. This does not substitute for the final
+source's Windows result.
