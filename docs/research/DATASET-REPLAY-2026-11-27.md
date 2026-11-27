@@ -130,3 +130,35 @@ test-only repair. The final Windows rerun must pass before claiming full CI.
 All nine recorder tests, targeted lint and build identity pass locally after
 the repair. The three-second bound preserves a failure when no observation
 ever arrives; it replaces an assumed scheduling delay with an observed result.
+
+## Final verified outcome
+
+Runtime source checkpoint: `100dc1cba787a5791132ffa8dc7f375655f1692f`.
+Recorder-test follow-up: `a294ec97ddb316e6e26c0efa45a7aea6578f4952`.
+Both are remotely preserved, with the changed source/test/report/download blobs
+verified against fetched prototype. The final working tree is clean before this
+documentation-only completion note.
+
+[Final Windows/Linux/publication run](https://github.com/1456319/Sig-Assist/actions/runs/46007234627)
+**passed all three jobs**, including 1,491 tests, native detection/transfer,
+network/direct-file launchers, Edge/clipboard, Iguana/recorder smoke tests and
+package/archive verification. The former 40 ms recorder race is resolved in this
+run. Version 0.1.19 build `f58da0989477`, portable page, BUILD.json and repository
+ZIP match the current source; publication and final local archive checks pass.
+This does not establish field/event delivery on the real pharmacy workstation.
+
+Private before/after replay comparison verifies all 203 original observations
+are unchanged. Five generated suggestions, representing three distinct drug/SIG
+pairs, changed solely from `PO` to the explicit inhalation route. All 203 records
+replay without parsing/translator errors; 134 distinct source drug/prose pairs
+are available for further review. No whole-source accepted final qualifies for
+an accuracy benchmark in this batch.
+
+No external audit turn or runtime validation remains pending. No private input
+or full replay output was committed or sent to Lovable. Use the documented
+`dataset:replay` command for later batches, combining earlier batches when needed
+to supply exact source/final provenance. Review retained wording, source-strength
+gaps, treatment/gel/taper cases and accepted-answer labels before expanding
+claims about matching accuracy. The earlier workstation follow-ups remain
+outside this dataset replay task. This completion note changes documentation
+only; the validated runtime and download identity are unchanged.
