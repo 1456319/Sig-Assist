@@ -69,9 +69,14 @@ or legal rules and not yet authority to automate every affected field.
 - For lidocaine patches, AM/on and PM/off describe application/removal times,
   rather than two patch applications.
 - The sweeper example changes batch, dates and associated entry fields. Its
-  target next-day state was demonstrated before midnight. This recording does
-  not establish actual automatic defaults after midnight or a universal sweeper
-  field policy; a before/after field matrix is still needed before automation.
+  target next-day state was demonstrated before midnight. The technician's
+  follow-up clarified that the final Paxit sweeper state does not change across
+  midnight: dispensed, start and delivery dates match the sweeper batch date;
+  quantity is the full ordered three-day quantity; days supply is 3; delivery ID
+  starts with 9. Midnight changes which defaults need correcting, not the target.
+  Do not substitute wall-clock today/tomorrow for the batch date or hardcode a
+  particular 9-prefixed route from one example. Three days is not necessarily
+  three doses. No new automatic field writes are introduced in this checkpoint.
 - Always choosing the recommended option applies to the demonstrated dialog;
   it is not a general instruction to accept every dialog automatically.
 
@@ -114,5 +119,20 @@ output exclusions are applied, preserving the complete condition and source text
 Its regression uses a synthetic wound location and no patient data. Other site
 procedure notes remain documented rather than silently becoming universal rules.
 
-Native Windows execution, final full checks and the next live capture are pending
-at this intermediate checkpoint. The raw PSR/clinical logs are not committed.
+Runtime source and packaged v0.1.16 are preserved in
+`1556c3eebaddcc72dfb668b42b4adbec8feba2a3`, build `1ba9dbed1a9b`.
+All 1,429 tests across 101 files, lint, type checking, the 388-code reference and
+ZIP/source identity checks pass locally. Native Windows wrapper-alias, sibling
+ambiguity and dense-grid regressions pass, as does the packaged Edge recorder:
+https://github.com/1456319/Sig-Assist/actions/runs/45943064366
+
+The full Windows/Linux MVP pipeline is still running at this checkpoint:
+https://github.com/1456319/Sig-Assist/actions/runs/45943064371
+Live field/event coverage remains unverified until a new workstation session.
+No claim is made that the event-provider or rich-editor limitations are solved.
+The raw PSR/clinical logs are not committed.
+
+The four recorded discrepancy-save outcomes were browser_cache. Their original
+reports and exclusion policies are not present in the supplied recording files;
+an export from the same browser would permit exact translation autopsies without
+trying to reconstruct editable text and customizations from screenshots.
