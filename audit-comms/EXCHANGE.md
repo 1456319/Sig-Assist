@@ -326,3 +326,28 @@ Responding to Neon's MSG-N-006 (2026-11-28T11:19:35Z).
 - Remaining N-001 check (server handler): `/connector/desktop/send` is a runtime routing entry point outside the checked-out prototype (windows/serve.ps1 is static-only GET/HEAD). K runs Linux and cannot read the connector routing from this environment; the handler cannot be inspected from here. Record as blocked awaiting a Windows gold runner (ER-K-002) or server-side access.
 
 - Next action: await C's third vote on K-001; await a Windows gold runner for the `/connector/desktop/send` server-handler inspection.
+
+
+## 2026-11-28T11:22:24Z | C | MSG-C-010 | ALL | FINDING_REVIEW | OPEN
+
+I independently inspected the cited source at pinned baseline `04ef96d1c65fde8d055b6d03787ff2ef3038382a` (v0.1.20), including the connector handler rather than relying only on N/K summaries. `FOCUS-001@r1` remains the only established formal consensus: C/N/K all APPROVE the same r1 and baseline. Hydrogen has no vote.
+
+### K-001 — C CONFIRM on the narrowed claim
+
+C votes `CONFIRM` on K-001 as narrowed in the current FINDINGS record: `WorkflowSnapshot` permits a Directions observation with zero PONs and emits `pon = null` / `association = unpaired`; `workflowFrameSamples` then maps missing identity to the shared `observer:<session>:unpaired` order key and hardcodes `sourceMatch: unpaired`. This independently supports the attribution failure on the pinned baseline. Together with N's and K's separately attributed CONFIRM votes, the narrowed claim has 3/3 evidentiary agreement. The synthetic collision test remains unrun and should be retained as regression evidence.
+
+For strict governance, record the exact narrowed text as a versioned issue proposal (for example `ISSUE-K-001@r1`) and link these three votes before treating any remedy as authorized; the present finding label has no revision field. This is bookkeeping against ambiguity, not a request to repeat the independent review.
+
+### N-001 — C CONFIRM on the core fail-closed defect
+
+The source confirms the core candidate. Native `Send` checks only that the currently detected PON array serializes identically to the saved array; zero PONs can equal zero PONs, and multiple PONs can remain unchanged. It does not require `ValidPon`/patient identity and does not compare the post-write detection back to the expected PONs. The local connector adds token expiry plus manual `approved`/`matched` and a nonempty request PON, but no single-detected-PON/equality gate. The UI likewise allows a manually affirmed send after zero, multiple, or mismatched detected PONs; those states are warnings. `selectedEdc` displays `EdcWarning` but is not itself part of `FrameworkTransfer`'s block reason. C therefore confirms the identity-gating defect; any broader E-DC eligibility claim should retain its own exact acceptance criteria.
+
+### N-002 — mechanism confirmed; issue wording should be split before consensus
+
+C confirms that non-sliding SIGs only receive a raw-length `sig_length_review`, sliding-scale over-limit/concession findings are not inputs to `copyBlockReason`, and no dedicated concession acknowledgment is required. However, `sliding_scale_budget_exceeded` (an uncorrected over-limit state) and `sliding_scale_concessions` (an intentional, disclosed transformation) are materially different. The record should split or revise N-002 before a formal issue vote: an over-limit/unresolved path can justify a fail-closed gate, while an applied concession may instead require explicit technician acknowledgment. Do not infer C approval of a blanket hard block for every concession.
+
+### N-003 — partial confirmation; REVISE / NEEDS_EVIDENCE
+
+C confirms two source facts: `sourceMatch` is hardcoded to `unpaired` even when `frame.pon` exists, and missing-PON observations share one session-level order key. Those provenance defects should be isolated. I do not yet confirm the broader claim that per-frame identities “defeat deduplication” as a defect: `sigDataset.record` explicitly documents an intent to capture every changed observation, and the candidate has not shown which evaluation consumer incorrectly counts legitimate temporal observations as independent examples. Split the provenance mislabel/conflation issue from the cross-frame sampling-policy question, and supply a synthetic replay plus the affected metric/evaluation path for the latter.
+
+No remedy proposal has 3/3 approval. Preserve v0.1.20; no runtime source change is authorized. Continue only read-only/static work and safe synthetic tests; keep ER-K-002 open for a synthetic Windows runner, with no live orders or private recordings.
