@@ -36,7 +36,11 @@ interface TreatmentAction extends TreatmentModifiers {
 const ACTION_START = /\b(?:DO\s+NOT\b[^.;]*|CLEANSE|PAT\s+DRY|APPLY|COVER|DRESS|WRAP|LEAVE\s+(?:OPEN\s+TO\s+AIR|OTA)|NOTIFY|CALL|RECHECK|HOLD|REMOVE|MEASURE|MASSAGE)\b/g;
 const DAY = '(?:MON(?:DAY)?|TUE(?:S(?:DAY)?)?|WED(?:NESDAY)?|THU(?:R(?:S(?:DAY)?)?)?|FRI(?:DAY)?|SAT(?:URDAY)?|SUN(?:DAY)?)S?';
 const WEEKDAYS = `(?:EVERY|ON)\\s+${DAY}(?:\\s*(?:,|/|AND|&|TO|THROUGH|-)?\\s*(?:(?:EVERY|ON)\\s+)?${DAY})*`;
-const SCHEDULE = new RegExp(`\\b(?:${WEEKDAYS}|(?:EVERY|EACH)\\s+(?:(?:DAY|EVENING|NIGHT)(?:\\s+AND\\s+(?:DAY|EVENING|NIGHT))?\\s+)?SHIFT|Q[/-]?SHIFT|EVERY\\s+(?:(?:OTHER|TWO|THREE|\\d+)\\s+DAYS?|(?:\\d+|TWO|THREE)\\s+HOURS?|DAY|MORNING|EVENING)|(?:FOUR|THREE|TWO|[234])\\s+TIMES\\s+(?:(?:A|PER|EACH)\\s+DAY|DAILY)|TWICE\\s+(?:A\\s+DAY|DAILY)|ONCE\\s+(?:A\\s+)?(?:DAY|WEEK)|TWICE\\s+(?:A\\s+)?WEEK|IN\\s+THE\\s+(?:MORNING|EVENING)|AT\\s+BEDTIME|DAILY|WEEKLY|Q\\d+H|Q3D|QOD|QWEEK|BIW|QS|QD|BID|TID|QID|QAM|QPM|QHS)\\b`, 'g');
+// Capture the whole EHR schedule before the application header becomes a site.
+// A more specific weekday or time stays attached for the shared resolver.
+const ONCE_DAILY = /(?:(?:ONE|1)\s+TIME\s+(?:A|PER|EACH)\s+DAY|ONCE\s+DAILY)/.source;
+const DAILY_QUALIFIER = `(?:${WEEKDAYS}|(?:IN\\s+THE\\s+(?:MORNING|EVENING)|AT\\s+BEDTIME)|EVERY\\s+(?:OTHER\\s+DAY|\\d+\\s+DAYS?|MORNING|EVENING))`;
+const SCHEDULE = new RegExp(`\\b(?:${ONCE_DAILY}(?:\\s+${DAILY_QUALIFIER})?|${WEEKDAYS}|(?:EVERY|EACH)\\s+(?:(?:DAY|EVENING|NIGHT)(?:\\s+AND\\s+(?:DAY|EVENING|NIGHT))?\\s+)?SHIFT|Q[/-]?SHIFT|EVERY\\s+(?:(?:OTHER|TWO|THREE|\\d+)\\s+DAYS?|(?:\\d+|TWO|THREE)\\s+HOURS?|DAY|MORNING|EVENING)|(?:FOUR|THREE|TWO|[234])\\s+TIMES\\s+(?:(?:A|PER|EACH)\\s+DAY|DAILY)|TWICE\\s+(?:A\\s+DAY|DAILY)|ONCE\\s+(?:A\\s+)?(?:DAY|WEEK)|TWICE\\s+(?:A\\s+)?WEEK|IN\\s+THE\\s+(?:MORNING|EVENING)|AT\\s+BEDTIME|DAILY|WEEKLY|Q\\d+H|Q3D|QOD|QWEEK|BIW|QS|QD|BID|TID|QID|QAM|QPM|QHS)\\b`, 'g');
 function emptyModifiers(): Omit<TreatmentModifiers, 'body'> {
   return { frequency: '', sequentialSchedule: false, prn: false, separatePrn: false, prnReason: '', duration: '', qualifier: '', abnormalities: [] };
 }
@@ -64,7 +68,7 @@ function parseModifiers(source: string): TreatmentModifiers {
   // Extracting each frequency/course independently turns ordered phases into a
   // simultaneous schedule. Keep the action's whole schedule, including PRN
   // reasons and durations, before any modifier can consume part of a phase.
-  const schedules = [...source.matchAll(new RegExp(`\\b(?:ONCE\\s+DAILY|AS\\s+NEEDED|PRN)\\b|${SCHEDULE.source}`, 'g'))];
+  const schedules = [...source.matchAll(new RegExp(`\\b(?:AS\\s+NEEDED|PRN)\\b|${SCHEDULE.source}`, 'g'))];
   const firstScheduleAt = schedules[0]?.index;
   if (firstScheduleAt !== undefined && schedules.slice(1).some(match =>
     /\bTHEN\b/.test(source.slice(firstScheduleAt + schedules[0][0].length, match.index)))) {

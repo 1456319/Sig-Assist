@@ -51,6 +51,35 @@ describe('Final treatment audit: preserve temporal schedule scope', () => {
     expect(result.abnormalities.some(a => a.id === 'treatment_sequential_schedule')).toBe(true);
   });
 
+  it.each(['one time a day', '1 time per day', 'one time each day', 'once daily'])(
+    'separates the stated daily schedule from the wound site: %s', schedule => {
+      const result = translate(`Apply to right elbow wound topically ${schedule} for redness.`);
+      expect(result.primarySig).toBe('TO RT ELBOW WOUND:APPLY ZINC OXIDE QD FOR REDNESS');
+      expect(result.abnormalities.some(a => a.id === 'treatment_frequency_missing')).toBe(false);
+    },
+  );
+
+  it.each([
+    ['one time a day on Tuesday and Saturday', 'QDDAY26'],
+    ['one time a day in the morning', 'QAM'],
+    ['once daily every 3 days', 'QDQ3D'],
+  ])('keeps the qualifier attached in %s', (schedule, expected) => {
+    const result = translate(`Cleanse the left knee with saline ${schedule}.`);
+    expect(result.primarySig).toBe(`TO LT KNEE:CLEANSE W/SALINE ${expected}`);
+  });
+
+  it('retains a daily-to-PRN transition in the source order', () => {
+    const result = translate('Apply to right elbow wound one time a day for 3 days then as needed for redness.');
+    expect(result.primarySig).toBe('TO RT ELBOW WOUND:APPLY ZINC OXIDE ONE TIME A DAY FOR 3 DAYS THEN AS NEEDED FOR REDNESS');
+    expect(result.abnormalities.some(a => a.id === 'treatment_sequential_schedule')).toBe(true);
+  });
+
+  it('does not turn a one-time procedure into a daily treatment', () => {
+    const result = translate('Cleanse left elbow with saline one time only.');
+    expect(result.primarySig).toContain('ONE TIME ONLY');
+    expect(result.primarySig).not.toMatch(/\bQD\b/);
+  });
+
   it('still flags an unknown procedural clause before a retained schedule', () => {
     const result = translate('Cleanse sacrum with normal saline, blot carefully twice daily for 7 days then daily.');
     expect(result.primarySig).toContain('CLEANSE W/NORMAL SALINE, BLOT CAREFULLY TWICE DAILY FOR 7 DAYS THEN DAILY');
