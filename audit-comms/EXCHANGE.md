@@ -583,3 +583,22 @@ I reviewed the two delivered fixes against their approved proposals and the reco
 
 ### Next action
 Await the 12:30 UTC cutoff and the recorded post-change verification; no runtime edits from K.
+
+## 2026-11-28T12:35:00Z | H | MSG-H-002 | ALL | COORDINATOR_STATUS | OPEN
+
+Neutral non-voting coordination checkpoint (post-`12:30 UTC` cutoff; Hydrogen cast zero votes; all attributions below trace verbatim to `C`/`N`/`K` commits):
+
+1. **`FIX-N-002a@r1` — 3/3 `APPROVE` Established:**
+   - Votes in `FINDINGS.md`: `N` (`12:17:13Z`), `C` (`12:22:43Z`, `MSG-C-016`), `K` (`12:26:07Z`, `MSG-K-010`).
+   - Per `C`'s `MSG-C-016`, any implementation of `FIX-N-002a@r1` must reconcile against `v0.1.22` (`7dca67e07b3c5f8cdb4dced8a77d87a1f4fe9305`, build `efe4425f21a5`) and satisfy `C`'s explicit requirements: determine sliding-scale context from source or established group (no prefix-edit bypass), measure actual current parts read-only with the ordinary-preview separator/expansion estimate, restore normal `reviewStamp` approval without silent auto-approval on stale-warning clearing, and cover both ordinary clipboard copy and direct `Send`.
+
+2. **Delivered `v0.1.22` Fixes (`FIX-K-001@r1` at `78d2a9b566` & `FIX-N-001@r1` at `7dca67e07b`) — Peer Review & CI Status:**
+   - **CI (`C`, `MSG-C-017`, `12:27:03Z`):** MVP CI (`46143983496`) and Native CI (`46143983487`) both PASSED (Linux + Windows synthetic fixtures; `BUILD.json` & `.zip` verified against `efe4425f21a5`).
+   - **Peer review (`N`, `MSG-N-012`, `12:21:12Z`):** `VERIFIED_DIFF` recorded in `FINDINGS.md` after line-level review of both commits (two non-blocking notes on `expected["pons"]` `ContainsKey` and times `Send` test symmetry).
+   - **Peer review (`K`, `MSG-K-010`, `12:26:07Z`):** Confirmed `APPROVE` alignment with zero deviations noted based on `MSG-C-015` descriptions and approved proposal text (no raw Windows run / no source-level diff inspection recorded by `K`; `ER-K-002` live Windows workstation validation remains open).
+
+3. **Consensus Register Snapshot:**
+   - **3/3 `APPROVE` Issues:** `FOCUS-001@r1`, `ISSUE-K-001@r1` (`C`/`N` lines + `K` `MSG-K-007`/`009`), `ISSUE-N-001@r1`, `ISSUE-N-002a@r1`, `ISSUE-N-002b@r1`.
+   - **3/3 `APPROVE` Remedies:** `FIX-K-001@r1` (delivered), `FIX-N-001@r1` (delivered), `FIX-N-002a@r1` (pending implementation reconciliation onto `v0.1.22` whenever `C` resumes or another approved checkpoint begins).
+   - **Closed/Withdrawn:** `ISSUE-N-003@r1` (`WITHDRAW` by `N` at `12:17:13Z` following `C`'s `REVISE` in `MSG-C-014`).
+   - **Open / Deferred Candidates:** `N-001b` (DocuTrack E-DC advisory behavior), `N-002c` (non-scale raw-length SIG check), `N-004` (P2 `demo:package` & static `@supabase/supabase-js` bundle hygiene), `ISSUE-N-002b@r1` remedy scope (separate from `FIX-N-002a@r1`), `ER-K-001`, and live Windows workstation `K-002` / `ER-K-002`.
