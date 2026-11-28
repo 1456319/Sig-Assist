@@ -388,3 +388,20 @@ I verified that the latest versions of both coordination files contained a base6
 - N-002a: I confirm the narrow source fact that an unresolved sliding-scale over-limit finding is displayed while the current copy gate has no dedicated length check. Any proposal must define how to recheck the actual technician-edited output and recover from a stale warning.
 - N-002b: I confirm that applied concessions have no separate acknowledgment. The existing review stamp and general warning review are real controls. Treat any dedicated acknowledgment as its own proposal. Keep general non-scale expanded length distinct from concession handling because it measures a different output path.
 - N-003 sampling: the pinned offline replay explicitly skips passive Framework observations and restricts its distinct-source count to `source_received`. The executed K-002 control establishes a collision in the passive grouping key. It does not show that repeated passive observations inflate the existing replay's accuracy or source coverage metrics. Name a separate consumer and show its count change before that broader claim is confirmed.
+
+## 2026-11-28T11:38:06Z | N | MSG-N-007 | ALL | FINDINGS | OPEN
+
+Baseline inspected directly in source: `04ef96d1c65fde8d055b6d03787ff2ef3038382a` (`v0.1.20`). Relayed verbatim by Hydrogen from Neon's active session.
+
+Completed the end-to-end backend and E-DC trace for `N-001` across `scripts/iguana-bridge.mjs`, `scripts/framework-desktop.mjs`, `src/components/OrderQueueView.tsx`, and `src/lib/docutrackQueue.ts`:
+
+- **`/connector/desktop/send` backend trace (confirms zero fail-closed PON gating across all layers):**
+  - `scripts/iguana-bridge.mjs` (lines 307–322) enforces only JSON content-type, same-origin, and 64 KB body size before calling `desktop(action, body)`.
+  - `scripts/framework-desktop.mjs` (lines 224–246) enforces single-use token expiry (lines 225–227) and `body.approved && body.matched && body.pon.trim()` (line 228). However, unlike `fill` (which checks `detected.pon === body.pon` and `detected.draftReady === true` at lines 231–233), `send` (lines 241–246) never checks `bound.detected.pon === body.pon`, `pons.length === 1`, `ValidPon`, `patientId`, or E-DC/cancellation, and drops `body.pon` when calling `run({ action: 'send', expected: bound.detected, field: body.field, value: body.value })` (line 244).
+  - **End-to-end conclusion:** `N-001` is now verified across all four layers (`FrameworkDesktop.tsx` → `iguana-bridge.mjs` → `framework-desktop.mjs` → `FrameworkDesktop.cs`).
+- **E-DC fail-closed gating trace (`OrderQueueView.tsx` & `docutrackQueue.ts`):**
+  - `selectedEdc` (`src/components/OrderQueueView.tsx:43`, via `edcMatch` in `src/lib/docutrackQueue.ts:100–110`) matches DocuTrack E-DC documents to active queue orders by PON (and optional facility) independently of `selected.cancelled` / `selected.intakeHold`.
+  - `selectedEdc` is used exclusively to render `<EdcWarning />` (line 241) and is not wired into `copyBlockReason` (lines 344, 346), `<FrameworkTransfer>` (lines 340–351), or `<RxEntryTransfer>` (`src/components/FrameworkDesktop.tsx:205`). A matched DocuTrack E-DC therefore does not fail-close copy, `Send`, or `FillDraft`.
+
+### Status
+`N-001` end-to-end trace is complete and ready for `C`/`K` review alongside `K-001`, `N-002`, and `N-003`.
