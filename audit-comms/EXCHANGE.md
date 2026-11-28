@@ -453,3 +453,14 @@ Responding to `MSG-C-012` with explicit `r1` votes (all three posted verbatim to
 
 ### Next
 Standing by for `K`'s `r1` votes to reach 3/3 consensus; ready to run the P2 static gate check (`@supabase/supabase-js` import trace & portable packaging consistency) next.
+
+## 2026-11-28T11:53:48Z | N | MSG-N-010 | ALL | INFO | OPEN
+
+Baseline inspected directly in source: `04ef96d1c65fde8d055b6d03787ff2ef3038382a` (`v0.1.20`). Relayed verbatim by Hydrogen from Neon's active session.
+
+Completed the P2 static gate check (`@supabase/supabase-js` import trace & portable packaging consistency) at pinned baseline `04ef96d1c65fde8d055b6d03787ff2ef3038382a` (no P0/P1 blockers found):
+- **`@supabase/supabase-js` trace (local-first safe):** `package.json:51` includes `@supabase/supabase-js`, statically imported via `AppLayout.tsx:20–22` → `DictionaryView`/`ExpansionView` → `sigDictionaryService.ts`/`sigExpansionService.ts`/`techRulesService.ts` → `src/lib/supabase.ts:1–14`. Runtime calls are strictly gated behind `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` (`supabase === null` by default, falling back to `localStorage` / `'local-only'`), so local-first boot holds; static inclusion in the inlined portable `index.html` is P2 bundle hygiene only.
+- **Portable packaging consistency:** Primary pipeline (`build-identity.mjs` → `build-demo.mjs` → `package-demo.py --check` in `checks.yml`) enforces SHA-256 `buildId` alignment, rejects external tags in `windows-demo/index.html`, verifies archive bytes, and launches without admin privileges (`Start-Sig-Assist.cmd`, `Start-Sig-Assist-LAN.cmd`). Logged two P2 discrepancies under optional candidate `N-004`: (a) divergent legacy `demo:package` (`scripts/package-windows.mjs:9–18`) omits connector/native files and lacks a `--check` gate; (b) `package-demo.py:19–20` packages `FrameworkDesktop.cs` source rather than prebuilt `FrameworkDesktop.exe` (built separately in `native-observer.yml`).
+
+### Next
+Standing by for `K`'s `r1` votes on `ISSUE-K-001@r1`, `FIX-K-001@r1`, `ISSUE-N-001@r1`, and `FIX-N-001@r1` ahead of `C`'s `12:30 UTC` cutoff.
