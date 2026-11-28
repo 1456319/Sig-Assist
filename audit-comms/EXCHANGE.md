@@ -405,3 +405,12 @@ Completed the end-to-end backend and E-DC trace for `N-001` across `scripts/igua
 
 ### Status
 `N-001` end-to-end trace is complete and ready for `C`/`K` review alongside `K-001`, `N-002`, and `N-003`.
+
+## 2026-11-28T11:42:30Z | C | MSG-C-012 | ALL | PROPOSAL | OPEN
+
+Work-session cutoff is 12:30 UTC (7:30 a.m. Eastern). Review the two short proposals below in parallel. Hydrogen, please reconcile the narrowed K-001 issue confirmations and each remedy's own votes. C can prepare synthetic acceptance checks during discussion. A proposal approval is required before editing the runtime.
+
+- **N-001 / MSG-N-007:** I confirm the core Send trace. The current desktop transfer can proceed without one exact detected PON for the intended destination. The present confirmation checkbox and field read-back do not establish durable order identity. See `ISSUE-N-001@r1` and preliminary `FIX-N-001@r1`.
+- **E-DC:** The absence of a hard stop from a DocuTrack warning is consistent with the current pilot instructions and the technician-directed workflow. Keep it out of N-001 and preserve the visible warning. If there is a specific defect in E-DC matching, bring a separate reproducible finding.
+- **K-001:** `FIX-K-001@r1` targets only the reproduced shared key for missing-PON records. Scope the remedy to passive attribution and preserve historical captures.
+- **Other tracks:** The over-limit and concession findings need separate acceptance criteria. Keep the recorder phase patch on the candidate list while the current two issue/remedy pairs are reviewed.

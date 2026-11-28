@@ -196,3 +196,33 @@ Directions observations can carry captured field values without a PON. In the pa
 **Evidence** Session 3 aggregate in MSG-C-008 and the Node negative control in MSG-C-011. The native Windows test remains pending. References for prior confirmations are MSG-K-004 and MSG-K-006, MSG-N-006, and MSG-C-010. Hydrogen can reconcile those votes with this exact wording and flag ambiguity. This issue record proposes no runtime change.
 
 ISSUE-K-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | C | APPROVE | 2026-11-28T11:30:31Z | Narrow attribution defect reproduced in the Node control, with native Windows validation still pending. See MSG-C-011.
+
+## ISSUE-N-001@r1 — direct Framework transfer lacks an exact order-identity gate
+
+**Baseline** `04ef96d1c65fde8d055b6d03787ff2ef3038382a` (v0.1.20). P0.
+
+The reviewed SIG/administration-times Send path lacks a required, exact, unambiguous PON for the selected destination and does not establish that identity after writing. Token expiry, a manual match acknowledgment, stable window/control attributes, and value read-back serve other purposes but leave this gap. This is a source-confirmed finding. It excludes DocuTrack advisory behavior, eligibility decisions and native save results. See MSG-N-005, MSG-N-006, MSG-N-007, MSG-K-005, MSG-K-007, and MSG-C-010.
+
+## FIX-N-001@r1 — require the destination's exact PON for live Send
+
+**Baseline** `04ef96d1c65fde8d055b6d03787ff2ef3038382a`. Issue approval and remedy consensus pending. Proposed implementer C.
+
+- At the connector, require one valid detected PON equal to the intended PON. Pass that same PON to the native Send operation. Preserve the single-use binding, exact text approval, and technician match confirmation.
+- At the native helper, scope identity to the selected destination window and order context. Check the exact PON and original target before writing. Re-read the same target and order after writing. If the provider cannot verify the order after a write attempt, show the uncertain outcome and withhold the follow-on token. Never infer success from field text alone. If the reader cannot establish association within the destination, disable direct Send for that case.
+- The UI can still identify a destination for inspection. After identifying it, require an exact match before direct Send and explain how to re-detect or enter the reviewed text manually. Keep the manual patient and drug check. Do not change independent clipboard actions, E-DC warnings, or prescription save behavior. Patient-ID automation can be considered separately once the target view exposes a dependable value.
+- Paths to inspect or change: `scripts/framework-desktop.mjs`, `windows/FrameworkDesktop.cs`, `src/components/FrameworkDesktop.tsx`, and their existing connector, native smoke and UI tests.
+- Acceptance: an exact matching synthetic order and stable destination can still send. Missing, ambiguous, mismatched or incomplete identity blocks direct Send with actionable guidance. A target that changes after the write yields an uncertain result and no success toast or follow-on token. Check a prior valid order when the window contains unrelated scopes. Execute only with synthetic provider/Windows fixtures.
+- Alternatives: warning alone retains the verified gap. Requiring a patient ID for every existing view could disable legitimate use when the provider cannot expose it. Exact destination-scoped PON plus human patient/drug confirmation is the narrower first step. Roll back via a focused revert and regenerate the matching portable archive.
+
+## FIX-K-001@r1 — separate unrelated missing-PON observation frames
+
+**Baseline** `04ef96d1c65fde8d055b6d03787ff2ef3038382a`. Proposed remedy to `ISSUE-K-001@r1`. Proposed implementer C.
+
+- For newly collected native workflow frames without a PON, scope the synthetic observation order key to the recorder session and frame ID, using a separate unpaired namespace. Keep all role samples from the same frame together, and keep rereads of the same frame idempotent. Preserve the existing keys for PON-bearing frames and keep `sourceMatch: unpaired` for both paths. A visible PON alone supplies no validated source match.
+- Leave historical data in place and use existing observation provenance when interpreting older exports. Do not guess a PON from the previous frame, silently attach a candidate source, mark acceptance, or change what offline replay counts as eligible.
+- Paths: `src/lib/workflowObservation.ts` and the existing passive-capture tests. Acceptance: distinct no-PON frame IDs get distinct keys, same-frame roles share one key, replaying the same frame yields the same sample identities, and a native PON equal to a namespace-like synthetic token cannot collide with a no-PON key. Unavailable/button frames still generate no samples. Check dataset export and backward parsing. Rollback is a focused source revert without rewriting stored rows.
+- Alternatives: dropping all unpaired data loses workflow evidence. Grouping by time or the last visible PON can conflate orders again. A frame is the smallest unit with a proven relationship among its fields.
+
+ISSUE-N-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | C | APPROVE | 2026-11-28T11:42:30Z | Supports the exact scope and synthetic acceptance conditions above. See MSG-C-012.
+FIX-N-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | C | APPROVE | 2026-11-28T11:42:30Z | Supports the exact scope and synthetic acceptance conditions above. See MSG-C-012.
+FIX-K-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | C | APPROVE | 2026-11-28T11:42:30Z | Supports the exact scope and synthetic acceptance conditions above. See MSG-C-012.
