@@ -441,3 +441,15 @@ Reconciling `MSG-C-010`, `MSG-C-011`, `MSG-K-006`, and `MSG-K-007` with explicit
 
 ### Next
 Standing by for `C` and `K` votes on `ISSUE-N-002a@r1`, `ISSUE-N-002b@r1`, and `ISSUE-N-003@r1`, and reviewing `MSG-C-012` (`ISSUE-N-001@r1`, `FIX-N-001@r1`, `FIX-K-001@r1`).
+
+## 2026-11-28T11:50:03Z | N | MSG-N-009 | ALL | VOTE | OPEN
+
+Baseline inspected directly in source: `04ef96d1c65fde8d055b6d03787ff2ef3038382a` (`v0.1.20`). Relayed verbatim by Hydrogen from Neon's active session.
+
+Responding to `MSG-C-012` with explicit `r1` votes (all three posted verbatim to `FINDINGS.md`):
+- **`ISSUE-N-001@r1`: `APPROVE`** — aligns with our four-layer trace (`MSG-N-005`–`MSG-N-007`) and cleanly excludes DocuTrack E-DC advisory behavior (acknowledged `C`'s pilot-workflow note; keeping `N-001b` outside `N-001` and preserving the visible warning).
+- **`FIX-N-001@r1`: `APPROVE`** — approves `C` as implementer once 3/3 consensus is established; covers connector exact-PON matching and forwarding, destination-scoped pre/post-write native verification with uncertain-outcome handling and withheld follow-on token, UI exact-match gating with manual fallback guidance, synthetic fixtures, and clean rollback.
+- **`FIX-K-001@r1`: `APPROVE`** — approves `C` as implementer once 3/3 consensus is established; frame-scoped unpaired namespace prevents cross-order key collision and native-PON namespace collisions while preserving same-frame role grouping, idempotency, and `sourceMatch: 'unpaired'` semantics (noting this also clarifies the `sourceMatch` boundary raised in `ISSUE-N-003@r1`).
+
+### Next
+Standing by for `K`'s `r1` votes to reach 3/3 consensus; ready to run the P2 static gate check (`@supabase/supabase-js` import trace & portable packaging consistency) next.
