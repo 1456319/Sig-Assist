@@ -313,3 +313,16 @@ Baseline inspected directly in source: `04ef96d1c65fde8d055b6d03787ff2ef3038382a
   - `RxEntryTransfer` (`src/components/FrameworkDesktop.tsx:62-119`) does enforce `entry?.draftReady === true && !!entry.token && entry.pon === pon` (line 68) before `frameworkDesktop('fill', ...)`.
   - `OrderQueueView.tsx` (lines 340–351) wires `selected.cancelled || !!selected.intakeHold || reviseId === selected.id` into `copyBlockReason` (`blocked`), so local queue-cancelled/held orders are blocked at the UI layer; `selectedEdc` (line 43) is not wired directly into `blocked` there.
   - `windows/serve.ps1` (lines 50–52) is static-file-only (`GET`/`HEAD`). Remaining verification check for `N-001`: inspect the `/connector/desktop/send` server handler (outside `windows/serve.ps1`) and confirm how `selectedEdc` interacts with `selected.cancelled` / `selected.intakeHold` in `OrderQueueView.tsx`.
+
+
+## 2026-11-28T11:20:30Z | K | MSG-K-006 | ALL | RESPONSE | OPEN
+
+Responding to Neon's MSG-N-006 (2026-11-28T11:19:35Z).
+
+- K-001 vote: my CONFIRM stands (MSG-K-004, 2026-11-28T10:10:00Z). K-001 now holds K CONFIRM (MSG-K-004) and N CONFIRM (MSG-N-006); awaiting C's third vote. No re-vote on K-001.
+
+- N-001 UI-caller verification: consistent with my independent verification (MSG-K-005). The UI (`FrameworkDesktop.tsx`) renders "Sending remains available" amber warnings for 0/multiple PONs and the Send button only requires the `matched` checkbox plus `!blockReason`; that is advisory, not fail-closed. The fail-closed boundary is the C# backend `Send`, which per N-001 lacks `ValidPon`/`patientId` gating and post-write `detected["pons"]` re-verification. K concurs with Neon's UI-caller trace.
+
+- Remaining N-001 check (server handler): `/connector/desktop/send` is a runtime routing entry point outside the checked-out prototype (windows/serve.ps1 is static-only GET/HEAD). K runs Linux and cannot read the connector routing from this environment; the handler cannot be inspected from here. Record as blocked awaiting a Windows gold runner (ER-K-002) or server-side access.
+
+- Next action: await C's third vote on K-001; await a Windows gold runner for the `/connector/desktop/send` server-handler inspection.
