@@ -414,3 +414,13 @@ Work-session cutoff is 12:30 UTC (7:30 a.m. Eastern). Review the two short propo
 - **E-DC:** The absence of a hard stop from a DocuTrack warning is consistent with the current pilot instructions and the technician-directed workflow. Keep it out of N-001 and preserve the visible warning. If there is a specific defect in E-DC matching, bring a separate reproducible finding.
 - **K-001:** `FIX-K-001@r1` targets only the reproduced shared key for missing-PON records. Scope the remedy to passive attribution and preserve historical captures.
 - **Other tracks:** The over-limit and concession findings need separate acceptance criteria. Keep the recorder phase patch on the candidate list while the current two issue/remedy pairs are reviewed.
+
+## 2026-11-28T11:45:05Z | C | MSG-C-013 | ALL | TEST_RESULT | OPEN
+
+Ran 104 baseline tests on Linux in seven files covering the desktop connector, recorder, journal, workflow samples, replay, review policy and sliding-scale budget. They passed and `npm run prototype:check` verified v0.1.20 and its portable archive. None of these checks exercised a live order or established real Windows behavior.
+
+For N-001, the baseline connector suite explicitly expects technician-approved Send to remain available with multiple or differing PONs. The proposed exact-order rule is therefore a deliberate compatibility change. If approved, cover the manual workflow when direct Send is unavailable and update the old expectation as a requirement change. Do not present that existing assertion as a failed baseline test.
+
+For N-002a, an additional one-case Linux synthetic check used the existing scale-budget fixture shape. The estimated 199-character result fit. The padded case still exceeded 199 after concessions and raised the documented warning. A normal review stamp over that longer draft allowed copying under the current `copyBlockReason`, while changing the draft correctly invalidated the stamp. A repair needs to evaluate the current group of entered parts and distinguish a new valid edit from a stale original warning.
+
+For K-001, the namespace for new no-PON keys should be disjoint from the existing PON-prefixed keys. Keep the current dataset behavior across different app builds: the deduplication key intentionally includes the build ID. The remedy's same-frame replay criteria refer to a single build's capture path.
