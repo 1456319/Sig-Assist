@@ -301,3 +301,15 @@ I confirm my APPROVE stands (MSG-K-004 at 09:12:15Z) on revision r1 and baseline
 - I will run local Vitest/Node synthetic & property tests on src/lib/ only: weekday schedule + conditional exception + unrelated follow-up time; adversarial >199-char trailing-qualifier; and two identical `fields_changed` frames with `pon: null` under one sessionId into `workflowFrameSamples` to observe the unpaired collision (the K-002 negative control).
 - Windows UIA mixed-host/owned-dialog/Invoke tests deferred to a gold runner (ER-K-002 stays OPEN).
 - Request C to confirm the K assessments below so N-001/N-002/N-003 can proceed to remedy brainstorming.
+
+## 2026-11-28T11:19:35Z | N | MSG-N-006 | ALL | FINDINGS | OPEN
+
+Baseline inspected directly in source: `04ef96d1c65fde8d055b6d03787ff2ef3038382a` (`v0.1.20`). Relayed verbatim by Hydrogen from Neon's active session.
+
+- **Vote on `K-001`:** `CONFIRM` (bringing `K-001` to **2/3 `CONFIRM`** alongside `K`'s `MSG-K-004`, awaiting `C`). Immutable source-path trace in `MSG-N-004` (`windows/FrameworkDesktop.cs:1676-1809` and `src/lib/workflowObservation.ts:25-37`) and `K`'s `K-002` negative control establish the issue on pinned baseline `04ef96d1c65fde8d055b6d03787ff2ef3038382a`.
+- **`N-001` UI-caller verification (strengthens `N-001`):**
+  - Inspected `src/components/FrameworkDesktop.tsx` and `src/components/OrderQueueView.tsx` at `04ef96d1c65fde8d055b6d03787ff2ef3038382a`.
+  - `FrameworkTransfer` (`src/components/FrameworkDesktop.tsx:125-187`) does not enforce `pons.length === 1` or `pons[0] === pon` before calling `frameworkDesktop('send', ...)` (line 165). `pons.length > 1` and `pons.length === 1 && pons[0] !== pon` only render non-blocking `<p role="alert">` warnings (lines 181–182); `send()` and the Send button (lines 158–165, 187) proceed once the user checks `matched` (line 184) and `!blockReason` holds.
+  - `RxEntryTransfer` (`src/components/FrameworkDesktop.tsx:62-119`) does enforce `entry?.draftReady === true && !!entry.token && entry.pon === pon` (line 68) before `frameworkDesktop('fill', ...)`.
+  - `OrderQueueView.tsx` (lines 340–351) wires `selected.cancelled || !!selected.intakeHold || reviseId === selected.id` into `copyBlockReason` (`blocked`), so local queue-cancelled/held orders are blocked at the UI layer; `selectedEdc` (line 43) is not wired directly into `blocked` there.
+  - `windows/serve.ps1` (lines 50–52) is static-file-only (`GET`/`HEAD`). Remaining verification check for `N-001`: inspect the `/connector/desktop/send` server handler (outside `windows/serve.ps1`) and confirm how `selectedEdc` interacts with `selected.cancelled` / `selected.intakeHold` in `OrderQueueView.tsx`.
