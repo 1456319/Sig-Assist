@@ -196,6 +196,7 @@ Directions observations can carry captured field values without a PON. In the pa
 **Evidence** Session 3 aggregate in MSG-C-008 and the Node negative control in MSG-C-011. The native Windows test remains pending. References for prior confirmations are MSG-K-004 and MSG-K-006, MSG-N-006, and MSG-C-010. Hydrogen can reconcile those votes with this exact wording and flag ambiguity. This issue record proposes no runtime change.
 
 ISSUE-K-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | C | APPROVE | 2026-11-28T11:30:31Z | Narrow attribution defect reproduced in the Node control, with native Windows validation still pending. See MSG-C-011.
+ISSUE-K-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | N | APPROVE | 2026-11-28T11:41:56Z | Independently verified at 04ef96d1c65fde8d055b6d03787ff2ef3038382a: WorkflowSnapshot (windows/FrameworkDesktop.cs:1766–1789) permits before.Length == 0 and emits pon = null, association = "unpaired", and workflowFrameSamples (src/lib/workflowObservation.ts:31,34) maps missing-PON frames to orderKey observer:${sessionId}:unpaired with distinct partId (${frame.id}:${role}) and sourceMatch: 'unpaired', matching C's Node K-002 reproduction.
 
 ## ISSUE-N-001@r1 — direct Framework transfer lacks an exact order-identity gate
 
@@ -226,3 +227,45 @@ The reviewed SIG/administration-times Send path lacks a required, exact, unambig
 ISSUE-N-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | C | APPROVE | 2026-11-28T11:42:30Z | Supports the exact scope and synthetic acceptance conditions above. See MSG-C-012.
 FIX-N-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | C | APPROVE | 2026-11-28T11:42:30Z | Supports the exact scope and synthetic acceptance conditions above. See MSG-C-012.
 FIX-K-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | C | APPROVE | 2026-11-28T11:42:30Z | Supports the exact scope and synthetic acceptance conditions above. See MSG-C-012.
+
+### N-001b (candidate) — matched DocuTrack E-DC (`selectedEdc`) is advisory-only and does not gate copy, `Send`, or `FillDraft`
+
+- **Priority:** P0 (P0-1, split from `N-001` per `C`/`K` request)
+- **Status:** candidate (awaiting independent acceptance criteria and confirmation votes)
+- **Baseline:** `04ef96d1c65fde8d055b6d03787ff2ef3038382a` (v0.1.20)
+- **Evidence:** `src/components/OrderQueueView.tsx` computes `selectedEdc = edcs && selected && edcMatch(edcs.documents, selected, orders)` (line 43, via `src/lib/docutrackQueue.ts:100–110`), which can be truthy while `selected.cancelled` and `selected.intakeHold` are false. `selectedEdc` is used solely to render `<EdcWarning />` (line 241) and is never wired into `copyBlockReason` (lines 344, 346), `<FrameworkTransfer>` (lines 340–351), or `<RxEntryTransfer>` (`src/components/FrameworkDesktop.tsx:205`).
+- **Acceptance criteria (for remedy scoping):** Define separately whether unique vs. ambiguous `selectedEdc` matches should hard-block copy/`Send`/`FillDraft` or require explicit technician override/resolution, and define staleness/expiry rules for DocuTrack E-DC snapshots.
+
+## ISSUE-N-002a@r1 — unresolved sliding-scale 199-char over-limit finding does not gate copy or `Send`
+
+**Baseline** `04ef96d1c65fde8d055b6d03787ff2ef3038382a` (v0.1.20).
+
+`fitSlidingScaleBudget` and `scaleBudgetFindings` (`src/lib/clinical/slidingScaleBudget.ts:47–81`, invoked via `frequencyEngine.ts:72–73,101–102` and `clinicalEngine.ts:480–487`) emit `sliding_scale_budget_exceeded` (`tier: 'uncorrected_gap'`) when `Math.max(rawLength, estimatedExpandedLength) > 199` after progressive concessions. `copyBlockReason` (`src/lib/reviewPolicy.ts:32–39`) performs no length or over-limit check, so an unresolved over-limit sliding-scale SIG can be approved and copied/sent. Any downstream remedy must specify how technician-edited output is re-evaluated against the 199-char budget and how stale over-limit warnings clear once edits fit.
+
+ISSUE-N-002a@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | N | APPROVE | 2026-11-28T11:41:56Z | Verified in slidingScaleBudget.ts:47–81, clinicalEngine.ts:480–487, and reviewPolicy.ts:32–39 that sliding_scale_budget_exceeded is displayed without a length gate in copyBlockReason; scoped narrowly with explicit requirement for technician-edit recheck and stale-warning recovery in any remedy.
+
+## ISSUE-N-002b@r1 — applied sliding-scale concessions have no dedicated acknowledgment beyond general review stamp
+
+**Baseline** `04ef96d1c65fde8d055b6d03787ff2ef3038382a` (v0.1.20).
+
+`fitSlidingScaleBudget` (`src/lib/clinical/slidingScaleBudget.ts:40–67`) applies ordered concessions (diagnosis omission via `omitDiagnosis`, `literal_ss`, `literal_cbs`) and emits `sliding_scale_concessions` (`tier: 'applied_correction'`, lines 76–77). While existing controls (`reviewStamp` in `src/lib/reviewPolicy.ts:28–30` and general warning display) apply, there is no dedicated concession-acknowledgment gate in `copyBlockReason` (lines 32–39). Kept strictly distinct from unresolved over-limit blocking (`ISSUE-N-002a@r1`) and general non-scale expanded-length checks (`N-002c`).
+
+ISSUE-N-002b@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | N | APPROVE | 2026-11-28T11:41:56Z | Verified in slidingScaleBudget.ts:40–77 and reviewPolicy.ts:28–39 that applied clinical-meaning concessions rely on the general reviewStamp/warning display with no dedicated concession acknowledgment.
+
+### N-002c (candidate) — non-sliding-scale 199-char warning checks raw length only, not estimated expanded length
+
+- **Priority:** P1 (P0-2, kept distinct from sliding-scale concessions per `C`'s `MSG-C-011`)
+- **Status:** candidate
+- **Baseline:** `04ef96d1c65fde8d055b6d03787ff2ef3038382a` (v0.1.20)
+- **Evidence:** `src/lib/clinical/clinicalEngine.ts` (lines 467–468) checks `!scale && policy.sig.length > 199` (raw code length) to emit `sig_length_review`, whereas `slidingScaleBudget.ts` checks `Math.max(rawLength, estimatedExpandedLength) > 199`. Non-sliding-scale SIGs whose short codes expand past 199 characters in Framework do not trigger `sig_length_review`, and `copyBlockReason` (`src/lib/reviewPolicy.ts:32–39`) does not check `sig_length_review`.
+
+## ISSUE-N-003@r1 — passive observer dataset inputs hardcode `sourceMatch: 'unpaired'` even when a PON is present and conflate missing-PON frames onto one session `orderId`
+
+**Baseline** `04ef96d1c65fde8d055b6d03787ff2ef3038382a` (v0.1.20).
+
+Narrowed per `C`'s `MSG-C-011` to statically verifiable provenance defects only (excluding offline replay count-inflation claims, as the pinned offline replay skips passive Framework observations and restricts distinct-source count to `source_received`):
+- `workflowFrameSamples` (`src/lib/workflowObservation.ts:34`) hardcodes `sourceMatch: 'unpaired'` even when `frame.pon` is present; once `sigDatasetStore.record` (`src/lib/sigDataset.ts:238`) HMAC-hashes `orderKey` into `orderId` and strips raw `orderKey`, PON-observed frames cannot be distinguished from unpaired frames via `sourceMatch`.
+- When `frame.pon` is missing (`ISSUE-K-001@r1`), all unpaired frames in a session hash to the same synthetic `orderId` (`observer:${frame.sessionId}:unpaired`), conflating distinct orders under one `orderId`.
+- Any broader downstream count-inflation claim requires naming a specific consumer of passive observer records and demonstrating its count delta.
+
+ISSUE-N-003@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | N | APPROVE | 2026-11-28T11:41:56Z | Narrowed per C's MSG-C-011 to statically verified provenance defects in workflowObservation.ts:31,34 and sigDataset.ts:238 (hardcoded sourceMatch: 'unpaired' when frame.pon is present, plus session-level orderId conflation on missing-PON frames), dropping unverified offline replay count claims.
