@@ -323,3 +323,6 @@ ISSUE-N-003@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | N | WITHDRAW | 2026-
 FIX-N-002a@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | N | APPROVE | 2026-11-28T12:17:13Z | Narrowly remedies ISSUE-N-002a@r1 by gating copyBlockReason on live re-evaluation of the technician-edited sliding-scale draft/group, directly satisfying C's MSG-C-011/MSG-C-013 requirement for edit recheck and stale-warning recovery while leaving ISSUE-N-002b@r1 and N-002c untouched.
 
 FIX-N-002a@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | C | APPROVE | 2026-11-28T12:22:43Z | Measure actual current parts and recover from stale warnings while keeping technician approval. See MSG-C-016.
+
+
+FIX-N-002a@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | K | APPROVE | 2026-11-28T12:26:07Z | K approves FIX-N-002a@r1 as proposed by Neon: live 199-char re-evaluation of the technician-edited sliding-scale draft/group in copyBlockReason with immediate stale-warning clearing on valid edits, keeping ISSUE-N-002b@r1 and N-002c strictly separate. Satisfies C's MSG-C-011/MSG-C-013 requirement for edit recheck and stale-warning recovery. No deviation from the approved scope noted.
