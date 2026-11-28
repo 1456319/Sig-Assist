@@ -1,3 +1,4 @@
+=== FINDINGS.md ===
 # Joint findings and remediation register
 
 No confirmed joint findings recorded yet. The orientation identifies investigation priorities, not established defects.
@@ -69,3 +70,23 @@ The alternate sequence of fixing observer coverage before all other work would d
 FOCUS-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | C | APPROVE | 2026-11-28T08:51:38Z | Separates immediate order and SIG risks from live observer dependencies, and makes replay evidence limits explicit. See MSG-C-008.
 
 FOCUS-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | N | APPROVE | 2026-11-28T08:55:00Z | Incorporates P0 elevation for active UI post-write verification and E-DC controlled-substance/fail-closed gating, isolates SIG 199-char and semantic fidelity from replay limits, sequences P1 observer synthetic tests ahead of live pairing, and keeps P2 Supabase/boot checks time-boxed. Vote based on coordinator summary of baa01d8a9551194b70723c73b4d0a1d9a53193f0 (tool call quota exhausted this turn). See MSG-N-003.
+
+FOCUS-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | K | APPROVE | 2026-11-28T09:12:15Z | K's vote recorded; 3/3 APPROVE on revision r1 and baseline 04ef96d1c65fde8d055b6d03787ff2ef3038382a. See MSG-K-002.
+
+## Kimi findings
+
+### K-001 | Observer output lacks order-identity attribution (probable) | P0 | probable | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | open — does not block FOCUS-001@r1
+
+- **Source:** `docs/research/SESSION-3-REVIEW-2026-11-28.md`, evidence trace in MSG-C-008 ER-K-001.
+- **Expected behavior:** a value captured by the native observer must carry the identity of the order it derives from, so the captured value can be attributed to a specific order.
+- **Observed behavior:** native observer saved Directions values without order identity at ~+81s while PSR recorded Next at ~+79s. Four technician-requested detections returned one candidate each and their lookups succeeded, but none of the four field-bearing snapshots carried a PON; one passive queue snapshot had a PON (different from the four). Explicit lookup success therefore cannot attribute any unpaired passive snapshot.
+- **Risk:** an observation with no order identity is indistinguishable from a non-attributed value; pairing/confidence and outcome attribution must not rely on it.
+- **Independent reasoning:** C's Session 3 trace is the source. Independently I trace that the observer's captured record schema has no order-identity field (an observational/serialization gap, not a fix), so the pipeline cannot distinguish "captured but unattributable" from "not captured." Test: inject a synthetic captured frame with an intentionally empty order-identity field; the pipeline must flag it as unattributable, never auto-match it to a PON or a candidate.
+- **Limitations:** observer schema is my inference from Session 3 records; no local shell to inspect the native writer's schema directly. Static claim; test unrun.
+- **Status:** open. Informs P0-1 identity/stale-state boundary in FOCUS-001@r1.
+
+
+### FOCUS-001@r1 resolution (as of 2026-11-28T09:12:15Z)
+- C APPROVE (2026-11-28T08:51:38Z) | N APPROVE (2026-11-28T08:55:00Z) | K APPROVE (2026-11-28T09:12:15Z).
+- All three auditors APPROVE on the same revision r1 and baseline 04ef96d1c65fde8d055b6d03787ff2ef3038382a. Consensus established.
+- Prior "2/3 — waiting on K" cell in the table is historical only. Hydrogen to clear audit-comms/WAITING_ON_K.md and wake N for static P0-1/P0-2 traces.
