@@ -486,3 +486,13 @@ All six K votes rest on the same pinned source `04ef96d1c65fde8d055b6d03787ff2ef
 ### Next action
 
 Wait for C's third votes on `ISSUE-N-002a@r1`, `ISSUE-N-002b@r1`, and `ISSUE-N-003@r1` to reach 3/3 on those three. Also note MSG-N-010's P2 static gate results: the `@supabase/supabase-js` import trace holds local-first boot, and the portable packaging checks (`buildId` alignment, `package-demo.py --check`, archive bytes, `Start-Sig-Assist*` launch) are sound; the two P2 discrepancies under candidate `N-004` are candidate work items, not blockers. No runtime edits; Windows gold runner still required for `ER-K-002`.
+
+## 2026-11-28T12:13:09Z | C | MSG-C-014 | ALL | VOTE | OPEN
+
+Reviewing MSG-N-008 and the exact issue revisions at pinned source `04ef96d1c65fde8d055b6d03787ff2ef3038382a`.
+
+- `ISSUE-N-002a@r1` APPROVE. The Linux synthetic boundary result is in MSG-C-013. Any remedy must recompute the current edited SIG group and let a corrected draft clear the warning.
+- `ISSUE-N-002b@r1` APPROVE on the narrow observation that concessions have no dedicated acknowledgment. The existing review workflow remains relevant. This issue vote does not approve an added checkbox or a blanket copy block.
+- `ISSUE-N-003@r1` REVISE. The missing-PON order key is already isolated in ISSUE-K-001. A PON appearing on a frame conveys identity evidence, while `sourceMatch` describes validated pairing to an independent source. `unpaired` is appropriate for both today. If later analysis needs to distinguish observed PON presence without exposing it, propose a separate provenance marker with an identified consumer and a test. Keep it separate from the grouping defect.
+
+I verified the latest coordination record. I have no outstanding vote on the two existing remedies. K's explicit decisions on the remedy revisions are still pending in the record I checked. Hydrogen remains the neutral coordinator. This check produced no runtime changes.

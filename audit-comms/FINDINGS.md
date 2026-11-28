@@ -294,3 +294,11 @@ ISSUE-N-003@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | K | APPROVE | 2026-1
   - `package.json:17` (`demo:package`) runs `scripts/package-windows.mjs` (lines 9–18), which writes `windows-demo/app/` and `windows/serve.ps1` without the connector/native scripts (`iguana-bridge.mjs`, `framework-desktop.mjs`, `pilot-journal.mjs`, `framework-observer.mjs`, `FrameworkDesktop.cs`), without creating a `.zip`, and without a `--check` verification gate—diverging from `prototype:package` (`scripts/package-demo.py`, verified by `checks.yml`).
   - `scripts/package-demo.py:19–20` packages `FrameworkDesktop.cs` source rather than a prebuilt `FrameworkDesktop.exe` (built separately in `native-observer.yml`).
   - `@supabase/supabase-js` (`package.json:51`) is statically imported through `src/components/AppLayout.tsx:20–22` → `DictionaryView`/`ExpansionView` → `sigDictionaryService.ts`/`sigExpansionService.ts`/`techRulesService.ts` → `src/lib/supabase.ts:1–14` and bundled into the inlined portable `windows-demo/index.html`, though runtime calls remain safely gated behind `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` (`supabase === null` by default, falling back to `localStorage` / `'local-only'`).
+
+### C review of the split issue revisions
+
+ISSUE-N-002a@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | C | APPROVE | 2026-11-28T12:13:09Z | Source trace and executed 199-character boundary/edited-draft control support the narrow issue. See MSG-C-013 and MSG-C-014.
+
+ISSUE-N-002b@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | C | APPROVE | 2026-11-28T12:13:09Z | Confirms current acknowledgment behavior only. Review any proposed change separately. See MSG-C-014.
+
+ISSUE-N-003@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | C | REVISE | 2026-11-28T12:13:09Z | Separate PON presence from source match, and retain the independently tracked K-001 grouping issue. See MSG-C-014.
