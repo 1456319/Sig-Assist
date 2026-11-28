@@ -50,7 +50,12 @@ Awaiting audit.
   - `src/lib/frameworkDesktop.ts` (`frameworkDesktop`, lines 31–46) is a thin HTTP POST wrapper with no client-side fail-closed gating.
   - No dedicated E-DC/discontinue/cancel gating exists in `windows/FrameworkDesktop.cs` or `src/lib/frameworkDesktop.ts`; cancellation guards exist only in `src/lib/orderQueue.ts` (`saveOrder` line 57; `cancelOrder` lines 80–83) and `src/lib/frameworkSigDataset.ts` (`findDatasetSource` line 37).
 - **Impact:** Active SIG/times write can land on an unverified, ambiguous, or mid-write-switched Framework order, violating fail-closed order-identity boundaries.
-- **Independent assessments:** `N`: static trace complete (pending check of UI callers of `frameworkDesktop('send', ...)`); `C`: Pending; `K`: Pending.
+- **UI Caller Verification (`04ef96d1c65fde8d055b6d03787ff2ef3038382a`, relayed `2026-11-28T11:19:35Z`):**
+  - `src/components/FrameworkDesktop.tsx` (`FrameworkTransfer`, lines 125–187) confirms there is no upstream UI fail-closed guard for single-PON or PON-match before `frameworkDesktop('send', ...)` (line 165). Lines 181–182 render non-blocking `<p role="alert">` warnings for `pons.length > 1` and `pons.length === 1 && pons[0] !== pon`, while `send()` (lines 158–165) and the Send button (line 187) only require the manual `matched` checkbox (line 184), `!blockReason`, and a non-expired `detected.token` + target field. Thus 0 PONs, multiple PONs, or a mismatched PON can all reach `FrameworkDesktop.cs` `Send`.
+  - By contrast, `RxEntryTransfer` (`src/components/FrameworkDesktop.tsx`, lines 62–119) requires `entry?.draftReady === true && !!entry.token && entry.pon === pon` (line 68) before `frameworkDesktop('fill', ...)`.
+  - `src/components/OrderQueueView.tsx` (lines 340–351) passes `selected.cancelled || !!selected.intakeHold || reviseId === selected.id` into `copyBlockReason` as `blocked` for `<FrameworkTransfer>`, which blocks local queue-cancelled/held orders; `selectedEdc` (line 43) is not passed directly into `blocked` at lines 340–351.
+  - `windows/serve.ps1` (lines 50–52) is static-only (`GET`/`HEAD`); the `/connector/desktop/send` backend router was not yet inspected.
+- **Independent assessments:** `N`: static + UI-caller trace complete (pending `/connector/desktop/send` server handler and `selectedEdc` wiring check); `C`: Pending; `K`: Confirmed (see K independent assessment below).
 
 ### N-002 | 199-character SIG concessions and over-limit flags do not gate copy/send, and non-sliding-scale paths check raw length only | P0 | candidate | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | open
 
@@ -129,6 +134,9 @@ FOCUS-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | K | APPROVE | 2026-11-
 
 ### K vote on K-001 (2026-11-28T10:10:00Z)
 K CONFIRM on K-001 (baseline 04ef96d1c65fde8d055b6d03787ff2ef3038382a, v0.1.20), citing Neon's immutable source-path trace (MSG-N-004 §1) and the synthetic negative control Neon proposed (MSG-N-004 §2). Neon's trace of `src/lib/workflowObservation.ts` (`workflowFrameSamples`, lines 25-37) shows `orderKey` = `observer:${sessionId}:${pon || 'unpaired'}` with `sourceMatch: 'unpaired'`; any Directions frame without an inline/labeled PON collapses into the shared `observer:<sessionId>:unpaired` bucket. This confirms the narrowed K-001 claim that the Session 3 field-bearing snapshots lacked a PON and could not be attributed to a specific order. The broader schema-level assertion is confirmed for the `workflowFrameSamples` path by the trace; the native writer's Direction-capture code remains the specific verified locus.
+
+### N vote on K-001 (2026-11-28T11:19:35Z)
+N CONFIRM on K-001 (baseline `04ef96d1c65fde8d055b6d03787ff2ef3038382a`, v0.1.20), bringing K-001 to 2/3 CONFIRM alongside K's MSG-K-004 (awaiting C). Immutable source-path trace in MSG-N-004 (`windows/FrameworkDesktop.cs:1676-1809` and `src/lib/workflowObservation.ts:25-37`) and K's K-002 negative control establish the issue on pinned baseline `04ef96d1c65fde8d055b6d03787ff2ef3038382a`. See MSG-N-006.
 
 ### K-002 | Synthetic negative control for K-001 (concept verified) | P0 | verified (concept) | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | open - execution pending shell/CI
 
