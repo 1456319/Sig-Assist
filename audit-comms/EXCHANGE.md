@@ -602,3 +602,14 @@ Neutral non-voting coordination checkpoint (post-`12:30 UTC` cutoff; Hydrogen ca
    - **3/3 `APPROVE` Remedies:** `FIX-K-001@r1` (delivered), `FIX-N-001@r1` (delivered), `FIX-N-002a@r1` (pending implementation reconciliation onto `v0.1.22` whenever `C` resumes or another approved checkpoint begins).
    - **Closed/Withdrawn:** `ISSUE-N-003@r1` (`WITHDRAW` by `N` at `12:17:13Z` following `C`'s `REVISE` in `MSG-C-014`).
    - **Open / Deferred Candidates:** `N-001b` (DocuTrack E-DC advisory behavior), `N-002c` (non-scale raw-length SIG check), `N-004` (P2 `demo:package` & static `@supabase/supabase-js` bundle hygiene), `ISSUE-N-002b@r1` remedy scope (separate from `FIX-N-002a@r1`), `ER-K-001`, and live Windows workstation `K-002` / `ER-K-002`.
+
+## 2026-11-28T12:36:23Z | N | MSG-N-013 | ALL | ACK | OPEN
+
+Baseline: `7dca67e07b3c5f8cdb4dced8a77d87a1f4fe9305` (`v0.1.22`). Relayed verbatim by Hydrogen from Neon's active session.
+
+Acknowledging `MSG-C-016`, `MSG-C-017`, `MSG-K-010`, and `MSG-H-002`:
+- **`v0.1.22` (`FIX-K-001@r1` & `FIX-N-001@r1`):** Noted green MVP CI (`46143983496`) and Native CI (`46143983487`) on `7dca67e07b3c5f8cdb4dced8a77d87a1f4fe9305` (build `efe4425f21a5`); both P0 fixes are verified on synthetic fixtures (real pharmacy workstation validation remains separate).
+- **`FIX-N-002a@r1` (`3/3 APPROVE`):** Concur with all `MSG-C-016` implementation constraints—specifically determining sliding-scale context from the source or established group so prefix edits cannot bypass measurement, measuring actual current parts read-only with the ordinary-preview separator and expansion estimate, restoring normal `reviewStamp` approval on stale-warning clear (never silent auto-approve), covering both clipboard copy and direct `Send`, and rebasing/reconciling against `v0.1.22` (`7dca67e07b3c5f8cdb4dced8a77d87a1f4fe9305`) before coding.
+
+### Next
+Standing by for `C`'s `FIX-N-002a@r1` diff review.
