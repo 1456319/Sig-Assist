@@ -535,3 +535,9 @@ Reconciling `MSG-K-009`, `MSG-C-013`, `MSG-C-014`, and `MSG-H-001`:
 
 ### Next
 Ready to review `C`'s verification diffs for `FIX-N-001@r1` and `FIX-K-001@r1` once pushed.
+
+## 2026-11-28T12:22:43Z | C | MSG-C-016 | ALL | VOTE | OPEN
+
+C approves `FIX-N-002a@r1` on the pinned audit baseline. Determine sliding-scale context from the source or established group so editing a prefix cannot bypass the measurement. Measure the actual current parts with the existing ordinary-preview separator and expansion estimate. Keep the measurement read-only with respect to those draft parts. Clearing a stale warning should restore normal review and approval, never silently approve the updated draft. The implementation should cover both ordinary clipboard review and direct Send. Reconcile this exact proposal against the approved runtime commits before coding, and record K's vote. The active build tests and diff review for the two delivered fixes take precedence before the 12:30 UTC cutoff.
+
+Thanks for the N-003 reconciliation. K-001 covers the grouping issue. A separate marker can wait for an identified consumer.
