@@ -90,3 +90,21 @@ FOCUS-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | K | APPROVE | 2026-11-
 - C APPROVE (2026-11-28T08:51:38Z) | N APPROVE (2026-11-28T08:55:00Z) | K APPROVE (2026-11-28T09:12:15Z).
 - All three auditors APPROVE on the same revision r1 and baseline 04ef96d1c65fde8d055b6d03787ff2ef3038382a. Consensus established.
 - Prior "2/3 — waiting on K" cell in the table is historical only. Hydrogen to clear audit-comms/WAITING_ON_K.md and wake N for static P0-1/P0-2 traces.
+
+### K vote on K-001 (2026-11-28T10:10:00Z)
+K CONFIRM on K-001 (baseline 04ef96d1c65fde8d055b6d03787ff2ef3038382a, v0.1.20), citing Neon's immutable source-path trace (MSG-N-004 §1) and the synthetic negative control Neon proposed (MSG-N-004 §2). Neon's trace of `src/lib/workflowObservation.ts` (`workflowFrameSamples`, lines 25-37) shows `orderKey` = `observer:${sessionId}:${pon || 'unpaired'}` with `sourceMatch: 'unpaired'`; any Directions frame without an inline/labeled PON collapses into the shared `observer:<sessionId>:unpaired` bucket. This confirms the narrowed K-001 claim that the Session 3 field-bearing snapshots lacked a PON and could not be attributed to a specific order. The broader schema-level assertion is confirmed for the `workflowFrameSamples` path by the trace; the native writer's Direction-capture code remains the specific verified locus.
+
+### K-002 | Synthetic negative control for K-001 (concept verified) | P0 | verified (concept) | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | open - execution pending shell/CI
+
+- **Source:** Neon's proposal in MSG-N-004 §2; `src/lib/workflowObservation.ts` (`workflowFrameSamples`, lines 25-37); `windows/FrameworkDesktop.cs` (`WorkflowSnapshot`, lines 1676-1809).
+- **Description:** Pass two distinct `WorkflowFrame` payloads (`kind: 'fields_changed'`, `view: 'directions'`, `pon: null`, different fields) under the same `sessionId` into `workflowFrameSamples`; verify collision on `observer:<sessionId>:unpaired` with `sourceMatch: 'unpaired'`. Plus a fixture verifying `WorkflowSnapshot` emits `pon = null` when `DirectionsView` lacks `PonLabel`/`PonInline`/`ERxGrid`, or `DatasetPons` throws.
+- **Expected behavior:** An empty/ambiguous order-identity frame must be surfaced as an attribution failure and never silently auto-matched to a PON or candidate.
+- **Independent assessment (K):** The negative control is a necessary and sufficient control for K-001: it proves the pipeline does not auto-match an empty/ambiguous identity frame. Concept verified by K against Neon's trace. Execution unrun - requires a shell/CI run; label unrun until executed.
+- **Status:** open - execution and shell/CI run pending.
+
+### K-003 | Observer read budget, Done-event delivery, and 199-char SIG budget | P1 | probable (static claim; unrun) | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | open
+
+- **Source:** Neon's additional findings, MSG-N-004 §3: `windows/FrameworkDesktop.cs` (`WorkflowSnapshot` lines 1688-1779; `DatasetSnapshot` lines 1352-1406; `WatchEvents` lines 1810-1907); `src/lib/clinical/slidingScaleBudget.ts` (`fitSlidingScaleBudget`, lines 47-67; `SCALE_SIG_LIMIT = 199` line 4).
+- **Description:** (P1-1) `WorkflowSnapshot`/`DatasetSnapshot` enforce a 3,000 ms / 640-node / 24-depth / 32-candidate cap returning `DatasetFailure("READ_LIMIT", true)`, matching the 22 READ_LIMIT failures in Session 3. `WatchEvents` captures `Done` only via `InvokePattern.InvokedEvent` with trimmed `Name` matching `^(?:Save|Done|...)$` (lines 1839-1842), a plausible cause of 0 native Done events despite PSR clicks. (P0-2) `fitSlidingScaleBudget` enforces the 199-char budget and ordered concessions.
+- **Independent assessment (K):** Sound leads requiring synthetic mixed-host/owned-dialog/Invoke tests (Neon/C/K tracks) and adversarial synthetic SIG pairs around the expanded 199-char path. Static claims only; tests unrun.
+- **Status:** open - verification via synthetic Windows fixtures (Neon/C/K tracks) and adversarial synthetic SIG pairs.
