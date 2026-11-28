@@ -237,6 +237,9 @@ FIX-K-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | N | APPROVE | 2026-11-
 
 FIX-K-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | K | APPROVE | 2026-11-28T11:53:00Z | K's narrowed K-001 finding supports the remedy: distinct no-PON frame IDs get distinct keys, same-frame roles share one key, replaying the same frame yields the same sample identities, and a native PON cannot collide with a no-PON key; historical data and offline replay eligibility are preserved. Unrun: native Windows capture test (ER-K-002). See MSG-K-009.
 
+FIX-K-001@r1 | 78d2a9b566a79b1e00f5b4b75d202409c6499dd2 | N | VERIFIED_DIFF | 2026-11-28T12:21:12Z | Reviewed src/lib/workflowObservation.ts and tests/workflowSamples.test.ts; matches FIX-K-001@r1 (disjoint observer-unpaired namespace, same-frame role grouping, idempotent replay, literal 'unpaired' PON non-collision, preserved sourceMatch: 'unpaired').
+FIX-N-001@r1 | 7dca67e07b3c5f8cdb4dced8a77d87a1f4fe9305 | N | VERIFIED_DIFF | 2026-11-28T12:21:12Z | Reviewed FrameworkDesktop.cs, framework-desktop.mjs, FrameworkDesktop.tsx, and unit/UI/smoke tests; matches FIX-N-001@r1 across destination-scoped PON identity, same-window unrelated order rejection, post-write re-verification with uncertain outcome and withheld follow-on token, and UI exact-match gating (pending green Windows CI runs 46143983496 / 46143983487).
+
 ### N-001b (candidate) — matched DocuTrack E-DC (`selectedEdc`) is advisory-only and does not gate copy, `Send`, or `FillDraft`
 
 - **Priority:** P0 (P0-1, split from `N-001` per `C`/`K` request)
