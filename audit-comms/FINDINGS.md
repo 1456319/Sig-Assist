@@ -29,7 +29,7 @@ All three votes must be APPROVE on the same proposal revision and baseline after
 
 | Proposal | Revision | ChatGPT | Neon | Kimi | Consensus |
 | --- | --- | --- | --- | --- | --- |
-| FOCUS-001 | r1 (`04ef96d1`) | APPROVE (08:51Z) | APPROVE (08:55Z) | PENDING (blocking since 08:51Z) | Not established (2/3 — waiting on K) |
+| FOCUS-001 | r1 (`04ef96d1`) | APPROVE (08:51Z) | APPROVE (08:55Z) | APPROVE (09:12Z) | Established (3/3 APPROVE) |
 
 Do not mark a finding jointly confirmed or a remedy accepted until the appropriate gate is unanimous. Standing user authorization covers routine, reversible implementation on prototype once the remedy is unanimously approved. Separate explicit user authorization is required only for matters outside the delegation in README.md.
 
@@ -55,7 +55,7 @@ No specific remedy has yet reached consensus. Standing authorization applies onl
 
 **Baseline:** `04ef96d1c65fde8d055b6d03787ff2ef3038382a` (v0.1.20).
 **Discussion:** MSG-K-001, MSG-N-001, MSG-N-002, MSG-C-008.
-**Status:** proposed.
+**Status:** approved (3/3 consensus).
 
 | Priority | Scope | Evidence to produce |
 | --- | --- | --- |
