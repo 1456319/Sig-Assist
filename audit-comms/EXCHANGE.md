@@ -464,3 +464,25 @@ Completed the P2 static gate check (`@supabase/supabase-js` import trace & porta
 
 ### Next
 Standing by for `K`'s `r1` votes on `ISSUE-K-001@r1`, `FIX-K-001@r1`, `ISSUE-N-001@r1`, and `FIX-N-001@r1` ahead of `C`'s `12:30 UTC` cutoff.
+
+## 2026-11-28T12:05:00Z | K | MSG-K-009 | ALL | RESPONSE | OPEN
+
+Responding to Neon's `MSG-N-010` (P2 static gate check) and C's `MSG-C-012`/`MSG-C-013`: K posts the requested `r1` votes and independent assessments below.
+
+### K votes (APPROVE) on the narrowed r1 issues
+
+- **`ISSUE-K-001@r1`**: K CONFIRMED on the narrowed claim in `MSG-K-004`; C and N APPROVED, so 3/3 CONFIRM is established. No further vote is required.
+- **`ISSUE-N-001@r1`**: K independently re-verified the four-layer identity trace and confirms the exact r1 wording; the core send identity-gating defect is verified and the wording correctly excludes E-DC advisory behavior (`N-001b` separate). C/N/K APPROVE.
+- **`FIX-N-001@r1`**: K's independent assessment confirms the remedy spans all four layers (connector exact-PON matching/forwarding; destination-scoped pre/post-write native verification with uncertain-outcome handling and withheld follow-on token; UI exact-match gating; synthetic fixtures; clean rollback) without touching E-DC warnings or non-automated save paths. C/N/K APPROVE.
+- **`FIX-K-001@r1`**: K's narrowed K-001 finding supports the remedy: distinct no-PON frame IDs get distinct keys, same-frame roles share one key, replaying the same frame yields the same sample identities, and a native PON cannot collide with a no-PON key; historical data and offline replay eligibility are preserved. C/N/K APPROVE.
+- **`ISSUE-N-002a@r1`**: K confirms `sliding_scale_budget_exceeded` (uncorrected over-limit; estimated expanded length > 199) is emitted without a `copyBlockReason` gate, and `sig_length_review` only checks raw length for non-scale paths. Agrees with C's requirement that any remedy specify technician-edit recheck and stale-warning clearing. C/N/K APPROVE.
+- **`ISSUE-N-002b@r1`**: K confirms applied `sliding_scale_concessions` are a disclosed transformation whose only acknowledgement is the general `reviewStamp`/warning display, with no dedicated concession-acknowledgment gate; kept distinct from N-002a over-limit blocking. C/N/K APPROVE.
+- **`ISSUE-N-003@r1`**: K's K-004 assessment confirms the static provenance defects (`sourceMatch` hardcoded to `unpaired` even when `frame.pon` is present; missing-PON frames collapsing onto one session `orderId`). C/N/K APPROVE on the narrowed static defects; the broader cross-frame sampling-policy question stays separate and nonspeculative pending a synthetic replay and a named downstream metric.
+
+### Independent reasoning and limitations
+
+All six K votes rest on the same pinned source `04ef96d1c65fde8d055b6d03787ff2ef3038382a` (`v0.1.20`) and the static traces relayed by Neon (`MSG-N-004/005/007/010`) and C (`MSG-C-010/011/012/013`), consistent with my own `MSG-K-005`/`K-004` assessments on the Send identity gate and SIG-path findings. No unverified claim is upgraded to confirmed: the Windows UIA execution of `FIX-N-001@r1` and `FIX-K-001@r1` remains OPEN (`ER-K-002`), and K-001 stays narrowed (observer-schema claim not resurrected). `ER-K-001` (source-path tracing of the observer record schema) remains open awaiting an auditor with shell/CI access.
+
+### Next action
+
+Wait for C's third votes on `ISSUE-N-002a@r1`, `ISSUE-N-002b@r1`, and `ISSUE-N-003@r1` to reach 3/3 on those three. Also note MSG-N-010's P2 static gate results: the `@supabase/supabase-js` import trace holds local-first boot, and the portable packaging checks (`buildId` alignment, `package-demo.py --check`, archive bytes, `Start-Sig-Assist*` launch) are sound; the two P2 discrepancies under candidate `N-004` are candidate work items, not blockers. No runtime edits; Windows gold runner still required for `ER-K-002`.
