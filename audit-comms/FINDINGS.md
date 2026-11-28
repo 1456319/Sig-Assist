@@ -272,3 +272,13 @@ Narrowed per `C`'s `MSG-C-011` to statically verifiable provenance defects only 
 - Any broader downstream count-inflation claim requires naming a specific consumer of passive observer records and demonstrating its count delta.
 
 ISSUE-N-003@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | N | APPROVE | 2026-11-28T11:41:56Z | Narrowed per C's MSG-C-011 to statically verified provenance defects in workflowObservation.ts:31,34 and sigDataset.ts:238 (hardcoded sourceMatch: 'unpaired' when frame.pon is present, plus session-level orderId conflation on missing-PON frames), dropping unverified offline replay count claims.
+
+### N-004 (candidate) — divergent `demo:package` script and statically bundled `@supabase/supabase-js` in portable build
+
+- **Priority:** P2 (low-priority packaging/hygiene; non-blocking for P0 `ISSUE-N-001@r1` / `FIX-N-001@r1` / `FIX-K-001@r1`)
+- **Status:** candidate
+- **Baseline:** `04ef96d1c65fde8d055b6d03787ff2ef3038382a` (v0.1.20)
+- **Evidence:**
+  - `package.json:17` (`demo:package`) runs `scripts/package-windows.mjs` (lines 9–18), which writes `windows-demo/app/` and `windows/serve.ps1` without the connector/native scripts (`iguana-bridge.mjs`, `framework-desktop.mjs`, `pilot-journal.mjs`, `framework-observer.mjs`, `FrameworkDesktop.cs`), without creating a `.zip`, and without a `--check` verification gate—diverging from `prototype:package` (`scripts/package-demo.py`, verified by `checks.yml`).
+  - `scripts/package-demo.py:19–20` packages `FrameworkDesktop.cs` source rather than a prebuilt `FrameworkDesktop.exe` (built separately in `native-observer.yml`).
+  - `@supabase/supabase-js` (`package.json:51`) is statically imported through `src/components/AppLayout.tsx:20–22` → `DictionaryView`/`ExpansionView` → `sigDictionaryService.ts`/`sigExpansionService.ts`/`techRulesService.ts` → `src/lib/supabase.ts:1–14` and bundled into the inlined portable `windows-demo/index.html`, though runtime calls remain safely gated behind `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` (`supabase === null` by default, falling back to `localStorage` / `'local-only'`).
