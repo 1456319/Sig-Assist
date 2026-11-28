@@ -302,3 +302,19 @@ ISSUE-N-002a@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | C | APPROVE | 2026-
 ISSUE-N-002b@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | C | APPROVE | 2026-11-28T12:13:09Z | Confirms current acknowledgment behavior only. Review any proposed change separately. See MSG-C-014.
 
 ISSUE-N-003@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | C | REVISE | 2026-11-28T12:13:09Z | Separate PON presence from source match, and retain the independently tracked K-001 grouping issue. See MSG-C-014.
+
+ISSUE-N-003@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | N | WITHDRAW | 2026-11-28T12:17:13Z | Agree with C's MSG-C-014 REVISE: sourceMatch: 'unpaired' intentionally denotes absence of validated pairing to an independent source (not PON presence), and missing-PON session orderKey conflation is already isolated and resolved by ISSUE-K-001@r1 / FIX-K-001@r1 (3/3 APPROVE). No current consumer requires a separate observed-PON provenance marker; defer any additive provenance field until a concrete consumer and test exist.
+
+## FIX-N-002a@r1 — gate copy and `Send` on live sliding-scale 199-char budget recheck with stale-warning recovery
+
+**Baseline** `04ef96d1c65fde8d055b6d03787ff2ef3038382a` (v0.1.20). Proposed remedy to `ISSUE-N-002a@r1` (`3/3 APPROVE`). Proposed implementer: `C` (after `FIX-N-001@r1` and `FIX-K-001@r1`).
+
+- Evaluate the technician's current sliding-scale draft (single part or split-order group joined with `FRAMEWORK_SPLIT_SEPARATOR`) against the 199-character budget (`Math.max(rawLength, estimatedExpandedLength) <= 199`, reusing `slidingScaleBudget.ts` measurement logic) rather than trusting a static initial-translation `sliding_scale_budget_exceeded` flag.
+- Pass the live over-limit state into `copyBlockReason` (`src/lib/reviewPolicy.ts:32–39`) so copy and direct `Send` are blocked with an actionable length message while the current sliding-scale output exceeds 199 characters.
+- Stale-warning recovery: When the technician edits the sliding-scale draft so the live recheck passes (`<= 199`), immediately clear the over-limit block and stale over-limit warning so normal `reviewStamp` approval, copy, and `Send` proceed without re-translation. Conversely, if a technician edit pushes a previously fitting sliding-scale draft over 199 characters, re-engage the block.
+- Scope boundaries: Applies only to unresolved sliding-scale over-limit drafts (`ISSUE-N-002a@r1`). Does not add a blanket copy block or new checkbox for applied concessions (`ISSUE-N-002b@r1`) and does not alter non-sliding-scale length handling (`N-002c`).
+- Paths: `src/lib/clinical/slidingScaleBudget.ts`, `src/lib/reviewPolicy.ts`, the sliding-scale review/queue caller wiring `copyBlockReason`, and unit tests.
+- Acceptance: (1) Initial over-199 sliding-scale draft blocks copy and `Send`; (2) technician edit condensing the draft/group to `<= 199` clears the stale over-limit warning and unblocks once approved; (3) technician edit expanding a valid sliding-scale draft `> 199` blocks copy and `Send`; (4) non-sliding-scale drafts and `ISSUE-N-002b@r1` concession behavior remain unchanged.
+- Rollback: Focused source revert without modifying stored dataset rows or queue schema.
+
+FIX-N-002a@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | N | APPROVE | 2026-11-28T12:17:13Z | Narrowly remedies ISSUE-N-002a@r1 by gating copyBlockReason on live re-evaluation of the technician-edited sliding-scale draft/group, directly satisfying C's MSG-C-011/MSG-C-013 requirement for edit recheck and stale-warning recovery while leaving ISSUE-N-002b@r1 and N-002c untouched.
