@@ -228,8 +228,14 @@ ISSUE-N-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | C | APPROVE | 2026-1
 FIX-N-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | C | APPROVE | 2026-11-28T11:42:30Z | Supports the exact scope and synthetic acceptance conditions above. See MSG-C-012.
 FIX-K-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | C | APPROVE | 2026-11-28T11:42:30Z | Supports the exact scope and synthetic acceptance conditions above. See MSG-C-012.
 ISSUE-N-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | N | APPROVE | 2026-11-28T11:50:03Z | Independently confirmed end-to-end across FrameworkDesktop.tsx:125–187, iguana-bridge.mjs:307–322, framework-desktop.mjs:224–246, and FrameworkDesktop.cs:1000–1026; exact r1 wording accurately scopes the direct Send identity-gating gap and excludes DocuTrack advisory behavior, eligibility decisions, and native save results.
+
+ISSUE-N-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | K | APPROVE | 2026-11-28T11:53:00Z | K independently re-verified the four-layer identity trace (FrameworkDesktop.tsx:125–187, iguana-bridge.mjs:307–322, framework-desktop.mjs:224–246, FrameworkDesktop.cs:1000–1026) and confirms the exact r1 wording; the core send identity-gating defect is independently verified and the wording correctly excludes E-DC advisory behavior (N-001b separate). Unrun: native Windows UIA execution of the remedy (ER-K-002). See MSG-K-009.
 FIX-N-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | N | APPROVE | 2026-11-28T11:50:03Z | Directly closes all four layers of ISSUE-N-001@r1 while preserving technician review, manual patient/drug checks, clipboard actions, E-DC warnings, and non-automated save behavior. Non-blocking implementation check: ensure FrameworkDesktop.cs Send asserts ValidPon and single-PON equality (not just serialized array equality) both pre- and post-write, and FrameworkDesktop.tsx disables Send whenever pons.length !== 1 || pons[0] !== pon.
+
+FIX-N-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | K | APPROVE | 2026-11-28T11:53:00Z | K's independent assessment confirms FIX-N-001@r1 spans all four layers (connector exact-PON matching/forwarding; destination-scoped pre/post-write native verification with uncertain-outcome handling and withheld follow-on token; UI exact-match gating; synthetic fixtures; clean rollback) without touching E-DC warnings or non-automated save paths. Unrun: Windows UIA execution of the remedy (ER-K-002). See MSG-K-009.
 FIX-K-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | N | APPROVE | 2026-11-28T11:50:03Z | Cleanly resolves ISSUE-K-001@r1 by scoping missing-PON keys to (sessionId, frameId) in a collision-free unpaired namespace, preserving same-frame role grouping, replay idempotency, historical exports, and offline replay eligibility without guessing PONs or overclaiming validated sourceMatch.
+
+FIX-K-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | K | APPROVE | 2026-11-28T11:53:00Z | K's narrowed K-001 finding supports the remedy: distinct no-PON frame IDs get distinct keys, same-frame roles share one key, replaying the same frame yields the same sample identities, and a native PON cannot collide with a no-PON key; historical data and offline replay eligibility are preserved. Unrun: native Windows capture test (ER-K-002). See MSG-K-009.
 
 ### N-001b (candidate) — matched DocuTrack E-DC (`selectedEdc`) is advisory-only and does not gate copy, `Send`, or `FillDraft`
 
@@ -247,6 +253,8 @@ FIX-K-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | N | APPROVE | 2026-11-
 
 ISSUE-N-002a@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | N | APPROVE | 2026-11-28T11:41:56Z | Verified in slidingScaleBudget.ts:47–81, clinicalEngine.ts:480–487, and reviewPolicy.ts:32–39 that sliding_scale_budget_exceeded is displayed without a length gate in copyBlockReason; scoped narrowly with explicit requirement for technician-edit recheck and stale-warning recovery in any remedy.
 
+ISSUE-N-002a@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | K | APPROVE | 2026-11-28T11:53:00Z | K confirms sliding_scale_budget_exceeded (uncorrected over-limit; estimated expanded length > 199) is emitted without a copyBlockReason gate, and sig_length_review only checks raw length for non-scale paths. Agrees with C's requirement that any remedy specify technician-edit recheck and stale-warning clearing. Unrun: synthetic boundary test around the >199-char extended path. See MSG-K-009.
+
 ## ISSUE-N-002b@r1 — applied sliding-scale concessions have no dedicated acknowledgment beyond general review stamp
 
 **Baseline** `04ef96d1c65fde8d055b6d03787ff2ef3038382a` (v0.1.20).
@@ -254,6 +262,8 @@ ISSUE-N-002a@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | N | APPROVE | 2026-
 `fitSlidingScaleBudget` (`src/lib/clinical/slidingScaleBudget.ts:40–67`) applies ordered concessions (diagnosis omission via `omitDiagnosis`, `literal_ss`, `literal_cbs`) and emits `sliding_scale_concessions` (`tier: 'applied_correction'`, lines 76–77). While existing controls (`reviewStamp` in `src/lib/reviewPolicy.ts:28–30` and general warning display) apply, there is no dedicated concession-acknowledgment gate in `copyBlockReason` (lines 32–39). Kept strictly distinct from unresolved over-limit blocking (`ISSUE-N-002a@r1`) and general non-scale expanded-length checks (`N-002c`).
 
 ISSUE-N-002b@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | N | APPROVE | 2026-11-28T11:41:56Z | Verified in slidingScaleBudget.ts:40–77 and reviewPolicy.ts:28–39 that applied clinical-meaning concessions rely on the general reviewStamp/warning display with no dedicated concession acknowledgment.
+
+ISSUE-N-002b@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | K | APPROVE | 2026-11-28T11:53:00Z | K confirms applied sliding_scale_concessions are a disclosed transformation whose only acknowledgement is the general reviewStamp/warning display, with no dedicated concession-acknowledgment gate; kept distinct from N-002a over-limit blocking. Unrun: remediation that adds explicit concession acknowledgment. See MSG-K-009.
 
 ### N-002c (candidate) — non-sliding-scale 199-char warning checks raw length only, not estimated expanded length
 
@@ -272,6 +282,8 @@ Narrowed per `C`'s `MSG-C-011` to statically verifiable provenance defects only 
 - Any broader downstream count-inflation claim requires naming a specific consumer of passive observer records and demonstrating its count delta.
 
 ISSUE-N-003@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | N | APPROVE | 2026-11-28T11:41:56Z | Narrowed per C's MSG-C-011 to statically verified provenance defects in workflowObservation.ts:31,34 and sigDataset.ts:238 (hardcoded sourceMatch: 'unpaired' when frame.pon is present, plus session-level orderId conflation on missing-PON frames), dropping unverified offline replay count claims.
+
+ISSUE-N-003@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | K | APPROVE | 2026-11-28T11:53:00Z | K's K-004 assessment confirms the static provenance defects (sourceMatch hardcoded to unpaired even when frame.pon is present; missing-PON frames collapsing onto one session orderId). C/N/K APPROVE on the narrowed static defects; the broader cross-frame sampling-policy question stays separate and nonspeculative pending a synthetic replay and a named downstream metric. Unrun: synthetic replay + metric test. See MSG-K-009.
 
 ### N-004 (candidate) — divergent `demo:package` script and statically bundled `@supabase/supabase-js` in portable build
 
