@@ -38,7 +38,8 @@ public static class FrameworkDesktopFixture {
         otherOrder.Controls.Add(new TextBox { AccessibleName = "PON", Text = "UNRELATED-PON", Top = 20, Left = 10, Width = 300 });
         otherOrder.Controls.Add(new TextBox { AccessibleName = "SIG", Text = "UNRELATED SIG PRIVATE VALUE", Top = 60, Left = 10, Width = 300 });
         form.Controls.Add(otherOrder);
-        bool recalculateDays = false;
+        bool recalculateDays = false, changePonOnSigWrite = false;
+        sig.TextChanged += delegate { if (changePonOnSigWrite) pon.Text = "SYNTHETIC-CHANGED"; };
         quantity.TextChanged += delegate { if (recalculateDays) days.Text = "3"; };
         Panel decorations = null;
         var timer = new Timer { Interval = 50 }; string seen = "";
@@ -49,6 +50,7 @@ public static class FrameworkDesktopFixture {
                 var command = new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(text);
                 if (command.ContainsKey("pon")) pon.Text = command["pon"];
                 if (command.ContainsKey("ponLabel")) pon.AccessibleName = command["ponLabel"];
+                if (command.ContainsKey("changePonOnSigWrite")) changePonOnSigWrite = command["changePonOnSigWrite"] == "true";
                 if (command.ContainsKey("sig")) sig.Text = command["sig"];
                 if (command.ContainsKey("patient")) patient.Text = command["patient"];
                 if (command.ContainsKey("focus")) { form.Activate(); if (command["focus"] == "quantity") quantity.Focus(); else sig.Focus(); }

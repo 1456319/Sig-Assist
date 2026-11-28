@@ -87,7 +87,7 @@ try {
   assert.equal(wrongStart.ok, false); assert.equal(wrongStart.windowSelectionRequired, true); assert.equal(wrongStart.diagnostics.windowsScanned, 0);
   // Even after another open E-Rx comes to the front, sends inspect only their
   // previously chosen destination window and do not change the entry selection.
-  const sent = await run({ action: 'send', expected: scrolled, field: 'sig', value: 'TECHNICIAN APPROVED' });
+  const sent = await run({ action: 'send', expected: scrolled, pon: scrolled.pon, field: 'sig', value: 'TECHNICIAN APPROVED' });
   assert.equal(sent.verified, true, summary(sent));
   assert.equal(await readFile(path.join(second.dir, 'state'), 'utf8'), secondBefore);
   await stop(opened.app);

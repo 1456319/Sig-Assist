@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 // @ts-expect-error Native Node module is deliberately dependency-free.
 import { createDesktopSession, executeDesktopHelper, runDesktopHelper } from '../scripts/framework-desktop.mjs';
 
-const detection = () => ({ ok: true, pon: 'SYNTHETIC-PON', fields: { sig: { id: 'edit-1', value: 'OLD', label: 'SIG' }, times: { id: 'edit-2', value: '0800', label: 'Administration times' } }, binding: { pid: 7, started: '123', window: 'window-1', pon: 'SYNTHETIC-PON' } });
+const detection = () => ({ ok: true, pon: 'SYNTHETIC-PON', pons: ['SYNTHETIC-PON'], fields: { sig: { id: 'edit-1', value: 'OLD', label: 'SIG' }, times: { id: 'edit-2', value: '0800', label: 'Administration times' } }, binding: { pid: 7, started: '123', window: 'window-1', pon: 'SYNTHETIC-PON' } });
 describe('desktop helper failure origins', () => {
   it('classifies process timeouts, nonzero exits and startup errors before observation redaction', async () => {
     await expect(executeDesktopHelper(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], '', 25)).rejects.toMatchObject({ failureReason: 'HELPER_TIMEOUT', helperDurationMs: expect.any(Number) });
@@ -152,7 +152,7 @@ describe('Framework desktop transfer binding', () => {
     expect(found.binding).toBeUndefined(); expect(found.fields.sig.id).toBeUndefined();
     const body = { token: found.token, pon: found.pon, field: 'sig', value: 'REVIEWED', approved: true, matched: true, expected: { pid: 9000 } };
     expect(await desktop('send', body)).toMatchObject({ ok: true, verified: true });
-    expect(run.mock.calls[1][0]).toMatchObject({ expected: detection(), value: 'REVIEWED', field: 'sig' });
+    expect(run.mock.calls[1][0]).toMatchObject({ expected: detection(), pon: found.pon, value: 'REVIEWED', field: 'sig' });
     expect(await desktop('send', body)).toMatchObject({ ok: false });
     expect(run).toHaveBeenCalledTimes(2);
   });
@@ -176,12 +176,26 @@ describe('Framework desktop transfer binding', () => {
     expect(await desktop('send', { ...body, token: missing.token })).toMatchObject({ ok: false });
     expect(run.mock.calls.every(([arg]) => arg.action === 'detect')).toBe(true);
   });
-  it('allows technician-approved sending with multiple or differing PONs', async () => {
-    const multi = { ...detection(), pon: null, pons: ['PON-A', 'PON-B'], warnings: ['Multiple PONs detected'] };
-    const run = vi.fn().mockResolvedValueOnce(multi).mockResolvedValueOnce({ ok: true, verified: true, detected: multi, warnings: multi.warnings });
-    const desktop = createDesktopSession({ run }); const found = await desktop('detect');
-    expect(found.pons).toEqual(['PON-A', 'PON-B']);
-    expect(await desktop('send', { token: found.token, pon: 'PON-B', approved: true, matched: true, field: 'sig', value: 'APPROVED' })).toMatchObject({ ok: true, verified: true, warnings: ['Multiple PONs detected'] });
+  it.each([
+    { pon: null, pons: [] },
+    { pon: null, pons: ['PON-A', 'PON-B'] },
+    { pon: 'PON-A', pons: ['PON-A'] },
+  ])('keeps Send unavailable without one exact detected PON: %j', async identity => {
+    const run = vi.fn().mockResolvedValueOnce({ ...detection(), ...identity });
+    const desktop = createDesktopSession({ run });
+    const found = await desktop('detect');
+    const result = await desktop('send', { token: found.token, pon: 'PON-B', approved: true, matched: true, field: 'sig', value: 'REVIEWED' });
+    expect(result).toMatchObject({ ok: false, uncertain: false, error: expect.stringMatching(/exact Framework PON/) });
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+  it('withholds follow-on binding when the post-write PON changes', async () => {
+    const run = vi.fn().mockResolvedValueOnce(detection())
+      .mockResolvedValueOnce({ ok: true, verified: true, detected: { ...detection(), pon: 'PON-CHANGED', pons: ['PON-CHANGED'] } });
+    const desktop = createDesktopSession({ run });
+    const found = await desktop('detect');
+    const result = await desktop('send', { token: found.token, pon: found.pon, approved: true, matched: true, field: 'sig', value: 'REVIEWED' });
+    expect(result).toMatchObject({ ok: false, uncertain: true });
+    expect(result).not.toHaveProperty('next');
   });
   it('binds reviewed Rx Entry values to an exact PON and forwards only the allowlisted fields', async () => {
     const entryWindow = { pid: 41, started: '111', id: 'root-a', handle: 401 };

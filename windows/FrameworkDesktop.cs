@@ -997,9 +997,32 @@ public static class FrameworkDesktop {
             return new { ok = false, uncertain = attempted || writeAttempted, completed = completed, error = error.Message };
         }
     }
+    static ControlInfo SendScope(ControlInfo control, Dictionary<string, ControlInfo> controls) {
+        if (control.hidden || control.inTriage) return null;
+        for (int depth = 0; depth < 32 && !String.IsNullOrEmpty(control.parentId); depth++) {
+            if (!controls.TryGetValue(control.parentId, out control) || control.hidden || control.inTriage) return null;
+            if (IsRxEntry(control) || OpenView(control)) return control;
+        }
+        return null;
+    }
+    static string SendScopeId(WindowInfo window, ControlInfo target, string pon) {
+        if (window == null || window.incomplete || target == null) return null;
+        var controls = window.controls.ToDictionary(control => control.id);
+        var scope = SendScope(target, controls);
+        if (scope == null) return null;
+        var children = window.controls.Where(control => SendScope(control, controls) == scope).ToArray();
+        var ids = new HashSet<string>(children.Select(control => control.id));
+        var pons = children.Select(Pon).Concat(window.grids.Where(grid => ids.Contains(grid.id))
+            .SelectMany(grid => grid.rows).Where(row => PonTitle(row.title) && ValidPon(row.value)).Select(row => row.value))
+            .Where(value => value != "").Distinct(StringComparer.Ordinal).ToArray();
+        return pons.Length == 1 && pons[0] == pon ? scope.id : null;
+    }
     static object Send(Dictionary<string, object> input, DesktopSnapshot snapshot, string testProcess) {
         var expected = Map(input["expected"]);
-        string field = Text(input["field"]), value = Text(input["value"]);
+        string field = Text(input["field"]), value = Text(input["value"]), pon = Text(input["pon"]);
+        var expectedPons = (System.Collections.IEnumerable)expected["pons"];
+        if (!ValidPon(pon) || Text(expected["pon"]) != pon || !expectedPons.Cast<object>().Select(Text).SequenceEqual(new[] { pon }))
+            throw new Exception("Direct transfer requires the exact PON in Framework. Detect the order again or enter the reviewed text manually.");
         if (field != "sig" && field != "times") throw new Exception("Unknown destination field.");
         if (String.IsNullOrWhiteSpace(value) || value.Length > (field == "sig" ? 4000 : 500) || value.Any(c => Char.IsControl(c) && c != '\n' && c != '\r')) throw new Exception("Invalid field text.");
         var fields = Map(expected["fields"]);
@@ -1013,7 +1036,9 @@ public static class FrameworkDesktop {
         if (fresh == null || fresh.offscreen || !fresh.enabled || !fresh.writable || fresh.type != "ControlType.Edit") throw new Exception("The chosen field cannot currently accept text. Make it visible and editable in Framework.");
         var warnings = new List<string>();
         var current = Map(Json.DeserializeObject(Serialize(Detect(snapshot))));
-        if (Serialize(current["pons"]) != Serialize(expected["pons"])) throw new Exception("The exposed PONs changed since detection. Read the intended Framework order again.");
+        string scopeId = SendScopeId(window, control, pon);
+        if (scopeId == null || Text(current["pon"]) != pon)
+            throw new Exception("The destination PON changed or could not be verified. Detect the order again or enter the reviewed text manually.");
         if (fresh.value != Text(info["value"])) throw new Exception("The destination text changed since it was identified. Review the current Framework text before sending.");
         foreach (object warning in (System.Collections.IEnumerable)current["warnings"]) warnings.Add(Text(warning));
         writeAttempted = true;
@@ -1021,8 +1046,14 @@ public static class FrameworkDesktop {
         var after = Read(control.element);
         if (after == null || after.id != fresh.id || after.value != value)
             return new { ok = false, uncertain = true, error = "A write was attempted but exact text read-back failed. Inspect Framework before sending again." };
-        return new { ok = true, verified = true, field = field, warnings = warnings,
-            detected = Detect(Scan(testProcess, false, false, Identity(window)), control.id, field) };
+        var refreshed = Scan(testProcess, false, false, Identity(window));
+        var afterWindow = refreshed.windows.SingleOrDefault();
+        var afterTarget = afterWindow == null ? null : afterWindow.controls.SingleOrDefault(item => item.id == fresh.id);
+        var detected = Map(Json.DeserializeObject(Serialize(Detect(refreshed, fresh.id, field))));
+        if (afterTarget == null || afterTarget.value != value || SendScopeId(afterWindow, afterTarget, pon) != scopeId
+            || !detected.ContainsKey("pon") || Text(detected["pon"]) != pon)
+            return new { ok = false, uncertain = true, error = "A write was attempted but the destination order could not be reverified. Inspect Framework before sending again." };
+        return new { ok = true, verified = true, field = field, warnings = warnings, detected = detected };
     }
     static bool Selected(AutomationElement element) {
         object pattern;

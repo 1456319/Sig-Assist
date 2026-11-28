@@ -102,6 +102,10 @@ export function normalizeWorkflowSnapshot(raw) {
     ...(Number.isSafeInteger(raw.aliasesCollapsed) && raw.aliasesCollapsed >= 0 ? { aliasesCollapsed: Math.min(640, raw.aliasesCollapsed) } : {}),
     sigMode: ['message', 'linked', 'default', 'structured', 'order'].includes(raw.sigMode) ? raw.sigMode : null, association: pon ? 'pon_observed' : 'unpaired', partial: false };
 }
+function exactSendPon(detected, pon) {
+  return typeof pon === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,99}$/.test(pon) && pon !== 'PON'
+    && detected?.pon === pon && Array.isArray(detected.pons) && detected.pons.length === 1 && detected.pons[0] === pon;
+}
 function validDraftValue(field, value) {
   if (typeof value !== 'string' || !value || value.length > 32) return false;
   const pattern = field === 'quantity' || field === 'daysSupply'
@@ -238,11 +242,17 @@ export function createDesktopSession({ run = runDesktopHelper, now = Date.now } 
         writeStarted = true;
         return await run({ action, expected: detected, entryWindow, pon: body.pon, values });
       }
+      if (!exactSendPon(bound.detected, body.pon)) throw new Error('Direct transfer requires the exact Framework PON. Detect the intended order again or enter the reviewed text manually.');
       if (!['sig', 'times'].includes(body.field) || !bound.detected.fields?.[body.field]) throw new Error('Choose the destination field in Framework first.');
       if (typeof body.value !== 'string' || !body.value.trim() || body.value.length > (body.field === 'sig' ? 4000 : 500)) throw new Error('Invalid field text.');
       writeStarted = true;
-      const result = await run({ action: 'send', expected: bound.detected, field: body.field, value: body.value });
-      if (result.ok && result.verified && result.detected?.ok) return { ok: true, verified: true, field: body.field, warnings: result.warnings ?? [], next: remember(result.detected) };
+      const result = await run({ action: 'send', expected: bound.detected, pon: body.pon, field: body.field, value: body.value });
+      if (result.ok && result.verified) {
+        if (!result.detected?.ok || !exactSendPon(result.detected, body.pon)) {
+          return { ok: false, uncertain: true, error: 'The destination order could not be confirmed after entry. Inspect Framework before retrying.' };
+        }
+        return { ok: true, verified: true, field: body.field, warnings: result.warnings ?? [], next: remember(result.detected) };
+      }
       return { ...result, ok: false };
     } catch (error) { return { ok: false, uncertain: writeStarted, error: error.message }; }
     finally { busy = false; if (passive) { const finish = finishObservation; observationDone = undefined; finishObservation = undefined; passiveAction = undefined; finish?.(); } }
