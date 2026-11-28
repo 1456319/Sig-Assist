@@ -20,6 +20,20 @@ it('records changed SIGs only and retains observations without readable PONs as 
   expect(samples).toHaveLength(1); expect(samples[0].sourceMatch).toBe('unpaired');
   expect(workflowFrameSamples(frame)[1].partId).not.toBe(workflowFrameSamples({ ...frame, id: 13 })[1].partId);
 });
+it('groups only the roles in a single no-PON frame and keeps exact frame replay stable', () => {
+  const unpaired = { ...frame, pon: null };
+  const roles = workflowFrameSamples(unpaired);
+  const next = workflowFrameSamples({ ...unpaired, id: frame.id + 1 });
+  expect(roles).toHaveLength(3);
+  expect(new Set(roles.map(sample => sample.orderKey)).size).toBe(1);
+  expect(next[0].orderKey).not.toBe(roles[0].orderKey);
+  expect(workflowFrameSamples(unpaired)).toEqual(roles);
+  expect(roles.every(sample => sample.sourceMatch === 'unpaired' && sample.acceptable === undefined)).toBe(true);
+  expect(workflowFrameSamples(frame)[0].orderKey).toBe('observer:synthetic-session:SYNTHETIC:12');
+  expect(workflowFrameSamples({ ...frame, pon: 'unpaired' })[0].orderKey).not.toBe(roles[0].orderKey);
+  expect(workflowFrameSamples({ ...unpaired, kind: 'observation_unavailable' })).toEqual([]);
+});
+
 it('counts the MSI-confirmed three-character ordinary-preview delimiter in the shared sliding-scale budget', () => {
   const exact = fitSlidingScaleBudget(['X'.repeat(195), 'Y']);
   expect(exact.rawLength).toBe(199); expect(exact.estimatedExpandedLength).toBe(199); expect(exact.overLimit).toBe(false);

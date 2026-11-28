@@ -25,10 +25,14 @@ export async function readWorkflowUpdates(after: number, sessionId?: string, sig
 export function workflowFrameSamples(frame: WorkflowFrame): SigDatasetInput[] {
   if (!['order_visible', 'order_changed', 'view_changed', 'fields_changed'].includes(frame.kind) || !frame.fields || !Number.isSafeInteger(frame.id) || frame.id < 1 || typeof frame.sessionId !== 'string' || !Number.isFinite(Date.parse(frame.observedAt))) return [];
   const fields = frame.fields;
+  // With no observed PON, only the fields inside this one frame can be grouped.
+  const orderKey = frame.pon
+    ? `observer:${frame.sessionId}:${frame.pon}`
+    : `observer-unpaired:${JSON.stringify([frame.sessionId, frame.id])}`;
   const sigs = ['order_sig', 'message_sig', 'draft_sig', 'linked_sig', 'default_sig', 'structured_sig'];
   const metadata = Object.fromEntries(Object.entries(fields).filter(([role, value]) => ['quantity', 'days_supply', 'start_date', 'delivery_date', 'delivery_id', 'batch', 'drug', 'package_type', 'admin_times'].includes(role) && typeof value === 'string' && value.length <= 4000));
   return sigs.filter(role => typeof fields[role] === 'string' && fields[role].trim() && fields[role].length <= 4000 && (frame.kind !== 'fields_changed' || !frame.changed || frame.changed.includes(role))).map(role => ({
-    orderKey: `observer:${frame.sessionId}:${frame.pon || 'unpaired'}`, partId: `${frame.id}:${role}`, revision: 1,
+    orderKey, partId: `${frame.id}:${role}`, revision: 1,
     drug: metadata.drug || '', rawSig: role === 'draft_sig' && fields.message_sig?.trim() ? fields.message_sig : fields[role],
     ...(role === 'draft_sig' ? { finalSig: fields[role] } : {}),
     stage: 'framework_observed', captureKind: 'framework_sig_observation', origin: 'framework', sourceMatch: 'unpaired',
