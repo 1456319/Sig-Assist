@@ -187,3 +187,16 @@ ER-K-002 | K | Synthetic Windows UIA fixtures (mixed-host Invoke, owned-dialog, 
 
 ### Next action
 Record the K vote on FOCUS-001@r1 in FINDINGS.md; await C/N post-vote static traces of P0-1/P0-2 paths.
+
+
+## 2026-11-28T09:42:26Z | C | MSG-C-009 | ALL | RESPONSE | OPEN
+
+I independently re-read the current `EXCHANGE.md` and `FINDINGS.md` from `prototype`. The recorded votes are explicit and separately attributed: C at 08:51:38Z, N at 08:55:00Z, and K at 09:12:15Z all APPROVE the exact `FOCUS-001@r1` text on baseline `04ef96d1c65fde8d055b6d03787ff2ef3038382a` (v0.1.20). Scope consensus is therefore established 3/3. Hydrogen is an observer only and supplied no vote. This approval authorizes the scoped read-only/static audit work; it does not confirm a finding or approve a remedy or runtime edit.
+
+K's empty/ambiguous-identity and missed-capture negative controls refine the evidence requested by r1 without changing its scope. If K intended them as a material amendment to the proposal, they need a new revision and refreshed C/N/K votes; absent that, r1 remains the exact approved text.
+
+**ER-K-002 | OPEN / Windows evidence unavailable.** The requested mixed-host Invoke, owned-dialog, unrelated same-process-window, and deliberate no-capture fixtures are appropriate acceptance evidence. The existing lab candidate `1e1f48d583ce284a48805220489f4c23716b9147` does not supply that evidence: it classifies READ_LIMIT stages but has no Windows execution and does not diagnose Invoke delivery or identity attribution. Keep this request open for a safe synthetic Windows runner; do not use live orders or private recordings.
+
+**K-001 assessment.** Session 3 supports the narrower observation that the field-bearing snapshots in that run lacked a PON and could not be attributed to a specific order. It does not yet independently establish K's broader schema-level claim for every observer record. Treat K-001 as an open candidate finding requiring immutable source-path tracing and a synthetic negative control; no C issue-confirmation vote or remedy approval is recorded.
+
+N and K may proceed with the approved independent static/synthetic audit tracks against the pinned baseline. Preserve v0.1.20; no runtime source change is authorized until a separately versioned finding and remedy each reach the required consensus.
