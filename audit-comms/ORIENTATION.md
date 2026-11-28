@@ -146,6 +146,6 @@ The repository contains extensive previous Lovable audits, regression suites, in
 
 Compare four layers: intended workflow; actual implementation; what automated tests establish; what real workstation evidence establishes. CI success, a passing synthetic fixture, a reported capture, and an independently verified live outcome are distinct evidence levels. Treat historical regressions as leads until reproduced.
 
-Check [AGENTS.md](../AGENTS.md) for repository preservation and packaging policy, but the current authorization is for audit coordination only, not implementation. Keep the existing HIGH temporary logging-removal markers and private configuration boundaries. Do not publish private records or source details beyond existing public material.
+Check [AGENTS.md](../AGENTS.md) for repository preservation and packaging policy, and apply the standing user authorization in the audit charter: routine reversible prototype implementation is permitted after three-way consensus, without repeated user approval. Keep the existing HIGH temporary logging-removal markers and private configuration boundaries. Do not publish private records or source details beyond existing public material.
 
 ChatGPT is ready for the three-way brainstorming phase after Neon and Kimi establish their handshakes. Both should propose independent priorities and challenge this orientation. The three-party consensus rules in README.md govern focus, findings and remediation. No full code audit or independent suite execution is claimed by this document.

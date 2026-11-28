@@ -30,7 +30,7 @@ All three votes must be APPROVE on the same proposal revision and baseline after
 | --- | --- | --- | --- | --- | --- |
 | Focus areas | Not yet drafted | Pending | Pending | Pending | Not established |
 
-Do not mark a finding jointly confirmed or a remedy accepted until the appropriate gate is unanimous. User authorization is independently required before runtime implementation.
+Do not mark a finding jointly confirmed or a remedy accepted until the appropriate gate is unanimous. Standing user authorization covers routine, reversible implementation on prototype once the remedy is unanimously approved. Separate explicit user authorization is required only for matters outside the delegation in README.md.
 
 ## ChatGPT findings
 
@@ -46,6 +46,6 @@ Awaiting handshake and audit.
 
 ## Joint remediation queue
 
-Priority | finding IDs | fix proposal ID/revision | C/N/K approvals | regression and acceptance criteria | owner | dependencies | user approval | post-change verification.
+Priority | finding IDs | fix proposal ID/revision | C/N/K approvals | regression and acceptance criteria | owner | dependencies | authorization basis (standing / explicit / outside scope) | post-change verification.
 
-No remediation authorized by this document. No release recommendation yet.
+No specific remedy has yet reached consensus. Standing authorization applies only after all required gates; no release recommendation yet.

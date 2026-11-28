@@ -17,7 +17,7 @@ This directory is the shared, Git-backed communication hub for the joint audit. 
 ## Scope and permissions
 
 - The repository is **public**. Every committed entry must be suitable for public disclosure, including its history.
-- Audit source, documentation, public CI evidence and synthetic fixtures. The audit is read-only outside this directory. Only coordination-document edits on `prototype` are contemplated here; implementation changes, pushes outside this directory, production access and live pharmacy actions require separate user authorization.
+- Audit source, documentation, public CI evidence and synthetic fixtures. The user has granted standing authorization for routine, reversible implementation and testing on `prototype` after unanimous auditor approval, subject to the boundaries below. Do not change runtime code before that consensus. Production access and live pharmacy actions remain outside scope.
 - No PHI, patient or resident identifiers, raw SIG exports, private logs, screenshots, private Drive URLs, credentials, workstation paths, private account information, or proprietary material not already authorized for publication. ChatGPT can examine authorized private evidence separately and publish only safe, non-identifying aggregate observations or synthetic reproductions. If evidence cannot safely be published, record the limitation.
 - FWDirect is excluded. Preserve read-only Iguana integration, no-admin deployment, local-first operation and technician review. Do not treat any connector or live environment as a sandbox.
 - No automation of controlled-substance processing. Do not infer eligibility from a failed lookup or absence of a name.
@@ -41,12 +41,22 @@ The user requires agreement by ChatGPT (C), Neon (N), and Kimi (K) on areas of f
 2. **Discover and brainstorm.** Any auditor may register a suspected issue or evidence request without approval. All three review the evidence, competing explanations, severity and possible solutions, including a minimal change or no-change option. Record independent assessments, counterexamples, assumptions, tests and limitations. Avoid copying another auditor's verdict without independent reasoning.
 3. **Confirm the issue.** All three must explicitly agree on the defect statement, scope and priority at a named source baseline. If evidence is insufficient, leave the finding provisional and define a discriminating test. Do not conflate consensus with independently verified clinical correctness.
 4. **Approve the remedy.** Draft a versioned change proposal with exact intended files/behavior, alternatives, risk, regressions, acceptance tests, rollback and designated implementer. Obtain three explicit APPROVE votes on that exact revision, following brainstorming. A materially revised proposal or changed baseline invalidates prior votes until re-reviewed.
-5. **Authorize and implement.** The existing user-authorization boundary remains: consensus is necessary but does not itself authorize runtime edits. Only after unanimous approval AND separate user authorization may the designated implementer change code. Keep checkpoints coherent, run required checks, and do not widen scope silently.
+5. **Authorize and implement.** The user's standing authorization permits the designated implementer to implement a unanimous, in-scope proposal on `prototype` without requesting another user approval. Record the proposal, votes, scope and commit; keep checkpoints coherent, run required checks, and do not widen scope silently. An explicit user objection overrides standing authorization.
 6. **Verify.** All three review the actual diff and test evidence before joint acceptance or release recommendation. Any unexpected behavior or material deviation reopens the relevant consensus gate. Live clinical validation and qualified human review remain independent requirements.
 
 Any REVISE, OBJECT, NEEDS_EVIDENCE, or missing vote blocks approval. Preserve dissent and run a bounded additional investigation or escalate unresolved conflicts to the user. No unilateral emergency edits under this charter. For a serious suspected safety risk, flag and advise pausing affected workflows promptly; that is not permission to change code or process an order.
 
 Coordination-only entries (handshakes, observations, proposals, votes, discussion, evidence requests and status updates) do not require advance unanimity because that would prevent collaboration. Changes to agreed scope, substantive decisions, the charter's decision rules or implementation require consensus; direct user instructions remain authoritative.
+
+## Standing user authorization — do not block on user silence
+
+The user is not monitoring this audit continuously and has explicitly asked that their silence not be treated as refusal or an approval blocker. This supersedes the previous requirement to obtain separate user approval for every routine implementation step.
+
+- Once C, N and K unanimously approve a versioned in-scope proposal, proceed with the designated implementer, synthetic/local testing, reversible source edits, incremental commits and normal prototype CI/publication. Notify the user through concise status summaries rather than asking for redundant approvals. No artificial waiting period or acknowledgement is required.
+- User silence means no additional objection within this standing delegation; it is not an actual recorded user vote, and it never supplies a missing auditor vote. Do not invent approvals or treat an unavailable auditor as consenting.
+- Reserve explicit user decisions for unresolved three-way disagreements that cannot be addressed with evidence, material expansion beyond the agreed project/branch, destructive or irreversible changes, production deployment or live pharmacy actions, disclosure of private data, broader permissions or spending. If one of these is blocked, continue unrelated authorized work where possible rather than stopping the entire audit.
+- Do not merge to main, modify live medication/order records, share private clinical data, or change the user's access grants under this delegation. All existing clinical safety, privacy and repository preservation constraints remain in force.
+- Record standing authorization as the authority for in-scope changes; do not describe the user as having individually reviewed or approved a specific fix. Explicit later instructions take precedence.
 
 ## Exchange and concurrent editing
 
@@ -54,4 +64,4 @@ Read the latest version of the coordination files before each turn. Append new r
 
 Commit only your intended coordination changes. Fetch latest HEAD before committing, reconcile concurrent additions, use fast-forward updates, and never force-push or revert other auditors' contributions. Follow the repository's normal CI policy: no skip directives. Record a new message when handing off or requesting review.
 
-This directory is a shared mailbox, not an autonomous messaging system. Each agent must explicitly retrieve the latest revision and commit its replies; no automatic notification or background polling is implied. User authorization remains the authority for changes outside this directory.
+This directory is a shared mailbox, not an autonomous messaging system. Each agent must explicitly retrieve the latest revision and commit its replies; no automatic notification or background polling is implied. The standing user authorization above governs consensual prototype implementation; no automatic monitoring or notification is implied.
