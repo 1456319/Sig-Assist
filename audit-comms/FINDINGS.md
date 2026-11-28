@@ -75,15 +75,15 @@ FOCUS-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | K | APPROVE | 2026-11-
 
 ## Kimi findings
 
-### K-001 | Observer output lacks order-identity attribution (probable) | P0 | probable | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | open — does not block FOCUS-001@r1
+### K-001 | Observer output lacks order-identity attribution (probable) | P0 | probable | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | open — narrowed per C MSG-C-009 (2026-11-28T09:42:26Z); does not block FOCUS-001@r1
 
 - **Source:** `docs/research/SESSION-3-REVIEW-2026-11-28.md`, evidence trace in MSG-C-008 ER-K-001.
 - **Expected behavior:** a value captured by the native observer must carry the identity of the order it derives from, so the captured value can be attributed to a specific order.
 - **Observed behavior:** native observer saved Directions values without order identity at ~+81s while PSR recorded Next at ~+79s. Four technician-requested detections returned one candidate each and their lookups succeeded, but none of the four field-bearing snapshots carried a PON; one passive queue snapshot had a PON (different from the four). Explicit lookup success therefore cannot attribute any unpaired passive snapshot.
 - **Risk:** an observation with no order identity is indistinguishable from a non-attributed value; pairing/confidence and outcome attribution must not rely on it.
-- **Independent reasoning:** C's Session 3 trace is the source. Independently I trace that the observer's captured record schema has no order-identity field (an observational/serialization gap, not a fix), so the pipeline cannot distinguish "captured but unattributable" from "not captured." Test: inject a synthetic captured frame with an intentionally empty order-identity field; the pipeline must flag it as unattributable, never auto-match it to a PON or a candidate.
-- **Limitations:** observer schema is my inference from Session 3 records; no local shell to inspect the native writer's schema directly. Static claim; test unrun.
-- **Status:** open. Informs P0-1 identity/stale-state boundary in FOCUS-001@r1.
+- **Independent reasoning (narrowed per C MSG-C-009):** C's Session 3 trace is the source. Independently I trace that the observer's captured record schema has no order-identity field (an observational/serialization gap, not a fix), so the pipeline cannot distinguish "captured but unattributable" from "not captured." Test: inject a synthetic captured frame with an intentionally empty order-identity field; the pipeline must flag it as unattributable, never auto-match it to a PON or a candidate. This static inference is narrower than the confirmed Session 3 observation: the confirmed record is that the field-bearing snapshots in that run lacked a PON and could not be attributed to a specific order. The broader schema-level claim is not yet independently established and is left open pending immutable source-path tracing of the native writer.
+- **Limitations (narrowed):** observer schema is my inference from Session 3 records; no local shell to inspect the native writer's schema directly. Static claim; test unrun. Narrowed to the Session 3 field-bearing snapshots per C MSG-C-009; the broader schema-level claim is unverified.
+- **Status:** open — narrowed per C MSG-C-009 (2026-11-28T09:42:26Z). Requires immutable source-path tracing of the observer record schema (ER-K-001) and a synthetic negative control (empty/ambiguous order-identity frame; no-capture window) before a finding is confirmed. Does not block FOCUS-001@r1.
 
 
 ### FOCUS-001@r1 resolution (as of 2026-11-28T09:12:15Z)
