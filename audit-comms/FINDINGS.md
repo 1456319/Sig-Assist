@@ -39,7 +39,43 @@ Awaiting audit.
 
 ## Neon findings
 
-Awaiting audit.
+### N-001 | Active desktop Send allows writes with 0 or multiple PONs and omits post-write PON verification (and lacks E-DC/cancel check) | P0 | candidate | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | open
+
+- **Priority / Workstream:** P0 (`P0-1`)
+- **Status:** candidate (raised by `N`, awaiting `C`/`K` review and confirmation vote)
+- **Baseline:** `04ef96d1c65fde8d055b6d03787ff2ef3038382a`
+- **Source & Observed Evidence:**
+  - `windows/FrameworkDesktop.cs` (`Send`, lines 1000–1026) writes `sig`/`times` via `ValuePattern.SetValue(value)` (line 1020). Unlike `FillDraft` (lines 948–999), which requires `ValidPon(pon)`, exact `pon` match, non-empty `patientId`, and a full post-write `BindDraft(Scan(...))` verifying `scopeId`/`pon`/`patientId`/`facilityId`, `Send` only checks `Serialize(current["pons"]) != Serialize(expected["pons"])` (lines 1015–1016). Because `Detect` does not fail when `pons` is empty (`[]`) or contains multiple PONs (setting `pon = null` and warning), `Send` can proceed with 0 or multiple PONs (`[] == []` passes) and never validates `ValidPon(...)` or `patientId`.
+  - Post-write, `Send` checks `Read(control.element)` for `after.id == fresh.id && after.value == value` (lines 1021–1023) and calls `Detect(Scan(...))` (line 1024), but never re-verifies that `detected["pons"]` still matches `expected["pons"]`.
+  - `src/lib/frameworkDesktop.ts` (`frameworkDesktop`, lines 31–46) is a thin HTTP POST wrapper with no client-side fail-closed gating.
+  - No dedicated E-DC/discontinue/cancel gating exists in `windows/FrameworkDesktop.cs` or `src/lib/frameworkDesktop.ts`; cancellation guards exist only in `src/lib/orderQueue.ts` (`saveOrder` line 57; `cancelOrder` lines 80–83) and `src/lib/frameworkSigDataset.ts` (`findDatasetSource` line 37).
+- **Impact:** Active SIG/times write can land on an unverified, ambiguous, or mid-write-switched Framework order, violating fail-closed order-identity boundaries.
+- **Independent assessments:** `N`: static trace complete (pending check of UI callers of `frameworkDesktop('send', ...)`); `C`: Pending; `K`: Pending.
+
+### N-002 | 199-character SIG concessions and over-limit flags do not gate copy/send, and non-sliding-scale paths check raw length only | P0 | candidate | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | open
+
+- **Priority / Workstream:** P0 (`P0-2`)
+- **Status:** candidate (raised by `N`, awaiting `C`/`K` review and confirmation vote)
+- **Baseline:** `04ef96d1c65fde8d055b6d03787ff2ef3038382a`
+- **Source & Observed Evidence:**
+  - `src/lib/clinical/slidingScaleBudget.ts` (`fitSlidingScaleBudget`, lines 47–67; `scaleBudgetFindings`, lines 69–81) enforces `SCALE_SIG_LIMIT = 199` on `Math.max(rawLength, estimatedExpandedLength)` via progressive concessions (diagnosis omission via `omitDiagnosis`, `literal_ss`, `literal_cbs`), emitting `sliding_scale_concessions` (`tier: 'applied_correction'`) and `sliding_scale_budget_exceeded` (`tier: 'uncorrected_gap'`). Called from `src/lib/clinical/frequencyEngine.ts` (lines 72–73, 101–102) and `src/lib/clinical/clinicalEngine.ts` (lines 480–487).
+  - For non-sliding-scale SIGs, `src/lib/sigEngine.ts` (lines 104–173) and `src/lib/clinical/outputCodePolicy.ts` (lines 43–152) enforce no 199-char limit/truncation/split; `src/lib/clinical/clinicalEngine.ts` (lines 467–468) emits `sig_length_review` (`tier: 'uncorrected_gap'`) when `!scale && policy.sig.length > 199` (raw length only, not estimated expanded length).
+  - `src/lib/reviewPolicy.ts` (`copyBlockReason`, lines 32–39) only blocks copy/send on `unavailable`, empty `finalSig`, `rejectedOutputMatches`, `excludedMatches`, or stale `reviewStamp`. It does not check `sliding_scale_concessions`, `sliding_scale_budget_exceeded`, or `sig_length_review`.
+- **Impact:** Over-199-char SIGs (including non-sliding-scale SIGs whose Framework expansion exceeds 199 chars) and concession-altered sliding-scale SIGs (with omitted diagnosis or suppressed SS/CBS expansions) can be approved and copied/sent without a hard gate or explicit concession acknowledgment.
+- **Independent assessments:** `N`: static trace complete; `C`: Pending; `K`: Pending.
+
+### N-003 | Observer dataset ingestion hardcodes `sourceMatch: 'unpaired'` and embeds per-frame IDs that defeat cross-frame deduplication | P1 | candidate | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | open
+
+- **Priority / Workstream:** P1 (`P1-2`)
+- **Status:** candidate (raised by `N`, awaiting `C`/`K` review and confirmation vote)
+- **Baseline:** `04ef96d1c65fde8d055b6d03787ff2ef3038382a`
+- **Source & Observed Evidence:**
+  - `src/lib/sigDataset.ts` properly HMAC-hashes `orderKey` → `orderId` and `partId` → `sampleId` with a per-DB salt (lines 237–241), hashes exclusions → `exclusionPolicyId` (line 240), strips raw `orderKey`/`partId`/`exclusions` in `clinicalFields` (lines 79–106), and enforces their absence in `validRecord` (lines 118–137).
+  - However, `src/lib/workflowObservation.ts` (`workflowFrameSamples`, lines 25–37) hardcodes `sourceMatch: 'unpaired'` (line 34) even when `frame.pon` is present, making PON-observed frames indistinguishable from truly unpaired frames via `sourceMatch` once `orderKey` is hashed.
+  - `src/components/AutomaticObservationSamples.tsx` (lines 7–35) polls every 1500 ms and passes `workflowFrameSamples(frame)` into `queueSigSample` (`src/lib/sigDatasetCapture.ts`, lines 43–52) and `sigDatasetStore.record` (`src/lib/sigDataset.ts`, lines 230–263). Because `partId` (`${frame.id}:${role}`) and `observation` (`frame: frame.id`, `observedAt`) change on every frame, `dedupKey` (`sigDataset.ts:244`) only prevents exact `(frame.id, role)` replays—identical SIG text re-observed across different frames produces duplicate dataset rows.
+  - Combined with `K-001`, unpaired frames in a session all collapse onto one hashed `orderId` (`observer:${frame.sessionId}:unpaired`), conflating distinct orders under a single `orderId`.
+- **Impact:** Biases dataset counts/evaluation metrics via cross-frame duplicates and conflated unpaired `orderId` buckets while obscuring whether an observer frame actually carried a PON.
+- **Independent assessments:** `N`: static trace complete; `C`: Pending; `K`: Pending.
 
 ## Kimi findings
 
