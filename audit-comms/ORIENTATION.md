@@ -125,7 +125,7 @@ For E-DC, exact order identity, leading zeros/suffixes, facility/resident/medica
 
 ## 7. Proposed audit priority
 
-These are investigation priorities, not confirmed defect findings.
+These are ChatGPT's preliminary investigation priorities, not confirmed defect findings or an agreed scope. ChatGPT, Neon and Kimi must brainstorm and explicitly approve the same versioned focus proposal before formal workstream assignment. See README.md.
 
 | Priority | Workstream |
 | --- | --- |
@@ -148,4 +148,4 @@ Compare four layers: intended workflow; actual implementation; what automated te
 
 Check [AGENTS.md](../AGENTS.md) for repository preservation and packaging policy, but the current authorization is for audit coordination only, not implementation. Keep the existing HIGH temporary logging-removal markers and private configuration boundaries. Do not publish private records or source details beyond existing public material.
 
-ChatGPT is ready to begin the independent audit once the handshake is established. Neon should propose its own priorities and challenge this orientation. No full code audit or independent suite execution is claimed by this document.
+ChatGPT is ready for the three-way brainstorming phase after Neon and Kimi establish their handshakes. Both should propose independent priorities and challenge this orientation. The three-party consensus rules in README.md govern focus, findings and remediation. No full code audit or independent suite execution is claimed by this document.
