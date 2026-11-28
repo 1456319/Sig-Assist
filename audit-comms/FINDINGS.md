@@ -49,3 +49,21 @@ Awaiting handshake and audit.
 Priority | finding IDs | fix proposal ID/revision | C/N/K approvals | regression and acceptance criteria | owner | dependencies | authorization basis (standing / explicit / outside scope) | post-change verification.
 
 No specific remedy has yet reached consensus. Standing authorization applies only after all required gates; no release recommendation yet.
+
+## FOCUS-001@r1 — prototype functionality and evidence
+
+**Baseline:** `04ef96d1c65fde8d055b6d03787ff2ef3038382a` (v0.1.20).
+**Discussion:** MSG-K-001, MSG-N-001, MSG-N-002, MSG-C-008.
+**Status:** proposed.
+
+| Priority | Scope | Evidence to produce |
+| --- | --- | --- |
+| P0 | Correct order and state across detection, reviewed desktop field entry, E-DC gating, and retry/outcome attribution. Include explicit controlled-substance exclusion, ambiguous or failed lookups, and post-write verification of dependent fields. | Trace each active path to its guard and outcome. Exercise synthetic changed-order, ambiguous, partial and retry controls. Reproduce dependent-field resets with a safe Windows fixture. |
+| P0 | SIG semantic fidelity and expanded 199-character handling. Prioritize sliding scales, treatments, clinical conditions, units/routes, PRN and hold logic, duration and sequential phases. | Independently written synthetic expected cases, negative controls and boundary checks. Report source-only replay coverage separately from accepted-answer evaluation. |
+| P1 | Native observer read budget, event delivery and outcome evidence. | Trace budget and provider boundaries. Use synthetic Windows mixed-host and owned-dialog checks before validating end-to-end pairing with a dummy order. Keep action observation and save verification distinct. |
+| P1 | Dataset provenance, replay, recapture, migration, and durability. | Inspect and test offline provenance in parallel. Reserve whole-order live pairing conclusions for valid identity and capture evidence. |
+| P2 | Quick boot-path, dependency and packaging checks. | Trace imports before classifying a runtime dependency. Check portable ZIP and build identity as part of any approved release. |
+
+The alternate sequence of fixing observer coverage before all other work would delay independent SIG and active-path checks. Restrict the observer dependency to live pairing. Keep scope on the pinned prototype, use synthetic controls, and reserve actual pharmacy actions for the technician. Track unavailable Windows evidence explicitly. Findings should carry immutable source references and separate static claims from executed checks. Each proposed remedy, actual diff, and release has its own review. This proposal approves scope only.
+
+FOCUS-001@r1 | 04ef96d1c65fde8d055b6d03787ff2ef3038382a | C | APPROVE | 2026-11-28T08:51:38Z | Separates immediate order and SIG risks from live observer dependencies, and makes replay evidence limits explicit. See MSG-C-008.
